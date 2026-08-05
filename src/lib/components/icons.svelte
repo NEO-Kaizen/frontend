@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { IconName, IconSize } from "$lib/types/icons";
+	import { iconDictionary, type IconName, type IconSize } from "$lib/types/icons";
 
     // No futuro carregar apenas os icones que usamos
     
@@ -9,13 +9,6 @@
     }
     
     const {iconName, iconSize = 'md'}: Props = $props()
-    const iconDictionary = {
-        'Fila Centralizada': 'featured_play_list',
-        'Historico': 'history',
-        'Home': 'home',
-        "Gerenciar Usuarios": 'user_attributes'
-
-    } satisfies Record<IconName,string>
     
 </script>
 
