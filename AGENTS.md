@@ -1,20 +1,37 @@
 # Projeto NEO — Frontend
 
-## Project Configuration
+## Configuração do Projeto
 
 - **Language**: TypeScript
 - **Package Manager**: npm
 - **Add-ons**: prettier, eslint, mcp
----
 
-## Contexto do projeto
 
-Este repositório contém o frontend de uma aplicação web interna para
-recebimento, organização, triagem, priorização e acompanhamento de
-solicitações.
+## Projeto
+Aplicação web interna para recebimento, organização, triagem, priorização e acompanhamento de solicitações.
 
-## Segurança e confidencialidade
+## Objetivos
+Priorize sempre:
+- simplicidade;
+- legibilidade;
+- manutenção;
+- acessibilidade;
+- tipagem segura;
+- consistência com o código existente.
+Evite soluções excessivamente complexas.
 
+## Arquitetura
+Sempre prefira:
+- componentes pequenos;
+- responsabilidade única;
+- composição em vez de duplicação;
+- estado local sempre que possível;
+- baixo acoplamento.
+
+## Segurança
+- Nunca exponha credenciais, tokens ou dados sensíveis.
+- Utilize dados fictícios em exemplos, testes e documentação.
+- Não execute `git push` sem autorização explícita.
 - Trate documentos de requisitos e informações do cliente como restritos.
 - Não publique a especificação original ou dados reais em repositórios públicos.
 - Não envie documentos, dados do cliente ou código confidencial para ferramentas externas.
@@ -22,49 +39,22 @@ solicitações.
 - Use dados fictícios em mocks, exemplos, testes, screenshots e documentação.
 - Não execute git push sem autorização explícita.
 - Não compartilhe sessões do OpenCode relacionadas ao projeto.
+- Nunca desabilite regras de segurança apenas para satisfazer uma implementação.
 
-## TypeScript
+## Convenções
+- Preserve o estilo e os padrões já utilizados no projeto.
+- Evite mudanças desnecessárias na arquitetura.
+- Sempre considere acessibilidade e tratamento de estados de erro.
+- Valide dados externos antes de utilizá-los.
 
-- Evite any.
-- Não use type assertions para esconder problemas de tipagem.
-- Modele estados inválidos de forma explícita.
-- Valide dados recebidos de APIs, formulários e armazenamento.
+## Fonte de verdade
+Em caso de conflito, utilize esta ordem de prioridade:
+1. Código existente
+2. AGENTS.md
+3. package.json e configurações do projeto
+4. Skills especializadas
+5. Documentação oficial
 
-## Svelte
-
-- Utilize a versão e os padrões definidos pelo package.json.
-- Consulte Context7 antes de introduzir APIs ou padrões cuja versão seja incerta.
-- Mantenha componentes pequenos e com responsabilidade clara.
-- Evite stores globais para estados que podem permanecer locais.
-- Trate loading, erro, sucesso, vazio e ausência de permissão.
-- Preserve acessibilidade semântica e navegação por teclado.
-
-
-
-Você pode usar o servidor Svelte MCP, onde terá acesso à documentação completa do Svelte 5 e do SvelteKit. Veja como usar as ferramentas disponíveis de forma eficaz:
-
-## Ferramentas disponíveis no Svelte MCP:
-
-### 1. list-sections
-
-Use esta ferramenta PRIMEIRO para descobrir todas as seções de documentação disponíveis. Retorna uma lista estruturada com títulos, casos de uso e caminhos.
-
-Ao ser questionado sobre tópicos do Svelte ou do SvelteKit, SEMPRE use esta ferramenta no início do chat para encontrar as seções relevantes.
-
-### 2. get-documentation
-
-Recupera o conteúdo completo da documentação para seções específicas. Aceita uma ou várias seções.
-
-Após chamar a ferramenta list-sections, você DEVE analisar as seções de documentação retornadas (especialmente o campo use_cases) e, em seguida, usar a ferramenta get-documentation para obter TODAS as seções de documentação relevantes para a tarefa do usuário.
-
-### 3. svelte-autofixer
-
-Analisa o código Svelte e retorna problemas e sugestões.
-
-Você DEVE usar esta ferramenta sempre que escrever código Svelte antes de enviá-lo ao usuário. Continue chamando-a até que nenhum problema ou sugestão seja retornado.
-
-### 4. playground-link
-
-Gera um link para o Playground do Svelte com o código fornecido.
-
-Após concluir o código, pergunte ao usuário se ele deseja um link para o Playground. Chame esta ferramenta somente após a confirmação do usuário e NUNCA se o código tiver sido escrito em arquivos do projeto dele.
+## Skills
+Utilize a Skill mais adequada para cada tarefa.
+Evite duplicar conhecimento especializado neste arquivo.
