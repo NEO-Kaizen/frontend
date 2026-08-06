@@ -91,15 +91,7 @@ Prefira nomes claros e comportamentos previsíveis.
 | ------------------------------- | ------------------------------------------- |
 | `01-Visao-Geral.md`             | Objetivo, tecnologias, perfis e princípios  |
 | `02-Arquitetura-Frontend.md`    | Camadas e fluxo da aplicação                |
-| `03-Estrutura-de-Pastas.md`     | Organização dos diretórios                  |
-| `04-Padroes-de-Codigo.md`       | Regras de TypeScript, Svelte e nomenclatura |
-| `05-Padroes-de-Componentes.md`  | Como criar componentes                      |
-| `06-Gerenciamento-de-Estado.md` | Estado local, compartilhado e stores        |
-| `07-API-e-Repositories.md`      | API, repositories, services e validação     |
-| `08-Autenticacao.md`            | Sessão, login, logout e autorização         |
-| `09-Design-System.md`           | Tokens, componentes e padrões visuais       |
-| `10-Git-e-Contribuicao.md`      | Branches, commits, PRs e revisão            |
-| `adr/`                          | Registros de decisões arquiteturais         |
+| `03-Padrões-de-Desenvolvimento.md`       | Regras de TypeScript, Svelte e nomenclatura |
 
 ---
 
