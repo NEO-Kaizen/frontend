@@ -3,6 +3,9 @@
 
 	let { children } = $props();
 </script>
+<style>
+	@import '../lib/styles/global.css';
+</style>
 
 <svelte:head>
 	<link rel="icon" href={favicon} />

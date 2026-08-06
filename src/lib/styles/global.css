@@ -54,6 +54,9 @@
     /* Largura máxima */
     --largura-maxima-header: 1360px;
     --largura-maxima-conteudo: 1280px;
+
+    /* Transições */
+    --transition-default: all 0.3s ease-in-out;
 }
 
 * {

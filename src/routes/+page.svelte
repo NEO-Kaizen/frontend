@@ -1,6 +1,3 @@
-<style>
-	@import '../lib/styles/global.css';
-</style>
 
 <div class="content-container">
     <h1>Welcome to SvelteKit</h1>
