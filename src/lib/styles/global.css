@@ -1,0 +1,116 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap');
+
+:root {
+    /* Fontes */
+    --font-inter: 'Inter', sans-serif;
+    --font-montserrat: 'Montserrat', sans-serif;
+
+    /* Tipografia */
+    --h1: 700 32px/1.5 var(--font-montserrat);
+    --h2: 700 28px/1.5 var(--font-montserrat);
+    --h3: 600 20px/1.5 var(--font-montserrat);
+    --h4: 600 16px/1.5 var(--font-montserrat);
+
+    --paragrafo: 400 16px/1.5 var(--font-inter);
+    --label: 600 14px/1.5 var(--font-inter);
+    --button: 600 16px/1.5 var(--font-inter);
+
+    /* Cores */
+    --primary-color: #00236f;
+    --secondary-color: #0058be;
+    --background-color: #f0f4f8;
+    --white: #fafafa;
+    --black: #3c3e47;
+    --gray: #757682;
+    --white-gray: #E5E7EB;
+    --rich-black: #0f1a2a;
+
+    --status-red: #ef4444;
+    --status-red-bg: #ef444410;
+    --status-green: #10b981;
+    --status-green-bg: #10b98110;
+    --status-blue: #0058be;
+    --status-blue-bg: #0058be10;
+    --status-yellow: #956006;
+    --status-yellow-bg: #f59e0b10;
+
+    --gradient: linear-gradient(143deg, #002068 0%, #039 100%);
+
+    --regular-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+
+    /* Bordas */
+    --radius-sm: 8px;
+    --radius-md: 16px;
+    --radius-xl: 24px;
+
+    --border-default: 1px solid var(--white-gray);
+
+    /* Espaçamento */
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 40px;
+
+    /* Largura máxima */
+    --largura-maxima-header: 1360px;
+    --largura-maxima-conteudo: 1280px;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-xl);
+    background-color: var(--background-color);
+    color: var(--black);
+    font: var(--paragrafo);
+}
+
+.content-container{
+    width: 100%;
+    max-width: var(--largura-maxima-conteudo);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    color: var(--primary-color);
+}
+
+h1 {
+    font: var(--h1);
+}
+
+h2 {
+    font: var(--h2);
+}
+
+h3 {
+    font: var(--h3);
+}
+
+h4 {
+    font: var(--h4);
+}
+
+p {
+    font: var(--paragrafo);
+}
+
+label {
+    font: var(--label);
+}
+
+button {
+    font: var(--button);
+    letter-spacing: 0.2px;
+}
