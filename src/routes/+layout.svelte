@@ -16,15 +16,3 @@
 	<Header />
 	<main class="app-content">{@render children()}</main>
 </div>
-
-<style>
-	.app-shell {
-		display: flex;
-		flex-direction: column;
-	}
-	/* reserve space for the fixed sidebar on tablet/mobile */
-	.app-content {
-		flex: 1;
-		min-width: 0;
-	}
-</style>
