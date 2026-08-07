@@ -75,25 +75,7 @@ O frontend deve:
 - respeitar permissões por perfil;
 - fornecer mensagens claras de carregamento, sucesso e erro;
 
----
-
-## 5. Princípios do projeto
-
-### 5.1 Simplicidade
-
-Não adicionar uma abstração sem necessidade real.
-
-### 5.2 Separação de responsabilidades
-
-Cada arquivo deve possuir uma responsabilidade principal.
-
-### 5.3 Código explícito
-
-Prefira nomes claros e comportamentos previsíveis.
-
----
-
-## 6. Organização da documentação
+## 5. Organização da documentação
 
 | Documento                       | Conteúdo                                    |
 | ------------------------------- | ------------------------------------------- |
@@ -103,7 +85,7 @@ Prefira nomes claros e comportamentos previsíveis.
 
 ---
 
-## 7. Escopo inicial do MVP
+## 6. Escopo inicial do MVP
 
 O MVP deve priorizar os fluxos mínimos necessários para demonstrar a aplicação.
 
@@ -118,7 +100,7 @@ Possíveis itens iniciais:
 
 ---
 
-## 8. Definição de pronto
+## 7. Definição de pronto
 
 Uma tarefa de frontend é considerada concluída quando:
 

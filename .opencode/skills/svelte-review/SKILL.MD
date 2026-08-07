@@ -1,10 +1,10 @@
 ---
 name: svelte-review
-description: Conhecimento especializado para revisão de código e ensino de boas práticas em projetos SvelteKit e TypeScript.
+description: Conhecimento especializado para revisão de código e ensino de boas práticas em projetos SvelteKit, Svelte 5 e TypeScript.
 metadata:
   version: "2.0"
   tags:
-    - svelte
+    - svelte 5
     - sveltekit
     - typescript
     - review

@@ -126,23 +126,7 @@ Interface
 
 Nem toda operação precisa utilizar uma store. Estados utilizados apenas em uma página ou componente devem permanecer locais.
 
----
-
-## 4. Responsabilidades
-
-| Camada               | Responsabilidade                                          |
-| -------------------- | --------------------------------------------------------- |
-| Página ou componente | Interface, eventos, loading e mensagens                   |
-| Store                | Estado compartilhado entre diferentes partes da aplicação |
-| Service              | Regras, validações e sequência das operações              |
-| API                  | Endpoints, métodos HTTP, headers, cookies e respostas     |
-| Types                | Estrutura e formato dos dados                             |
-| Mocks                | Dados fictícios utilizados no desenvolvimento             |
-| Backend              | Validação definitiva, autorização e persistência          |
-
----
-
-## 5. Componentes e páginas
+## 4. Componentes e páginas
 
 Componentes e páginas são responsáveis pela interface e pela interação com o usuário.
 
@@ -158,7 +142,7 @@ Devem:
 
 ---
 
-## 6. Types
+## 5. Types
 
 A pasta `types/` representa as estruturas utilizadas no projeto.
 
@@ -178,7 +162,7 @@ A pasta `types/` não deve realizar requisições, acessar stores ou conter regr
 
 ---
 
-## 7. API
+## 6. API
 
 A pasta `api/` concentra a comunicação HTTP com o backend.
 
@@ -203,7 +187,7 @@ A API não deve:
 
 ---
 
-## 8. Services
+## 7. Services
 
 A pasta `services/` reúne as operações e regras da aplicação.
 
@@ -231,7 +215,7 @@ services/
 
 ---
 
-## 9. Stores
+## 8. Stores
 
 Stores mantêm estados compartilhados entre diferentes partes da aplicação.
 
@@ -257,7 +241,7 @@ Stores não substituem:
 
 ---
 
-## 10. Mocks
+## 9. Mocks
 
 A pasta `mocks/` contém dados fictícios utilizados enquanto o backend ainda não estiver disponível ou durante testes.
 
@@ -271,7 +255,7 @@ Os mocks devem:
 
 ---
 
-## 11. Utils e constants
+## 10. Utils e constants
 
 ### Utils
 
@@ -291,18 +275,9 @@ A pasta `constants/` contém valores fixos utilizados em diferentes partes do pr
 
 ---
 
-## 12. Routes
+## 11. Routes
 
 A pasta `routes/` segue o sistema de rotas baseado em arquivos do SvelteKit.
-
-Sugestão de grupos (sujeito a mudanças):
-
-```text
-routes/
-├── (public)/
-├── (app)/
-└── (admin)/
-```
 
 - `(public)`: páginas públicas, como login;
 - `(app)`: páginas disponíveis para usuários autenticados;
@@ -312,7 +287,7 @@ Os grupos entre parênteses organizam as rotas sem alterar diretamente a URL.
 
 ---
 
-## 13. Dependências permitidas
+## 12. Dependências permitidas
 
 ```text
 components → services, stores, types, utils e constants
@@ -325,7 +300,7 @@ mocks      → types
 
 ---
 
-## 14. Organização por funcionalidade
+## 13. Organização por funcionalidade
 
 A estrutura inicial será organizada por responsabilidade:
 
@@ -355,7 +330,7 @@ A pasta `features/` não precisa ser criada no início. Ela deve ser adotada som
 
 ---
 
-## 15. Regras gerais
+## 14. Regras gerais
 
 - Não realizar chamadas HTTP diretamente em componentes reutilizáveis.
 - Não colocar regras extensas dentro de páginas.
@@ -366,7 +341,7 @@ A pasta `features/` não precisa ser criada no início. Ela deve ser adotada som
 
 ---
 
-## 16. Resumo
+## 15. Resumo
 
 ```text
 Types definem os dados.

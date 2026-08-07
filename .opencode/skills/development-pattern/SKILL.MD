@@ -155,42 +155,9 @@ Componentes que dependem de dados devem prever:
 - estado desabilitado;
 - falta de permissão.
 
-Toda interação deve possuir retorno visual para o usuário.
-
 ---
 
-## 6.6 Header por perfil
-
-O Header pode variar conforme o perfil do usuário.
-
-Evite criar um Header completamente diferente para cada perfil.
-
-Sempre que possível, utilize o mesmo componente, alterando apenas as opções disponíveis conforme as permissões do usuário.
-
----
-
-## 6.7 Ícones
-
-Os ícones devem utilizar um dicionário centralizado.
-
-Isso evita repetição de nomes e facilita futuras alterações.
-
----
-
-# 7. CSS
-
-Evite estilos inline repetidos.
-
-Sempre que possível:
-
-- utilizar classes;
-- utilizar os tokens do Design System;
-- reutilizar componentes já existentes;
-- evitar valores fixos espalhados pelo projeto.
-
----
-
-# 8. Tratamento de Erros
+# 7. Tratamento de Erros
 
 Erros técnicos não devem ser exibidos diretamente ao usuário.
 
@@ -198,7 +165,7 @@ Apresente mensagens amigáveis e compreensíveis.
 
 ---
 
-# 9. Comentários
+# 8. Comentários
 
 Comentários devem explicar o motivo de uma decisão, e não repetir o que o código já demonstra.
 
@@ -206,7 +173,7 @@ Utilize comentários apenas quando realmente agregarem entendimento.
 
 ---
 
-# 10. Booleanos
+# 9. Booleanos
 
 Variáveis booleanas devem representar perguntas.
 
@@ -220,7 +187,7 @@ Exemplos:
 
 ---
 
-# 11. Acessibilidade
+# 10. Acessibilidade
 
 Todo componente deve considerar:
 
@@ -236,7 +203,7 @@ Evite utilizar elementos que não possuem semântica adequada para ações inter
 
 ---
 
-# 12. Formatação
+# 11. Formatação
 
 Antes de abrir um Pull Request, execute:
 
@@ -250,7 +217,7 @@ Todos os arquivos devem estar formatados e sem erros de lint.
 
 ---
 
-# 13. Código Morto
+# 12. Código Morto
 
 Remova sempre que possível:
 
@@ -263,7 +230,7 @@ Remova sempre que possível:
 
 ---
 
-# 14. Resumo
+# 13. Resumo
 
 Todo código desenvolvido deve seguir os princípios abaixo:
 

@@ -1,17 +1,11 @@
 # Projeto NEO — Frontend
+Aplicação web interna para recebimento, organização, triagem, priorização e acompanhamento de solicitações.
 
 ## Configuração do Projeto
 
 - **Language**: TypeScript
 - **Package Manager**: npm
 - **Add-ons**: prettier, eslint, mcp
-
-## Informações adicionais no projeto Projeto
-Utilize as seguintes skills quando precisar de contexto e informações mais específicas sobre o projeto:
-- development-pattern para acessar informações detalhadas e específicas de desenvolvimmento
-- frontend-architecture para acessar a estrutura arquitetura e fluxo
-- project-overview visão geral do Projeto NEO, mais especificamente o frontend.
-- svelte-review para acessar informações adicionais sobre boas práticas de svelte e typescript
 
 ## Objetivos
 Priorize sempre:
@@ -50,10 +44,28 @@ Sempre prefira:
 - Sempre considere acessibilidade e tratamento de estados de erro.
 - Valide dados externos antes de utilizá-los.
 
+## Nomenclatura
+
+| Elemento | Padrão | Exemplo |
+|----------|--------|---------|
+| Variável | camelCase | `currentUser` |
+| Função | camelCase com verbo | `loadUsers` |
+| Componente | PascalCase | `UserTable.svelte` |
+| Tipo / Interface | PascalCase | `UserRole` |
+| Constante global | UPPER_SNAKE_CASE | `MAX_FILE_SIZE` |
+| Arquivo TypeScript | kebab-case | `auth.service.ts` |
+| Store | `.store.ts` | `auth.store.ts` |
+| Service | `.service.ts` | `user.service.ts` |
+| API | `.api.ts` | `user.api.ts` |
+
 
 ## Skills
-Utilize a Skill mais adequada para cada tarefa.
-Evite duplicar conhecimento especializado neste arquivo.
+Utilize as seguintes skills quando precisar de contexto e informações mais específicas sobre o projeto:
+- development-pattern para acessar informações detalhadas e específicas de desenvolvimmento
+- frontend-architecture para acessar a estrutura arquitetura e fluxo
+- project-overview visão geral do Projeto NEO, mais especificamente o frontend.
+- svelte-review para acessar informações adicionais sobre boas práticas de svelte e typescript
+
 
 ## Ferramentas disponíveis no Svelte MCP:
 
@@ -80,3 +92,19 @@ Você DEVE usar esta ferramenta sempre que escrever código Svelte antes de envi
 Gera um link para o Playground do Svelte com o código fornecido.
 
 Após concluir o código, pergunte ao usuário se ele deseja um link para o Playground. Chame esta ferramenta somente após a confirmação do usuário e NUNCA se o código tiver sido escrito em arquivos do projeto dele.
+
+
+### 5. Princípios do projeto
+
+#### 5.1 Simplicidade
+
+Não adicionar uma abstração sem necessidade real.
+
+#### 5.2 Separação de responsabilidades
+
+Cada arquivo deve possuir uma responsabilidade principal.
+
+#### 5.3 Código explícito
+
+Prefira nomes claros e comportamentos previsíveis.
+

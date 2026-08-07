@@ -3,7 +3,7 @@
 	"plugin": ["@sveltejs/opencode"],
 	"permissions": {
 		"bash": {
-            "git *": "deny",
+            "git *": "ask",
 
             "kill": "ask",
             "kill *": "ask",
@@ -32,7 +32,10 @@
             "npm i *": "ask",
             "npm ci": "ask",
             "npm ci *": "ask",
-            "sudo *": "ask"
+            "sudo *": "ask",
+
+            "*env*": "deny",
+            "*env.example*": "allow"
         }
 	},
 	"mcp": {
