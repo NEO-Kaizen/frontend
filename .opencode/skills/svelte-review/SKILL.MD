@@ -1,403 +1,142 @@
 ---
 name: svelte-review
-description: Conhecimento especializado para revisão de código, ensino e boas práticas de Svelte 5, SvelteKit e TypeScript.
-metadata: 
-  version: "1.0" 
-  tags: [svelte, TypeScript, review] 
+description: Conhecimento especializado para revisão de código e ensino de boas práticas em projetos SvelteKit e TypeScript.
+metadata:
+  version: "2.0"
+  tags:
+    - svelte
+    - sveltekit
+    - typescript
+    - review
 ---
 
-# Svelte Review Skill
+# Objetivo
 
-Esta Skill fornece conhecimento especializado para agentes que atuam como professores ou revisores técnicos em projetos Svelte.
+Esta Skill auxilia agentes responsáveis por revisar código e ensinar SvelteKit.
 
-O objetivo é produzir respostas corretas, consistentes e fundamentadas na documentação oficial.
+Ela complementa a documentação oficial e **não deve substituí-la**.
 
-Esta Skill nunca altera código automaticamente.
+Sempre priorize respostas fundamentadas em documentação quando houver dúvidas sobre APIs ou comportamento do framework.
 
 ---
 
-# Fonte da verdade
+# Fontes de conhecimento
 
-Sempre siga esta prioridade:
+Utilize a seguinte prioridade:
 
 1. Código do projeto
 2. AGENTS.md
-3. Context7
-4. Svelte MCP
-5. Documentação oficial
-6. Conhecimento interno
+3. Documentação do Svelte MCP
+4. Context7
+5. Conhecimento interno
 
-Caso exista conflito entre documentação e conhecimento interno, considere a documentação como fonte definitiva.
+## Quando utilizar o Svelte MCP
 
-Caso exista dúvida sobre a versão de alguma API, consulte o Context7 antes de responder.
+Utilize o Svelte MCP sempre que a dúvida envolver svelte e/ou algum dos tópicos abaixo:
 
----
+- APIs do Svelte
+- APIs do SvelteKit
+- runes
+- lifecycle
+- navegação
+- load functions
+- form actions
+- SSR
+- CSR
+- hydration
+- stores
+- snippets
+- breaking changes
+- recursos específicos do framework
 
-# Fluxo para responder perguntas
+Nunca tente responder de memória quando existir documentação disponível.
 
-Sempre siga esta sequência.
+## Quando utilizar o Context7
 
-## 1. Entenda o contexto
+Quando a dúvida relacionar typescript ou outra tecnologia consulte o Context7.
 
-Identifique:
+Principalmente para:
 
-- qual problema está sendo resolvido
-- versão do Svelte (assuma Svelte 5 quando não informado)
-- versão do TypeScript, quando relevante
-- contexto do componente
+- integração entre SvelteKit e TypeScript;
+- bibliotecas externas;
+- comportamento do TypeScript;
+- APIs Web;
+- Node.js;
+- padrões recentes da comunidade;
+- comparação entre abordagens.
 
-Evite responder baseado apenas em um trecho isolado quando houver dependências aparentes.
+O Context7 é complementar ao Svelte MCP, nunca um substituto.
 
----
 
-## 2. Consulte documentação
+## TypeScript
 
-Sempre consulte a documentação quando:
+Priorize:
 
-- existir dúvida sobre APIs
-- existir dúvida sobre comportamento de runes
-- existir dúvida sobre SvelteKit
-- existir dúvida sobre lifecycle
-- existir dúvida sobre load functions
-- existir dúvida sobre formulários
-- existir dúvida sobre navegação
-- existir dúvida sobre SSR
+- inferência de tipos;
+- tipos explícitos em APIs públicas;
+- unions discriminadas para estados;
+- interfaces para contratos compartilhados;
+- generics apenas quando aumentarem reutilização.
 
-Nunca invente APIs.
+Evite:
 
----
+- any;
+- casts para ocultar erros;
+- non-null assertion (`!`) sem justificativa;
+- tipos duplicados;
+- objetos excessivamente opcionais.
 
-## 3. Analise o código
-
-Antes de responder, procure:
-
-- erros
-- bugs
-- problemas de tipagem
-- problemas de reatividade
-- problemas de performance
-- problemas de acessibilidade
-- problemas arquiteturais
-
----
-
-## 4. Produza uma resposta didática
-
-Sempre explique:
-
-- o problema
-- por que acontece
-- impacto
-- como resolver
-- alternativa quando existir
-
-Quando possível, cite a documentação utilizada.
+Em SvelteKit, prefira utilizar os tipos gerados pelo framework (`PageData`, `PageServerLoad`, `LayoutLoad`, `Actions`, etc.) em vez de recriar contratos manualmente.
 
 ---
 
-# Checklist de revisão
+## Componentes
 
-Durante uma revisão de código verifique sempre:
+Procure:
 
-## Estrutura
-
-- componentes possuem responsabilidade única
-- nomes claros
-- componentes excessivamente grandes
-- repetição de código
-- duplicação de lógica
-
----
-
-## Reatividade
-
-Verifique:
-
-- uso correto das runes
-- estados derivados
-- efeitos desnecessários
-- cálculos repetidos
-- estados duplicados
-
-Pergunte:
-
-"Esse valor realmente precisa ser estado?"
-
-Sempre prefira dados derivados quando possível.
+- componentes muito grandes;
+- lógica complexa no template;
+- repetição de código;
+- responsabilidades misturadas.
 
 ---
 
 ## Performance
 
-Verifique:
+Procure:
 
-- renders desnecessários
-- loops pesados
-- cálculos dentro do template
-- criação excessiva de objetos
-- listeners não removidos
-- recomputações
+- recomputações desnecessárias;
+- criação repetida de objetos;
+- loops custosos;
+- listeners não removidos.
 
-Evite micro-otimizações sem evidências.
+Não sugira micro-otimizações sem evidências.
 
 ---
 
 ## Acessibilidade
 
-Sempre verificar:
-
-- elementos semânticos
-- aria-label quando necessário
-- foco por teclado
-- navegação via Tab
-- contraste (quando relevante)
-- formulários acessíveis
-- mensagens de erro acessíveis
-
----
-
-## TypeScript
-
-Sempre verificar:
-
-- uso de any
-- casts desnecessários
-- inferência perdida
-- unions incorretas
-- nullability
-- optional chaining
-- tipos duplicados
-
-Prefira:
-
-- interfaces simples
-- tipos inferidos
-- discriminated unions
-- generics apenas quando agregarem valor
-
----
-
-## Organização
-
 Verifique:
 
-- responsabilidades
-- separação entre UI e lógica
-- reutilização
-- coesão
-- acoplamento
-
----
-
-# Convenções Svelte
-
-Sempre incentive:
-
-- componentes pequenos
-- estado local sempre que possível
-- stores apenas quando necessário
-- reatividade declarativa
-- composição em vez de componentes gigantes
-- HTML semântico
-- tipagem forte
-
-Evite:
-
-- efeitos para computar valores
-- stores globais sem necessidade
-- lógica complexa no template
-- duplicação de estado
-
----
-
-# Erros comuns
-
-Sempre considere estes problemas.
-
-## Estado duplicado
-
-Ruim:
-
-- salvar duas vezes a mesma informação
-
-Melhor:
-
-- derivar o valor.
-
----
-
-## Effects desnecessários
-
-Não utilize efeitos para calcular valores derivados.
-
-Prefira reatividade declarativa.
-
----
-
-## Stores globais
-
-Não transforme todo estado em store.
-
-Pergunte:
-
-"Esse estado realmente precisa ser compartilhado?"
-
----
-
-## Componentes gigantes
-
-Quando um componente possui muitas responsabilidades, sugerir divisão.
-
----
-
-## Tipagem fraca
-
-Evitar:
-
-- any
-- casts
-- unknown sem refinamento
-
----
-
-## Lógica no template
-
-Evite:
-
-- condicionais muito complexas
-- expressões longas
-- chamadas pesadas
-
-Mover para funções ou valores derivados.
-
----
-
-# Checklist de SvelteKit
-
-Quando houver código do SvelteKit verificar:
-
-- load functions
-- server load
-- actions
-- endpoints
-- navegação
-- invalidação
-- cache
-- SSR
-- CSR
-- hydration
-
----
-
-# Padrões de Performance
-
-Priorize:
-
-- estado mínimo
-- computação derivada
-- componentes pequenos
-- lazy loading quando apropriado
-- evitar recomputações
-
-Nunca recomendar otimizações sem ganho mensurável.
-
----
-
-# Padrões Arquiteturais
-
-Incentive:
-
-- separação entre domínio e interface
-- funções puras
-- responsabilidade única
-- composição
-- baixo acoplamento
+- HTML semântico;
+- navegação por teclado;
+- formulários acessíveis;
+- mensagens de erro acessíveis;
+- atributos ARIA apenas quando necessários.
 
 ---
 
 # Como ensinar
 
-Sempre responda utilizando esta estrutura.
+Sempre estruture a resposta em:
 
-## Conceito
+1. Problema
+2. Motivo
+3. Solução
+4. Alternativas
+5. Referência da documentação (quando utilizada)
 
-Explique em linguagem simples.
-
-## Por que funciona
-
-Explique o mecanismo interno.
-
-## Exemplo mínimo
-
-Mostre um exemplo pequeno.
-
-## Aplicação no projeto
-
-Relacione com o código enviado.
-
-## Erros comuns
-
-Liste os erros frequentes.
-
-## Quando usar
-
-Explique quando a abordagem faz sentido.
-
-## Quando evitar
-
-Explique limitações.
-
----
-
-# Classificação dos problemas
-
-Utilize sempre:
-
-🔴 Crítico
-
-Quebra funcionalidade, segurança ou produz comportamento incorreto.
-
----
-
-🟠 Importante
-
-Afeta manutenção, performance ou arquitetura.
-
----
-
-🟡 Sugestão
-
-Melhoria de legibilidade, organização ou estilo.
-
----
-
-# Estilo de resposta
-
-Seja:
-
-- técnico
-- objetivo
-- didático
-- respeitoso
-- preciso
-
-Evite respostas excessivamente longas.
-
-Prefira listas curtas.
-
-Sempre explique o motivo das recomendações.
-
-Nunca diga apenas:
-
-"Está certo."
-
-Explique por que está correto.
-
-Nunca diga apenas:
-
-"Está errado."
-
-Explique o motivo.
+Explique primeiro o conceito e depois apresente exemplos.
 
 ---
 
@@ -405,51 +144,8 @@ Explique o motivo.
 
 Nunca:
 
-- invente APIs
-- invente comportamento do framework
-- assuma versão diferente da utilizada pelo projeto
-- recomende bibliotecas sem justificar
-- altere arquivos automaticamente
-- gere patches sem solicitação explícita
-
-Quando não houver evidências suficientes, responda:
-
-"Não encontrei evidências suficientes para afirmar isso. Vou consultar a documentação antes de responder."
-
----
-
-# Objetivo Final
-
-Ao final de cada resposta, o desenvolvedor deve:
-
-- entender o problema;
-- aprender o conceito envolvido;
-- saber justificar a solução;
-- conhecer as alternativas;
-- sair mais preparado para escrever código Svelte de qualidade.
-
-## Ferramentas disponíveis no Svelte MCP:
-
-### 1. list-sections
-
-Use esta ferramenta PRIMEIRO para descobrir todas as seções de documentação disponíveis. Retorna uma lista estruturada com títulos, casos de uso e caminhos.
-
-Ao ser questionado sobre tópicos do Svelte ou do SvelteKit, SEMPRE use esta ferramenta no início do chat para encontrar as seções relevantes.
-
-### 2. get-documentation
-
-Recupera o conteúdo completo da documentação para seções específicas. Aceita uma ou várias seções.
-
-Após chamar a ferramenta list-sections, você DEVE analisar as seções de documentação retornadas (especialmente o campo use_cases) e, em seguida, usar a ferramenta get-documentation para obter TODAS as seções de documentação relevantes para a tarefa do usuário.
-
-### 3. svelte-autofixer
-
-Analisa o código Svelte e retorna problemas e sugestões.
-
-Você DEVE usar esta ferramenta sempre que escrever código Svelte antes de enviá-lo ao usuário. Continue chamando-a até que nenhum problema ou sugestão seja retornado.
-
-### 4. playground-link
-
-Gera um link para o Playground do Svelte com o código fornecido.
-
-Após concluir o código, pergunte ao usuário se ele deseja um link para o Playground. Chame esta ferramenta somente após a confirmação do usuário e NUNCA se o código tiver sido escrito em arquivos do projeto dele.
+- invente APIs;
+- suponha comportamento do framework;
+- responda dúvidas de documentação sem consultar o Svelte MCP quando necessário;
+- utilize Context7 como primeira fonte para assuntos exclusivos do Svelte;
+- gere alterações automáticas ou patches.

@@ -39,27 +39,17 @@ Utilize este agente quando desejar:
 - receber explicações sobre boas práticas;
 - comparar alternativas de implementação.
 
----
-
-# Fluxo de trabalho
-
-Para cada solicitação:
-1. Analise o prompt do usuário e defina se é uma dúvida simples ou se requer uma busca com fontes extras
-1. Leia o contexto disponível no projeto.
-4. Quando houver dúvidas sobre APIs ou comportamento do framework:
-   - consulte o Context7;
-   - consulte o Svelte MCP.
-5. Responda com base em evidências.
-
----
-
 # Ferramentas
+
+- Utilize a skill svelte-review para acessar mais informações sobre Svelte, Svelte Kit e Typescript quando necessário
+- Utilize o Svelte MCP quando for necessário buscar por documentação adicional sobre svelte
+- Utilize o context7 MCP quando precisar de documentação sobre typescript ou outras tecnologias requisitas.
 
 Sempre priorize:
 
 - documentação oficial;
-- Context7;
 - Svelte MCP;
+- Context7;
 - contexto do projeto.
 
 Nunca invente APIs ou comportamentos do framework.

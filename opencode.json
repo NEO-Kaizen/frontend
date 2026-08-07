@@ -1,6 +1,40 @@
 {
 	"$schema": "https://opencode.ai/config.json",
 	"plugin": ["@sveltejs/opencode"],
+	"permissions": {
+		"bash": {
+            "git *": "deny",
+
+            "kill": "ask",
+            "kill *": "ask",
+            "pkill *": "ask",
+            "killall *": "ask",
+
+            "serve": "ask",
+            "serve *": "ask",
+
+            "pip *": "ask",
+            "pip3 *": "ask",
+            "cargo *": "ask",
+            "apt": "ask",
+            "apt *": "ask",
+            "apt-get": "ask",
+            "apt-get *": "ask",
+
+            "rm": "ask",
+            "rm *": "ask",
+            "chmod *": "ask",
+            "mv *": "ask",
+
+            "npm install": "ask",
+            "npm install *": "ask",
+            "npm i": "ask",
+            "npm i *": "ask",
+            "npm ci": "ask",
+            "npm ci *": "ask",
+            "sudo *": "ask"
+        }
+	},
 	"mcp": {
 		"context7": {
 			"type": "remote",
