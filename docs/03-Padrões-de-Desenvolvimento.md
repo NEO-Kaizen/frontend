@@ -45,7 +45,7 @@ A equipe deve manter um único padrão durante todo o projeto.
 
 Sempre que possível:
 
-- evitar `any`;
+- Não utilizar any. Todo o código deve possuir tipagem;
 - utilizar interfaces e types;
 - tipar parâmetros e retornos públicos;
 - manter os tipos sincronizados com o backend.

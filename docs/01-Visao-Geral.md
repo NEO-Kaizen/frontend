@@ -31,18 +31,19 @@ O sistema possui diferentes perfis, com permissões distintas.
 
 | Perfil      | Responsabilidades principais                                           |
 | ----------- | ---------------------------------------------------------------------- |
-| Super Admin | Gerencia administradores e possui permissões administrativas especiais |
+| Root | Gerencia administradores e possui permissões administrativas especiais |
 | Admin       | Gerencia usuários, visualiza solicitações e delega solicitações        |
 | Analista    | Visualiza solicitações atribuídas e realiza atendimentos               |
 | Gestor      | Visualiza e acompanha solicitações                                     |
 | Solicitante | Cria e acompanha suas próprias solicitações                            |
 
-### Regras já identificadas
+### Regras preliminares
 
-- O primeiro usuário administrativo será configurado como usuário root ou Super Admin.
+- O sistema terá um usuário Root configurado previamente no banco de dados.
+- O usuário Root será responsável por cadastrar os demais usuários do sistema.
 - Um Admin pode criar outros administradores, conforme a regra definida pelo backend.
 - Um Admin comum não pode excluir ou desativar a si mesmo.
-- Somente o Super Admin pode desativar outros administradores.
+- Somente o root pode desativar outros administradores.
 - Usuários e registros não devem ser apagados definitivamente.
 - A remoção funcional deve ocorrer por meio de desativação.
 - O Solicitante não pode alterar o próprio perfil.
@@ -58,14 +59,14 @@ O sistema possui diferentes perfis, com permissões distintas.
 
 O frontend deve:
 
-- ser fácil de entender por novos integrantes;
-- utilizar TypeScript de forma segura;
-- separar apresentação, regra de negócio e acesso a dados;
-- evitar chamadas diretas à API dentro de componentes visuais;
-- permitir a troca de mocks por uma API real sem grandes alterações;
-- centralizar padrões visuais;
-- respeitar permissões por perfil;
-- fornecer mensagens claras de carregamento, sucesso e erro;
+- Ser fácil de entender por novos integrantes;
+- Utilizar TypeScript de forma segura;
+- Separar apresentação, regra de negócio e acesso a dados;
+- Evitar chamadas diretas à API dentro de componentes visuais;
+- Permitir a troca de mocks por uma API real sem grandes alterações;
+- Centralizar padrões visuais;
+- Respeitar permissões por perfil;
+- Fornecer mensagens claras de carregamento, sucesso e erro;
 
 ---
 
@@ -73,16 +74,21 @@ O frontend deve:
 
 ### 5.1 Simplicidade
 
-Não adicionar uma abstração sem necessidade real.
+- Não adicionar uma abstração sem necessidade real.
+- Evite criar estruturas antecipadamente apenas para necessidades que ainda não existem no projeto.
+- A arquitetura deve priorizar soluções simples e adequadas às necessidades atuais do projeto.
 
 ### 5.2 Separação de responsabilidades
 
-Cada arquivo deve possuir uma responsabilidade principal.
+- Cada arquivo deve ter uma única responsabilidade principal.
+- Evitar concentrar múltiplas funções ou lógicas não relacionadas no mesmo lugar.
+- Facilitar manutenção, testes e evolução do código
 
 ### 5.3 Código explícito
 
-Prefira nomes claros e comportamentos previsíveis.
-
+- Usar nomes claros e descritivos.
+- Garantir comportamentos previsíveis.
+- Evitar abstrações excessivas ou “magia” que esconda a lógica real.
 ---
 
 ## 6. Organização da documentação
@@ -114,11 +120,14 @@ Possíveis itens iniciais:
 
 Uma tarefa de frontend é considerada concluída quando:
 
-- atende aos critérios de aceitação;
-- possui tipagem correta;
-- não utiliza `any` sem justificativa;
-- segue o Design System;
-- trata loading, erro, vazio e sucesso;
-- respeita permissões;
-- passou por revisão;
-- não quebra funcionalidades existentes;
+- Atende aos critérios de aceitação.
+- Possui tipagem correta.
+- Não utilizar any. Todo o código deve possuir tipagem.
+- Segue o Design System.
+- Trata loading, erro, vazio e sucesso.
+- Respeita permissões.
+- Passa no svelte-check.
+- Passa no lint.
+- Realiza o build sem erros.
+- Passou por revisão.
+- Os fluxos afetados foram validados após a alteração.

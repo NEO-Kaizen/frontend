@@ -164,7 +164,7 @@ Pode conter:
 - paginação;
 - autenticação.
 
-> **Importante:** Os tipos do frontend devem representar fielmente o contrato da API. Os exemplos e estruturas iniciais deverão ser atualizados conforme as definições do backend.
+> **Importante:** Os tipos que representam contratos de comunicação com o backend devem refletir fielmente a API. O frontend pode manter tipos próprios derivados para estado, regras e apresentação.
 
 A pasta `types/` não deve realizar requisições, acessar stores ou conter regras de negócio.
 
@@ -203,7 +203,7 @@ Os services podem:
 
 - aplicar regras do frontend;
 - validar formulários;
-- validar dados recebidos da API;
+- tipar os dados recebidos da API utilizando TypeScript;
 - verificar condições antes de uma ação;
 - coordenar etapas de uma operação;
 - utilizar funções da API;
@@ -352,7 +352,7 @@ A pasta `features/` não precisa ser criada no início. Ela deve ser adotada som
 - Não realizar chamadas HTTP diretamente em componentes reutilizáveis.
 - Não colocar regras extensas dentro de páginas.
 - Não criar stores para estados locais.
-- Evitar o uso de `any`.
+- Não utilizar any. Todo o código deve possuir tipagem.
 - Manter os tipos sincronizados com o backend.
 - O backend deve validar definitivamente todas as permissões e regras.
 
