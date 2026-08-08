@@ -6,11 +6,11 @@ Este documento define como as partes do frontend do Projeto NEO se relacionam e 
 
 A arquitetura busca separar:
 
-- interface;
-- estado;
-- regras da aplicação;
-- validações;
-- comunicação com o backend.
+* interface;
+* estado;
+* regras da aplicação;
+* validações;
+* comunicação com o backend.
 
 O objetivo é manter uma estrutura simples, organizada e preparada para crescer sem criar camadas desnecessárias.
 
@@ -50,9 +50,9 @@ src/
 │   │   ├── auth.ts
 │   │   └── index.ts
 │   │
-│   ├── stores/
-│   │   ├── auth.store.ts
-│   │   ├── toast.store.ts
+│   ├── states/
+│   │   ├── auth.svelte.ts
+│   │   ├── toast.svelte.ts
 │   │   └── index.ts
 │   │
 │   ├── components/
@@ -93,13 +93,11 @@ O fluxo principal será:
 ```text
 Página ou componente
         ↓
-Store ou estado local
+     Service
         ↓
-Service
+       API
         ↓
-API
-        ↓
-Backend
+     Backend
 ```
 
 O retorno percorre o caminho inverso:
@@ -111,12 +109,14 @@ API
    ↓
 Service
    ↓
-Store ou página
+Página ou componente
    ↓
 Interface
 ```
 
-Nem toda operação precisa utilizar uma store. Estados utilizados apenas em uma página ou componente devem permanecer locais.
+Quando uma informação precisar ser compartilhada entre diferentes partes da aplicação, o estado compartilhado poderá ser utilizado.
+
+Nem toda operação precisa utilizar estado compartilhado. Estados utilizados apenas em uma página ou componente devem permanecer locais.
 
 ---
 
@@ -125,7 +125,7 @@ Nem toda operação precisa utilizar uma store. Estados utilizados apenas em uma
 | Camada               | Responsabilidade                                          |
 | -------------------- | --------------------------------------------------------- |
 | Página ou componente | Interface, eventos, loading e mensagens                   |
-| Store                | Estado compartilhado entre diferentes partes da aplicação |
+| Estado compartilhado | Dados compartilhados entre diferentes partes da aplicação |
 | Service              | Regras, validações e sequência das operações              |
 | API                  | Endpoints, métodos HTTP, headers, cookies e respostas     |
 | Types                | Estrutura e formato dos dados                             |
@@ -140,13 +140,14 @@ Componentes e páginas são responsáveis pela interface e pela interação com 
 
 Devem:
 
-- exibir dados;
-- capturar eventos;
-- controlar estados visuais;
-- chamar services ou stores;
-- mostrar loading, erro, vazio e sucesso;
-- evitar conhecer detalhes de endpoints;
-- evitar concentrar regras de negócio.
+* exibir dados;
+* capturar eventos;
+* controlar estados visuais;
+* chamar services;
+* utilizar estados compartilhados quando necessário;
+* mostrar loading, erro, vazio e sucesso;
+* evitar conhecer detalhes de endpoints;
+* evitar concentrar regras de negócio.
 
 ---
 
@@ -156,17 +157,17 @@ A pasta `types/` representa as estruturas utilizadas no projeto.
 
 Pode conter:
 
-- interfaces;
-- tipos;
-- unions;
-- estruturas de entrada e saída;
-- filtros;
-- paginação;
-- autenticação.
+* interfaces;
+* tipos;
+* unions;
+* estruturas de entrada e saída;
+* filtros;
+* paginação;
+* autenticação.
 
 > **Importante:** Os tipos que representam contratos de comunicação com o backend devem refletir fielmente a API. O frontend pode manter tipos próprios derivados para estado, regras e apresentação.
 
-A pasta `types/` não deve realizar requisições, acessar stores ou conter regras de negócio.
+A pasta `types/` não deve realizar requisições, acessar estados compartilhados ou conter regras de negócio.
 
 ---
 
@@ -176,22 +177,22 @@ A pasta `api/` concentra a comunicação HTTP com o backend.
 
 Ela é responsável por:
 
-- URL base;
-- endpoints;
-- métodos HTTP;
-- headers;
-- cookies;
-- body;
-- tratamento inicial das respostas;
-- tratamento padronizado de erros HTTP.
+* URL base;
+* endpoints;
+* métodos HTTP;
+* headers;
+* cookies;
+* body;
+* tratamento inicial das respostas;
+* tratamento padronizado de erros HTTP.
 
 A API não deve:
 
-- decidir permissões;
-- controlar componentes;
-- manipular modais;
-- exibir mensagens;
-- conter regras de negócio.
+* decidir permissões;
+* controlar componentes;
+* manipular modais;
+* exibir mensagens;
+* conter regras de negócio.
 
 ---
 
@@ -201,13 +202,13 @@ A pasta `services/` reúne as operações e regras da aplicação.
 
 Os services podem:
 
-- aplicar regras do frontend;
-- validar formulários;
-- tipar os dados recebidos da API utilizando TypeScript;
-- verificar condições antes de uma ação;
-- coordenar etapas de uma operação;
-- utilizar funções da API;
-- converter dados para o formato utilizado pela aplicação.
+* aplicar regras do frontend;
+* validar formulários;
+* tipar os dados recebidos da API utilizando TypeScript;
+* verificar condições antes de uma ação;
+* coordenar etapas de uma operação;
+* utilizar funções da API;
+* converter dados para o formato utilizado pela aplicação.
 
 Exemplo de organização quando uma área crescer:
 
@@ -223,29 +224,29 @@ services/
 
 ---
 
-## 9. Stores
+## 9. Estado compartilhado
 
-Stores mantêm estados compartilhados entre diferentes partes da aplicação.
+Estados compartilhados podem ser gerenciados com recursos do Svelte, como `$state`, ou stores, dependendo da necessidade.
 
 Exemplos:
 
-- usuário autenticado;
-- sessão;
-- notificações globais;
-- preferências compartilhadas;
-- filtros utilizados em diferentes componentes.
+* usuário autenticado;
+* sessão;
+* notificações globais;
+* preferências compartilhadas;
+* filtros utilizados em diferentes componentes.
 
-Stores não devem ser criadas para qualquer variável.
+Estados compartilhados não devem ser criados para qualquer variável.
 
 Estados utilizados somente por uma página, componente, formulário ou modal devem permanecer locais.
 
-Stores não substituem:
+Estados compartilhados não substituem:
 
-- API;
-- backend;
-- banco de dados;
-- cookies;
-- validação de sessão no servidor.
+* API;
+* backend;
+* banco de dados;
+* cookies;
+* validação de sessão no servidor.
 
 ---
 
@@ -255,11 +256,11 @@ A pasta `mocks/` contém dados fictícios utilizados enquanto o backend ainda n�
 
 Os mocks devem:
 
-- utilizar apenas dados fictícios;
-- seguir os tipos definidos no projeto;
-- representar diferentes cenários;
-- incluir sucesso, vazio, erro e diferentes status;
-- nunca utilizar informações reais de clientes ou usuários.
+* utilizar apenas dados fictícios;
+* seguir os tipos definidos no projeto;
+* representar diferentes cenários;
+* incluir sucesso, vazio, erro e diferentes status;
+* nunca utilizar informações reais de clientes ou usuários.
 
 ---
 
@@ -269,25 +270,45 @@ Os mocks devem:
 
 A pasta `utils/` contém funções genéricas e reutilizáveis, como:
 
-- formatação de datas;
-- formatação de protocolos;
-- tratamento de mensagens de erro;
-- manipulação de parâmetros de URL;
-- debounce.
+* formatação de datas;
+* formatação de protocolos;
+* tratamento de mensagens de erro;
+* manipulação de parâmetros de URL;
+* debounce.
 
 Uma função que representa uma regra específica do NEO deve pertencer a um service, e não a `utils/`.
 
 ### Constants
 
-A pasta `constants/` contém valores fixos utilizados em diferentes partes do projeto
+A pasta `constants/` contém valores fixos utilizados em diferentes partes do projeto.
 
 ---
-
 ## 12. Routes
 
 A pasta `routes/` segue o sistema de rotas baseado em arquivos do SvelteKit.
 
-Sugestão de grupos (sujeito a mudanças):
+Os principais arquivos utilizados são:
+
+* `+page.svelte`: define o conteúdo de uma página.
+* `+layout.svelte`: define um layout compartilhado entre uma rota e suas subrotas.
+
+Exemplo:
+
+```text
+routes/
+├── +page.svelte
+├── login/
+│   └── +page.svelte
+└── +layout.svelte
+```
+
+Nesse exemplo:
+
+* `+page.svelte` representa a página `/`;
+* `login/+page.svelte` representa a página `/login`;
+* `+layout.svelte` pode conter elementos compartilhados entre as páginas.
+
+Caso seja necessário organizar grupos de rotas, o SvelteKit permite utilizar grupos:
 
 ```text
 routes/
@@ -296,20 +317,20 @@ routes/
 └── (admin)/
 ```
 
-- `(public)`: páginas públicas, como login;
-- `(app)`: páginas disponíveis para usuários autenticados;
-- `(admin)`: páginas administrativas.
+* `(public)`: páginas públicas;
+* `(app)`: páginas disponíveis para usuários autenticados;
+* `(admin)`: páginas administrativas.
 
-Os grupos entre parênteses organizam as rotas sem alterar diretamente a URL.
+Os grupos entre parênteses organizam as rotas sem alterar diretamente a URL e devem ser criados conforme a necessidade do projeto.
 
 ---
 
 ## 13. Dependências permitidas
 
 ```text
-components → services, stores, types, utils e constants
-pages      → components, services, stores e types
-stores     → services e types
+components → services, states, types, utils e constants
+pages      → components, services, states e types
+states     → services e types
 services   → api, types, mocks, utils e constants
 api        → types e utils
 mocks      → types
@@ -328,7 +349,7 @@ lib/
 ├── components/
 ├── types/
 ├── mocks/
-└── stores/
+└── states/
 ```
 
 Caso uma funcionalidade cresça muito, seus arquivos podem ser agrupados:
@@ -349,12 +370,12 @@ A pasta `features/` não precisa ser criada no início. Ela deve ser adotada som
 
 ## 15. Regras gerais
 
-- Não realizar chamadas HTTP diretamente em componentes reutilizáveis.
-- Não colocar regras extensas dentro de páginas.
-- Não criar stores para estados locais.
-- Não utilizar any. Todo o código deve possuir tipagem.
-- Manter os tipos sincronizados com o backend.
-- O backend deve validar definitivamente todas as permissões e regras.
+* Não realizar chamadas HTTP diretamente em componentes reutilizáveis.
+* Não colocar regras extensas dentro de páginas.
+* Não criar estados compartilhados para estados que podem permanecer locais.
+* Não utilizar `any`. Todo o código deve possuir tipagem.
+* Manter os tipos sincronizados com o backend.
+* O backend deve validar definitivamente todas as permissões e regras.
 
 ---
 
@@ -367,7 +388,7 @@ API conversa com o backend.
 
 Services aplicam regras e validações.
 
-Stores mantêm estado compartilhado.
+Estados compartilhados mantêm dados que precisam ser acessados em diferentes partes da aplicação.
 
 Mocks simulam dados.
 
