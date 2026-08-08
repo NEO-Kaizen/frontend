@@ -41,7 +41,21 @@ A equipe deve manter um único padrão durante todo o projeto.
 
 ---
 
-# 4. TypeScript
+## 4. Padrões Svelte
+
+Para manter o código alinhado às práticas do Svelte 5 e SvelteKit:
+
+* Priorizar os recursos nativos e padrões idiomáticos do Svelte.
+* Manter o estado local quando não houver necessidade de compartilhamento.
+* Utilizar `$derived` para valores que podem ser derivados de outros estados, evitando duplicação de estado.
+* Evitar o uso de `$effect` quando o comportamento puder ser representado por estado derivado.
+* Evitar manipulação manual do DOM quando o comportamento puder ser implementado pelos recursos do Svelte.
+* Manter clara a separação entre código executado no cliente e no servidor no SvelteKit.
+* Consultar a documentação oficial do Svelte antes de introduzir soluções alternativas para comportamentos já suportados pelo framework.
+
+Esses padrões podem ser revisados e ampliados conforme novas necessidades forem identificadas durante o desenvolvimento.
+
+# 5. TypeScript
 
 Sempre que possível:
 
@@ -52,7 +66,7 @@ Sempre que possível:
 
 ---
 
-# 5. Funções
+# 6. Funções
 
 Funções devem:
 
@@ -63,9 +77,9 @@ Funções devem:
 
 ---
 
-# 6. Componentes
+# 7. Componentes
 
-## 6.1 Componentes de UI
+## 7.1 Componentes de UI
 
 São componentes reutilizáveis e independentes da regra de negócio.
 
@@ -83,7 +97,7 @@ Os componentes da pasta `ui/` não devem conhecer regras específicas do Projeto
 
 ---
 
-## 6.2 Componentes de funcionalidade
+## 7.2 Componentes de funcionalidade
 
 Representam uma funcionalidade do sistema.
 
@@ -103,7 +117,7 @@ Podem utilizar:
 
 ---
 
-## 6.3 Componentes de Layout
+## 7.3 Componentes de Layout
 
 São responsáveis pela estrutura da aplicação.
 
@@ -116,7 +130,7 @@ Exemplos:
 
 ---
 
-## 6.4 Props
+## 7.4 Props
 
 As props devem:
 
@@ -136,7 +150,7 @@ Sempre que possível, utilizar nomes que representem exatamente o conteúdo rece
 
 ---
 
-## 6.5 Estados
+## 7.5 Estados
 
 Componentes que dependem de dados devem prever:
 
@@ -151,7 +165,7 @@ Toda interação deve possuir retorno visual para o usuário.
 
 ---
 
-## 6.6 Header por perfil
+## 7.6 Header por perfil
 
 O Header pode variar conforme o perfil do usuário.
 
@@ -161,7 +175,7 @@ Sempre que possível, utilize o mesmo componente, alterando apenas as opções d
 
 ---
 
-## 6.7 Ícones
+## 7.7 Ícones
 
 Os ícones devem utilizar um dicionário centralizado.
 
@@ -169,7 +183,7 @@ Isso evita repetição de nomes e facilita futuras alterações.
 
 ---
 
-# 7. CSS
+# 8. CSS
 
 Evite estilos inline repetidos.
 
@@ -182,7 +196,7 @@ Sempre que possível:
 
 ---
 
-# 8. Tratamento de Erros
+# 9. Tratamento de Erros
 
 Erros técnicos não devem ser exibidos diretamente ao usuário.
 
@@ -190,7 +204,7 @@ Apresente mensagens amigáveis e compreensíveis.
 
 ---
 
-# 9. Comentários
+# 10. Comentários
 
 Comentários devem explicar o motivo de uma decisão, e não repetir o que o código já demonstra.
 
@@ -198,7 +212,7 @@ Utilize comentários apenas quando realmente agregarem entendimento.
 
 ---
 
-# 10. Booleanos
+# 11. Booleanos
 
 Variáveis booleanas devem representar perguntas.
 
@@ -212,7 +226,7 @@ Exemplos:
 
 ---
 
-# 11. Acessibilidade
+# 12. Acessibilidade
 
 Todo componente deve considerar:
 
@@ -228,7 +242,7 @@ Evite utilizar elementos que não possuem semântica adequada para ações inter
 
 ---
 
-# 12. Formatação
+# 13. Formatação
 
 Antes de abrir um Pull Request, execute:
 
@@ -242,7 +256,7 @@ Todos os arquivos devem estar formatados e sem erros de lint.
 
 ---
 
-# 13. Código Morto
+# 14. Código Morto
 
 Remova sempre que possível:
 
@@ -255,7 +269,7 @@ Remova sempre que possível:
 
 ---
 
-# 14. Resumo
+# 15. Resumo
 
 Todo código desenvolvido deve seguir os princípios abaixo:
 
