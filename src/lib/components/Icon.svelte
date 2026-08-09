@@ -21,7 +21,6 @@
 </span>
 
 <style>
-	/* Mudar quando tiver o design system */
 	.sm {
 		font-size: 16px;
 	}
