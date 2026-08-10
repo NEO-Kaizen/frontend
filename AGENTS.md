@@ -18,7 +18,7 @@ Priorize sempre:
 - acessibilidade;
 - tipagem segura;
 - consistência com o código existente.
-  Evite soluções excessivamente complexas.
+- evite soluções excessivamente complexas.
 
 ## Arquitetura
 
