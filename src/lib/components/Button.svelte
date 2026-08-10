@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 
-	type ButtonVariant = 'primary' | 'secondary' | 'outline';
+	type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'outline-neutral';
 	type ButtonSize = 'default' | 'full'; //futuramente podemos adicionar nova variação de tamanho
 	type ButtonType = 'button' | 'submit' | 'reset';
 
@@ -36,6 +36,7 @@
 	class:primary={variant === 'primary'}
 	class:secondary={variant === 'secondary'}
 	class:outline={variant === 'outline'}
+	class:outline-neutral={variant === 'outline-neutral'}
 	class:full={size === 'full'}
 >
 	{#if loading}
@@ -76,6 +77,12 @@
 		background-color: var(--white);
 		color: var(--primary-color);
 		border: 1px solid var(--primary-color);
+	}
+
+	.outline-neutral {
+		background-color: var(--white);
+		color: var(--rich-black);
+		border: var(--border-default);
 	}
 
 	.full {
