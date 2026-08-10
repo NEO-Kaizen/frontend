@@ -1,4 +1,5 @@
 # Projeto NEO — Frontend
+
 Aplicação web interna para recebimento, organização, triagem, priorização e acompanhamento de solicitações.
 
 ## Configuração do Projeto
@@ -8,17 +9,21 @@ Aplicação web interna para recebimento, organização, triagem, priorização 
 - **Add-ons**: prettier, eslint, mcp
 
 ## Objetivos
+
 Priorize sempre:
+
 - simplicidade;
 - legibilidade;
 - manutenção;
 - acessibilidade;
 - tipagem segura;
 - consistência com o código existente.
-Evite soluções excessivamente complexas.
+  Evite soluções excessivamente complexas.
 
 ## Arquitetura
+
 Sempre prefira:
+
 - componentes pequenos;
 - responsabilidade única;
 - composição em vez de duplicação;
@@ -26,6 +31,7 @@ Sempre prefira:
 - baixo acoplamento.
 
 ## Segurança
+
 - Nunca exponha credenciais, tokens ou dados sensíveis.
 - Utilize dados fictícios em exemplos, testes e documentação.
 - Não execute `git push` sem autorização explícita.
@@ -39,6 +45,7 @@ Sempre prefira:
 - Nunca desabilite regras de segurança apenas para satisfazer uma implementação.
 
 ## Convenções
+
 - Preserve o estilo e os padrões já utilizados no projeto.
 - Evite mudanças desnecessárias na arquitetura.
 - Sempre considere acessibilidade e tratamento de estados de erro.
@@ -46,26 +53,33 @@ Sempre prefira:
 
 ## Nomenclatura
 
-| Elemento | Padrão | Exemplo |
-|----------|--------|---------|
-| Variável | camelCase | `currentUser` |
-| Função | camelCase com verbo | `loadUsers` |
-| Componente | PascalCase | `UserTable.svelte` |
-| Tipo / Interface | PascalCase | `UserRole` |
-| Constante global | UPPER_SNAKE_CASE | `MAX_FILE_SIZE` |
-| Arquivo TypeScript | kebab-case | `auth.service.ts` |
-| Store | `.store.ts` | `auth.store.ts` |
-| Service | `.service.ts` | `user.service.ts` |
-| API | `.api.ts` | `user.api.ts` |
-
+| Elemento           | Padrão              | Exemplo            |
+| ------------------ | ------------------- | ------------------ |
+| Variável           | camelCase           | `currentUser`      |
+| Função             | camelCase com verbo | `loadUsers`        |
+| Componente         | PascalCase          | `UserTable.svelte` |
+| Tipo / Interface   | PascalCase          | `UserRole`         |
+| Constante global   | UPPER_SNAKE_CASE    | `MAX_FILE_SIZE`    |
+| Arquivo TypeScript | kebab-case          | `auth.service.ts`  |
+| Store              | `.store.ts`         | `auth.store.ts`    |
+| Service            | `.service.ts`       | `user.service.ts`  |
+| API                | `.api.ts`           | `user.api.ts`      |
 
 ## Skills
+
 Utilize as seguintes skills quando precisar de contexto e informações mais específicas sobre o projeto:
+
 - development-pattern para acessar informações detalhadas e específicas de desenvolvimmento
 - frontend-architecture para acessar a estrutura arquitetura e fluxo
 - project-overview visão geral do Projeto NEO, mais especificamente o frontend.
 - svelte-review para acessar informações adicionais sobre boas práticas de svelte e typescript
 
+## Agents
+
+Utilize os seguintes agents conforme o fluxo de trabalho:
+
+- `git-controller` para gerenciar operações git (branch, commit, push, pull, status, diff, log) seguindo os preceitos do projeto.
+- `reviewer` para revisar a qualidade do conteúdo das alterações (código, docs, config), a consistência com o repositório e o risco de integração. Ele nunca aprova — entrega um rascunho para confirmação humana.
 
 ## Ferramentas disponíveis no Svelte MCP:
 
@@ -93,7 +107,6 @@ Gera um link para o Playground do Svelte com o código fornecido.
 
 Após concluir o código, pergunte ao usuário se ele deseja um link para o Playground. Chame esta ferramenta somente após a confirmação do usuário e NUNCA se o código tiver sido escrito em arquivos do projeto dele.
 
-
 ### 5. Princípios do projeto
 
 #### 5.1 Simplicidade
@@ -107,4 +120,3 @@ Cada arquivo deve possuir uma responsabilidade principal.
 #### 5.3 Código explícito
 
 Prefira nomes claros e comportamentos previsíveis.
-
