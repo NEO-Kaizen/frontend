@@ -2,7 +2,7 @@
 	import type { Snippet } from 'svelte';
 
 	type ButtonVariant = 'primary' | 'secondary' | 'outline';
-	type ButtonSize = 'default' | 'large'; //futuramente podemos adicionar nova variação de tamanho
+	type ButtonSize = 'default' | 'full'; //futuramente podemos adicionar nova variação de tamanho
 	type ButtonType = 'button' | 'submit' | 'reset';
 
 	interface Props {
@@ -36,7 +36,7 @@
 	class:primary={variant === 'primary'}
 	class:secondary={variant === 'secondary'}
 	class:outline={variant === 'outline'}
-	class:large={size === 'large'}
+	class:full={size === 'full'}
 >
 	{#if loading}
 		<span class="spinner" aria-hidden="true"></span>
@@ -52,9 +52,9 @@
 		justify-content: center;
 		gap: var(--spacing-sm);
 
-		padding: 8px 16px;
+		padding: var(--spacing-sm) var(--spacing-md);
 
-		border-radius: var(--radius-sm);
+		border-radius: 12px;
 		border: 1px solid transparent;
 
 		cursor: pointer;
@@ -78,9 +78,9 @@
 		border: 1px solid var(--primary-color);
 	}
 
-	.large {
+	.full {
 		width: 100%;
-		padding: 12px 16px;
+		padding: var(--spacing-md);
 		min-height: 48px;
 	}
 
