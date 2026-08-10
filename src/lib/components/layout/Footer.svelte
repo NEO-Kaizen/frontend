@@ -16,7 +16,7 @@
 
 	.footer__content {
 		width: 100%;
-		padding: var(--spacing-sm) var(--spacing-xl);
+		padding: var(--spacing-md) var(--spacing-xl);
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
