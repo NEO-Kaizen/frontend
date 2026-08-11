@@ -4,7 +4,6 @@
 	import { page } from '$app/state';
 	import Button from './Button.svelte';
 	import logo from '$lib/assets/NEO-logo.svg';
-	import { resolve } from '$app/paths';
 	import type { RouteId } from '$app/types';
 
 	type UserType = 'Solicitante' | 'Analista' | 'Administrador' | 'Gestor';
@@ -20,8 +19,8 @@
 		href?: RouteId;
 	}
 
-	// Nome e usertype devem ser pegas pela Data da página, ambas implementaçãos são um mock muito básico
-	// Alterar o mock para um próximo do real de pois de ver melhor sveltekit
+	// Nome e usertype devem vir pela Data da página, ambas implementações são um mock muito básico
+	// Alterar o mock para um próximo do real depois de ver melhor sveltekit
 
 	const user: User = {
 		name: 'André Job',
@@ -70,14 +69,21 @@
 <header>
 	<div class="top_bar">
 		<div class="top_bar-logo">
-			<img width="80" height="29" alt="NEO_LOGO" src={logo} />
+			<img width="80" height="29" alt="NEO" src={logo} />
 		</div>
 		<div class="top_bar-interactables">
 			<form class="search-container">
-				<button type="submit">
+				<button type="submit" aria-label="buscar">
 					<Icon iconName="search" />
 				</button>
-				<input type="text" placeholder="Buscar chamados..." name="pesquisar" />
+				<label>
+					<input
+						type="text"
+						placeholder="Buscar chamados..."
+						name="pesquisar"
+						aria-label="Buscar chamados"
+					/>
+				</label>
 			</form>
 			<Button>
 				<span>+</span>
@@ -116,19 +122,15 @@
 					</div>
 				{/each}
 			</div>
-			<div class="nav-item">
+			<button class="nav-item" type="button">
 				<Icon iconName="logout" />
 				Sair
-			</div>
+			</button>
 		</div>
 	{/if}
 </header>
 
 <style>
-	* {
-		padding: 0;
-		margin: 0;
-	}
 	header {
 		display: flex;
 		flex-direction: column;
@@ -137,8 +139,8 @@
 		gap: var(--spacing-md);
 		padding: var(--spacing-md) var(--spacing-lg);
 		background-color: var(--white);
-		padding: var(--spacing-md) var(--spacing-lg);
 		border-radius: var(--radius-xl);
+		max-width: var(--largura-maxima-header);
 	}
 	.top_bar {
 		display: flex;
@@ -206,11 +208,11 @@
 		align-items: end;
 	}
 	.profile_block-name {
-		font: var(--paragrado);
+		font: var(--paragrafo);
 		font-weight: 500;
 	}
 	.profile_block-role {
-		font: var(--paragrado);
+		font: var(--paragrafo);
 		font-size: 14px;
 	}
 
@@ -223,6 +225,13 @@
 		display: flex;
 		gap: var(--spacing-md);
 	}
+	button.nav-item {
+		background: none;
+		border: none;
+		font: inherit;
+		color: inherit;
+		cursor: pointer;
+	}
 	.nav-item {
 		display: flex;
 		align-items: center;
@@ -232,11 +241,13 @@
 		border-radius: var(--radius-md);
 	}
 	.nav-item:hover,
+	.nav-item:has(a:focus-visible),
 	.nav-item:focus-visible,
 	.nav-item.active {
 		background-color: var(--primary-color);
 		color: var(--white);
 	}
+
 	a {
 		color: inherit;
 		text-decoration: none;
