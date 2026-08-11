@@ -13,6 +13,7 @@ export const iconDictionary = {
 	home: 'home',
 	manageUsers: 'user_attributes',
 	search: 'search',
+	login: 'login',
 	logout: 'logout',
 	settings: 'settings',
 	filter: 'filter_alt',
