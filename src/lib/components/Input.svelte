@@ -5,7 +5,7 @@
 
 	type InputType = 'text' | 'email' | 'password' | 'tel' | 'url' | 'search';
 
-	interface Props extends Omit<
+	interface BaseProps extends Omit<
 		HTMLInputAttributes,
 		'type' | 'value' | 'placeholder' | 'required' | 'disabled' | 'name' | 'id'
 	> {
@@ -19,10 +19,21 @@
 		name?: string;
 		id?: string;
 		icon?: IconName;
-		actionIcon?: IconName;
-		actionLabel?: string;
-		onAction?: () => void;
 	}
+
+	type ActionProps =
+		| {
+				actionIcon: IconName;
+				actionLabel: string;
+				onAction?: () => void;
+		  }
+		| {
+				actionIcon?: undefined;
+				actionLabel?: never;
+				onAction?: never;
+		  };
+
+	type Props = BaseProps & ActionProps;
 
 	let {
 		type = 'text',
@@ -192,6 +203,15 @@
 	input:disabled {
 		cursor: not-allowed;
 		opacity: 0.6;
+	}
+
+	input[type='password']::-ms-reveal {
+		display: none;
+	}
+
+	input[type='password']::-webkit-credentials-auto-fill-button {
+		visibility: hidden;
+		pointer-events: none;
 	}
 
 	.error-message {
