@@ -1,0 +1,1 @@
+export type UserType = 'Solicitante' | 'Analista' | 'Administrador' | 'Gestor';

@@ -5,8 +5,7 @@
 	import Button from './Button.svelte';
 	import logo from '$lib/assets/NEO-logo.svg';
 	import type { RouteId } from '$app/types';
-
-	type UserType = 'Solicitante' | 'Analista' | 'Administrador' | 'Gestor';
+	import type { UserType } from '$lib/types/user';
 
 	interface User {
 		name: string;
