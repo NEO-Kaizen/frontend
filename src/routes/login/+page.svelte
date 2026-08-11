@@ -3,7 +3,7 @@
 </script>
 
 
-<main>
+<main class="content-container">
 	<LoginForm />
 </main>
 
