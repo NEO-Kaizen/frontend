@@ -6,6 +6,7 @@
 	import logo from '$lib/assets/NEO-logo.svg';
 	import type { RouteId } from '$app/types';
 	import type { User, UserType } from '$lib/types/user';
+	import Input from './Input.svelte';
 
 	interface NavButton {
 		name: string;
@@ -59,6 +60,11 @@
 	} satisfies Record<UserType, NavButton[]>;
 
 	const isNotSolicitante = user.userType !== 'Solicitante';
+
+	function handleSearchSubmit(event: SubmitEvent) {
+		event.preventDefault();
+		// TODO: implementar a busca quando a feature existir
+	}
 </script>
 
 <header>
@@ -67,25 +73,21 @@
 			<img width="80" height="29" alt="NEO" src={logo} />
 		</div>
 		<div class="top_bar-interactables">
-			<form class="search-container">
-				<button type="submit" aria-label="buscar">
-					<Icon iconName="search" />
-				</button>
-				<label>
-					<input
-						type="text"
-						placeholder="Buscar chamados..."
-						name="pesquisar"
-						aria-label="Buscar chamados"
-					/>
-				</label>
+			<form role="search" class="search-container" onsubmit={handleSearchSubmit}>
+				<Input
+					icon="search"
+					type="search"
+					placeholder="Buscar chamados"
+					aria-label="Buscar chamados"
+					name="pesquisar-chamados"
+				/>
 			</form>
 			<Button>
 				<span>+</span>
 				Nova solicitação
 			</Button>
 			{#if isNotSolicitante}
-				<div class="separator_bar-collumn"></div>
+				<div class="separator_bar-column"></div>
 				<div class="profile_block">
 					<div class="profile_block-identification">
 						<p class="profile_block-name">{user.name}</p>
@@ -151,40 +153,10 @@
 	.top_bar-interactables {
 		display: flex;
 		gap: var(--spacing-lg);
-	}
-	.top_bar .search-container {
-		display: flex;
 		align-items: center;
-		background: var(--white);
-		border-radius: var(--radius-md);
-		border: var(--border-default);
+	}
+	.search-container {
 		width: 300px;
-	}
-
-	.top_bar .search-container input[type='text'] {
-		padding: 6px 10px;
-		font: var(--paragrafo);
-		border: none;
-		outline: none;
-		background: transparent;
-		color: var(--black);
-	}
-
-	.top_bar .search-container button {
-		padding: 6px 10px;
-		height: 100%;
-		background: var(--white);
-		border: none;
-		cursor: pointer;
-		font: 15px;
-		display: flex;
-		align-items: center;
-		border-top-left-radius: var(--radius-md);
-		border-bottom-left-radius: var(--radius-md);
-	}
-
-	.top_bar .search-container button:hover {
-		background: var(--white-gray);
 	}
 
 	.profile_block {
@@ -254,8 +226,9 @@
 		background-color: var(--white-gray);
 	}
 
-	.separator_bar-collumn {
+	.separator_bar-column {
 		background-color: var(--white-gray);
 		width: 1px;
+		align-self: stretch;
 	}
 </style>
