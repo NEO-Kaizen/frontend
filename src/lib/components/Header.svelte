@@ -5,12 +5,8 @@
 	import Button from './Button.svelte';
 	import logo from '$lib/assets/NEO-logo.svg';
 	import type { RouteId } from '$app/types';
-	import type { UserType } from '$lib/types/user';
+	import type { User, UserType } from '$lib/types/user';
 
-	interface User {
-		name: string;
-		userType: UserType;
-	}
 	interface NavButton {
 		name: string;
 		icon: IconName;
