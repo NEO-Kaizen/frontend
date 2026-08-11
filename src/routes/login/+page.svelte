@@ -1,6 +1,17 @@
-<main>
-	<h1>Login</h1>
+<script lang="ts">
+    import LoginForm from '$lib/components/forms/LoginForm.svelte';
+</script>
 
-	<!-- futuramente -->
-	<!-- <LoginForm /> -->
+
+<main class="content-container">
+	<LoginForm />
 </main>
+
+<style>
+	main {
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		height: 100vh;
+	}
+</style>
