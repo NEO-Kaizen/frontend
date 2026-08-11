@@ -9,6 +9,6 @@ export interface LoginResponse {
 		id: string;
 		name: string;
 		email: string;
-		role: 'root' | 'admin' | 'analyst' | 'manager' | 'requester';
+		role: 'Solicitante' | 'Analista' | 'Administrador' | 'Gestor';
 	};
 }
