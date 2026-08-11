@@ -1,7 +1,8 @@
 <script lang="ts">
-	import Icon from './icons.svelte';
+	import Icon from './Icon.svelte';
 	import type { IconName } from '$lib/types/icons';
 	import { page } from '$app/state';
+	import Button from './Button.svelte';
 
 	type UserType = 'Solicitante' | 'Analista' | 'Administrador' | 'Gestor';
 
@@ -94,7 +95,10 @@
 				</button>
 				<input type="text" placeholder="Buscar chamados..." name="pesquisar" />
 			</form>
-			<button>Placeholder nova solicitação</button>
+			<Button>
+				<span>+</span>
+				Nova solicitação
+			</Button>
 			{#if isNotSolicitante}
 				<div class="separator_bar-collumn"></div>
 				<div class="profile_block">
@@ -108,7 +112,10 @@
 					/>
 				</div>
 			{:else}
-				<button>Placeholder Acesso administrativo</button>
+				<Button variant="outline">
+					<Icon iconName="security" />
+					Acesso administrativo
+				</Button>
 			{/if}
 		</div>
 	</div>
