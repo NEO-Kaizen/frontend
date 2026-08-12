@@ -1,23 +1,28 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
+	import Button from './Button.svelte';
 	import type { IconName } from '$lib/types/icons';
 
-	interface Props {
-		title?: string;
-		description?: string;
-		buttonText?: string;
+	interface BaseProps {
+		title: string;
+		description: string;
+		buttonText: string;
 		iconName?: IconName;
 		buttonIconName?: IconName;
-		href?: string;
-		onAction?: () => void;
 	}
 
+	type Props = BaseProps &
+		(
+			| { href: string; onAction?: never }
+			| { onAction: (event: MouseEvent) => void; href?: never }
+		);
+
 	let {
-		title = 'Abrir Solicitação',
-		description = 'Inicie um novo chamado ou\nrequerimento administrativo.\nNosso fluxo guiado ajudará\nvocê a fornecer os detalhes\nnecessários.',
-		buttonText = 'Iniciar formulário',
-		iconName = 'add_circle',
-		buttonIconName = 'arrow_forward',
+		title,
+		description,
+		buttonText,
+		iconName = 'addCircle',
+		buttonIconName = 'arrowForward',
 		href,
 		onAction
 	}: Props = $props();
@@ -35,15 +40,15 @@
 	</div>
 
 	{#if href}
-		<a {href} class="action-btn">
+		<a {href} class="card-link">
 			{buttonText}
 			<Icon iconName={buttonIconName} iconSize="sm" />
 		</a>
 	{:else}
-		<button type="button" class="action-btn" onclick={onAction}>
+		<Button variant="outline" onclick={onAction}>
 			{buttonText}
 			<Icon iconName={buttonIconName} iconSize="sm" />
-		</button>
+		</Button>
 	{/if}
 </div>
 
@@ -100,32 +105,20 @@
 		font-family: inherit;
 	}
 
-	.action-btn {
-		font: var(--button);
-		background-color: var(--white);
-		color: #002068;
-		border: none;
-		border-radius: 9999px;
-		padding: var(--spacing-sm) var(--spacing-lg);
+	.card-link {
 		display: inline-flex;
 		align-items: center;
 		gap: var(--spacing-sm);
-		cursor: pointer;
+		padding: var(--spacing-sm) var(--spacing-md);
+		border-radius: 12px;
+		background-color: var(--white);
+		color: var(--primary-color, #002068);
 		text-decoration: none;
+		font: var(--button);
 		transition: var(--transition-default);
 	}
 
-	.action-btn:hover {
+	.card-link:hover {
 		opacity: 0.9;
-		transform: translateY(-1px);
-	}
-
-	.action-btn:active {
-		transform: translateY(0);
-	}
-
-	.action-btn:focus-visible {
-		outline: 2px solid var(--white);
-		outline-offset: 2px;
 	}
 </style>
