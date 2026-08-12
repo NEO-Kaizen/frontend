@@ -175,9 +175,11 @@
 	.form-error {
 		position: absolute;
 		top: 100%;
-		left: 0;
-		margin: 0;
-		margin-top: 8px;
+		left: 50%;
+		transform: translateX(-50%);
+		width: 100%;
+		margin-top: 12px;
+		text-align: center;
 		color: var(--status-red);
 		font: var(--label);
 	}
