@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { HTMLInputAttributes } from 'svelte/elements';
 	import type { IconName } from '$lib/types/icons';
+	import type { HTMLInputAttributes } from 'svelte/elements';
 	import Icon from './Icon.svelte';
 
 	type InputType = 'text' | 'email' | 'password' | 'tel' | 'url' | 'search';
@@ -106,6 +106,7 @@
 
 <style>
 	.input-field {
+		position: relative;
 		display: flex;
 		flex-direction: column;
 		gap: var(--spacing-sm);
@@ -215,7 +216,12 @@
 	}
 
 	.error-message {
+		position: absolute;
+		top: 100%;
+		left: 0;
+		width: 100%;
 		margin: 0;
+		margin-top: 4px;
 		color: var(--status-red);
 		font: var(--label);
 	}
