@@ -4,6 +4,8 @@
 	import type { IconName } from '$lib/types/icons';
 
 	export type CardVariant = 'primary' | 'secondary';
+	export type BadgeVariant = 'blue' | 'green' | 'cyan';
+	export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost';
 
 	interface BaseProps {
 		title: string;
@@ -12,6 +14,8 @@
 		iconName?: IconName;
 		buttonIconName?: IconName;
 		variant?: CardVariant;
+		badgeVariant?: BadgeVariant;
+		buttonVariant?: ButtonVariant;
 	}
 
 	type Props = BaseProps &
@@ -27,14 +31,20 @@
 		iconName = 'addCircle',
 		buttonIconName = 'arrowForward',
 		variant = 'primary',
+		badgeVariant = 'cyan',
+		buttonVariant,
 		href,
 		onAction
 	}: Props = $props();
+
+	let resolvedButtonVariant = $derived(
+		buttonVariant ?? (variant === 'primary' ? 'outline' : 'primary')
+	);
 </script>
 
 <div class="card {variant}">
 	<div class="card-content">
-		<div class="icon-container">
+		<div class="icon-container badge-{badgeVariant}">
 			<Icon {iconName} iconSize="lg" />
 		</div>
 
@@ -49,7 +59,7 @@
 			<Icon iconName={buttonIconName} iconSize="sm" />
 		</a>
 	{:else}
-		<Button variant={variant === 'primary' ? 'outline' : 'primary'} onclick={onAction}>
+		<Button variant={resolvedButtonVariant} onclick={onAction}>
 			{buttonText}
 			<Icon iconName={buttonIconName} iconSize="sm" />
 		</Button>
@@ -107,10 +117,19 @@
 		color: var(--white);
 	}
 
-	.secondary .icon-container {
-		border: 1px solid var(--border-color, #e0e0e0);
-		background-color: var(--bg-neutral-light, #f5f5f5);
-		color: var(--primary-color, #002068);
+	.secondary .icon-container.badge-cyan {
+		background-color: #e0f7fa;
+		color: #006064;
+	}
+
+	.secondary .icon-container.badge-green {
+		background-color: #e8f5e9;
+		color: #1b5e20;
+	}
+
+	.secondary .icon-container.badge-blue {
+		background-color: #e8eaf6;
+		color: #1a237e;
 	}
 
 	h3 {
@@ -144,7 +163,7 @@
 		align-items: center;
 		gap: var(--spacing-sm);
 		padding: var(--spacing-sm) var(--spacing-md);
-		border-radius: 12px;
+		border-radius: var(--radius-md);
 		font: var(--button);
 		transition: var(--transition-default);
 		text-decoration: none;
