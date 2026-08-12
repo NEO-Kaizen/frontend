@@ -1,10 +1,10 @@
 <script lang="ts">
-	import Icon from '$lib/components/Icon.svelte';
+	import { goto } from '$app/navigation';
 	import Button from '$lib/components/Button.svelte';
+	import Icon from '$lib/components/Icon.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import { login } from '$lib/services/auth.service';
 	import type { LoginCredentials } from '$lib/types/auth';
-    import { goto } from '$app/navigation';
 
 	let email = $state('');
 	let password = $state('');
@@ -108,10 +108,10 @@
 				error={fieldErrors.password}
 				oninput={() => clearFieldError('password')}
 			/>
+			{#if errorMessage}
+				<p class="form-error" role="alert">{errorMessage}</p>
+			{/if}
 		</div>
-        {#if errorMessage}
-            <p class="form-error" role="alert">{errorMessage}</p>
-        {/if}
 
 		<Button variant="primary" type="submit" size="full" loading={isSubmitting}>
 			Entrar
@@ -163,7 +163,8 @@
 	.container-input {
 		display: flex;
 		flex-direction: column;
-		gap: var(--spacing-md);
+		gap: var(--spacing-lg);
+		position: relative;
 	}
 	.container-titulo {
 		gap: var(--spacing-sm);
@@ -171,10 +172,13 @@
 		flex-direction: column;
 	}
 
-    .form-error {
-		padding: var(--spacing-sm) var(--spacing-md);
-		border-radius: var(--radius-sm);
-		background-color: var(--status-red-bg);
+	.form-error {
+		position: absolute;
+		top: 100%;
+		left: 0;
+		margin: 0;
+		margin-top: 8px;
 		color: var(--status-red);
+		font: var(--label);
 	}
 </style>
