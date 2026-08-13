@@ -9,8 +9,12 @@
 </footer>
 
 <style>
+	:global(body) {
+		min-height: 100dvh;
+	}
 	.footer {
 		width: 100%;
+		margin-top: auto;
 		background-color: var(--white);
 	}
 

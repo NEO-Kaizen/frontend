@@ -135,7 +135,7 @@
 		display: flex;
 		flex-direction: column;
 		width: 90vw;
-		margin: auto;
+		margin: 30px 80px;
 		gap: var(--spacing-md);
 		padding: var(--spacing-md) var(--spacing-lg);
 		background-color: var(--white);
