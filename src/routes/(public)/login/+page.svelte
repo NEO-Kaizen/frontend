@@ -1,7 +1,6 @@
 <script lang="ts">
     import LoginForm from '$lib/components/forms/LoginForm.svelte';
     import Header from '$lib/components/Header.svelte';
-    import Footer from '$lib/components/layout/Footer.svelte';
 </script>
 
 <div class="login-page">
@@ -10,17 +9,17 @@
     <main class="content-container">
         <LoginForm />
     </main>
-
-    <Footer />
 </div>
 
 <style>
     .login-page {
 		width: 100%;
-        min-height: 100vh;
+        height: 100vh;
+        max-height: calc(100vh - 40px);
         display: flex;
         flex-direction: column;
 		align-items: center;
+        overflow: hidden;
     }
 
     .content-container {
