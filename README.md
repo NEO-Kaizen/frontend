@@ -145,8 +145,6 @@ As regras de acesso serão implementadas e refinadas conforme a evolução do pr
 
 ## Equipe
 
-## Equipe
-
 <table>
   <tr>
     <td align="center">
