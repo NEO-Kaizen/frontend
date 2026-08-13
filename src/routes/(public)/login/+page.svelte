@@ -1,7 +1,6 @@
 <script lang="ts">
-    import LoginForm from '$lib/components/forms/LoginForm.svelte';
+	import LoginForm from '$lib/components/forms/LoginForm.svelte';
 </script>
-
 
 <main class="content-container">
 	<LoginForm />
