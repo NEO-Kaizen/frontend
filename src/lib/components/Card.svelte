@@ -5,7 +5,7 @@
 
 	export type CardVariant = 'primary' | 'secondary';
 	export type BadgeVariant = 'blue' | 'green' | 'cyan';
-	export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost';
+	export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'outline-neutral';
 
 	interface BaseProps {
 		title: string;
