@@ -65,9 +65,9 @@
 
 <header>
 	<div class="top_bar">
-		<div class="top_bar-logo">
+		<a class="top_bar-logo" href="/">
 			<img width="80" height="29" alt="NEO" src={logo} />
-		</div>
+		</a>
 		<div class="top_bar-interactables">
 			<form role="search" class="search-container" onsubmit={handleSearchSubmit}>
 				<Input
