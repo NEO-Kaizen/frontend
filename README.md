@@ -195,7 +195,7 @@ As regras de acesso serão implementadas e refinadas conforme a evolução do pr
     <td align="center">
       <a href="https://github.com/Sant117">
         <img src="https://avatars.githubusercontent.com/Sant117" width="80px;" alt="Wanuta"/><br>
-        <sub><b>Wanuta</b></sub>
+        <sub><b>Wanuta Santos</b></sub>
       </a>
     </td>
     <td align="center">
