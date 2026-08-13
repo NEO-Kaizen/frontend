@@ -73,6 +73,7 @@ body {
     background-color: var(--background-color);
     color: var(--black);
     font: var(--paragrafo);
+    padding-top: var(--spacing-xl);
 }
 
 .content-container{

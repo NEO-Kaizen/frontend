@@ -98,7 +98,7 @@
 				<Button
 					variant="outline"
 					onclick={() => {
-						goto(resolve('/login'));
+						goto(resolve('/(public)/login'));
 					}}
 				>
 					<Icon iconName="security" />
@@ -120,10 +120,12 @@
 					</div>
 				{/each}
 			</div>
-			<button class="nav-item" type="button">
-				<Icon iconName="logout" />
-				Sair
-			</button>
+			<form method="POST" action="/logout">
+				<button class="nav-item" type="submit">
+					<Icon iconName="logout" />
+					Sair
+				</button>
+			</form>
 		</div>
 	{/if}
 </header>
