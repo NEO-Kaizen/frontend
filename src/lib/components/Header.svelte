@@ -5,8 +5,10 @@
 	import Button from './Button.svelte';
 	import logo from '$lib/assets/NEO-logo.svg';
 	import type { RouteId } from '$app/types';
-	import type { User, UserType } from '$lib/types/user';
+	import type { UserType } from '$lib/types/user';
 	import Input from './Input.svelte';
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 
 	interface NavButton {
 		name: string;
@@ -15,13 +17,7 @@
 		href?: RouteId;
 	}
 
-	// Nome e usertype devem vir pela Data da página, ambas implementações são um mock muito básico
-	// Alterar o mock para um próximo do real depois de ver melhor sveltekit
-
-	const user: User = {
-		name: 'André Job',
-		userType: 'Administrador'
-	};
+	const currentUser = $derived(page.data.user);
 
 	const analistaNav: NavButton[] = [
 		{
@@ -59,7 +55,7 @@
 		Solicitante: []
 	} satisfies Record<UserType, NavButton[]>;
 
-	const isNotSolicitante = user.userType !== 'Solicitante';
+	const isNotSolicitante = $derived(currentUser != null && currentUser.role !== 'Solicitante');
 
 	function handleSearchSubmit(event: SubmitEvent) {
 		event.preventDefault();
@@ -90,8 +86,8 @@
 				<div class="separator_bar-column"></div>
 				<div class="profile_block">
 					<div class="profile_block-identification">
-						<p class="profile_block-name">{user.name}</p>
-						<p class="profile_block-role">{user.userType}</p>
+						<p class="profile_block-name">{currentUser?.name}</p>
+						<p class="profile_block-role">{currentUser?.role}</p>
 					</div>
 					<img
 						src="https://images.icon-icons.com/1238/PNG/512/blacksquare_83753.png"
@@ -99,7 +95,12 @@
 					/>
 				</div>
 			{:else}
-				<Button variant="outline">
+				<Button
+					variant="outline"
+					onclick={() => {
+						goto(resolve('/login'));
+					}}
+				>
 					<Icon iconName="security" />
 					Acesso administrativo
 				</Button>
@@ -112,10 +113,10 @@
 
 		<div class="nav">
 			<div class="nav-items-group">
-				{#each navItems[user.userType] as item (item.name)}
+				{#each navItems[currentUser?.role ?? 'Solicitante'] as item (item.name)}
 					<div class="nav-item" class:active={page.url.pathname === item.href}>
 						<Icon iconName={item.icon} />
-						<a href={item.href}>{item.name}</a>
+						<a href={item.href ? resolve(item.href) : undefined}>{item.name}</a>
 					</div>
 				{/each}
 			</div>
