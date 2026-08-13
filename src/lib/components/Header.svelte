@@ -98,7 +98,7 @@
 				<Button
 					variant="outline"
 					onclick={() => {
-						goto(resolve('/login'));
+						goto(resolve('/(public)/login'));
 					}}
 				>
 					<Icon iconName="security" />
