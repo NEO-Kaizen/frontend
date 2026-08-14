@@ -6,7 +6,7 @@ export interface LoginCredentials {
 }
 
 export interface SessionUser {
-	id: string;
+	id: number;
 	name: string;
 	email: string;
 	role: UserType;

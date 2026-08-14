@@ -1,10 +1,15 @@
 import type { SessionUser } from '$lib/types/auth';
 import type { UserType } from '$lib/types/user';
 
-const USER_TYPES: readonly string[] = ['Solicitante', 'Analista', 'Administrador', 'Gestor'];
+const USER_TYPES: readonly UserType[] = [
+	'Solicitante',
+	'Analista',
+	'Administrador',
+	'Gestor'
+];
 
 function isUserType(value: unknown): value is UserType {
-	return typeof value === 'string' && USER_TYPES.includes(value);
+	return typeof value === 'string' && USER_TYPES.includes(value as UserType);
 }
 
 export function decodeJwt(token: string): SessionUser | null {
@@ -18,7 +23,7 @@ export function decodeJwt(token: string): SessionUser | null {
 		const decoded = JSON.parse(base64UrlDecode(payload)) as Record<string, unknown>;
 
 		if (
-			typeof decoded.id !== 'string' ||
+			typeof decoded.id !== 'number' ||
 			typeof decoded.name !== 'string' ||
 			typeof decoded.email !== 'string' ||
 			!isUserType(decoded.role)
@@ -40,5 +45,6 @@ export function decodeJwt(token: string): SessionUser | null {
 function base64UrlDecode(value: string): string {
 	const base64 = value.replace(/-/g, '+').replace(/_/g, '/');
 	const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
+
 	return atob(padded);
 }
