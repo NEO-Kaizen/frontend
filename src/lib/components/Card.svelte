@@ -20,10 +20,7 @@
 	}
 
 	type Props = BaseProps &
-		(
-			| { href: string; onAction?: never }
-			| { onAction: (event: MouseEvent) => void; href?: never }
-		);
+		({ href: string; onAction?: never } | { onAction: (event: MouseEvent) => void; href?: never });
 
 	let {
 		title,
@@ -59,6 +56,7 @@
 		{#if variant === 'primary'}
 			<IconBadge
 				{iconName}
+				variant="override"
 				size="lg"
 				backgroundColor="rgba(255, 255, 255, 0.1)"
 				iconColor="#ffffff"
@@ -68,6 +66,7 @@
 			<IconBadge
 				{iconName}
 				size="lg"
+				variant="override"
 				backgroundColor={badgeStyles[badgeVariant].backgroundColor}
 				iconColor={badgeStyles[badgeVariant].iconColor}
 			/>

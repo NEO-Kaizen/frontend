@@ -2,7 +2,7 @@
 	import Icon from './Icon.svelte';
 	import type { IconName, IconSize } from '$lib/types/icons';
 
-	export type IconBadgeVariant = 'indigo' | 'green' | 'orange' | 'blue';
+	export type IconBadgeVariant = 'indigo' | 'green' | 'orange' | 'blue' | 'override';
 	export type IconBadgeSize = 'sm' | 'lg';
 
 	interface Props {
@@ -33,9 +33,9 @@
 
 <span
 	class="icon-badge {size} {variant}"
-	style:background-color={backgroundColor}
-	style:color={iconColor}
-	style:border
+	style:background-color={variant === 'override' ? backgroundColor : undefined}
+	style:color={variant === 'override' ? iconColor : undefined}
+	style:border={variant === 'override' ? border : undefined}
 	aria-hidden={ariaLabel ? undefined : true}
 	aria-label={ariaLabel}
 >
@@ -68,12 +68,12 @@
 
 	.icon-badge.green {
 		background-color: rgba(220, 252, 231, 1);
-		color: #15803D;
+		color: #15803d;
 	}
 
 	.icon-badge.orange {
 		background-color: rgba(255, 237, 213, 1);
-		color: #C2410C;
+		color: #c2410c;
 	}
 
 	.icon-badge.blue {
