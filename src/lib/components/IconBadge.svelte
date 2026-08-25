@@ -17,13 +17,13 @@
 				backgroundColor: string;
 				iconColor: string;
 				border?: string;
-			})
+		  })
 		| (BaseProps & {
 				variant: Exclude<IconBadgeVariant, 'override'>;
 				backgroundColor?: never;
 				iconColor?: never;
 				border?: never;
-			});
+		  });
 
 	let {
 		iconName,
@@ -47,11 +47,7 @@
 	style:color={variant === 'override' ? iconColor : undefined}
 	style:border={variant === 'override' ? border : undefined}
 >
-	<Icon
-		{iconName}
-		iconSize={sizeIconMap[size]}
-		ariaLabel={ariaLabel}
-	/>
+	<Icon {iconName} iconSize={sizeIconMap[size]} {ariaLabel} />
 </span>
 
 <style>
