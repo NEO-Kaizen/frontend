@@ -1,9 +1,9 @@
 ---
 name: frontend-architecture
 description: Essa skill define como as partes do frontend do Projeto NEO se relacionam e quais são as responsabilidades de cada camada, arquitetura separada que busca uma estrutura simples, organizada e preparada para crescer sem criar camadas desnecessárias.
-metadata: 
-  version: "1.0" 
-  tags: [arquitetura front-end, estrutura do projeto, fluxo.] 
+metadata:
+  version: '1.0'
+  tags: [arquitetura front-end, estrutura do projeto, fluxo.]
 ---
 
 # Arquitetura do Frontend

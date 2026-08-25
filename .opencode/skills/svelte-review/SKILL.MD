@@ -2,7 +2,7 @@
 name: svelte-review
 description: Conhecimento especializado para revisão de código e ensino de boas práticas em projetos SvelteKit, Svelte 5 e TypeScript.
 metadata:
-  version: "2.0"
+  version: '2.0'
   tags:
     - svelte 5
     - sveltekit
@@ -66,7 +66,6 @@ Principalmente para:
 - comparação entre abordagens.
 
 O Context7 é complementar ao Svelte MCP, nunca um substituto.
-
 
 ## TypeScript
 

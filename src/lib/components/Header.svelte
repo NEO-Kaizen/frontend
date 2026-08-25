@@ -65,7 +65,7 @@
 
 <header>
 	<div class="top_bar">
-		<a class="top_bar-logo" href="/">
+		<a class="top_bar-logo" href={resolve('/')}>
 			<img width="80" height="29" alt="NEO" src={logo} />
 		</a>
 		<div class="top_bar-interactables">

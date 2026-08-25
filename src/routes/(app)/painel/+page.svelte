@@ -7,4 +7,3 @@
 	<p>Bem-vindo(a), {page.data.user?.name}.</p>
 	<p>Esta área autenticada está prevista para uma próxima sprint.</p>
 </div>
-
