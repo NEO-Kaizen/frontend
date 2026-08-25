@@ -5,8 +5,11 @@ O **Sve Teacher** é um agente especializado em **Svelte 5**, **SvelteKit** e **
 ele atua como um professor: explica o problema, apresenta alternativas e fundamenta as respostas na documentação oficial sempre que necessário.
 
 ---
+
 # Quando utilizar
+
 Utilize o **Sve Teacher** quando quiser:
+
 - entender um conceito do Svelte ou TypeScript;
 - aprender uma API do SvelteKit;
 - descobrir por que um código não funciona;
@@ -21,6 +24,7 @@ Não utilize este agente para implementar funcionalidades ou editar arquivos do 
 # O que esperar das respostas
 
 As respostas normalmente incluem:
+
 - explicação do problema;
 - motivo do comportamento observado;
 - possíveis soluções;
@@ -37,23 +41,29 @@ O objetivo é que você compreenda **o motivo da solução**, e não apenas copi
 ```text
 Explique como funcionam as runes do Svelte 5 e quando devo utilizar cada uma delas.
 ```
+
 ---
 
 ### Revisando um componente
+
 ```text
 Revise este componente.
 
 Procure bugs, problemas de reatividade, acessibilidade, performance e tipagem. Explique cada sugestão sem modificar o código.
 ```
+
 ---
 
 ### Tirando uma dúvida
+
 ```text
 Estou utilizando um $derived, mas ele não atualiza quando espero.
 
 Explique o motivo e mostre qual seria a abordagem recomendada.
 ```
+
 ---
+
 # Dicas
 
 - Faça perguntas específicas. Quanto mais contexto você fornecer, melhor será a resposta.

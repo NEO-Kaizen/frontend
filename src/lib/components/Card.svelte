@@ -3,6 +3,8 @@
 	import Icon from './Icon.svelte';
 	import Button from './Button.svelte';
 	import type { IconName } from '$lib/types/icons';
+	import type { RouteId } from '$app/types';
+	import { resolve } from '$app/paths';
 
 	export type CardVariant = 'primary' | 'secondary';
 	export type BadgeVariant = 'green' | 'cyan';
@@ -20,7 +22,7 @@
 	}
 
 	type Props = BaseProps &
-		({ href: string; onAction?: never } | { onAction: (event: MouseEvent) => void; href?: never });
+		({ href: RouteId; onAction?: never } | { onAction: (event: MouseEvent) => void; href?: never });
 
 	let {
 		title,
@@ -78,7 +80,7 @@
 	</div>
 
 	{#if href}
-		<a {href} class="card-link {variant}">
+		<a href={resolve(href)} class="card-link {variant}">
 			{buttonText}
 			<Icon iconName={buttonIconName} iconSize="sm" />
 		</a>

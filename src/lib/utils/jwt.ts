@@ -1,12 +1,7 @@
 import type { SessionUser } from '$lib/types/auth';
 import type { UserType } from '$lib/types/user';
 
-const USER_TYPES: readonly UserType[] = [
-	'Solicitante',
-	'Analista',
-	'Administrador',
-	'Gestor'
-];
+const USER_TYPES: readonly UserType[] = ['Solicitante', 'Analista', 'Administrador', 'Gestor'];
 
 function isUserType(value: unknown): value is UserType {
 	return typeof value === 'string' && USER_TYPES.includes(value as UserType);

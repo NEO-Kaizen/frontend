@@ -22,7 +22,7 @@ Nosso fluxo guiado ajudará você a fornecer os detalhes necessários."
 			iconName="addCircle"
 			buttonIconName="arrowForward"
 			variant="primary"
-			href={resolve('/(public)/solicitacao')}
+			href="/(public)/solicitacao"
 		/>
 
 		<Card
@@ -33,7 +33,7 @@ Nosso fluxo guiado ajudará você a fornecer os detalhes necessários."
 			buttonIconName="arrowForward"
 			variant="secondary"
 			badgeVariant="cyan"
-			href={resolve('/(public)/login')}
+			href="/(public)/login"
 		/>
 
 		<Card

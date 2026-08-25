@@ -31,7 +31,7 @@ O sistema possui diferentes perfis, com permissões distintas.
 
 | Perfil      | Responsabilidades principais                                           |
 | ----------- | ---------------------------------------------------------------------- |
-| Root | Gerencia administradores e possui permissões administrativas especiais |
+| Root        | Gerencia administradores e possui permissões administrativas especiais |
 | Admin       | Gerencia usuários, visualiza solicitações e delega solicitações        |
 | Analista    | Visualiza solicitações atribuídas e realiza atendimentos               |
 | Gestor      | Visualiza e acompanha solicitações                                     |
@@ -89,15 +89,16 @@ O frontend deve:
 - Usar nomes claros e descritivos.
 - Garantir comportamentos previsíveis.
 - Evitar abstrações excessivas ou “magia” que esconda a lógica real.
+
 ---
 
 ## 6. Organização da documentação
 
-| Documento                       | Conteúdo                                    |
-| ------------------------------- | ------------------------------------------- |
-| `01-Visao-Geral.md`             | Objetivo, tecnologias, perfis e princípios  |
-| `02-Arquitetura-Frontend.md`    | Camadas e fluxo da aplicação                |
-| `03-Padrões-de-Desenvolvimento.md`       | Regras de TypeScript, Svelte e nomenclatura |
+| Documento                          | Conteúdo                                    |
+| ---------------------------------- | ------------------------------------------- |
+| `01-Visao-Geral.md`                | Objetivo, tecnologias, perfis e princípios  |
+| `02-Arquitetura-Frontend.md`       | Camadas e fluxo da aplicação                |
+| `03-Padrões-de-Desenvolvimento.md` | Regras de TypeScript, Svelte e nomenclatura |
 
 ---
 
