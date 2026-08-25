@@ -1,4 +1,5 @@
 <script lang="ts">
+	import IconBadge from './IconBadge.svelte';
 	import Icon from './Icon.svelte';
 	import Button from './Button.svelte';
 	import type { IconName } from '$lib/types/icons';
@@ -6,7 +7,7 @@
 	import { resolve } from '$app/paths';
 
 	export type CardVariant = 'primary' | 'secondary';
-	export type BadgeVariant = 'blue' | 'green' | 'cyan';
+	export type BadgeVariant = 'green' | 'cyan';
 	export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'outline-neutral';
 
 	interface BaseProps {
@@ -39,13 +40,39 @@
 	let resolvedButtonVariant = $derived(
 		buttonVariant ?? (variant === 'primary' ? 'outline' : 'primary')
 	);
+
+	const badgeStyles: Record<BadgeVariant, { backgroundColor: string; iconColor: string }> = {
+		cyan: {
+			backgroundColor: '#00F1FE33',
+			iconColor: '#00696F'
+		},
+		green: {
+			backgroundColor: '#6DFE9C33',
+			iconColor: '#004721'
+		}
+	};
 </script>
 
 <div class="card {variant}">
 	<div class="card-content">
-		<div class="icon-container badge-{badgeVariant}">
-			<Icon {iconName} iconSize="lg" />
-		</div>
+		{#if variant === 'primary'}
+			<IconBadge
+				{iconName}
+				variant="override"
+				size="lg"
+				backgroundColor="rgba(255, 255, 255, 0.1)"
+				iconColor="#ffffff"
+				border="1px solid rgba(255, 255, 255, 0.2)"
+			/>
+		{:else}
+			<IconBadge
+				{iconName}
+				size="lg"
+				variant="override"
+				backgroundColor={badgeStyles[badgeVariant].backgroundColor}
+				iconColor={badgeStyles[badgeVariant].iconColor}
+			/>
+		{/if}
 
 		<h3>{title}</h3>
 
@@ -98,37 +125,6 @@
 		align-items: flex-start;
 		gap: var(--spacing-md);
 		width: 100%;
-	}
-
-	.icon-container {
-		width: 56px;
-		height: 56px;
-		border-radius: var(--radius-md);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		margin-bottom: var(--spacing-sm);
-	}
-
-	.primary .icon-container {
-		border: 1px solid rgba(255, 255, 255, 0.2);
-		background-color: rgba(255, 255, 255, 0.05);
-		color: var(--white);
-	}
-
-	.secondary .icon-container.badge-cyan {
-		background-color: #e0f7fa;
-		color: #006064;
-	}
-
-	.secondary .icon-container.badge-green {
-		background-color: #e8f5e9;
-		color: #1b5e20;
-	}
-
-	.secondary .icon-container.badge-blue {
-		background-color: #e8eaf6;
-		color: #1a237e;
 	}
 
 	h3 {
