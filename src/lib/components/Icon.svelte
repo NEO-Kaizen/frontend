@@ -30,4 +30,7 @@
 	.lg {
 		font-size: 24px;
 	}
+	.xl {
+		font-size: 32px;
+	}
 </style>
