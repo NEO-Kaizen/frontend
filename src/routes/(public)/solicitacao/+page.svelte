@@ -1,8 +1,14 @@
+<script lang="ts">
+  import FormDemanda from '$lib/components/forms/solicitation-form/SolicitationForm.svelte'
+</script>
+
+
 <main class="content-container">
-	<section class="placeholder">
+<FormDemanda />
+	<!-- <section class="placeholder">
 		<h1>Abrir solicitação</h1>
 		<p>Esta área está prevista para uma próxima sprint.</p>
-	</section>
+	</section> -->
 </main>
 
 <style>
@@ -14,3 +20,5 @@
 		padding: var(--spacing-xl) 0;
 	}
 </style>
+
+
