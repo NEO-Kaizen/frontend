@@ -5,19 +5,29 @@
 	export type IconBadgeVariant = 'indigo' | 'green' | 'orange' | 'blue' | 'override';
 	export type IconBadgeSize = 'sm' | 'lg';
 
-	interface Props {
+	interface BaseProps {
 		iconName: IconName;
-		variant?: IconBadgeVariant;
 		size?: IconBadgeSize;
-		backgroundColor?: string;
-		iconColor?: string;
-		border?: string;
 		ariaLabel?: string;
 	}
 
+	type Props =
+		| (BaseProps & {
+				variant: 'override';
+				backgroundColor: string;
+				iconColor: string;
+				border?: string;
+			})
+		| (BaseProps & {
+				variant: Exclude<IconBadgeVariant, 'override'>;
+				backgroundColor?: never;
+				iconColor?: never;
+				border?: never;
+			});
+
 	let {
 		iconName,
-		variant = 'indigo',
+		variant,
 		size = 'sm',
 		backgroundColor,
 		iconColor,
@@ -36,10 +46,12 @@
 	style:background-color={variant === 'override' ? backgroundColor : undefined}
 	style:color={variant === 'override' ? iconColor : undefined}
 	style:border={variant === 'override' ? border : undefined}
-	aria-hidden={ariaLabel ? undefined : true}
-	aria-label={ariaLabel}
 >
-	<Icon {iconName} iconSize={sizeIconMap[size]} />
+	<Icon
+		{iconName}
+		iconSize={sizeIconMap[size]}
+		ariaLabel={ariaLabel}
+	/>
 </span>
 
 <style>
