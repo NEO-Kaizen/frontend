@@ -7,7 +7,7 @@
 		ariaLabel?: string;
 	}
 
-	const { iconName, iconSize = 'md', ariaLabel }: Props = $props();
+	let { iconName, iconSize = 'md', ariaLabel }: Props = $props();
 </script>
 
 <span
