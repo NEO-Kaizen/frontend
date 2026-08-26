@@ -3,7 +3,7 @@
 	import type { HTMLInputAttributes } from 'svelte/elements';
 	import Icon from './Icon.svelte';
 
-	type InputType = 'text' | 'email' | 'password' | 'tel' | 'url' | 'search';
+	type InputType = 'text' | 'email' | 'password' | 'tel' | 'url' | 'search' | 'date';
 
 	interface BaseProps extends Omit<
 		HTMLInputAttributes,
