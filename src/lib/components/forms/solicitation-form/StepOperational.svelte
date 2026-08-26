@@ -225,7 +225,6 @@
 		border-radius: var(--radius-sm);
 		cursor: pointer;
 		transition: var(--transition-default);
-		margin-top: 28px;
 	}
 
 	.remove-schedule-button:hover {

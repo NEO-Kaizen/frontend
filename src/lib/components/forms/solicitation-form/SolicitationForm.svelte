@@ -351,6 +351,7 @@
 		display: flex;
 		justify-content: right;
 		align-items: center;
+		gap: var(--spacing-sm);
 		margin-top: var(--spacing-md);
 		padding-top: var(--spacing-md);
 	}
