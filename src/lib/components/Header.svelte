@@ -63,9 +63,17 @@
 		// TODO: implementar a busca quando a feature existir
 	}
 
+	let isLoggingOut = $state(false);
+
 	async function handleLogout() {
-		await logout();
-		await goto(resolve('/(public)/login'), { invalidateAll: true });
+		if (isLoggingOut) return;
+		isLoggingOut = true;
+		try {
+			await logout();
+			await goto(resolve('/(public)/login'), { invalidateAll: true });
+		} finally {
+			isLoggingOut = false;
+		}
 	}
 </script>
 
@@ -126,7 +134,13 @@
 					</div>
 				{/each}
 			</div>
-			<button class="nav-item" type="button" onclick={handleLogout}>
+			<button
+				class="nav-item"
+				type="button"
+				disabled={isLoggingOut}
+				aria-busy={isLoggingOut}
+				onclick={handleLogout}
+			>
 				<Icon iconName="logout" />
 				Sair
 			</button>
@@ -220,6 +234,10 @@
 	.nav-item.active {
 		background-color: var(--primary-color);
 		color: var(--white);
+	}
+	.nav-item:disabled {
+		cursor: not-allowed;
+		opacity: 0.6;
 	}
 
 	a {
