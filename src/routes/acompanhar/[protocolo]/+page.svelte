@@ -53,9 +53,9 @@
 
 					{#if solicitation.meeting}
 						<div class="meeting-box">
-							<IconBadge icon="calendar" size="md" />
+							<IconBadge icon="video" size="md" />
 							<div class="meeting-info">
-								<strong>Reunião / Vistoria Agendada</strong>
+								<strong>REUNIÃO DE ALINHAMENTO</strong>
 								<p>{solicitation.meeting.date}</p>
 							</div>
 							{#if solicitation.meeting.link}
@@ -169,13 +169,16 @@
 
 	.meeting-info strong {
 		display: block;
-		font: var(--paragrafo);
+		font: var(--paragrafo-sm);
 		color: var(--primary-color);
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
 	}
 
 	.meeting-info p {
-		font: var(--paragrafo-sm);
-		color: var(--gray);
+		font: var(--paragrafo);
+		font-weight: 600;
+		color: var(--text-color, #1f2937);
 	}
 
 	.message-box {
