@@ -47,6 +47,6 @@ export const ALLOWED_FILE_TYPES = ['application/pdf', 'image/png', 'image/jpeg']
 
 export const ALLOWED_FILE_EXTENSIONS = ['.pdf', '.docx', '.xlsx', '.png', '.jpg'] as const;
 
-export const MAX_FILE_SIZE = 5 * 1024 * 1024;
+export const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 export type StepFieldErrors = Partial<Record<string, string>>;

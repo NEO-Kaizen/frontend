@@ -36,7 +36,7 @@
 		}
 
 		if (file.size > MAX_FILE_SIZE) {
-			return 'Arquivo excede o tamanho máximo de 5MB.';
+			return 'Arquivo excede o tamanho máximo de 10MB.';
 		}
 
 		return null;
@@ -145,7 +145,7 @@
 			<Icon iconName="cloudUpload" iconSize="lg" />
 		</span>
 		<p class="upload-text">Clique para enviar ou arraste arquivos</p>
-		<p class="upload-hint">PDF, DOCX, XLSX ou imagens (Máx. 5MB)</p>
+		<p class="upload-hint">PDF, DOCX, XLSX, PNG ou JPG (Máx. 10MB)</p>
 	</div>
 
 	{#if files.length > 0}

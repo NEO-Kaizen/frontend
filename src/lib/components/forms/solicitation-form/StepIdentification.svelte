@@ -85,6 +85,7 @@
 			label="Contato adicional"
 			placeholder="Ramal ou Celular"
 			bind:value={data.additionalContact}
+			error={errors.additionalContact}
 			oninput={() => onClearError('additionalContact')}
 		/>
 	</div>

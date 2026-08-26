@@ -71,8 +71,11 @@
 	function validateStep1(): boolean {
 		const errors: StepFieldErrors = {};
 
-		if (!identification.fullName.trim()) {
-			errors.fullName = 'Campo obrigatório.';
+		if (
+			!/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(identification.fullName) ||
+			!identification.fullName.trim()
+		) {
+			errors.fullName = 'Campo obrigatório, apenas texto.';
 		}
 
 		if (!identification.email.trim()) {
@@ -85,12 +88,24 @@
 			errors.area = 'Campo obrigatório.';
 		}
 
-		if (!identification.department.trim()) {
-			errors.department = 'Campo obrigatório.';
+		if (
+			!/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(identification.department) ||
+			!identification.department.trim()
+		) {
+			errors.department = 'Campo obrigatório, apenas texto.';
 		}
 
-		if (!identification.managerName.trim()) {
-			errors.managerName = 'Campo obrigatório.';
+		if (
+			!/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(identification.managerName) ||
+			!identification.managerName.trim()
+		) {
+			errors.managerName = 'Campo obrigatório, apenas texto.';
+		}
+
+		if (identification.additionalContact && identification.additionalContact.trim()) {
+			if (!/^[1-9]{2}[2-9][0-9]{7,8}$/.test(identification.additionalContact)) {
+				errors.additionalContact = 'Insira um número válido.';
+			}
 		}
 
 		step1Errors = errors;
@@ -142,6 +157,16 @@
 		if (!operational.operationalImpact) {
 			errors.operationalImpact = 'Campo obrigatório.';
 		}
+
+		const hoje = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+			.toISOString()
+			.slice(0, 16);
+
+		operational.preferredSchedule.forEach((dataAgendada, index) => {
+			if (dataAgendada && dataAgendada < hoje) {
+				errors[`schedule_${index}`] = 'Insira um horário válido.';
+			}
+		});
 
 		step3Errors = errors;
 		return Object.keys(errors).length === 0;
@@ -269,12 +294,12 @@
 					{/if}
 
 					{#if currentStep < 3}
-						<Button variant="primary" onclick={handleNext}>
+						<Button variant="secondary" onclick={handleNext}>
 							Avançar
 							<Icon iconName="arrowForward" iconSize="md" />
 						</Button>
 					{:else}
-						<Button variant="primary" onclick={handleSubmit} loading={isSubmitting}>
+						<Button variant="secondary" onclick={handleSubmit} loading={isSubmitting}>
 							Enviar Solicitação
 							<Icon iconName="send" iconSize="md" />
 						</Button>
@@ -328,7 +353,6 @@
 		align-items: center;
 		margin-top: var(--spacing-md);
 		padding-top: var(--spacing-md);
-		border-top: var(--border-default);
 	}
 
 	.actions-right {

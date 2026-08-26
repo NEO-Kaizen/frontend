@@ -29,6 +29,8 @@
 	function removeScheduleSlot(index: number) {
 		data.preferredSchedule = data.preferredSchedule.filter((_, i) => i !== index);
 	}
+
+	const hoje = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)
 </script>
 
 <div class="step-content">
@@ -99,9 +101,11 @@
 			{#each data.preferredSchedule as _, index (index)}
 				<div class="schedule-slot">
 					<Input
-						type="date"
+						type="datetime-local" 
+						min={hoje}
 						placeholder="dd/mm/aaaa"
 						bind:value={data.preferredSchedule[index]}
+						error={errors[`schedule_${index}`]}
 						oninput={() => onClearError(`schedule_${index}`)}
 					/>
 					<button
