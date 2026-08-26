@@ -9,6 +9,7 @@
 	import Input from './Input.svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { logout } from '$lib/services/auth.service';
 
 	interface NavButton {
 		name: string;
@@ -60,6 +61,11 @@
 	function handleSearchSubmit(event: SubmitEvent) {
 		event.preventDefault();
 		// TODO: implementar a busca quando a feature existir
+	}
+
+	async function handleLogout() {
+		await logout();
+		await goto(resolve('/(public)/login'), { invalidateAll: true });
 	}
 </script>
 
@@ -120,12 +126,10 @@
 					</div>
 				{/each}
 			</div>
-			<form method="POST" action="/logout">
-				<button class="nav-item" type="submit">
-					<Icon iconName="logout" />
-					Sair
-				</button>
-			</form>
+			<button class="nav-item" type="button" onclick={handleLogout}>
+				<Icon iconName="logout" />
+				Sair
+			</button>
 		</div>
 	{/if}
 </header>
