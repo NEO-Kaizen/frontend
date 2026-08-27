@@ -6,9 +6,13 @@
 	import StepsForm from '$lib/components/forms/solicitation-form/StepsForm.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import type {
+		AttachmentMetadata,
+		CreateRequestPayload,
 		DemandData,
 		IdentificationData,
 		OperationalData,
+		RequestCategory,
+		OperationalImpact,
 		StepFieldErrors
 	} from '$lib/types/solicitation';
 
@@ -26,24 +30,24 @@
 
 	let identification = $state<IdentificationData>({
 		fullName: '',
-		email: '',
+		corporateEmail: '',
 		area: '',
 		department: '',
-		managerName: '',
+		manager: '',
 		additionalContact: ''
 	});
 
 	let demand = $state<DemandData>({
 		title: '',
 		category: '',
-		currentProcessName: '',
+		processName: '',
 		description: '',
-		justification: ''
+		justificationAndExpectedResult: ''
 	});
 
 	let operational = $state<OperationalData>({
-		volume: '',
-		executionTime: '',
+		volumetry: '',
+		averageExecutionTime: '',
 		desiredDeadline: '',
 		operationalImpact: '',
 		preferredSchedule: [],
@@ -71,41 +75,22 @@
 	function validateStep1(): boolean {
 		const errors: StepFieldErrors = {};
 
-		if (
-			!/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(identification.fullName) ||
-			!identification.fullName.trim()
-		) {
-			errors.fullName = 'Campo obrigatório, apenas texto.';
+		if (!identification.fullName.trim()) {
+			errors.fullName = 'Campo obrigatório.';
 		}
 
-		if (!identification.email.trim()) {
-			errors.email = 'Campo obrigatório.';
-		} else if (!EMAIL_PATTERN.test(identification.email)) {
-			errors.email = 'E-mail inválido.';
+		if (!identification.corporateEmail.trim()) {
+			errors.corporateEmail = 'Campo obrigatório.';
+		} else if (!EMAIL_PATTERN.test(identification.corporateEmail)) {
+			errors.corporateEmail = 'E-mail inválido.';
 		}
 
 		if (!identification.area) {
 			errors.area = 'Campo obrigatório.';
 		}
 
-		if (
-			!/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(identification.department) ||
-			!identification.department.trim()
-		) {
-			errors.department = 'Campo obrigatório, apenas texto.';
-		}
-
-		if (
-			!/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(identification.managerName) ||
-			!identification.managerName.trim()
-		) {
-			errors.managerName = 'Campo obrigatório, apenas texto.';
-		}
-
-		if (identification.additionalContact && identification.additionalContact.trim()) {
-			if (!/^[1-9]{2}[2-9][0-9]{7,8}$/.test(identification.additionalContact)) {
-				errors.additionalContact = 'Insira um número válido.';
-			}
+		if (!identification.manager.trim()) {
+			errors.manager = 'Campo obrigatório.';
 		}
 
 		step1Errors = errors;
@@ -123,16 +108,16 @@
 			errors.category = 'Campo obrigatório.';
 		}
 
-		if (!demand.currentProcessName.trim()) {
-			errors.currentProcessName = 'Campo obrigatório.';
+		if (!demand.processName.trim()) {
+			errors.processName = 'Campo obrigatório.';
 		}
 
 		if (!demand.description.trim()) {
 			errors.description = 'Campo obrigatório.';
 		}
 
-		if (!demand.justification.trim()) {
-			errors.justification = 'Campo obrigatório.';
+		if (!demand.justificationAndExpectedResult.trim()) {
+			errors.justificationAndExpectedResult = 'Campo obrigatório.';
 		}
 
 		step2Errors = errors;
@@ -142,12 +127,12 @@
 	function validateStep3(): boolean {
 		const errors: StepFieldErrors = {};
 
-		if (!operational.volume.trim()) {
-			errors.volume = 'Campo obrigatório.';
+		if (!operational.volumetry.trim()) {
+			errors.volumetry = 'Campo obrigatório.';
 		}
 
-		if (!operational.executionTime.trim()) {
-			errors.executionTime = 'Campo obrigatório.';
+		if (!operational.averageExecutionTime.trim()) {
+			errors.averageExecutionTime = 'Campo obrigatório.';
 		}
 
 		if (!operational.desiredDeadline) {
@@ -158,12 +143,12 @@
 			errors.operationalImpact = 'Campo obrigatório.';
 		}
 
-		const hoje = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+		const minDatetime = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
 			.toISOString()
 			.slice(0, 16);
 
-		operational.preferredSchedule.forEach((dataAgendada, index) => {
-			if (dataAgendada && dataAgendada < hoje) {
+		operational.preferredSchedule.forEach((slot, index) => {
+			if (slot && slot < minDatetime) {
 				errors[`schedule_${index}`] = 'Insira um horário válido.';
 			}
 		});
@@ -172,14 +157,9 @@
 		return Object.keys(errors).length === 0;
 	}
 
-	function validateCurrentStep(): boolean {
-		if (currentStep === 1) return validateStep1();
-		if (currentStep === 2) return validateStep2();
-		return validateStep3();
-	}
-
 	function handleNext() {
-		if (!validateCurrentStep()) return;
+		if (currentStep === 1 && !validateStep1()) return;
+		if (currentStep === 2 && !validateStep2()) return;
 
 		completedSteps = new Set([...completedSteps, currentStep]);
 		const nextStep = currentStep + 1;
@@ -210,22 +190,22 @@
 		visitedSteps = new Set([1]);
 		identification = {
 			fullName: '',
-			email: '',
+			corporateEmail: '',
 			area: '',
 			department: '',
-			managerName: '',
+			manager: '',
 			additionalContact: ''
 		};
 		demand = {
 			title: '',
 			category: '',
-			currentProcessName: '',
+			processName: '',
 			description: '',
-			justification: ''
+			justificationAndExpectedResult: ''
 		};
 		operational = {
-			volume: '',
-			executionTime: '',
+			volumetry: '',
+			averageExecutionTime: '',
 			desiredDeadline: '',
 			operationalImpact: '',
 			preferredSchedule: [],
@@ -236,10 +216,50 @@
 		step3Errors = {};
 	}
 
+	function buildPayload(): CreateRequestPayload {
+		const attachments: AttachmentMetadata[] = operational.files.map((f) => ({
+			fileName: f.fileName,
+			mimeType: f.mimeType,
+			sizeBytes: f.sizeBytes
+		}));
+
+		return {
+			requester: {
+				fullName: identification.fullName.trim(),
+				corporateEmail: identification.corporateEmail.trim(),
+				area: identification.area,
+				department: identification.department.trim() || undefined,
+				manager: identification.manager.trim(),
+				additionalContact: identification.additionalContact.trim() || undefined
+			},
+			demand: {
+				title: demand.title.trim(),
+				category: demand.category as RequestCategory,
+				processName: demand.processName.trim(),
+				description: demand.description.trim(),
+				justificationAndExpectedResult: demand.justificationAndExpectedResult.trim()
+			},
+			operational: {
+				volumetry: operational.volumetry.trim(),
+				averageExecutionTime: operational.averageExecutionTime.trim(),
+				desiredDeadline: operational.desiredDeadline,
+				operationalImpact: operational.operationalImpact as OperationalImpact
+			},
+			complementary: attachments.length > 0 ? { attachments } : undefined,
+			schedulePreferences:
+				operational.preferredSchedule.length > 0
+					? operational.preferredSchedule.filter(Boolean)
+					: undefined
+		};
+	}
+
 	async function handleSubmit() {
 		if (!validateStep3()) return;
 
 		isSubmitting = true;
+
+		const payload = buildPayload();
+		console.log('Payload enviado:', JSON.stringify(payload, null, 2));
 
 		await new Promise((resolve) => setTimeout(resolve, 1000));
 

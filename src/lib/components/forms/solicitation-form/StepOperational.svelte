@@ -3,6 +3,7 @@
 	import Select from '$lib/components/Select.svelte';
 	import FileUpload from '$lib/components/FileUpload.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import { IMPACT_OPTIONS } from '$lib/types/solicitation';
 	import type { OperationalData } from '$lib/types/solicitation';
 	import type { StepFieldErrors } from '$lib/types/solicitation';
 
@@ -14,12 +15,6 @@
 
 	let { data, errors, onClearError }: Props = $props();
 
-	const impactOptions = [
-		{ value: 'Baixo', label: 'Baixo' },
-		{ value: 'Médio', label: 'Médio' },
-		{ value: 'Alto', label: 'Alto' }
-	];
-
 	function addScheduleSlot() {
 		if (data.preferredSchedule.length < 3) {
 			data.preferredSchedule = [...data.preferredSchedule, ''];
@@ -30,7 +25,9 @@
 		data.preferredSchedule = data.preferredSchedule.filter((_, i) => i !== index);
 	}
 
-	const hoje = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+	const minDatetime = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+		.toISOString()
+		.slice(0, 16);
 </script>
 
 <div class="step-content">
@@ -46,18 +43,18 @@
 			label="Volumetria aproximada"
 			placeholder="Ex: 500 transações/mês"
 			required
-			bind:value={data.volume}
-			error={errors.volume}
-			oninput={() => onClearError('volume')}
+			bind:value={data.volumetry}
+			error={errors.volumetry}
+			oninput={() => onClearError('volumetry')}
 		/>
 
 		<Input
 			label="Tempo médio de execução"
 			placeholder="Ex: 15 minutos"
 			required
-			bind:value={data.executionTime}
-			error={errors.executionTime}
-			oninput={() => onClearError('executionTime')}
+			bind:value={data.averageExecutionTime}
+			error={errors.averageExecutionTime}
+			oninput={() => onClearError('averageExecutionTime')}
 		/>
 
 		<Input
@@ -72,7 +69,7 @@
 		<Select
 			label="Impacto operacional"
 			placeholder="Selecione o impacto"
-			options={impactOptions}
+			options={IMPACT_OPTIONS}
 			required
 			bind:value={data.operationalImpact}
 			error={errors.operationalImpact}
@@ -101,9 +98,9 @@
 			{#each data.preferredSchedule as _, index (index)}
 				<div class="schedule-slot">
 					<Input
-						type="datetime-local" 
-						min={hoje}
-						placeholder="dd/mm/aaaa"
+						type="datetime-local"
+						min={minDatetime}
+						placeholder="dd/mm/aaaa --:--"
 						bind:value={data.preferredSchedule[index]}
 						error={errors[`schedule_${index}`]}
 						oninput={() => onClearError(`schedule_${index}`)}
@@ -225,6 +222,7 @@
 		border-radius: var(--radius-sm);
 		cursor: pointer;
 		transition: var(--transition-default);
+		margin-top: 28px;
 	}
 
 	.remove-schedule-button:hover {

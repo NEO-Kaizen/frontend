@@ -3,6 +3,7 @@
 	import Select from '$lib/components/Select.svelte';
 	import Textarea from '$lib/components/Textarea.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import { CATEGORY_OPTIONS } from '$lib/types/solicitation';
 	import type { DemandData } from '$lib/types/solicitation';
 	import type { StepFieldErrors } from '$lib/types/solicitation';
 
@@ -13,16 +14,6 @@
 	}
 
 	let { data, errors, onClearError }: Props = $props();
-
-	const categoryOptions = [
-		{ value: 'automacao', label: 'Automação de Processos' },
-		{ value: 'relatorio', label: 'Relatório / Dashboard' },
-		{ value: 'integracao', label: 'Integração de Sistemas' },
-		{ value: 'manutencao', label: 'Manutenção / Correção' },
-		{ value: 'melhoria', label: 'Melhoria de Funcionalidade' },
-		{ value: 'novo', label: 'Nova Funcionalidade' },
-		{ value: 'outro', label: 'Outro' }
-	];
 </script>
 
 <div class="step-content">
@@ -46,7 +37,7 @@
 		<Select
 			label="Categoria"
 			placeholder="Selecione a categoria"
-			options={categoryOptions}
+			options={CATEGORY_OPTIONS}
 			required
 			bind:value={data.category}
 			error={errors.category}
@@ -57,9 +48,9 @@
 			label="Nome do processo atual"
 			placeholder="Como o processo é conhecido hoje?"
 			required
-			bind:value={data.currentProcessName}
-			error={errors.currentProcessName}
-			oninput={() => onClearError('currentProcessName')}
+			bind:value={data.processName}
+			error={errors.processName}
+			oninput={() => onClearError('processName')}
 		/>
 
 		<Textarea
@@ -77,9 +68,9 @@
 			placeholder="Por que isso é necessário e o que se espera alcançar?"
 			required
 			rows={4}
-			bind:value={data.justification}
-			error={errors.justification}
-			oninput={() => onClearError('justification')}
+			bind:value={data.justificationAndExpectedResult}
+			error={errors.justificationAndExpectedResult}
+			oninput={() => onClearError('justificationAndExpectedResult')}
 		/>
 	</div>
 </div>
