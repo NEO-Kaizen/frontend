@@ -17,7 +17,8 @@ export const mockSolicitations: RequestDetail[] = [
 		},
 		pendingIssues: [],
 		nextStep: 'Aguarde o contato do analista',
-		lastTechnicalMessage: 'Sua solicitação está em análise. Assim que houver uma atualização, entraremos em contato.',
+		lastTechnicalMessage:
+			'Sua solicitação está em análise. Assim que houver uma atualização, entraremos em contato.',
 		lastUpdate: '2026-08-26T10:12:40.000Z',
 		conclusion: null
 	},
@@ -37,7 +38,8 @@ export const mockSolicitations: RequestDetail[] = [
 		},
 		pendingIssues: [],
 		nextStep: 'Aguardar vistoria presencial',
-		lastTechnicalMessage: 'A equipe técnica fará uma vistoria presencial no local indicado no período da manhã.',
+		lastTechnicalMessage:
+			'A equipe técnica fará uma vistoria presencial no local indicado no período da manhã.',
 		lastUpdate: '2026-08-25T14:30:00.000Z',
 		conclusion: null
 	}

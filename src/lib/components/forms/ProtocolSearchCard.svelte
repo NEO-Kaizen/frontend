@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { resolveRoute } from '$app/paths';
 	import Input from '$lib/components/Input.svelte';
 	import Button from '$lib/components/Button.svelte';
 
@@ -13,11 +14,10 @@
 		const cleanEmail = email.trim();
 
 		if (cleanProtocol) {
-			// Se preencheu protocolo, navega para a rota do protocolo
-			goto(`/acompanhar/${cleanProtocol}`);
+			goto(resolveRoute('/acompanhar/[protocolo]', { protocolo: cleanProtocol }));
 		} else if (cleanEmail) {
-			// Se preencheu e-mail, navega para a página de acompanhamento filtrada por e-mail
-			goto(`/acompanhar?email=${encodeURIComponent(cleanEmail)}`);
+			// eslint-disable-next-line svelte/no-navigation-without-resolve
+			goto(`${resolveRoute('/acompanhar')}?email=${encodeURIComponent(cleanEmail)}`);
 		}
 	}
 </script>
@@ -47,7 +47,14 @@
 			<div class="button-field">
 				<Button type="submit" variant="primary">
 					<span class="btn-content">
-						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+						<svg
+							width="18"
+							height="18"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg
+						>
 						Consultar Protocolo
 					</span>
 				</Button>

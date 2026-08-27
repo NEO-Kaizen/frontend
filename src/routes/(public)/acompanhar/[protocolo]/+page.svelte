@@ -7,9 +7,7 @@
 	let currentProtocol = $derived($page.params.protocolo);
 
 	// Procura a solicitação correspondente no mock
-	let solicitation = $derived(
-		mockSolicitations.find((s) => s.protocol === currentProtocol)
-	);
+	let solicitation = $derived(mockSolicitations.find((s) => s.protocol === currentProtocol));
 
 	// Helper para formatação de data ISO
 	function formatDate(isoString: string | null) {
@@ -55,7 +53,19 @@
 			<div class="metrics-grid">
 				<div class="metric-item">
 					<div class="icon-box">
-						<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#002068" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+						<svg
+							width="20"
+							height="20"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="#002068"
+							stroke-width="2"
+							><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle
+								cx="9"
+								cy="7"
+								r="4"
+							/><path d="M22 21v-2a4 4 0 0 3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg
+						>
 					</div>
 					<div>
 						<span class="label">RESPONSÁVEL TÉCNICO</span>
@@ -65,7 +75,20 @@
 
 				<div class="metric-item">
 					<div class="icon-box">
-						<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#002068" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+						<svg
+							width="20"
+							height="20"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="#002068"
+							stroke-width="2"
+							><rect width="18" height="18" x="3" y="4" rx="2" ry="2" /><line
+								x1="16"
+								x2="16"
+								y1="2"
+								y2="6"
+							/><line x1="8" x2="8" y1="2" y2="6" /><line x1="3" x2="21" y1="10" y2="10" /></svg
+						>
 					</div>
 					<div>
 						<span class="label">DATA DE ABERTURA</span>
@@ -75,7 +98,20 @@
 
 				<div class="metric-item">
 					<div class="icon-box">
-						<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#002068" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+						<svg
+							width="20"
+							height="20"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="#002068"
+							stroke-width="2"
+							><rect width="18" height="18" x="3" y="4" rx="2" ry="2" /><line
+								x1="16"
+								x2="16"
+								y1="2"
+								y2="6"
+							/><line x1="8" x2="8" y1="2" y2="6" /><line x1="3" x2="21" y1="10" y2="10" /></svg
+						>
 					</div>
 					<div>
 						<span class="label">PREVISÃO DE CONCLUSÃO</span>
@@ -85,7 +121,15 @@
 
 				<div class="metric-item">
 					<div class="icon-box">
-						<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#002068" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+						<svg
+							width="20"
+							height="20"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="#002068"
+							stroke-width="2"
+							><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg
+						>
 					</div>
 					<div>
 						<span class="label">ÚLTIMA ATUALIZAÇÃO</span>
@@ -98,7 +142,22 @@
 				<div class="meeting-card-box">
 					<div class="meeting-left">
 						<div class="video-icon">
-							<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></svg>
+							<svg
+								width="20"
+								height="20"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="#ffffff"
+								stroke-width="2"
+								><path d="m22 8-6 4 6 4V8Z" /><rect
+									width="14"
+									height="12"
+									x="2"
+									y="6"
+									rx="2"
+									ry="2"
+								/></svg
+							>
 						</div>
 						<div>
 							<span class="meeting-label">REUNIÃO DE ALINHAMENTO</span>
@@ -106,13 +165,38 @@
 						</div>
 					</div>
 					{#if solicitation.meeting.link}
-						<a href={solicitation.meeting.link} target="_blank" rel="noopener noreferrer" class="btn-join">
-							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+						<a
+							href={solicitation.meeting.link}
+							target="_blank"
+							rel="external noopener noreferrer"
+							class="btn-join"
+						>
+							<svg
+								width="16"
+								height="16"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path
+									d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"
+								/></svg
+							>
 							Entrar na reunião
 						</a>
 					{:else}
 						<button class="btn-join disabled" disabled>
-							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+							<svg
+								width="16"
+								height="16"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path
+									d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"
+								/></svg
+							>
 							Entrar na reunião
 						</button>
 					{/if}
@@ -122,18 +206,30 @@
 			<div class="message-section">
 				<h3>Última mensagem do responsável técnico</h3>
 				<div class="message-bubble">
-					{solicitation.lastTechnicalMessage || 'Sua solicitação está em análise. Assim que houver uma atualização, entraremos em contato.'}
+					{solicitation.lastTechnicalMessage ||
+						'Sua solicitação está em análise. Assim que houver uma atualização, entraremos em contato.'}
 				</div>
 			</div>
 		</div>
 	{:else}
-		<!-- Estado de "solicitação não encontrada" (Retorno equivalente ao 404 Not Found do contrato) -->
 		<div class="not-found-card">
 			<div class="not-found-icon">
-				<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="m8 11 6 0"/></svg>
+				<svg
+					width="48"
+					height="48"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="#94a3b8"
+					stroke-width="1.5"
+					><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /><path d="m8 11 6 0" /></svg
+				>
 			</div>
 			<h2>Solicitação não encontrada</h2>
-			<p>Não encontramos nenhuma solicitação cadastrada com o protocolo <strong>"{currentProtocol}"</strong>.</p>
+			<p>
+				Não encontramos nenhuma solicitação cadastrada com o protocolo <strong
+					>"{currentProtocol}"</strong
+				>.
+			</p>
 			<p class="hint">Verifique o número digitado e tente novamente.</p>
 		</div>
 	{/if}
