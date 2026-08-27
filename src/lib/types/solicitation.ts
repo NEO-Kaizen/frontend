@@ -37,9 +37,9 @@ export type DemandFormData = {
 	operational: OperationalData;
 };
 
-export type OperationalImpact = 'Baixo' | 'Médio' | 'Alto';
+export type OperationalImpact = 'Baixo' | 'Médio' | 'Alto' | 'Crítico';
 
-export type RequestPriority = 'Baixa' | 'Média' | 'Alta' | 'Crítica';
+// export type RequestPriority = 'Baixa' | 'Média' | 'Alta' | 'Crítica';
 
 export type RequestCategory =
 	| 'Automação'
@@ -131,7 +131,8 @@ export const CATEGORY_OPTIONS: { value: RequestCategory; label: string }[] = [
 export const IMPACT_OPTIONS: { value: OperationalImpact; label: string }[] = [
 	{ value: 'Baixo', label: 'Baixo' },
 	{ value: 'Médio', label: 'Médio' },
-	{ value: 'Alto', label: 'Alto' }
+	{ value: 'Alto', label: 'Alto' },
+	{ value: 'Crítico', label: 'Crítico'}
 ];
 
 export const AREA_OPTIONS = [

@@ -15,13 +15,6 @@
 
 	let { data, errors = $bindable(), onClearError, onvalidate }: Props = $props();
 
-	const impactOptions = [
-		{ value: 'Baixo', label: 'Baixo' },
-		{ value: 'Médio', label: 'Médio' },
-		{ value: 'Alto', label: 'Alto' },
-		{ value: 'Crítico', label: 'Crítico' }
-	];
-
 	function addScheduleSlot() {
 		if (data.preferredSchedule.length < 3) {
 			data.preferredSchedule = [...data.preferredSchedule, ''];
@@ -128,8 +121,7 @@
 					type="button"
 					class="add-schedule-button"
 					onclick={addScheduleSlot}
-					aria-label="Adicionar horário"
-				>
+					aria-label="Adicionar horário">
 					<Icon iconName="addCircle" iconSize="sm" />
 					<span>Adicionar</span>
 				</button>
@@ -171,11 +163,16 @@
 	:global(.error-message) {
 		position: absolute;
 		top: 100%;
-		left: 0;
+		left: 0%;
 		width: 100%;
 		margin: 0;
 		margin-top: 4px;
 	}
+
+	.upload-section :global(.error-message) {
+		position: static
+	}
+
 	.step-content {
 		display: flex;
 		flex-direction: column;

@@ -214,11 +214,14 @@
 				</span>
 				<h3>Solicitação enviada com sucesso!</h3>
 				<p>Sua demanda foi registrada e será analisada pela equipe responsável.</p>
-				<div>
-					<Button variant="primary" onclick={resetForm}>Nova Solicitação</Button>
-					<Button variant="primary" onclick={handleCancel} loading={isSubmitting}>
-						Ir para início
+				<div class="success-btn">
+					<Button variant="primary" 
+					onclick={() => window.location.href = '/solicitacao'} loading={isSubmitting}>
+					<span>+</span> Nova Solicitação
 					</Button>
+					<Button variant="outline" onclick={handleCancel} loading={isSubmitting}>
+						<Icon iconName="home"/>
+						Ir para início</Button>
 				</div>
 			</div>
 		{:else}
@@ -254,12 +257,12 @@
 					{/if}
 
 					{#if currentStep < 3}
-						<Button variant="secondary" onclick={handleNext}>
+						<Button variant="primary" onclick={handleNext}>
 							Avançar
 							<Icon iconName="arrowForward" iconSize="md" />
 						</Button>
 					{:else}
-						<Button variant="secondary" onclick={handleSubmit} loading={isSubmitting}>
+						<Button variant="primary" onclick={handleSubmit} loading={isSubmitting}>
 							Enviar Solicitação
 							<Icon iconName="send" iconSize="md" />
 						</Button>
@@ -271,6 +274,11 @@
 </div>
 
 <style>
+	.success-btn{
+		display: flex;
+		text-align: center;
+		gap: var(--spacing-md)
+	}
 	.form-container {
 		width: 100%;
 		max-width: 1200px;

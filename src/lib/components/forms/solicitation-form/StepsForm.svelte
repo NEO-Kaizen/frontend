@@ -23,8 +23,8 @@
 	}: Props = $props();
 
 	function getStepState(stepId: number): 'completed' | 'current' | 'pending' {
+		if (stepId === current && current !== 3) return 'current';
 		if (completedSteps.has(stepId)) return 'completed';
-		if (stepId === current) return 'current';
 		return 'pending';
 	}
 
@@ -40,8 +40,14 @@
 		{#each steps as step, index (step.id)}
 			{@const state = getStepState(step.id)}
 			{@const isLast = index === steps.length - 1}
+			{@const isCompleted = completedSteps.has(step.id)}
 
-			<li class="step" class:completed={state === 'completed'} class:current={state === 'current'}>
+			<li
+				class="step"
+				class:completed={state === 'completed'}
+				class:current={state === 'current'}
+				class:pending={state === 'pending'}
+			>
 				<button
 					type="button"
 					class="step-button"
@@ -49,7 +55,7 @@
 					onclick={() => handleStepClick(step.id)}
 					disabled={!visitedSteps.has(step.id)}
 					aria-current={state === 'current' ? 'step' : undefined}
-					aria-label="Etapa {step.id}: {step.label}{state === 'completed'
+					aria-label="Etapa {step.id}: {step.label}{isCompleted
 						? ' (concluída)'
 						: state === 'current'
 							? ' (atual)'
@@ -59,7 +65,7 @@
 						{#if state === 'completed'}
 							<Icon iconName="check" iconSize="sm" />
 						{:else}
-							{step.id}
+							<span class="inner-dot"></span>
 						{/if}
 					</span>
 				</button>
@@ -67,7 +73,11 @@
 				<span class="step-label">{step.label}</span>
 
 				{#if !isLast}
-					<span class="connector" class:filled={state === 'completed'} aria-hidden="true"></span>
+					<span
+						class="connector"
+						class:filled={isCompleted}
+						aria-hidden="true"
+					></span>
 				{/if}
 			</li>
 		{/each}
@@ -128,23 +138,43 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		font: var(--label);
 		transition: var(--transition-default);
-		border: 2px solid var(--white-gray);
+		border: 4px solid var(--secondary-color);
 		background-color: var(--white);
 		color: var(--gray);
 	}
 
-	.current .circle {
+	.pending {
+		opacity: 0.5;
+	}
+
+	.inner-dot {
+		width: 17px;
+		height: 17px;
+		border-radius: 50%;
+		background-color: var(--secondary-color);
+	}
+
+	/* .current .circle {
 		background-color: var(--primary-color);
-		color: var(--white);
 		border-color: var(--primary-color);
+		color: var(--white);
+	} */
+
+	.current .step-label {
+		color: var(--primary-color);
+		font-weight: 700;
 	}
 
 	.completed .circle {
 		background-color: var(--secondary-color);
 		color: var(--white);
 		border-color: var(--secondary-color);
+	}
+
+
+	.completed .step-label {
+		color: var(--secondary-color);
 	}
 
 	.step-label {
@@ -154,21 +184,12 @@
 		white-space: nowrap;
 	}
 
-	.current .step-label {
-		color: var(--primary-color);
-		font-weight: 700;
-	}
-
-	.completed .step-label {
-		color: var(--secondary-color);
-	}
-
 	.connector {
 		position: absolute;
 		top: 18px;
 		left: calc(50% + 18px);
 		width: calc(100% - 36px);
-		height: 2px;
+		height: 4px;
 		background-color: var(--white-gray);
 		transition: var(--transition-default);
 	}

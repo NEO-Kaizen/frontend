@@ -1,10 +1,8 @@
 <script lang="ts">
 	import Icon from '$lib/components/Icon.svelte';
 	import Input from '$lib/components/Input.svelte';
-	import Select from '$lib/components/Select.svelte';
 	import type { IdentificationData, StepFieldErrors } from '$lib/types/solicitation';
-	import { AREA_OPTIONS } from '$lib/types/solicitation';
-
+	
 	interface Props {
 		data: IdentificationData;
 		errors: StepFieldErrors;
@@ -29,8 +27,8 @@
 			e.corporateEmail = 'E-mail inválido.';
 		}
 
-		if (!data.area) {
-			e.area = 'Campo obrigatório.';
+		if (!/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(data.area) || !data.area.trim()) {
+			e.area = 'Campo obrigatório, apenas texto.';
 		}
 
 		if (!/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(data.department) || !data.department.trim()) {
@@ -55,16 +53,6 @@
 		onvalidate?.(validate);
 	});
 
-	const areaOptions = [
-		{ value: 'ti', label: 'Tecnologia da Informação' },
-		{ value: 'rh', label: 'Recursos Humanos' },
-		{ value: 'financeiro', label: 'Financeiro' },
-		{ value: 'operacoes', label: 'Operações' },
-		{ value: 'comercial', label: 'Comercial' },
-		{ value: 'marketing', label: 'Marketing' },
-		{ value: 'juridico', label: 'Jurídico' },
-		{ value: 'administrativo', label: 'Administrativo' }
-	];
 </script>
 
 <div class="step-content">
@@ -95,10 +83,9 @@
 			oninput={() => onClearError('corporateEmail')}
 		/>
 
-		<Select
+		<Input
 			label="Área do solicitante"
 			placeholder="Selecione a área"
-			options={AREA_OPTIONS}
 			required
 			bind:value={data.area}
 			error={errors.area}
