@@ -1,20 +1,19 @@
 <script lang="ts">
+	import { page } from '$app/stores';
 	import ProtocolSearchCard from '$lib/components/forms/ProtocolSearchCard.svelte';
 	import { mockSolicitations } from '$lib/mocks/solicitations';
 
-	let searchedProtocol = $state('2026.0825.001');
+	// Lê o parâmetro do protocolo diretamente da URL
+	let currentProtocol = $derived($page.params.protocolo);
 
+	// Procura a solicitação correspondente no mock
 	let solicitation = $derived(
-		mockSolicitations.find((s) => s.protocol === searchedProtocol) || mockSolicitations[0]
+		mockSolicitations.find((s) => s.protocol === currentProtocol)
 	);
-
-	function handleSearch(protocol: string) {
-		searchedProtocol = protocol;
-	}
 </script>
 
 <div class="page-viewport">
-	<ProtocolSearchCard bind:protocolNumber={searchedProtocol} onSearch={handleSearch} />
+	<ProtocolSearchCard />
 
 	{#if solicitation}
 		<div class="details-card">
@@ -97,6 +96,16 @@
 					{solicitation.lastMessage || 'Sua solicitação está em análise. Assim que houver uma atualização, entraremos em contato.'}
 				</div>
 			</div>
+		</div>
+	{:else}
+		<!-- Estado de "solicitação não encontrada" -->
+		<div class="not-found-card">
+			<div class="not-found-icon">
+				<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="m8 11 6 0"/></svg>
+			</div>
+			<h2>Solicitação não encontrada</h2>
+			<p>Não encontramos nenhuma solicitação cadastrada com o protocolo <strong>"{currentProtocol}"</strong>.</p>
+			<p class="hint">Verifique o número digitado e tente novamente.</p>
 		</div>
 	{/if}
 </div>
@@ -257,5 +266,34 @@
 		padding: 16px 20px;
 		color: #334155;
 		font-size: 0.95rem;
+	}
+
+	.not-found-card {
+		background: #ffffff;
+		border-radius: 16px;
+		padding: 48px 32px;
+		text-align: center;
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+		border: 1px solid #f1f5f9;
+	}
+
+	.not-found-icon {
+		margin-bottom: 16px;
+	}
+
+	.not-found-card h2 {
+		font-size: 1.25rem;
+		color: #0f172a;
+		margin: 0 0 8px 0;
+	}
+
+	.not-found-card p {
+		color: #64748b;
+		margin: 0 0 4px 0;
+	}
+
+	.not-found-card .hint {
+		font-size: 0.875rem;
+		color: #94a3b8;
 	}
 </style>

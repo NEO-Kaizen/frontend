@@ -1,16 +1,23 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import Input from '$lib/components/Input.svelte';
 	import Button from '$lib/components/Button.svelte';
-
-	let { onSearch } = $props<{ onSearch?: (protocol: string) => void }>();
 
 	let protocolNumber = $state('');
 	let email = $state('');
 
-	function handleSearch(event: SubmitEvent) {
+	function handleSubmit(event: SubmitEvent) {
 		event.preventDefault();
-		if (onSearch) {
-			onSearch(protocolNumber.trim());
+
+		const cleanProtocol = protocolNumber.trim();
+		const cleanEmail = email.trim();
+
+		if (cleanProtocol) {
+			// Se preencheu protocolo, navega para a rota do protocolo
+			goto(`/acompanhar/${cleanProtocol}`);
+		} else if (cleanEmail) {
+			// Se preencheu e-mail, navega para a página de acompanhamento filtrada por e-mail
+			goto(`/acompanhar?email=${encodeURIComponent(cleanEmail)}`);
 		}
 	}
 </script>
@@ -22,11 +29,11 @@
 	</div>
 
 	<div class="search-card-horizontal">
-		<form onsubmit={handleSearch} class="search-form-row">
+		<form onsubmit={handleSubmit} class="search-form-row">
 			<div class="input-field">
 				<Input
 					label="Número do Protocolo"
-					placeholder="Ex: NEO-2026-08-9842"
+					placeholder="Ex: 2026.0825.001"
 					bind:value={protocolNumber}
 				/>
 			</div>

@@ -14,5 +14,19 @@ export const mockSolicitations: SolicitationDetail[] = [
 		},
 		lastMessage:
 			'A equipe técnica fará uma vistoria presencial no local indicado no período da manhã.'
+	},
+	{
+		protocol: '2026.0825.002',
+		title: 'Manutenção de Servidor de Banco de Dados',
+		statusLabel: 'Concluído',
+		technicalResponsible: 'Ana Souza',
+		openingDate: '20/08/2026',
+		completionForecast: '24/08/2026',
+		lastUpdate: '24/08/2026 às 18:00',
+		meeting: {
+			date: '22/08/2026 às 15:30'
+		},
+		lastMessage:
+			'Serviço finalizado com sucesso. Banco de dados operando em 100% de capacidade.'
 	}
 ];
