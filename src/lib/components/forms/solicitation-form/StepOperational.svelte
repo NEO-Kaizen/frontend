@@ -1,19 +1,26 @@
 <script lang="ts">
-	import Input from '$lib/components/Input.svelte';
-	import Select from '$lib/components/Select.svelte';
 	import FileUpload from '$lib/components/FileUpload.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import Input from '$lib/components/Input.svelte';
+	import Select from '$lib/components/Select.svelte';
+	import type { OperationalData, StepFieldErrors } from '$lib/types/solicitation';
 	import { IMPACT_OPTIONS } from '$lib/types/solicitation';
-	import type { OperationalData } from '$lib/types/solicitation';
-	import type { StepFieldErrors } from '$lib/types/solicitation';
 
 	interface Props {
 		data: OperationalData;
 		errors: StepFieldErrors;
 		onClearError: (field: string) => void;
+		onvalidate?: (validate: () => boolean) => void;
 	}
 
-	let { data, errors, onClearError }: Props = $props();
+	let { data, errors = $bindable(), onClearError, onvalidate }: Props = $props();
+
+	const impactOptions = [
+		{ value: 'Baixo', label: 'Baixo' },
+		{ value: 'Médio', label: 'Médio' },
+		{ value: 'Alto', label: 'Alto' },
+		{ value: 'Crítico', label: 'Crítico' }
+	];
 
 	function addScheduleSlot() {
 		if (data.preferredSchedule.length < 3) {
@@ -25,9 +32,44 @@
 		data.preferredSchedule = data.preferredSchedule.filter((_, i) => i !== index);
 	}
 
-	const minDatetime = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+	const today = new Date();
+
+	const todayTimestamp = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
 		.toISOString()
 		.slice(0, 16);
+
+	function validate(): boolean {
+		const e: StepFieldErrors = {};
+
+		if (!data.volumetry.trim()) {
+			e.volumetry = 'Campo obrigatório.';
+		}
+
+		if (!data.averageExecutionTime.trim()) {
+			e.averageExecutionTime = 'Campo obrigatório.';
+		}
+
+		if (!data.desiredDeadline || new Date(data.desiredDeadline) < today) {
+			e.desiredDeadline = 'Insira um prazo válido';
+		}
+
+		if (!data.operationalImpact) {
+			e.operationalImpact = 'Campo obrigatório.';
+		}
+
+		data.preferredSchedule.forEach((dataAgendada, index) => {
+			if (dataAgendada && dataAgendada < todayTimestamp) {
+				e[`schedule_${index}`] = 'Insira um horário válido.';
+			}
+		});
+
+		errors = e;
+		return Object.keys(e).length === 0;
+	}
+
+	$effect(() => {
+		onvalidate?.(validate);
+	});
 </script>
 
 <div class="step-content">
@@ -60,6 +102,7 @@
 		<Input
 			type="date"
 			label="Prazo desejado"
+			min={todayTimestamp}
 			required
 			bind:value={data.desiredDeadline}
 			error={errors.desiredDeadline}
@@ -99,8 +142,8 @@
 				<div class="schedule-slot">
 					<Input
 						type="datetime-local"
-						min={minDatetime}
-						placeholder="dd/mm/aaaa --:--"
+						min={todayTimestamp}
+						placeholder="dd/mm/aaaa"
 						bind:value={data.preferredSchedule[index]}
 						error={errors[`schedule_${index}`]}
 						oninput={() => onClearError(`schedule_${index}`)}
@@ -125,10 +168,18 @@
 </div>
 
 <style>
+	:global(.error-message) {
+		position: absolute;
+		top: 100%;
+		left: 0;
+		width: 100%;
+		margin: 0;
+		margin-top: 4px;
+	}
 	.step-content {
 		display: flex;
 		flex-direction: column;
-		gap: var(--spacing-lg);
+		gap: var(--spacing-xl);
 	}
 
 	.step-header {
@@ -156,7 +207,7 @@
 	.fields-grid {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
-		gap: var(--spacing-lg);
+		gap: var(--spacing-xl);
 	}
 
 	.schedule-section {
@@ -222,7 +273,6 @@
 		border-radius: var(--radius-sm);
 		cursor: pointer;
 		transition: var(--transition-default);
-		margin-top: 28px;
 	}
 
 	.remove-schedule-button:hover {

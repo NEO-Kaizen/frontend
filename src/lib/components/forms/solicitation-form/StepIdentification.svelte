@@ -1,18 +1,70 @@
 <script lang="ts">
+	import Icon from '$lib/components/Icon.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import Select from '$lib/components/Select.svelte';
-	import Icon from '$lib/components/Icon.svelte';
+	import type { IdentificationData, StepFieldErrors } from '$lib/types/solicitation';
 	import { AREA_OPTIONS } from '$lib/types/solicitation';
-	import type { IdentificationData } from '$lib/types/solicitation';
-	import type { StepFieldErrors } from '$lib/types/solicitation';
 
 	interface Props {
 		data: IdentificationData;
 		errors: StepFieldErrors;
 		onClearError: (field: string) => void;
+		onvalidate?: (validate: () => boolean) => void;
 	}
 
-	let { data, errors, onClearError }: Props = $props();
+	let { data, errors = $bindable(), onClearError, onvalidate }: Props = $props();
+
+	const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+	function validate(): boolean {
+		const e: StepFieldErrors = {};
+
+		if (!/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(data.fullName) || !data.fullName.trim()) {
+			e.fullName = 'Campo obrigatório, apenas texto.';
+		}
+
+		if (!data.corporateEmail.trim()) {
+			e.corporateEmail = 'Campo obrigatório.';
+		} else if (!EMAIL_PATTERN.test(data.corporateEmail)) {
+			e.corporateEmail = 'E-mail inválido.';
+		}
+
+		if (!data.area) {
+			e.area = 'Campo obrigatório.';
+		}
+
+		if (!/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(data.department) || !data.department.trim()) {
+			e.department = 'Campo obrigatório, apenas texto.';
+		}
+
+		if (!/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(data.manager) || !data.manager.trim()) {
+			e.manager = 'Campo obrigatório, apenas texto.';
+		}
+
+		if (data.additionalContact && data.additionalContact.trim()) {
+			if (!/^[1-9]{2}[2-9][0-9]{7,8}$/.test(data.additionalContact)) {
+				e.additionalContact = 'Insira um número válido.';
+			}
+		}
+
+		errors = e;
+		return Object.keys(e).length === 0;
+	}
+
+	$effect(() => {
+		onvalidate?.(validate);
+	});
+
+	const areaOptions = [
+		{ value: 'ti', label: 'Tecnologia da Informação' },
+		{ value: 'rh', label: 'Recursos Humanos' },
+		{ value: 'financeiro', label: 'Financeiro' },
+		{ value: 'operacoes', label: 'Operações' },
+		{ value: 'comercial', label: 'Comercial' },
+		{ value: 'marketing', label: 'Marketing' },
+		{ value: 'juridico', label: 'Jurídico' },
+		{ value: 'administrativo', label: 'Administrativo' }
+	];
 </script>
 
 <div class="step-content">
@@ -81,6 +133,15 @@
 </div>
 
 <style>
+	:global(.error-message) {
+		position: absolute;
+		top: 100%;
+		left: 0;
+		width: 100%;
+		margin: 0;
+		margin-top: 4px;
+	}
+
 	.step-content {
 		display: flex;
 		flex-direction: column;
@@ -112,7 +173,7 @@
 	.fields-grid {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
-		gap: var(--spacing-lg);
+		gap: var(--spacing-xl);
 	}
 
 	@media (max-width: 768px) {

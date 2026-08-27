@@ -11,8 +11,8 @@
 		DemandData,
 		IdentificationData,
 		OperationalData,
-		RequestCategory,
 		OperationalImpact,
+		RequestCategory,
 		StepFieldErrors
 	} from '$lib/types/solicitation';
 
@@ -58,7 +58,9 @@
 	let step2Errors = $state<StepFieldErrors>({});
 	let step3Errors = $state<StepFieldErrors>({});
 
-	const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+	let step1Validate = $state<(() => boolean) | null>(null);
+	let step2Validate = $state<(() => boolean) | null>(null);
+	let step3Validate = $state<(() => boolean) | null>(null);
 
 	function clearStep1Error(field: string) {
 		step1Errors[field] = undefined;
@@ -72,94 +74,14 @@
 		step3Errors[field] = undefined;
 	}
 
-	function validateStep1(): boolean {
-		const errors: StepFieldErrors = {};
-
-		if (!identification.fullName.trim()) {
-			errors.fullName = 'Campo obrigatório.';
-		}
-
-		if (!identification.corporateEmail.trim()) {
-			errors.corporateEmail = 'Campo obrigatório.';
-		} else if (!EMAIL_PATTERN.test(identification.corporateEmail)) {
-			errors.corporateEmail = 'E-mail inválido.';
-		}
-
-		if (!identification.area) {
-			errors.area = 'Campo obrigatório.';
-		}
-
-		if (!identification.manager.trim()) {
-			errors.manager = 'Campo obrigatório.';
-		}
-
-		step1Errors = errors;
-		return Object.keys(errors).length === 0;
-	}
-
-	function validateStep2(): boolean {
-		const errors: StepFieldErrors = {};
-
-		if (!demand.title.trim()) {
-			errors.title = 'Campo obrigatório.';
-		}
-
-		if (!demand.category) {
-			errors.category = 'Campo obrigatório.';
-		}
-
-		if (!demand.processName.trim()) {
-			errors.processName = 'Campo obrigatório.';
-		}
-
-		if (!demand.description.trim()) {
-			errors.description = 'Campo obrigatório.';
-		}
-
-		if (!demand.justificationAndExpectedResult.trim()) {
-			errors.justificationAndExpectedResult = 'Campo obrigatório.';
-		}
-
-		step2Errors = errors;
-		return Object.keys(errors).length === 0;
-	}
-
-	function validateStep3(): boolean {
-		const errors: StepFieldErrors = {};
-
-		if (!operational.volumetry.trim()) {
-			errors.volumetry = 'Campo obrigatório.';
-		}
-
-		if (!operational.averageExecutionTime.trim()) {
-			errors.averageExecutionTime = 'Campo obrigatório.';
-		}
-
-		if (!operational.desiredDeadline) {
-			errors.desiredDeadline = 'Campo obrigatório.';
-		}
-
-		if (!operational.operationalImpact) {
-			errors.operationalImpact = 'Campo obrigatório.';
-		}
-
-		const minDatetime = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
-			.toISOString()
-			.slice(0, 16);
-
-		operational.preferredSchedule.forEach((slot, index) => {
-			if (slot && slot < minDatetime) {
-				errors[`schedule_${index}`] = 'Insira um horário válido.';
-			}
-		});
-
-		step3Errors = errors;
-		return Object.keys(errors).length === 0;
+	function validateCurrentStep(): boolean {
+		if (currentStep === 1) return step1Validate?.() ?? false;
+		if (currentStep === 2) return step2Validate?.() ?? false;
+		return step3Validate?.() ?? false;
 	}
 
 	function handleNext() {
-		if (currentStep === 1 && !validateStep1()) return;
-		if (currentStep === 2 && !validateStep2()) return;
+		if (!validateCurrentStep()) return;
 
 		completedSteps = new Set([...completedSteps, currentStep]);
 		const nextStep = currentStep + 1;
@@ -254,7 +176,9 @@
 	}
 
 	async function handleSubmit() {
-		if (!validateStep3()) return;
+		if (!step3Validate?.()) return;
+
+		completedSteps = new Set([...completedSteps, currentStep]);
 
 		isSubmitting = true;
 
@@ -290,19 +214,35 @@
 				</span>
 				<h3>Solicitação enviada com sucesso!</h3>
 				<p>Sua demanda foi registrada e será analisada pela equipe responsável.</p>
-				<Button variant="primary" onclick={resetForm}>Nova Solicitação</Button>
+				<div>
+					<Button variant="primary" onclick={resetForm}>Nova Solicitação</Button>
+					<Button variant="primary" onclick={handleCancel} loading={isSubmitting}>
+						Ir para início
+					</Button>
+				</div>
 			</div>
 		{:else}
 			{#if currentStep === 1}
 				<StepIdentification
 					data={identification}
-					errors={step1Errors}
+					bind:errors={step1Errors}
 					onClearError={clearStep1Error}
+					onvalidate={(fn) => (step1Validate = fn)}
 				/>
 			{:else if currentStep === 2}
-				<StepDemand data={demand} errors={step2Errors} onClearError={clearStep2Error} />
+				<StepDemand
+					data={demand}
+					bind:errors={step2Errors}
+					onClearError={clearStep2Error}
+					onvalidate={(fn) => (step2Validate = fn)}
+				/>
 			{:else if currentStep === 3}
-				<StepOperational data={operational} errors={step3Errors} onClearError={clearStep3Error} />
+				<StepOperational
+					data={operational}
+					bind:errors={step3Errors}
+					onClearError={clearStep3Error}
+					onvalidate={(fn) => (step3Validate = fn)}
+				/>
 			{/if}
 
 			<footer class="form-actions">
