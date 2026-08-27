@@ -10,6 +10,28 @@
 	let solicitation = $derived(
 		mockSolicitations.find((s) => s.protocol === currentProtocol)
 	);
+
+	// Helper para formatação de data ISO
+	function formatDate(isoString: string | null) {
+		if (!isoString) return 'N/A';
+		const date = new Date(isoString);
+		return date.toLocaleDateString('pt-BR', {
+			day: '2-digit',
+			month: 'long',
+			year: 'numeric'
+		});
+	}
+
+	function formatDateTime(isoString: string | null) {
+		if (!isoString) return 'N/A';
+		const date = new Date(isoString);
+		return date.toLocaleDateString('pt-BR', {
+			day: '2-digit',
+			month: 'long',
+			hour: '2-digit',
+			minute: '2-digit'
+		});
+	}
 </script>
 
 <div class="page-viewport">
@@ -20,11 +42,11 @@
 			<div class="card-header-top">
 				<div class="left-badges">
 					<span class="badge-active">SOLICITAÇÃO ATIVA</span>
-					<h2>{solicitation.title || solicitation.serviceType || 'Solicitação de Serviço'}</h2>
-					<span class="protocol-code">{solicitation.protocol}</span>
+					<h2>{solicitation.demandTitle}</h2>
+					<span class="protocol-code">#{solicitation.protocol}</span>
 				</div>
 				<div class="right-status">
-					<span class="status-pill">{solicitation.statusLabel || solicitation.currentStatus || 'Em Análise'}</span>
+					<span class="status-pill">{solicitation.status}</span>
 				</div>
 			</div>
 
@@ -37,7 +59,7 @@
 					</div>
 					<div>
 						<span class="label">RESPONSÁVEL TÉCNICO</span>
-						<strong>{solicitation.technicalResponsible || solicitation.applicantName || 'Eng. Ricardo Vasconcelos'}</strong>
+						<strong>{solicitation.assigneeName || 'Aguardando atribuição'}</strong>
 					</div>
 				</div>
 
@@ -47,7 +69,7 @@
 					</div>
 					<div>
 						<span class="label">DATA DE ABERTURA</span>
-						<strong>{solicitation.openingDate || '12 de Outubro, 2026 - 09:45'}</strong>
+						<strong>{formatDateTime(solicitation.openedAt)}</strong>
 					</div>
 				</div>
 
@@ -57,7 +79,7 @@
 					</div>
 					<div>
 						<span class="label">PREVISÃO DE CONCLUSÃO</span>
-						<strong>{solicitation.completionForecast || '18 de Outubro'}</strong>
+						<strong>{formatDate(solicitation.estimatedCompletion)}</strong>
 					</div>
 				</div>
 
@@ -67,7 +89,7 @@
 					</div>
 					<div>
 						<span class="label">ÚLTIMA ATUALIZAÇÃO</span>
-						<strong>{solicitation.lastUpdate || 'Hoje, 14:22'}</strong>
+						<strong>{formatDateTime(solicitation.lastUpdate)}</strong>
 					</div>
 				</div>
 			</div>
@@ -80,25 +102,32 @@
 						</div>
 						<div>
 							<span class="meeting-label">REUNIÃO DE ALINHAMENTO</span>
-							<div class="meeting-time">{solicitation.meeting.date}</div>
+							<div class="meeting-time">{formatDateTime(solicitation.meeting.scheduledFor)}</div>
 						</div>
 					</div>
-					<a href={solicitation.meeting.link || '#'} target="_blank" class="btn-join">
-						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
-						Entrar na reunião
-					</a>
+					{#if solicitation.meeting.link}
+						<a href={solicitation.meeting.link} target="_blank" rel="noopener noreferrer" class="btn-join">
+							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+							Entrar na reunião
+						</a>
+					{:else}
+						<button class="btn-join disabled" disabled>
+							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+							Entrar na reunião
+						</button>
+					{/if}
 				</div>
 			{/if}
 
 			<div class="message-section">
 				<h3>Última mensagem do responsável técnico</h3>
 				<div class="message-bubble">
-					{solicitation.lastMessage || 'Sua solicitação está em análise. Assim que houver uma atualização, entraremos em contato.'}
+					{solicitation.lastTechnicalMessage || 'Sua solicitação está em análise. Assim que houver uma atualização, entraremos em contato.'}
 				</div>
 			</div>
 		</div>
 	{:else}
-		<!-- Estado de "solicitação não encontrada" -->
+		<!-- Estado de "solicitação não encontrada" (Retorno equivalente ao 404 Not Found do contrato) -->
 		<div class="not-found-card">
 			<div class="not-found-icon">
 				<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="m8 11 6 0"/></svg>
@@ -250,6 +279,12 @@
 		display: flex;
 		align-items: center;
 		gap: 8px;
+		border: none;
+	}
+
+	.btn-join.disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
 	}
 
 	.message-section h3 {
