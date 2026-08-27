@@ -2,15 +2,16 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import type { IdentificationData, StepFieldErrors } from '$lib/types/solicitation';
-	
+
 	interface Props {
 		data: IdentificationData;
 		errors: StepFieldErrors;
 		onClearError: (field: string) => void;
 		onvalidate?: (validate: () => boolean) => void;
+		departmentOptions?: { value: string; label: string }[];
 	}
 
-	let { data, errors = $bindable(), onClearError, onvalidate }: Props = $props();
+	let { data, errors = $bindable(), onClearError, onvalidate, departmentOptions }: Props = $props();
 
 	const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -31,17 +32,26 @@
 			e.area = 'Campo obrigatório, apenas texto.';
 		}
 
-		if (!/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(data.department) || !data.department.trim()) {
-			e.department = 'Campo obrigatório, apenas texto.';
+		// verifica se existe departmentOptions, se não, valida apenas input text
+		if (departmentOptions && departmentOptions.length > 0) {
+			if (data.department && !departmentOptions.some((o) => o.value === data.department)) {
+				e.department = 'Selecione um departamento válido.';
+			}
+		} else {{
+				if (!data.department.trim() || !/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(data.department)) {
+					e.department = 'Campo obrigatório, Apenas texto.';
+				}
+			}
 		}
 
 		if (!/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(data.manager) || !data.manager.trim()) {
 			e.manager = 'Campo obrigatório, apenas texto.';
 		}
 
+		// alteração feita para aceitar qualquer tipo de contato, e não apenas celular
 		if (data.additionalContact && data.additionalContact.trim()) {
-			if (!/^[1-9]{2}[2-9][0-9]{7,8}$/.test(data.additionalContact)) {
-				e.additionalContact = 'Insira um número válido.';
+			if (data.additionalContact.trim().length < 3) {
+				e.additionalContact = 'Informe um contato válido.';
 			}
 		}
 
@@ -52,7 +62,6 @@
 	$effect(() => {
 		onvalidate?.(validate);
 	});
-
 </script>
 
 <div class="step-content">
@@ -92,13 +101,24 @@
 			onchange={() => onClearError('area')}
 		/>
 
-		<Input
-			label="Departamento"
-			placeholder="Ex: Gestão de Contas"
-			bind:value={data.department}
-			error={errors.department}
-			oninput={() => onClearError('department')}
-		/>
+		{#if departmentOptions && departmentOptions.length > 0}
+			<Select
+				label="Departamento"
+				placeholder="Selecione o departamento"
+				options={departmentOptions}
+				bind:value={data.department}
+				error={errors.department}
+				onchange={() => onClearError('department')}
+			/>
+		{:else}
+			<Input
+				label="Departamento"
+				placeholder="Ex: Gestão de Contas"
+				bind:value={data.department}
+				error={errors.department}
+				oninput={() => onClearError('department')}
+			/>
+		{/if}
 
 		<Input
 			label="Gestor responsável"
@@ -111,7 +131,7 @@
 
 		<Input
 			label="Contato adicional"
-			placeholder="Ramal ou Celular"
+			placeholder="Ramal, Celular ou e-mail alternativo"
 			bind:value={data.additionalContact}
 			error={errors.additionalContact}
 			oninput={() => onClearError('additionalContact')}
@@ -159,7 +179,7 @@
 
 	.fields-grid {
 		display: grid;
-		grid-template-columns: 1fr 1fr;
+		grid-template-columns: repeat(2, 1fr);
 		gap: var(--spacing-xl);
 	}
 

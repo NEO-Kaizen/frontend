@@ -23,7 +23,7 @@
 	}: Props = $props();
 
 	function getStepState(stepId: number): 'completed' | 'current' | 'pending' {
-		if (stepId === current && current !== 3) return 'current';
+		if (stepId === current && current !== 4) return 'current';
 		if (completedSteps.has(stepId)) return 'completed';
 		return 'pending';
 	}
@@ -73,11 +73,7 @@
 				<span class="step-label">{step.label}</span>
 
 				{#if !isLast}
-					<span
-						class="connector"
-						class:filled={isCompleted}
-						aria-hidden="true"
-					></span>
+					<span class="connector" class:filled={isCompleted} aria-hidden="true"></span>
 				{/if}
 			</li>
 		{/each}
@@ -171,7 +167,6 @@
 		color: var(--white);
 		border-color: var(--secondary-color);
 	}
-
 
 	.completed .step-label {
 		color: var(--secondary-color);

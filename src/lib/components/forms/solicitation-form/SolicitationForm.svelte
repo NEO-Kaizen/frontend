@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Button from '$lib/components/Button.svelte';
+	import StepComplementary from '$lib/components/forms/solicitation-form/StepComplementary.svelte';
 	import StepDemand from '$lib/components/forms/solicitation-form/StepDemand.svelte';
 	import StepIdentification from '$lib/components/forms/solicitation-form/StepIdentification.svelte';
 	import StepOperational from '$lib/components/forms/solicitation-form/StepOperational.svelte';
@@ -7,19 +8,25 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import type {
 		AttachmentMetadata,
+		ComplementaryData,
 		CreateRequestPayload,
+		Criticality,
 		DemandData,
+		Frequency,
 		IdentificationData,
 		OperationalData,
 		OperationalImpact,
 		RequestCategory,
-		StepFieldErrors
+		RequestType,
+		StepFieldErrors,
+		YesNo
 	} from '$lib/types/solicitation';
 
 	const steps = [
 		{ id: 1, label: 'Identificação' },
 		{ id: 2, label: 'Demanda' },
-		{ id: 3, label: 'Informações' }
+		{ id: 3, label: 'Operacional' },
+		{ id: 4, label: 'Complementar' }
 	];
 
 	let currentStep = $state(1);
@@ -41,26 +48,50 @@
 		title: '',
 		category: '',
 		processName: '',
+		requestType: '',
 		description: '',
-		justificationAndExpectedResult: ''
+		problemOrOpportunity: '',
+		justification: '',
+		expectedResult: ''
 	});
 
 	let operational = $state<OperationalData>({
+		currentProcessDescription: '',
+		mainProcessSteps: '',
+		systemsUsed: '',
+		executionFrequency: '',
 		volumetry: '',
+		peopleInvolvedCount: '',
 		averageExecutionTime: '',
-		desiredDeadline: '',
+		monthlyEffortHours: '',
+		hasManualControls: '',
+		mainRisks: '',
+		customerImpact: '',
 		operationalImpact: '',
-		preferredSchedule: [],
-		files: []
+		desiredDeadline: '',
+		perceivedCriticality: ''
+	});
+
+	let complementary = $state<ComplementaryData>({
+		hasProcessDocumentation: '',
+		documentationDetails: '',
+		hasSimilarSolution: '',
+		otherAreasDependency: '',
+		restrictedInformation: '',
+		additionalObservations: '',
+		files: [],
+		preferredSchedule: []
 	});
 
 	let step1Errors = $state<StepFieldErrors>({});
 	let step2Errors = $state<StepFieldErrors>({});
 	let step3Errors = $state<StepFieldErrors>({});
+	let step4Errors = $state<StepFieldErrors>({});
 
 	let step1Validate = $state<(() => boolean) | null>(null);
 	let step2Validate = $state<(() => boolean) | null>(null);
 	let step3Validate = $state<(() => boolean) | null>(null);
+	let step4Validate = $state<(() => boolean) | null>(null);
 
 	function clearStep1Error(field: string) {
 		step1Errors[field] = undefined;
@@ -74,10 +105,15 @@
 		step3Errors[field] = undefined;
 	}
 
+	function clearStep4Error(field: string) {
+		step4Errors[field] = undefined;
+	}
+
 	function validateCurrentStep(): boolean {
 		if (currentStep === 1) return step1Validate?.() ?? false;
 		if (currentStep === 2) return step2Validate?.() ?? false;
-		return step3Validate?.() ?? false;
+		if (currentStep === 3) return step3Validate?.() ?? false;
+		return step4Validate?.() ?? true;
 	}
 
 	function handleNext() {
@@ -122,28 +158,59 @@
 			title: '',
 			category: '',
 			processName: '',
+			requestType: '',
 			description: '',
-			justificationAndExpectedResult: ''
+			problemOrOpportunity: '',
+			justification: '',
+			expectedResult: ''
 		};
 		operational = {
+			currentProcessDescription: '',
+			mainProcessSteps: '',
+			systemsUsed: '',
+			executionFrequency: '',
 			volumetry: '',
+			peopleInvolvedCount: '',
 			averageExecutionTime: '',
-			desiredDeadline: '',
+			monthlyEffortHours: '',
+			hasManualControls: '',
+			mainRisks: '',
+			customerImpact: '',
 			operationalImpact: '',
-			preferredSchedule: [],
-			files: []
+			desiredDeadline: '',
+			perceivedCriticality: ''
+		};
+		complementary = {
+			hasProcessDocumentation: '',
+			documentationDetails: '',
+			hasSimilarSolution: '',
+			otherAreasDependency: '',
+			restrictedInformation: '',
+			additionalObservations: '',
+			files: [],
+			preferredSchedule: []
 		};
 		step1Errors = {};
 		step2Errors = {};
 		step3Errors = {};
+		step4Errors = {};
 	}
 
 	function buildPayload(): CreateRequestPayload {
-		const attachments: AttachmentMetadata[] = operational.files.map((f) => ({
+		const attachments: AttachmentMetadata[] = complementary.files.map((f) => ({
 			fileName: f.fileName,
 			mimeType: f.mimeType,
 			sizeBytes: f.sizeBytes
 		}));
+
+		const hasComplementaryContent =
+			complementary.hasProcessDocumentation ||
+			complementary.documentationDetails.trim() ||
+			complementary.hasSimilarSolution ||
+			complementary.otherAreasDependency.trim() ||
+			complementary.restrictedInformation.trim() ||
+			complementary.additionalObservations.trim() ||
+			attachments.length > 0;
 
 		return {
 			requester: {
@@ -158,27 +225,79 @@
 				title: demand.title.trim(),
 				category: demand.category as RequestCategory,
 				processName: demand.processName.trim(),
+				requestType: demand.requestType as RequestType,
 				description: demand.description.trim(),
-				justificationAndExpectedResult: demand.justificationAndExpectedResult.trim()
+				problemOrOpportunity: demand.problemOrOpportunity.trim(),
+				justification: demand.justification.trim(),
+				expectedResult: demand.expectedResult.trim()
 			},
 			operational: {
+				currentProcessDescription: operational.currentProcessDescription.trim(),
+				mainProcessSteps: operational.mainProcessSteps.trim(),
+				systemsUsed: operational.systemsUsed.trim(),
+				executionFrequency: operational.executionFrequency as Frequency,
 				volumetry: operational.volumetry.trim(),
+				peopleInvolvedCount: Number(operational.peopleInvolvedCount),
 				averageExecutionTime: operational.averageExecutionTime.trim(),
+				monthlyEffortHours: Number(operational.monthlyEffortHours),
+				hasManualControls: operational.hasManualControls.trim(),
+				mainRisks: operational.mainRisks.trim(),
+				customerImpact: operational.customerImpact.trim(),
+				operationalImpact: operational.operationalImpact as OperationalImpact,
 				desiredDeadline: operational.desiredDeadline,
-				operationalImpact: operational.operationalImpact as OperationalImpact
+				perceivedCriticality: operational.perceivedCriticality as Criticality
 			},
-			complementary: attachments.length > 0 ? { attachments } : undefined,
+			complementary: hasComplementaryContent
+				? {
+						...(complementary.hasProcessDocumentation
+							? { hasProcessDocumentation: complementary.hasProcessDocumentation as YesNo }
+							: {}),
+						...(complementary.documentationDetails.trim()
+							? { documentationDetails: complementary.documentationDetails.trim() }
+							: {}),
+						...(complementary.hasSimilarSolution
+							? { hasSimilarSolution: complementary.hasSimilarSolution as YesNo }
+							: {}),
+						...(complementary.otherAreasDependency.trim()
+							? { otherAreasDependency: complementary.otherAreasDependency.trim() }
+							: {}),
+						...(complementary.restrictedInformation.trim()
+							? { restrictedInformation: complementary.restrictedInformation.trim() }
+							: {}),
+						...(complementary.additionalObservations.trim()
+							? { additionalObservations: complementary.additionalObservations.trim() }
+							: {}),
+						...(attachments.length > 0 ? { attachments } : {})
+					}
+				: undefined,
 			schedulePreferences:
-				operational.preferredSchedule.length > 0
-					? operational.preferredSchedule.filter(Boolean)
+				complementary.preferredSchedule.length > 0
+					? complementary.preferredSchedule.filter(Boolean)
 					: undefined
 		};
 	}
 
 	async function handleSubmit() {
-		if (!step3Validate?.()) return;
+		const v1 = step1Validate?.() ?? false;
+		const v2 = step2Validate?.() ?? false;
+		const v3 = step3Validate?.() ?? false;
+		const v4 = step4Validate?.() ?? true;
 
-		completedSteps = new Set([...completedSteps, currentStep]);
+		if (!v1) {
+			currentStep = 1;
+			return;
+		}
+		if (!v2) {
+			currentStep = 2;
+			return;
+		}
+		if (!v3) {
+			currentStep = 3;
+			return;
+		}
+		if (!v4) return;
+
+		completedSteps = new Set([...completedSteps, 1, 2, 3, 4]);
 
 		isSubmitting = true;
 
@@ -215,13 +334,17 @@
 				<h3>Solicitação enviada com sucesso!</h3>
 				<p>Sua demanda foi registrada e será analisada pela equipe responsável.</p>
 				<div class="success-btn">
-					<Button variant="primary" 
-					onclick={() => window.location.href = '/solicitacao'} loading={isSubmitting}>
-					<span>+</span> Nova Solicitação
+					<Button
+						variant="primary"
+						onclick={() => (window.location.href = '/solicitacao')}
+						loading={isSubmitting}
+					>
+						<span>+</span> Nova Solicitação
 					</Button>
 					<Button variant="outline" onclick={handleCancel} loading={isSubmitting}>
-						<Icon iconName="home"/>
-						Ir para início</Button>
+						<Icon iconName="home" />
+						Ir para início</Button
+					>
 				</div>
 			</div>
 		{:else}
@@ -246,6 +369,13 @@
 					onClearError={clearStep3Error}
 					onvalidate={(fn) => (step3Validate = fn)}
 				/>
+			{:else if currentStep === 4}
+				<StepComplementary
+					data={complementary}
+					bind:errors={step4Errors}
+					onClearError={clearStep4Error}
+					onvalidate={(fn) => (step4Validate = fn)}
+				/>
 			{/if}
 
 			<footer class="form-actions">
@@ -256,7 +386,7 @@
 						<Button variant="outline" onclick={handleBack}>Voltar</Button>
 					{/if}
 
-					{#if currentStep < 3}
+					{#if currentStep < 4}
 						<Button variant="primary" onclick={handleNext}>
 							Avançar
 							<Icon iconName="arrowForward" iconSize="md" />
@@ -274,10 +404,10 @@
 </div>
 
 <style>
-	.success-btn{
+	.success-btn {
 		display: flex;
 		text-align: center;
-		gap: var(--spacing-md)
+		gap: var(--spacing-md);
 	}
 	.form-container {
 		width: 100%;

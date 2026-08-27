@@ -7,21 +7,53 @@ export type IdentificationData = {
 	additionalContact: string;
 };
 
+export type RequestType = 'Automação' | 'Melhoria' | 'Manutenção';
+
+export type Frequency = 'Diária' | 'Semanal' | 'Mensal' | 'Por Demanda';
+
+export type Criticality = 'Baixa' | 'Média' | 'Alta' | 'Crítica';
+
+export type YesNo = 'Sim' | 'Não';
+
 export type DemandData = {
 	title: string;
 	category: RequestCategory | '';
 	processName: string;
+	requestType: RequestType | '';
 	description: string;
-	justificationAndExpectedResult: string;
+	problemOrOpportunity: string;
+	justification: string;
+	expectedResult: string;
+	/** @deprecated manter compatibilidade por 1 release */
+	justificationAndExpectedResult?: string;
 };
 
 export type OperationalData = {
+	currentProcessDescription: string;
+	mainProcessSteps: string;
+	systemsUsed: string;
+	executionFrequency: Frequency | '';
 	volumetry: string;
+	peopleInvolvedCount: string;
 	averageExecutionTime: string;
-	desiredDeadline: string;
+	monthlyEffortHours: string;
+	hasManualControls: string;
+	mainRisks: string;
+	customerImpact: string;
 	operationalImpact: OperationalImpact | '';
-	preferredSchedule: string[];
+	desiredDeadline: string;
+	perceivedCriticality: Criticality | '';
+};
+
+export type ComplementaryData = {
+	hasProcessDocumentation: YesNo | '';
+	documentationDetails: string;
+	hasSimilarSolution: YesNo | '';
+	otherAreasDependency: string;
+	restrictedInformation: string;
+	additionalObservations: string;
 	files: DemandFile[];
+	preferredSchedule: string[];
 };
 
 export type DemandFile = {
@@ -35,6 +67,7 @@ export type DemandFormData = {
 	requester: IdentificationData;
 	demand: DemandData;
 	operational: OperationalData;
+	complementary: ComplementaryData;
 };
 
 export type OperationalImpact = 'Baixo' | 'Médio' | 'Alto' | 'Crítico';
@@ -60,6 +93,12 @@ export type AttachmentMetadata = {
 };
 
 export type ComplementaryBlock = {
+	hasProcessDocumentation?: YesNo;
+	documentationDetails?: string;
+	hasSimilarSolution?: YesNo;
+	otherAreasDependency?: string;
+	restrictedInformation?: string;
+	additionalObservations?: string;
 	attachments?: AttachmentMetadata[];
 };
 
@@ -76,15 +115,28 @@ export type DemandBlock = {
 	title: string;
 	category: RequestCategory;
 	processName: string;
+	requestType: RequestType;
 	description: string;
-	justificationAndExpectedResult: string;
+	problemOrOpportunity: string;
+	justification: string;
+	expectedResult: string;
 };
 
 export type OperationalBlock = {
+	currentProcessDescription: string;
+	mainProcessSteps: string;
+	systemsUsed: string;
+	executionFrequency: Frequency;
 	volumetry: string;
+	peopleInvolvedCount: number;
 	averageExecutionTime: string;
-	desiredDeadline: string;
+	monthlyEffortHours: number;
+	hasManualControls: string;
+	mainRisks: string;
+	customerImpact: string;
 	operationalImpact: OperationalImpact;
+	desiredDeadline: string;
+	perceivedCriticality: Criticality;
 };
 
 export type SchedulePreferences = string[];
@@ -105,8 +157,33 @@ export type CreateRequestResponse = {
 
 export const STEP_FIELDS = {
 	1: ['fullName', 'corporateEmail', 'area', 'manager'] as const,
-	2: ['title', 'category', 'processName', 'description', 'justificationAndExpectedResult'] as const,
-	3: ['volumetry', 'averageExecutionTime', 'desiredDeadline', 'operationalImpact'] as const
+	2: [
+		'title',
+		'processName',
+		'requestType',
+		'category',
+		'description',
+		'problemOrOpportunity',
+		'justification',
+		'expectedResult'
+	] as const,
+	3: [
+		'currentProcessDescription',
+		'mainProcessSteps',
+		'systemsUsed',
+		'executionFrequency',
+		'volumetry',
+		'peopleInvolvedCount',
+		'averageExecutionTime',
+		'monthlyEffortHours',
+		'hasManualControls',
+		'mainRisks',
+		'customerImpact',
+		'operationalImpact',
+		'desiredDeadline',
+		'perceivedCriticality'
+	] as const,
+	4: [] as const
 } as const;
 
 export const ALLOWED_FILE_TYPES = ['application/pdf', 'image/png', 'image/jpeg'] as const;
@@ -132,7 +209,7 @@ export const IMPACT_OPTIONS: { value: OperationalImpact; label: string }[] = [
 	{ value: 'Baixo', label: 'Baixo' },
 	{ value: 'Médio', label: 'Médio' },
 	{ value: 'Alto', label: 'Alto' },
-	{ value: 'Crítico', label: 'Crítico'}
+	{ value: 'Crítico', label: 'Crítico' }
 ];
 
 export const AREA_OPTIONS = [
@@ -144,6 +221,31 @@ export const AREA_OPTIONS = [
 	{ value: 'Marketing', label: 'Marketing' },
 	{ value: 'Jurídico', label: 'Jurídico' },
 	{ value: 'Administrativo', label: 'Administrativo' }
+];
+
+export const REQUEST_TYPE_OPTIONS: { value: RequestType; label: string }[] = [
+	{ value: 'Automação', label: 'Automação' },
+	{ value: 'Melhoria', label: 'Melhoria' },
+	{ value: 'Manutenção', label: 'Manutenção' }
+];
+
+export const FREQUENCY_OPTIONS: { value: Frequency; label: string }[] = [
+	{ value: 'Diária', label: 'Diária' },
+	{ value: 'Semanal', label: 'Semanal' },
+	{ value: 'Mensal', label: 'Mensal' },
+	{ value: 'Por Demanda', label: 'Por Demanda' }
+];
+
+export const CRITICALITY_OPTIONS: { value: Criticality; label: string }[] = [
+	{ value: 'Baixa', label: 'Baixa' },
+	{ value: 'Média', label: 'Média' },
+	{ value: 'Alta', label: 'Alta' },
+	{ value: 'Crítica', label: 'Crítica' }
+];
+
+export const YES_NO_OPTIONS: { value: YesNo; label: string }[] = [
+	{ value: 'Sim', label: 'Sim' },
+	{ value: 'Não', label: 'Não' }
 ];
 
 export type StepFieldErrors = Partial<Record<string, string>>;
