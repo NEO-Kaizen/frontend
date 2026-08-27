@@ -1,75 +1,101 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import Card from '$lib/components/layout/Card.svelte';
-	import Input from '$lib/components/forms/Input.svelte';
-	import Button from '$lib/components/layout/Button.svelte';
+	import Input from '$lib/components/Input.svelte';
+	import Button from '$lib/components/Button.svelte';
+
+	let { onSearch } = $props<{ onSearch?: (protocol: string) => void }>();
 
 	let protocolNumber = $state('');
+	let email = $state('');
 
 	function handleSearch(event: SubmitEvent) {
 		event.preventDefault();
-		if (!protocolNumber.trim()) return;
-
-		goto(`/acompanhar/${protocolNumber.trim()}`);
+		if (onSearch) {
+			onSearch(protocolNumber.trim());
+		}
 	}
 </script>
 
-<Card padding="lg">
-	<div class="card-content">
-		<h2>Consultar Protocolo</h2>
-		<p>Informe o número do protocolo para visualizar o andamento da sua solicitação.</p>
+<div class="search-section-container">
+	<div class="header-titles">
+		<h1>Acompanhar Solicitação</h1>
+		<p>Consulte em tempo real os status da sua demanda institucional.</p>
+	</div>
 
-		<form onsubmit={handleSearch} class="search-form">
-			<div class="input-wrapper">
+	<div class="search-card-horizontal">
+		<form onsubmit={handleSearch} class="search-form-row">
+			<div class="input-field">
 				<Input
 					label="Número do Protocolo"
-					placeholder="Ex: 2026.0825.001"
+					placeholder="Ex: NEO-2026-08-9842"
 					bind:value={protocolNumber}
 				/>
 			</div>
-			<div class="button-wrapper">
-				<Button type="submit" variant="primary">Consultar</Button>
+			<div class="input-field">
+				<Input
+					label="E-mail Corporativo"
+					placeholder="emaildofulano@neo.com.br"
+					bind:value={email}
+				/>
+			</div>
+			<div class="button-field">
+				<Button type="submit" variant="primary">
+					<span class="btn-content">
+						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+						Consultar Protocolo
+					</span>
+				</Button>
 			</div>
 		</form>
 	</div>
-</Card>
+</div>
 
 <style>
-	.card-content h2 {
-		font: var(--h3);
-		color: var(--primary-color);
-		margin-bottom: var(--spacing-xs);
+	.search-section-container {
+		width: 100%;
+		max-width: 1100px;
+		margin: 0 auto 32px auto;
 	}
 
-	.card-content p {
-		font: var(--paragrafo);
-		color: var(--gray);
-		margin-bottom: var(--spacing-md);
+	.header-titles h1 {
+		font-size: 1.875rem;
+		font-weight: 700;
+		color: #002068;
+		margin: 0 0 6px 0;
 	}
 
-	.search-form {
-		display: flex;
-		align-items: flex-end;
-		gap: var(--spacing-md);
+	.header-titles p {
+		color: #475569;
+		font-size: 1rem;
+		margin: 0 0 24px 0;
+	}
+
+	.search-card-horizontal {
+		background-color: #ffffff;
+		border-radius: 16px;
+		padding: 24px 32px;
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+		border: 1px solid #f1f5f9;
+	}
+
+	.search-form-row {
+		display: grid;
+		grid-template-columns: 1fr 1fr auto;
+		gap: 20px;
+		align-items: end;
+	}
+
+	.input-field {
 		width: 100%;
 	}
 
-	.input-wrapper {
-		flex: 1;
+	.button-field {
+		padding-bottom: 2px;
 	}
 
-	.button-wrapper {
-		margin-bottom: 2px;
-	}
-
-	@media (max-width: 600px) {
-		.search-form {
-			flex-direction: column;
-			align-items: stretch;
-		}
-
-		.button-wrapper {
-			margin-bottom: 0;
-		}
+	.btn-content {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		white-space: nowrap;
 	}
 </style>
