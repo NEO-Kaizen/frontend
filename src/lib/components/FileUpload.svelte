@@ -58,9 +58,9 @@
 				...files,
 				{
 					id: generateId(),
-					name: file.name,
-					size: file.size,
-					type: file.type
+					fileName: file.name,
+					mimeType: file.type,
+					sizeBytes: file.size
 				}
 			];
 		}
@@ -154,14 +154,14 @@
 				<li class="file-item">
 					<div class="file-info">
 						<Icon iconName="description" iconSize="sm" />
-						<span class="file-name">{file.name}</span>
-						<span class="file-size">{formatFileSize(file.size)}</span>
+						<span class="file-name">{file.fileName}</span>
+						<span class="file-size">{formatFileSize(file.sizeBytes)}</span>
 					</div>
 					<button
 						type="button"
 						class="remove-button"
 						onclick={() => removeFile(file.id)}
-						aria-label="Remover arquivo {file.name}"
+						aria-label="Remover arquivo {file.fileName}"
 						{disabled}
 					>
 						<Icon iconName="delete" iconSize="sm" />
