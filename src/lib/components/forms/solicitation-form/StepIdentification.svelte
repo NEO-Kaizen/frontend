@@ -9,9 +9,51 @@
 		data: IdentificationData;
 		errors: StepFieldErrors;
 		onClearError: (field: string) => void;
+		onvalidate?: (validate: () => boolean) => void;
 	}
 
-	let { data, errors, onClearError }: Props = $props();
+	let { data, errors = $bindable(), onClearError, onvalidate }: Props = $props();
+
+	const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+	function validate(): boolean {
+		const e: StepFieldErrors = {};
+
+		if (!/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(data.fullName) || !data.fullName.trim()) {
+			e.fullName = 'Campo obrigatório, apenas texto.';
+		}
+
+		if (!data.email.trim()) {
+			e.email = 'Campo obrigatório.';
+		} else if (!EMAIL_PATTERN.test(data.email)) {
+			e.email = 'E-mail inválido.';
+		}
+
+		if (!data.area) {
+			e.area = 'Campo obrigatório.';
+		}
+
+		if (!/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(data.department) || !data.department.trim()) {
+			e.department = 'Campo obrigatório, apenas texto.';
+		}
+
+		if (!/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(data.managerName) || !data.managerName.trim()) {
+			e.managerName = 'Campo obrigatório, apenas texto.';
+		}
+
+		if (data.additionalContact && data.additionalContact.trim()) {
+			if (!/^[1-9]{2}[2-9][0-9]{7,8}$/.test(data.additionalContact)) {
+				e.additionalContact = 'Insira um número válido.';
+			}
+		}
+
+		errors = e;
+		return Object.keys(e).length === 0;
+	}
+
+	$effect(() => {
+		onvalidate?.(validate);
+	});
 
 	const areaOptions = [
 		{ value: 'ti', label: 'Tecnologia da Informação' },
@@ -92,6 +134,15 @@
 </div>
 
 <style>
+	:global(.error-message) {
+		position: absolute;
+		top: 100%;
+		left: 0;
+		width: 100%;
+		margin: 0;
+		margin-top: 4px;
+	}
+
 	.step-content {
 		display: flex;
 		flex-direction: column;
@@ -123,7 +174,7 @@
 	.fields-grid {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
-		gap: var(--spacing-lg);
+		gap: var(--spacing-xl);
 	}
 
 	@media (max-width: 768px) {

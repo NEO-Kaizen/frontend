@@ -10,14 +10,16 @@
 		data: OperationalData;
 		errors: StepFieldErrors;
 		onClearError: (field: string) => void;
+		onvalidate?: (validate: () => boolean) => void;
 	}
 
-	let { data, errors, onClearError }: Props = $props();
+	let { data, errors = $bindable(), onClearError, onvalidate }: Props = $props();
 
 	const impactOptions = [
 		{ value: 'Baixo', label: 'Baixo' },
 		{ value: 'Médio', label: 'Médio' },
-		{ value: 'Alto', label: 'Alto' }
+		{ value: 'Alto', label: 'Alto' },
+		{ value: 'Crítico', label: 'Crítico' }
 	];
 
 	function addScheduleSlot() {
@@ -30,7 +32,44 @@
 		data.preferredSchedule = data.preferredSchedule.filter((_, i) => i !== index);
 	}
 
-	const hoje = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+	const today = new Date();
+
+	const todayTimestamp = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+		.toISOString()
+		.slice(0, 16);
+
+	function validate(): boolean {
+		const e: StepFieldErrors = {};
+
+		if (!data.volume.trim()) {
+			e.volume = 'Campo obrigatório.';
+		}
+
+		if (!data.executionTime.trim()) {
+			e.executionTime = 'Campo obrigatório.';
+		}
+
+		if (!data.desiredDeadline || new Date(data.desiredDeadline) < today) {
+			e.desiredDeadline = 'Insira um prazo válido';
+		}
+
+		if (!data.operationalImpact) {
+			e.operationalImpact = 'Campo obrigatório.';
+		}
+
+		data.preferredSchedule.forEach((dataAgendada, index) => {
+			if (dataAgendada && dataAgendada < todayTimestamp) {
+				e[`schedule_${index}`] = 'Insira um horário válido.';
+			}
+		});
+
+		errors = e;
+		return Object.keys(e).length === 0;
+	}
+
+	$effect(() => {
+		onvalidate?.(validate);
+	});
 </script>
 
 <div class="step-content">
@@ -63,6 +102,7 @@
 		<Input
 			type="date"
 			label="Prazo desejado"
+			min={todayTimestamp}
 			required
 			bind:value={data.desiredDeadline}
 			error={errors.desiredDeadline}
@@ -101,8 +141,8 @@
 			{#each data.preferredSchedule as _, index (index)}
 				<div class="schedule-slot">
 					<Input
-						type="datetime-local" 
-						min={hoje}
+						type="datetime-local"
+						min={todayTimestamp}
 						placeholder="dd/mm/aaaa"
 						bind:value={data.preferredSchedule[index]}
 						error={errors[`schedule_${index}`]}
@@ -128,10 +168,18 @@
 </div>
 
 <style>
+	:global(.error-message) {
+		position: absolute;
+		top: 100%;
+		left: 0;
+		width: 100%;
+		margin: 0;
+		margin-top: 4px;
+	}
 	.step-content {
 		display: flex;
 		flex-direction: column;
-		gap: var(--spacing-lg);
+		gap: var(--spacing-xl);
 	}
 
 	.step-header {
@@ -159,7 +207,7 @@
 	.fields-grid {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
-		gap: var(--spacing-lg);
+		gap: var(--spacing-xl);
 	}
 
 	.schedule-section {
