@@ -9,6 +9,7 @@
 		name?: string;
 		id?: string;
 		rows?: number;
+		maxlength?: number;
 		oninput?: () => void;
 	}
 
@@ -22,6 +23,7 @@
 		name,
 		id,
 		rows = 4,
+		maxlength,
 		oninput
 	}: Props = $props();
 
@@ -34,18 +36,27 @@
 		<label for={textareaId}>{label}</label>
 	{/if}
 
-	<textarea
-		id={textareaId}
-		{name}
-		{placeholder}
-		{required}
-		{disabled}
-		{rows}
-		bind:value
-		{oninput}
-		aria-invalid={error ? true : undefined}
-		aria-describedby={error ? `${textareaId}-error` : undefined}
-		class:error={Boolean(error)}></textarea>
+	<div class="textarea-wrapper">
+		<textarea
+			id={textareaId}
+			{name}
+			{placeholder}
+			{required}
+			{disabled}
+			{rows}
+			{maxlength}
+			bind:value
+			{oninput}
+			aria-invalid={error ? true : undefined}
+			aria-describedby={error ? `${textareaId}-error` : undefined}
+			class:error={Boolean(error)}></textarea>
+
+		{#if maxlength}
+			<span class="char-counter" aria-hidden="true">
+				{value.length}/{maxlength}
+			</span>
+		{/if}
+	</div>
 
 	{#if error}
 		<p id={`${textareaId}-error`} class="error-message">
@@ -103,6 +114,22 @@
 	textarea:disabled {
 		cursor: not-allowed;
 		opacity: 0.6;
+	}
+
+	.textarea-wrapper {
+		position: relative;
+	}
+
+	.char-counter {
+		position: absolute;
+		right: var(--spacing-sm);
+		bottom: 8px;
+		font-size: 12px;
+		line-height: 1;
+		color: var(--gray);
+		pointer-events: none;
+		background-color: var(--white);
+		padding: 0 2px;
 	}
 
 	.error-message {
