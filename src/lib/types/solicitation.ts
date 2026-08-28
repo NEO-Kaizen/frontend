@@ -11,7 +11,9 @@ export type RequestType = 'Automação' | 'Melhoria' | 'Manutenção';
 
 export type Frequency = 'Diária' | 'Semanal' | 'Mensal' | 'Por Demanda';
 
-export type Criticality = 'Baixa' | 'Média' | 'Alta' | 'Crítica';
+export type RequestPriority = 'Baixa' | 'Média' | 'Alta' | 'Crítica';
+
+export type Criticality = RequestPriority;
 
 export type YesNo = 'Sim' | 'Não';
 
@@ -21,25 +23,24 @@ export type DemandData = {
 	processName: string;
 	requestType: RequestType | '';
 	description: string;
-	problemOrOpportunity: string;
+	problem: string;
 	justification: string;
 	expectedResult: string;
-	/** @deprecated manter compatibilidade por 1 release */
-	justificationAndExpectedResult?: string;
 };
 
 export type OperationalData = {
-	currentProcessDescription: string;
-	mainProcessSteps: string;
+	processDescription: string;
+	processSteps: string;
 	systemsUsed: string;
 	executionFrequency: Frequency | '';
 	volumetry: string;
-	peopleInvolvedCount: string;
+	peopleInvolved: string;
 	averageExecutionTime: string;
 	monthlyEffortHours: string;
-	hasManualControls: string;
+	hasManualControls: YesNo | '';
+	hasManualControlsDetail: string;
 	mainRisks: string;
-	customerImpact: string;
+	clientImpact: string;
 	operationalImpact: OperationalImpact | '';
 	desiredDeadline: string;
 	perceivedCriticality: Criticality | '';
@@ -47,11 +48,14 @@ export type OperationalData = {
 
 export type ComplementaryData = {
 	hasProcessDocumentation: YesNo | '';
-	documentationDetails: string;
+	hasProcessDocumentationDetail: string;
 	hasSimilarSolution: YesNo | '';
-	otherAreasDependency: string;
-	restrictedInformation: string;
-	additionalObservations: string;
+	hasSimilarSolutionDetail: string;
+	dependsOnOtherAreas: YesNo | '';
+	dependsOnOtherAreasDetail: string;
+	handlesRestrictedInfo: YesNo | '';
+	handlesRestrictedInfoDetail: string;
+	additionalNotes: string;
 	files: DemandFile[];
 	preferredSchedule: string[];
 };
@@ -72,8 +76,6 @@ export type DemandFormData = {
 
 export type OperationalImpact = 'Baixo' | 'Médio' | 'Alto' | 'Crítico';
 
-// export type RequestPriority = 'Baixa' | 'Média' | 'Alta' | 'Crítica';
-
 export type RequestCategory =
 	| 'Automação'
 	| 'Melhoria de processo'
@@ -86,6 +88,31 @@ export type RequestCategory =
 	| 'Estudo de viabilidade'
 	| 'Outros';
 
+export type RequestStatus =
+	| 'Solicitação enviada'
+	| 'Aguardando triagem'
+	| 'Em triagem'
+	| 'Pendente de informações'
+	| 'Aguardando mapeamento'
+	| 'Mapeamento agendado'
+	| 'Em mapeamento'
+	| 'Em análise de viabilidade'
+	| 'Elegível'
+	| 'Não elegível'
+	| 'Priorizado'
+	| 'Backlog'
+	| 'Direcionado para outra área'
+	| 'Em desenvolvimento'
+	| 'Em homologação'
+	| 'Concluído'
+	| 'Cancelado';
+
+/**
+ * Resposta "Sim/Não (+ detalhamento)" — o detalhamento É a resposta positiva:
+ * `false` = "Não"; `string` = "Sim" + detalhe (trim não-vazio).
+ */
+export type YesNoDetail = false | string;
+
 export type AttachmentMetadata = {
 	fileName: string;
 	mimeType: string;
@@ -93,12 +120,11 @@ export type AttachmentMetadata = {
 };
 
 export type ComplementaryBlock = {
-	hasProcessDocumentation?: YesNo;
-	documentationDetails?: string;
-	hasSimilarSolution?: YesNo;
-	otherAreasDependency?: string;
-	restrictedInformation?: string;
-	additionalObservations?: string;
+	hasProcessDocumentation?: YesNoDetail;
+	hasSimilarSolution?: YesNoDetail;
+	dependsOnOtherAreas?: YesNoDetail;
+	handlesRestrictedInfo?: YesNoDetail;
+	additionalNotes?: string;
 	attachments?: AttachmentMetadata[];
 };
 
@@ -117,26 +143,26 @@ export type DemandBlock = {
 	processName: string;
 	requestType: RequestType;
 	description: string;
-	problemOrOpportunity: string;
+	problem: string;
 	justification: string;
 	expectedResult: string;
 };
 
 export type OperationalBlock = {
-	currentProcessDescription: string;
-	mainProcessSteps: string;
+	processDescription: string;
+	processSteps: string;
 	systemsUsed: string;
 	executionFrequency: Frequency;
 	volumetry: string;
-	peopleInvolvedCount: number;
+	peopleInvolved: number;
 	averageExecutionTime: string;
 	monthlyEffortHours: number;
-	hasManualControls: string;
+	hasManualControls: YesNoDetail;
 	mainRisks: string;
-	customerImpact: string;
+	clientImpact: string;
 	operationalImpact: OperationalImpact;
 	desiredDeadline: string;
-	perceivedCriticality: Criticality;
+	perceivedCriticality: RequestPriority;
 };
 
 export type SchedulePreferences = string[];
@@ -151,7 +177,7 @@ export type CreateRequestPayload = {
 
 export type CreateRequestResponse = {
 	protocol: string;
-	status: string;
+	status: RequestStatus;
 	createdAt: string;
 };
 
@@ -163,22 +189,22 @@ export const STEP_FIELDS = {
 		'requestType',
 		'category',
 		'description',
-		'problemOrOpportunity',
+		'problem',
 		'justification',
 		'expectedResult'
 	] as const,
 	3: [
-		'currentProcessDescription',
-		'mainProcessSteps',
+		'processDescription',
+		'processSteps',
 		'systemsUsed',
 		'executionFrequency',
 		'volumetry',
-		'peopleInvolvedCount',
+		'peopleInvolved',
 		'averageExecutionTime',
 		'monthlyEffortHours',
 		'hasManualControls',
 		'mainRisks',
-		'customerImpact',
+		'clientImpact',
 		'operationalImpact',
 		'desiredDeadline',
 		'perceivedCriticality'
@@ -186,7 +212,13 @@ export const STEP_FIELDS = {
 	4: [] as const
 } as const;
 
-export const ALLOWED_FILE_TYPES = ['application/pdf', 'image/png', 'image/jpeg'] as const;
+export const ALLOWED_FILE_TYPES = [
+	'application/pdf',
+	'image/png',
+	'image/jpeg',
+	'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+	'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+] as const;
 
 export const ALLOWED_FILE_EXTENSIONS = ['.pdf', '.docx', '.xlsx', '.png', '.jpg'] as const;
 
