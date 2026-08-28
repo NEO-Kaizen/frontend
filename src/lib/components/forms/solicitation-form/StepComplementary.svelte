@@ -33,6 +33,22 @@
 	function validate(): boolean {
 		const e: StepFieldErrors = {};
 
+		if (data.hasProcessDocumentation === 'Sim' && !data.hasProcessDocumentationDetail.trim()) {
+			e.hasProcessDocumentationDetail = 'Detalhe a documentação existente.';
+		}
+
+		if (data.hasSimilarSolution === 'Sim' && !data.hasSimilarSolutionDetail.trim()) {
+			e.hasSimilarSolutionDetail = 'Descreva a solução semelhante.';
+		}
+
+		if (data.dependsOnOtherAreas === 'Sim' && !data.dependsOnOtherAreasDetail.trim()) {
+			e.dependsOnOtherAreasDetail = 'Informe quais áreas dependem desta solicitação.';
+		}
+
+		if (data.handlesRestrictedInfo === 'Sim' && !data.handlesRestrictedInfoDetail.trim()) {
+			e.handlesRestrictedInfoDetail = 'Detalhe as informações restritas (LGPD).';
+		}
+
 		data.preferredSchedule.forEach((dataAgendada, index) => {
 			if (dataAgendada && dataAgendada < todayTimestamp) {
 				e[`schedule_${index}`] = 'Insira um horário válido.';
@@ -73,9 +89,11 @@
 			<Input
 				label="Detalhes da documentação"
 				placeholder="Links ou descrição da documentação"
-				bind:value={data.documentationDetails}
-				error={errors.documentationDetails}
-				oninput={() => onClearError('documentationDetails')}
+				maxlength={1000}
+				disabled={data.hasProcessDocumentation !== 'Sim'}
+				bind:value={data.hasProcessDocumentationDetail}
+				error={errors.hasProcessDocumentationDetail}
+				oninput={() => onClearError('hasProcessDocumentationDetail')}
 			/>
 
 			<Select
@@ -88,19 +106,51 @@
 			/>
 
 			<Input
-				label="Dependência de outras áreas"
-				placeholder="Ex: Financeiro, TI..."
-				bind:value={data.otherAreasDependency}
-				error={errors.otherAreasDependency}
-				oninput={() => onClearError('otherAreasDependency')}
+				label="Detalhes da solução semelhante"
+				placeholder="Descreva a solução existente, se houver"
+				maxlength={1000}
+				disabled={data.hasSimilarSolution !== 'Sim'}
+				bind:value={data.hasSimilarSolutionDetail}
+				error={errors.hasSimilarSolutionDetail}
+				oninput={() => onClearError('hasSimilarSolutionDetail')}
+			/>
+
+			<Select
+				label="A solicitação depende de outras áreas?"
+				placeholder="Selecione"
+				options={YES_NO_OPTIONS}
+				bind:value={data.dependsOnOtherAreas}
+				error={errors.dependsOnOtherAreas}
+				onchange={() => onClearError('dependsOnOtherAreas')}
 			/>
 
 			<Input
-				label="Tratamento de informações restritas"
-				placeholder="Descreva se há informações sensíveis..."
-				bind:value={data.restrictedInformation}
-				error={errors.restrictedInformation}
-				oninput={() => onClearError('restrictedInformation')}
+				label="Quais áreas?"
+				placeholder="Ex: Financeiro, TI, Operações"
+				maxlength={1000}
+				disabled={data.dependsOnOtherAreas !== 'Sim'}
+				bind:value={data.dependsOnOtherAreasDetail}
+				error={errors.dependsOnOtherAreasDetail}
+				oninput={() => onClearError('dependsOnOtherAreasDetail')}
+			/>
+
+			<Select
+				label="Envolve tratamento de informações restritas?"
+				placeholder="Selecione"
+				options={YES_NO_OPTIONS}
+				bind:value={data.handlesRestrictedInfo}
+				error={errors.handlesRestrictedInfo}
+				onchange={() => onClearError('handlesRestrictedInfo')}
+			/>
+
+			<Input
+				label="Detalhes de LGPD/Sigilo"
+				placeholder="Descreva as informações sensíveis..."
+				maxlength={1000}
+				disabled={data.handlesRestrictedInfo !== 'Sim'}
+				bind:value={data.handlesRestrictedInfoDetail}
+				error={errors.handlesRestrictedInfoDetail}
+				oninput={() => onClearError('handlesRestrictedInfoDetail')}
 			/>
 		</div>
 
@@ -109,9 +159,10 @@
 				label="Observações adicionais"
 				placeholder="Informações complementares que julgar necessárias..."
 				rows={4}
-				bind:value={data.additionalObservations}
-				error={errors.additionalObservations}
-				oninput={() => onClearError('additionalObservations')}
+				maxlength={2000}
+				bind:value={data.additionalNotes}
+				error={errors.additionalNotes}
+				oninput={() => onClearError('additionalNotes')}
 			/>
 		</div>
 

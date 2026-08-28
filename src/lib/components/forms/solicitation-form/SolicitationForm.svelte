@@ -19,7 +19,8 @@
 		RequestCategory,
 		RequestType,
 		StepFieldErrors,
-		YesNo
+		YesNo,
+		YesNoDetail
 	} from '$lib/types/solicitation';
 
 	const steps = [
@@ -50,23 +51,24 @@
 		processName: '',
 		requestType: '',
 		description: '',
-		problemOrOpportunity: '',
+		problem: '',
 		justification: '',
 		expectedResult: ''
 	});
 
 	let operational = $state<OperationalData>({
-		currentProcessDescription: '',
-		mainProcessSteps: '',
+		processDescription: '',
+		processSteps: '',
 		systemsUsed: '',
 		executionFrequency: '',
 		volumetry: '',
-		peopleInvolvedCount: '',
+		peopleInvolved: '',
 		averageExecutionTime: '',
 		monthlyEffortHours: '',
 		hasManualControls: '',
+		hasManualControlsDetail: '',
 		mainRisks: '',
-		customerImpact: '',
+		clientImpact: '',
 		operationalImpact: '',
 		desiredDeadline: '',
 		perceivedCriticality: ''
@@ -74,11 +76,14 @@
 
 	let complementary = $state<ComplementaryData>({
 		hasProcessDocumentation: '',
-		documentationDetails: '',
+		hasProcessDocumentationDetail: '',
 		hasSimilarSolution: '',
-		otherAreasDependency: '',
-		restrictedInformation: '',
-		additionalObservations: '',
+		hasSimilarSolutionDetail: '',
+		dependsOnOtherAreas: '',
+		dependsOnOtherAreasDetail: '',
+		handlesRestrictedInfo: '',
+		handlesRestrictedInfoDetail: '',
+		additionalNotes: '',
 		files: [],
 		preferredSchedule: []
 	});
@@ -160,33 +165,37 @@
 			processName: '',
 			requestType: '',
 			description: '',
-			problemOrOpportunity: '',
+			problem: '',
 			justification: '',
 			expectedResult: ''
 		};
 		operational = {
-			currentProcessDescription: '',
-			mainProcessSteps: '',
+			processDescription: '',
+			processSteps: '',
 			systemsUsed: '',
 			executionFrequency: '',
 			volumetry: '',
-			peopleInvolvedCount: '',
+			peopleInvolved: '',
 			averageExecutionTime: '',
 			monthlyEffortHours: '',
 			hasManualControls: '',
+			hasManualControlsDetail: '',
 			mainRisks: '',
-			customerImpact: '',
+			clientImpact: '',
 			operationalImpact: '',
 			desiredDeadline: '',
 			perceivedCriticality: ''
 		};
 		complementary = {
 			hasProcessDocumentation: '',
-			documentationDetails: '',
+			hasProcessDocumentationDetail: '',
 			hasSimilarSolution: '',
-			otherAreasDependency: '',
-			restrictedInformation: '',
-			additionalObservations: '',
+			hasSimilarSolutionDetail: '',
+			dependsOnOtherAreas: '',
+			dependsOnOtherAreasDetail: '',
+			handlesRestrictedInfo: '',
+			handlesRestrictedInfoDetail: '',
+			additionalNotes: '',
 			files: [],
 			preferredSchedule: []
 		};
@@ -196,6 +205,13 @@
 		step4Errors = {};
 	}
 
+	function toYesNoDetail(choice: YesNo | '', detail: string): YesNoDetail | undefined {
+		if (!choice) return undefined;
+		if (choice === 'Não') return false;
+		const trimmed = detail.trim();
+		return trimmed ? trimmed : undefined;
+	}
+
 	function buildPayload(): CreateRequestPayload {
 		const attachments: AttachmentMetadata[] = complementary.files.map((f) => ({
 			fileName: f.fileName,
@@ -203,13 +219,30 @@
 			sizeBytes: f.sizeBytes
 		}));
 
+		const hasProcessDocumentation = toYesNoDetail(
+			complementary.hasProcessDocumentation,
+			complementary.hasProcessDocumentationDetail
+		);
+		const hasSimilarSolution = toYesNoDetail(
+			complementary.hasSimilarSolution,
+			complementary.hasSimilarSolutionDetail
+		);
+		const dependsOnOtherAreas = toYesNoDetail(
+			complementary.dependsOnOtherAreas,
+			complementary.dependsOnOtherAreasDetail
+		);
+		const handlesRestrictedInfo = toYesNoDetail(
+			complementary.handlesRestrictedInfo,
+			complementary.handlesRestrictedInfoDetail
+		);
+		const additionalNotes = complementary.additionalNotes.trim() || undefined;
+
 		const hasComplementaryContent =
-			complementary.hasProcessDocumentation ||
-			complementary.documentationDetails.trim() ||
-			complementary.hasSimilarSolution ||
-			complementary.otherAreasDependency.trim() ||
-			complementary.restrictedInformation.trim() ||
-			complementary.additionalObservations.trim() ||
+			hasProcessDocumentation !== undefined ||
+			hasSimilarSolution !== undefined ||
+			dependsOnOtherAreas !== undefined ||
+			handlesRestrictedInfo !== undefined ||
+			additionalNotes !== undefined ||
 			attachments.length > 0;
 
 		return {
@@ -227,46 +260,36 @@
 				processName: demand.processName.trim(),
 				requestType: demand.requestType as RequestType,
 				description: demand.description.trim(),
-				problemOrOpportunity: demand.problemOrOpportunity.trim(),
+				problem: demand.problem.trim(),
 				justification: demand.justification.trim(),
 				expectedResult: demand.expectedResult.trim()
 			},
 			operational: {
-				currentProcessDescription: operational.currentProcessDescription.trim(),
-				mainProcessSteps: operational.mainProcessSteps.trim(),
+				processDescription: operational.processDescription.trim(),
+				processSteps: operational.processSteps.trim(),
 				systemsUsed: operational.systemsUsed.trim(),
 				executionFrequency: operational.executionFrequency as Frequency,
 				volumetry: operational.volumetry.trim(),
-				peopleInvolvedCount: Number(operational.peopleInvolvedCount),
+				peopleInvolved: Number(operational.peopleInvolved),
 				averageExecutionTime: operational.averageExecutionTime.trim(),
 				monthlyEffortHours: Number(operational.monthlyEffortHours),
-				hasManualControls: operational.hasManualControls.trim(),
+				hasManualControls:
+					operational.hasManualControls === 'Não'
+						? false
+						: operational.hasManualControlsDetail.trim(),
 				mainRisks: operational.mainRisks.trim(),
-				customerImpact: operational.customerImpact.trim(),
+				clientImpact: operational.clientImpact.trim(),
 				operationalImpact: operational.operationalImpact as OperationalImpact,
 				desiredDeadline: operational.desiredDeadline,
 				perceivedCriticality: operational.perceivedCriticality as Criticality
 			},
 			complementary: hasComplementaryContent
 				? {
-						...(complementary.hasProcessDocumentation
-							? { hasProcessDocumentation: complementary.hasProcessDocumentation as YesNo }
-							: {}),
-						...(complementary.documentationDetails.trim()
-							? { documentationDetails: complementary.documentationDetails.trim() }
-							: {}),
-						...(complementary.hasSimilarSolution
-							? { hasSimilarSolution: complementary.hasSimilarSolution as YesNo }
-							: {}),
-						...(complementary.otherAreasDependency.trim()
-							? { otherAreasDependency: complementary.otherAreasDependency.trim() }
-							: {}),
-						...(complementary.restrictedInformation.trim()
-							? { restrictedInformation: complementary.restrictedInformation.trim() }
-							: {}),
-						...(complementary.additionalObservations.trim()
-							? { additionalObservations: complementary.additionalObservations.trim() }
-							: {}),
+						...(hasProcessDocumentation !== undefined ? { hasProcessDocumentation } : {}),
+						...(hasSimilarSolution !== undefined ? { hasSimilarSolution } : {}),
+						...(dependsOnOtherAreas !== undefined ? { dependsOnOtherAreas } : {}),
+						...(handlesRestrictedInfo !== undefined ? { handlesRestrictedInfo } : {}),
+						...(additionalNotes !== undefined ? { additionalNotes } : {}),
 						...(attachments.length > 0 ? { attachments } : {})
 					}
 				: undefined,

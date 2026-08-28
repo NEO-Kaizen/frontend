@@ -4,7 +4,12 @@
 	import Select from '$lib/components/Select.svelte';
 	import Textarea from '$lib/components/Textarea.svelte';
 	import type { OperationalData, StepFieldErrors } from '$lib/types/solicitation';
-	import { CRITICALITY_OPTIONS, FREQUENCY_OPTIONS, IMPACT_OPTIONS } from '$lib/types/solicitation';
+	import {
+		CRITICALITY_OPTIONS,
+		FREQUENCY_OPTIONS,
+		IMPACT_OPTIONS,
+		YES_NO_OPTIONS
+	} from '$lib/types/solicitation';
 
 	interface Props {
 		data: OperationalData;
@@ -19,15 +24,23 @@
 		.toISOString()
 		.slice(0, 10);
 
+	function parseNumber(value: number | string | null | undefined): number | null {
+		if (value === null || value === undefined) return null;
+		if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+		if (value.trim() === '') return null;
+		const n = Number(value);
+		return Number.isFinite(n) ? n : null;
+	}
+
 	function validate(): boolean {
 		const e: StepFieldErrors = {};
 
-		if (!data.currentProcessDescription.trim()) {
-			e.currentProcessDescription = 'Campo obrigatório.';
+		if (!data.processDescription.trim()) {
+			e.processDescription = 'Campo obrigatório.';
 		}
 
-		if (!data.mainProcessSteps.trim()) {
-			e.mainProcessSteps = 'Campo obrigatório.';
+		if (!data.processSteps.trim()) {
+			e.processSteps = 'Campo obrigatório.';
 		}
 
 		if (!data.systemsUsed.trim()) {
@@ -42,32 +55,36 @@
 			e.volumetry = 'Campo obrigatório.';
 		}
 
-		if (data.peopleInvolvedCount === undefined || data.peopleInvolvedCount === null) {
-			e.peopleInvolvedCount = 'Campo obrigatório.';
-		} else if (!Number.isInteger(data.peopleInvolvedCount) || data.peopleInvolvedCount < 1) {
-			e.peopleInvolvedCount = 'Informe um número maior que 0.';
+		const peopleInvolved = parseNumber(data.peopleInvolved);
+		if (peopleInvolved === null) {
+			e.peopleInvolved = 'Campo obrigatório.';
+		} else if (!Number.isInteger(peopleInvolved) || peopleInvolved < 1) {
+			e.peopleInvolved = 'Informe um número inteiro maior que 0.';
 		}
 
 		if (!data.averageExecutionTime.trim()) {
 			e.averageExecutionTime = 'Campo obrigatório.';
 		}
 
-		if (data.monthlyEffortHours === undefined || data.monthlyEffortHours === null) {
+		const monthlyEffortHours = parseNumber(data.monthlyEffortHours);
+		if (monthlyEffortHours === null) {
 			e.monthlyEffortHours = 'Campo obrigatório.';
-		} else if (!Number.isInteger(data.monthlyEffortHours) || data.monthlyEffortHours < 1) {
-			e.monthlyEffortHours = 'Informe um número maior que 0.';
+		} else if (monthlyEffortHours < 0) {
+			e.monthlyEffortHours = 'Informe um número maior ou igual a 0.';
 		}
 
-		if (!data.hasManualControls.trim()) {
+		if (!data.hasManualControls) {
 			e.hasManualControls = 'Campo obrigatório.';
+		} else if (data.hasManualControls === 'Sim' && !data.hasManualControlsDetail.trim()) {
+			e.hasManualControlsDetail = 'Descreva os controles manuais existentes.';
 		}
 
 		if (!data.mainRisks.trim()) {
 			e.mainRisks = 'Campo obrigatório.';
 		}
 
-		if (!data.customerImpact.trim()) {
-			e.customerImpact = 'Campo obrigatório.';
+		if (!data.clientImpact.trim()) {
+			e.clientImpact = 'Campo obrigatório.';
 		}
 
 		if (!data.operationalImpact) {
@@ -109,9 +126,10 @@
 				placeholder="Descreva brevemente como o processo funciona hoje..."
 				required
 				rows={4}
-				bind:value={data.currentProcessDescription}
-				error={errors.currentProcessDescription}
-				oninput={() => onClearError('currentProcessDescription')}
+				maxlength={4000}
+				bind:value={data.processDescription}
+				error={errors.processDescription}
+				oninput={() => onClearError('processDescription')}
 			/>
 		</div>
 
@@ -121,9 +139,10 @@
 				placeholder="Liste as principais etapas ou tópicos do processo..."
 				required
 				rows={4}
-				bind:value={data.mainProcessSteps}
-				error={errors.mainProcessSteps}
-				oninput={() => onClearError('mainProcessSteps')}
+				maxlength={4000}
+				bind:value={data.processSteps}
+				error={errors.processSteps}
+				oninput={() => onClearError('processSteps')}
 			/>
 		</div>
 
@@ -132,6 +151,7 @@
 				label="Sistemas utilizados"
 				placeholder="Ex: SAP, Excel, SharePoint"
 				required
+				maxlength={255}
 				bind:value={data.systemsUsed}
 				error={errors.systemsUsed}
 				oninput={() => onClearError('systemsUsed')}
@@ -151,6 +171,7 @@
 				label="Volumetria aproximada"
 				placeholder="Ex: 500 transações/mês"
 				required
+				maxlength={100}
 				bind:value={data.volumetry}
 				error={errors.volumetry}
 				oninput={() => onClearError('volumetry')}
@@ -163,15 +184,16 @@
 				required
 				min="1"
 				step="1"
-				bind:value={data.peopleInvolvedCount}
-				error={errors.peopleInvolvedCount}
-				oninput={() => onClearError('peopleInvolvedCount')}
+				bind:value={data.peopleInvolved}
+				error={errors.peopleInvolved}
+				oninput={() => onClearError('peopleInvolved')}
 			/>
 
 			<Input
 				label="Tempo médio de execução"
 				placeholder="Ex: 15 minutos"
 				required
+				maxlength={60}
 				bind:value={data.averageExecutionTime}
 				error={errors.averageExecutionTime}
 				oninput={() => onClearError('averageExecutionTime')}
@@ -183,21 +205,30 @@
 				placeholder="Ex: 40"
 				required
 				min="0"
-				step="0.5"
+				step="0.1"
 				bind:value={data.monthlyEffortHours}
 				error={errors.monthlyEffortHours}
 				oninput={() => onClearError('monthlyEffortHours')}
 			/>
-		</div>
 
-		<div class="field-span-2">
-			<Input
+			<Select
 				label="Existência de controles manuais"
-				placeholder="Descreva os controles manuais existentes..."
+				placeholder="Selecione"
+				options={YES_NO_OPTIONS}
 				required
 				bind:value={data.hasManualControls}
 				error={errors.hasManualControls}
-				oninput={() => onClearError('hasManualControls')}
+				onchange={() => onClearError('hasManualControls')}
+			/>
+
+			<Input
+				label="Detalhamento dos controles manuais"
+				placeholder="Descreva os controles manuais existentes..."
+				maxlength={1000}
+				disabled={data.hasManualControls !== 'Sim'}
+				bind:value={data.hasManualControlsDetail}
+				error={errors.hasManualControlsDetail}
+				oninput={() => onClearError('hasManualControlsDetail')}
 			/>
 		</div>
 
@@ -207,6 +238,7 @@
 				placeholder="Descreva os principais riscos do processo atual..."
 				required
 				rows={3}
+				maxlength={2000}
 				bind:value={data.mainRisks}
 				error={errors.mainRisks}
 				oninput={() => onClearError('mainRisks')}
@@ -219,9 +251,10 @@
 				placeholder="Descreva o impacto para o cliente..."
 				required
 				rows={3}
-				bind:value={data.customerImpact}
-				error={errors.customerImpact}
-				oninput={() => onClearError('customerImpact')}
+				maxlength={2000}
+				bind:value={data.clientImpact}
+				error={errors.clientImpact}
+				oninput={() => onClearError('clientImpact')}
 			/>
 		</div>
 

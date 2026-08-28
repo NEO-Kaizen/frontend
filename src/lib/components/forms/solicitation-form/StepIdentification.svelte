@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Icon from '$lib/components/Icon.svelte';
 	import Input from '$lib/components/Input.svelte';
+	import Select from '$lib/components/Select.svelte';
 	import type { IdentificationData, StepFieldErrors } from '$lib/types/solicitation';
 
 	interface Props {
@@ -32,16 +33,14 @@
 			e.area = 'Campo obrigatório, apenas texto.';
 		}
 
-		// verifica se existe departmentOptions, se não, valida apenas input text
+		// departamento é opcional por padrão; quando há lista, valida a seleção;
+		// senão, valida apenas o formato quando preenchido
 		if (departmentOptions && departmentOptions.length > 0) {
 			if (data.department && !departmentOptions.some((o) => o.value === data.department)) {
 				e.department = 'Selecione um departamento válido.';
 			}
-		} else {{
-				if (!data.department.trim() || !/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(data.department)) {
-					e.department = 'Campo obrigatório, Apenas texto.';
-				}
-			}
+		} else if (data.department.trim() && !/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(data.department)) {
+			e.department = 'Apenas texto.';
 		}
 
 		if (!/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(data.manager) || !data.manager.trim()) {

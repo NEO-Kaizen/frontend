@@ -44,8 +44,8 @@
 			e.description = 'Campo obrigatório.';
 		}
 
-		if (!data.problemOrOpportunity.trim()) {
-			e.problemOrOpportunity = 'Campo obrigatório.';
+		if (!data.problem.trim()) {
+			e.problem = 'Campo obrigatório.';
 		}
 
 		if (!data.justification.trim()) {
@@ -79,6 +79,7 @@
 				label="Título resumido da solicitação"
 				placeholder="Título curto e claro"
 				required
+				maxlength={150}
 				bind:value={data.title}
 				error={errors.title}
 				oninput={() => onClearError('title')}
@@ -88,6 +89,7 @@
 				label="Nome do processo atual"
 				placeholder="Como o processo é conhecido hoje?"
 				required
+				maxlength={150}
 				bind:value={data.processName}
 				error={errors.processName}
 				oninput={() => onClearError('processName')}
@@ -122,6 +124,7 @@
 				placeholder="Descreva detalhadamente o que precisa ser feito..."
 				required
 				rows={5}
+				maxlength={4000}
 				bind:value={data.description}
 				error={errors.description}
 				oninput={() => onClearError('description')}
@@ -134,9 +137,10 @@
 				placeholder="Descreva o problema atual ou a oportunidade de melhoria..."
 				required
 				rows={4}
-				bind:value={data.problemOrOpportunity}
-				error={errors.problemOrOpportunity}
-				oninput={() => onClearError('problemOrOpportunity')}
+				maxlength={4000}
+				bind:value={data.problem}
+				error={errors.problem}
+				oninput={() => onClearError('problem')}
 			/>
 		</div>
 
@@ -146,6 +150,7 @@
 				placeholder="Por que isso é necessário?"
 				required
 				rows={4}
+				maxlength={4000}
 				bind:value={data.justification}
 				error={errors.justification}
 				oninput={() => onClearError('justification')}
@@ -158,6 +163,7 @@
 				placeholder="O que se espera alcançar com esta solicitação?"
 				required
 				rows={4}
+				maxlength={4000}
 				bind:value={data.expectedResult}
 				error={errors.expectedResult}
 				oninput={() => onClearError('expectedResult')}
