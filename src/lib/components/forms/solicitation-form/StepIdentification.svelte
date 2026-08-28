@@ -12,7 +12,13 @@
 		departmentOptions?: { value: string; label: string }[];
 	}
 
-	let { data, errors = $bindable(), onClearError, onvalidate, departmentOptions }: Props = $props();
+	let {
+		data = $bindable(),
+		errors = $bindable(),
+		onClearError,
+		onvalidate,
+		departmentOptions
+	}: Props = $props();
 
 	const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

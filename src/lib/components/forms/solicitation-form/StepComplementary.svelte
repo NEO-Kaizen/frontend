@@ -14,7 +14,7 @@
 		onvalidate?: (validate: () => boolean) => void;
 	}
 
-	let { data, errors = $bindable(), onClearError, onvalidate }: Props = $props();
+	let { data = $bindable(), errors = $bindable(), onClearError, onvalidate }: Props = $props();
 
 	const todayTimestamp = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
 		.toISOString()

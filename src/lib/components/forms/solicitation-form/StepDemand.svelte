@@ -14,7 +14,13 @@
 		categoryOptions?: { value: string; label: string }[];
 	}
 
-	let { data, errors = $bindable(), onClearError, onvalidate, categoryOptions }: Props = $props();
+	let {
+		data = $bindable(),
+		errors = $bindable(),
+		onClearError,
+		onvalidate,
+		categoryOptions
+	}: Props = $props();
 
 	// permite suporte a novas categorias gerenciadas na página de configurações
 	let effectiveCategoryOptions = $derived(

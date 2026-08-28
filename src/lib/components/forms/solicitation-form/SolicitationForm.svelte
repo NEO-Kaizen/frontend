@@ -324,9 +324,6 @@
 
 		isSubmitting = true;
 
-		const payload = buildPayload();
-		console.log('Payload enviado:', JSON.stringify(payload, null, 2));
-
 		await new Promise((resolve) => setTimeout(resolve, 1000));
 
 		isSubmitting = false;
@@ -373,28 +370,28 @@
 		{:else}
 			{#if currentStep === 1}
 				<StepIdentification
-					data={identification}
+					bind:data={identification}
 					bind:errors={step1Errors}
 					onClearError={clearStep1Error}
 					onvalidate={(fn) => (step1Validate = fn)}
 				/>
 			{:else if currentStep === 2}
 				<StepDemand
-					data={demand}
+					bind:data={demand}
 					bind:errors={step2Errors}
 					onClearError={clearStep2Error}
 					onvalidate={(fn) => (step2Validate = fn)}
 				/>
 			{:else if currentStep === 3}
 				<StepOperational
-					data={operational}
+					bind:data={operational}
 					bind:errors={step3Errors}
 					onClearError={clearStep3Error}
 					onvalidate={(fn) => (step3Validate = fn)}
 				/>
 			{:else if currentStep === 4}
 				<StepComplementary
-					data={complementary}
+					bind:data={complementary}
 					bind:errors={step4Errors}
 					onClearError={clearStep4Error}
 					onvalidate={(fn) => (step4Validate = fn)}

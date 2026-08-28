@@ -18,7 +18,7 @@
 		onvalidate?: (validate: () => boolean) => void;
 	}
 
-	let { data, errors = $bindable(), onClearError, onvalidate }: Props = $props();
+	let { data = $bindable(), errors = $bindable(), onClearError, onvalidate }: Props = $props();
 
 	const todayDate = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
 		.toISOString()
@@ -100,9 +100,6 @@
 		}
 
 		errors = e;
-		if (Object.keys(e).length > 0) {
-			console.warn('[StepOperational] validação falhou', e, data);
-		}
 		return Object.keys(e).length === 0;
 	}
 
