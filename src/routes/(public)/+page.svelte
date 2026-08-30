@@ -6,7 +6,7 @@
 	import Banner from '$lib/components/layout/Banner.svelte';
 
 	function openChamados() {
-		goto(resolve('/(public)/chamado'));
+		goto(resolve('/(public)/acompanhar'));
 	}
 </script>
 
