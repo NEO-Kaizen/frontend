@@ -34,6 +34,7 @@ export const iconDictionary = {
 	visibility: 'visibility',
 	visibilityOff: 'visibility_off',
 	arrowForward: 'arrow_forward',
+	arrowBack: 'arrow_back',
 	adminPanel: 'admin_panel_settings',
 	calendarCheck: 'event_available',
 	security: 'security',

@@ -403,7 +403,10 @@
 
 				<div class="actions-right">
 					{#if currentStep > 1}
-						<Button variant="outline" onclick={handleBack}>Voltar</Button>
+						<Button variant="outline" onclick={handleBack}>
+							<Icon iconName="arrowBack" iconSize="md" />
+							Voltar</Button
+						>
 					{/if}
 
 					{#if currentStep < 4}
