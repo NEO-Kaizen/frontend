@@ -23,7 +23,7 @@
 	}: Props = $props();
 
 	function getStepState(stepId: number): 'completed' | 'current' | 'pending' {
-		if (stepId === current && current !== 4) return 'current';
+		if (stepId === current) return 'current';
 		if (completedSteps.has(stepId)) return 'completed';
 		return 'pending';
 	}
