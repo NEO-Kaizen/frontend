@@ -3,6 +3,7 @@
 	import Input from '$lib/components/Input.svelte';
 	import Select from '$lib/components/Select.svelte';
 	import type { IdentificationData, StepFieldErrors } from '$lib/types/solicitation';
+	import { isRequired, isValidEmail, isValidText } from '$lib/utils/validations';
 
 	interface Props {
 		data: IdentificationData;
@@ -20,22 +21,20 @@
 		departmentOptions
 	}: Props = $props();
 
-	const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 	function validate(): boolean {
 		const e: StepFieldErrors = {};
 
-		if (!/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(data.fullName) || !data.fullName.trim()) {
+		if (!isValidText(data.fullName) || !isRequired(data.fullName)) {
 			e.fullName = 'Campo obrigatório, apenas texto.';
 		}
 
-		if (!data.corporateEmail.trim()) {
+		if (!isRequired(data.corporateEmail)) {
 			e.corporateEmail = 'Campo obrigatório.';
-		} else if (!EMAIL_PATTERN.test(data.corporateEmail)) {
+		} else if (!isValidEmail(data.corporateEmail)) {
 			e.corporateEmail = 'E-mail inválido.';
 		}
 
-		if (!/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(data.area) || !data.area.trim()) {
+		if (!isValidText(data.area) || !isRequired(data.area)) {
 			e.area = 'Campo obrigatório, apenas texto.';
 		}
 
@@ -45,11 +44,11 @@
 			if (data.department && !departmentOptions.some((o) => o.value === data.department)) {
 				e.department = 'Selecione um departamento válido.';
 			}
-		} else if (data.department.trim() && !/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(data.department)) {
+		} else if (data.department.trim() && !isValidText(data.department)) {
 			e.department = 'Apenas texto.';
 		}
 
-		if (!/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(data.manager) || !data.manager.trim()) {
+		if (!isValidText(data.manager) || !isRequired(data.manager)) {
 			e.manager = 'Campo obrigatório, apenas texto.';
 		}
 

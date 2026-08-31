@@ -6,6 +6,7 @@
 	import Textarea from '$lib/components/Textarea.svelte';
 	import type { ComplementaryData, StepFieldErrors } from '$lib/types/solicitation';
 	import { YES_NO_OPTIONS } from '$lib/types/solicitation';
+	import { isFutureOrToday, isRequired } from '$lib/utils/validations';
 
 	interface Props {
 		data: ComplementaryData;
@@ -33,24 +34,24 @@
 	function validate(): boolean {
 		const e: StepFieldErrors = {};
 
-		if (data.hasProcessDocumentation === 'Sim' && !data.hasProcessDocumentationDetail.trim()) {
+		if (data.hasProcessDocumentation === 'Sim' && !isRequired(data.hasProcessDocumentationDetail)) {
 			e.hasProcessDocumentationDetail = 'Detalhe a documentação existente.';
 		}
 
-		if (data.hasSimilarSolution === 'Sim' && !data.hasSimilarSolutionDetail.trim()) {
+		if (data.hasSimilarSolution === 'Sim' && !isRequired(data.hasSimilarSolutionDetail)) {
 			e.hasSimilarSolutionDetail = 'Descreva a solução semelhante.';
 		}
 
-		if (data.dependsOnOtherAreas === 'Sim' && !data.dependsOnOtherAreasDetail.trim()) {
+		if (data.dependsOnOtherAreas === 'Sim' && !isRequired(data.dependsOnOtherAreasDetail)) {
 			e.dependsOnOtherAreasDetail = 'Informe quais áreas dependem desta solicitação.';
 		}
 
-		if (data.handlesRestrictedInfo === 'Sim' && !data.handlesRestrictedInfoDetail.trim()) {
+		if (data.handlesRestrictedInfo === 'Sim' && !isRequired(data.handlesRestrictedInfoDetail)) {
 			e.handlesRestrictedInfoDetail = 'Detalhe as informações restritas (LGPD).';
 		}
 
 		data.preferredSchedule.forEach((dataAgendada, index) => {
-			if (dataAgendada && dataAgendada < todayTimestamp) {
+			if (dataAgendada && !isFutureOrToday(dataAgendada, todayTimestamp)) {
 				e[`schedule_${index}`] = 'Insira um horário válido.';
 			}
 		});

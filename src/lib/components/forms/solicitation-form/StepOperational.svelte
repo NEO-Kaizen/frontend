@@ -10,6 +10,7 @@
 		IMPACT_OPTIONS,
 		YES_NO_OPTIONS
 	} from '$lib/types/solicitation';
+	import { isFutureOrToday, isRequired, parseNumber } from '$lib/utils/validations';
 
 	interface Props {
 		data: OperationalData;
@@ -24,26 +25,18 @@
 		.toISOString()
 		.slice(0, 10);
 
-	function parseNumber(value: number | string | null | undefined): number | null {
-		if (value === null || value === undefined) return null;
-		if (typeof value === 'number') return Number.isFinite(value) ? value : null;
-		if (value.trim() === '') return null;
-		const n = Number(value);
-		return Number.isFinite(n) ? n : null;
-	}
-
 	function validate(): boolean {
 		const e: StepFieldErrors = {};
 
-		if (!data.processDescription.trim()) {
+		if (!isRequired(data.processDescription)) {
 			e.processDescription = 'Campo obrigatório.';
 		}
 
-		if (!data.processSteps.trim()) {
+		if (!isRequired(data.processSteps)) {
 			e.processSteps = 'Campo obrigatório.';
 		}
 
-		if (!data.systemsUsed.trim()) {
+		if (!isRequired(data.systemsUsed)) {
 			e.systemsUsed = 'Campo obrigatório.';
 		}
 
@@ -51,7 +44,7 @@
 			e.executionFrequency = 'Campo obrigatório.';
 		}
 
-		if (!data.volumetry.trim()) {
+		if (!isRequired(data.volumetry)) {
 			e.volumetry = 'Campo obrigatório.';
 		}
 
@@ -62,7 +55,7 @@
 			e.peopleInvolved = 'Informe um número inteiro maior que 0.';
 		}
 
-		if (!data.averageExecutionTime.trim()) {
+		if (!isRequired(data.averageExecutionTime)) {
 			e.averageExecutionTime = 'Campo obrigatório.';
 		}
 
@@ -75,15 +68,15 @@
 
 		if (!data.hasManualControls) {
 			e.hasManualControls = 'Campo obrigatório.';
-		} else if (data.hasManualControls === 'Sim' && !data.hasManualControlsDetail.trim()) {
+		} else if (data.hasManualControls === 'Sim' && !isRequired(data.hasManualControlsDetail)) {
 			e.hasManualControlsDetail = 'Descreva os controles manuais existentes.';
 		}
 
-		if (!data.mainRisks.trim()) {
+		if (!isRequired(data.mainRisks)) {
 			e.mainRisks = 'Campo obrigatório.';
 		}
 
-		if (!data.clientImpact.trim()) {
+		if (!isRequired(data.clientImpact)) {
 			e.clientImpact = 'Campo obrigatório.';
 		}
 
@@ -91,7 +84,7 @@
 			e.operationalImpact = 'Campo obrigatório.';
 		}
 
-		if (!data.desiredDeadline || data.desiredDeadline < todayDate) {
+		if (!isRequired(data.desiredDeadline) || !isFutureOrToday(data.desiredDeadline, todayDate)) {
 			e.desiredDeadline = 'Insira um prazo válido';
 		}
 

@@ -5,6 +5,7 @@
 	import Textarea from '$lib/components/Textarea.svelte';
 	import type { DemandData, StepFieldErrors } from '$lib/types/solicitation';
 	import { CATEGORY_OPTIONS, REQUEST_TYPE_OPTIONS } from '$lib/types/solicitation';
+	import { isRequired } from '$lib/utils/validations';
 
 	interface Props {
 		data: DemandData;
@@ -30,11 +31,11 @@
 	function validate(): boolean {
 		const e: StepFieldErrors = {};
 
-		if (!data.title.trim()) {
+		if (!isRequired(data.title)) {
 			e.title = 'Campo obrigatório.';
 		}
 
-		if (!data.processName.trim()) {
+		if (!isRequired(data.processName)) {
 			e.processName = 'Campo obrigatório.';
 		}
 
@@ -46,19 +47,19 @@
 			e.category = 'Campo obrigatório.';
 		}
 
-		if (!data.description.trim()) {
+		if (!isRequired(data.description)) {
 			e.description = 'Campo obrigatório.';
 		}
 
-		if (!data.problem.trim()) {
+		if (!isRequired(data.problem)) {
 			e.problem = 'Campo obrigatório.';
 		}
 
-		if (!data.justification.trim()) {
+		if (!isRequired(data.justification)) {
 			e.justification = 'Campo obrigatório.';
 		}
 
-		if (!data.expectedResult.trim()) {
+		if (!isRequired(data.expectedResult)) {
 			e.expectedResult = 'Campo obrigatório.';
 		}
 
