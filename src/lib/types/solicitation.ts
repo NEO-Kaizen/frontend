@@ -1,3 +1,12 @@
+export type TriageResult =
+	| 'Elegível para avaliação'
+	| 'Pendente de informações'
+	| 'Fora do escopo'
+	| 'Direcionada para outra área'
+	| 'Duplicada'
+	| 'Cancelada'
+	| 'Backlog';
+
 export type RequestStatus =
 	| 'Solicitação enviada'
 	| 'Aguardando triagem'
@@ -38,5 +47,5 @@ export interface RequestDetail {
 		result: string;
 		justification: string;
 	} | null;
-	email?: string; // Para testes no mock de busca por email
+	email?: string;
 }
