@@ -92,9 +92,13 @@
 						<span>Entrar na reunião</span>
 					</a>
 				{:else}
-					<button class="btn-join disabled" disabled title="Link da reunião ainda não disponibilizado">
-						<Icon iconName="link" iconSize="sm" />
-						<span>Entrar na reunião</span>
+					<button
+						class="btn-join disabled"
+						disabled
+						title="O link para esta reunião ainda não foi disponibilizado"
+					>
+						<Icon iconName="block" iconSize="sm" />
+						<span>Link indisponível</span>
 					</button>
 				{/if}
 			</div>
@@ -225,6 +229,7 @@
 
 	.btn-join.disabled {
 		background: #9ca3af;
+		opacity: 0.8;
 		cursor: not-allowed;
 	}
 
