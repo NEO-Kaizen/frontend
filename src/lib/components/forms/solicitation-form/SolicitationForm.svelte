@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
 	import Button from '$lib/components/Button.svelte';
 	import StepComplementary from '$lib/components/forms/solicitation-form/StepComplementary.svelte';
 	import StepDemand from '$lib/components/forms/solicitation-form/StepDemand.svelte';
@@ -6,6 +7,12 @@
 	import StepOperational from '$lib/components/forms/solicitation-form/StepOperational.svelte';
 	import StepsForm from '$lib/components/forms/solicitation-form/StepsForm.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import {
+		clearDraft,
+		loadDraft,
+		saveDraft,
+		type SolicitationDraft
+	} from '$lib/services/solicitationDraft.service';
 	import type {
 		AttachmentMetadata,
 		ComplementaryData,
@@ -98,6 +105,42 @@
 	let step3Validate = $state<(() => boolean) | null>(null);
 	let step4Validate = $state<(() => boolean) | null>(null);
 
+	if (browser) {
+		const draft = loadDraft();
+		if (draft) {
+			currentStep = draft.currentStep;
+			completedSteps = new Set(draft.completedSteps);
+			visitedSteps = new Set(draft.visitedSteps);
+			identification = draft.identification;
+			demand = draft.demand;
+			operational = draft.operational;
+			complementary = draft.complementary;
+		}
+	}
+
+	$effect(() => {
+		if (!browser) return;
+		void identification;
+		void demand;
+		void operational;
+		void complementary;
+		void currentStep;
+		void completedSteps;
+		void visitedSteps;
+		void isSubmitting;
+		const draft: SolicitationDraft = {
+			version: 1,
+			identification,
+			demand,
+			operational,
+			complementary,
+			currentStep,
+			completedSteps: [...completedSteps],
+			visitedSteps: [...visitedSteps]
+		};
+		saveDraft(draft);
+	});
+
 	function clearStep1Error(field: string) {
 		step1Errors[field] = undefined;
 	}
@@ -148,6 +191,7 @@
 	}
 
 	function resetForm() {
+		clearDraft();
 		currentStep = 1;
 		completedSteps = new Set();
 		visitedSteps = new Set([1]);
@@ -328,6 +372,7 @@
 
 		isSubmitting = false;
 		submitted = true;
+		clearDraft();
 	}
 </script>
 
