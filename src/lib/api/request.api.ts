@@ -1,11 +1,16 @@
 import { apiClient } from './client';
+
+import {
+	listRequestsMock,
+	getRequestByProtocolMock
+} from '$lib/mocks/request.api';
+
 import type {
 	ListRequestsQuery,
 	PaginatedResponse,
 	RequestSummary,
 	RequestDetail
 } from '$lib/types/request';
-import { mockRequests, mockRequestDetails } from '$lib/mocks/requests';
 
 const REQUESTS_PATH = '/requests';
 
@@ -18,7 +23,9 @@ export function listRequests(query: ListRequestsQuery): Promise<PaginatedRespons
 	}
 
 	const params = new URLSearchParams();
+
 	params.set('email', query.email);
+
 	if (query.search) params.set('search', query.search);
 	if (query.status) params.set('status', query.status);
 	if (query.page !== undefined) params.set('page', String(query.page));
@@ -39,50 +46,3 @@ export function getRequestByProtocol(protocol: string): Promise<RequestDetail> {
 	return apiClient<RequestDetail>(`${REQUESTS_PATH}/${encoded}`);
 }
 
-
-// Funções mock temporárias para simulação da API.
-function listRequestsMock(query: ListRequestsQuery): Promise<PaginatedResponse<RequestSummary>> {
-	let requests = [...mockRequests];
-
-	if (query.email) {
-	const email = query.email.toLowerCase().trim();
-
-	requests = requests.filter(
-		(r) => r.corporateEmail.toLowerCase().trim() === email
-	);
-}
-	if (query.search) {
-		const search = query.search.toLowerCase().trim();
-		requests = requests.filter(
-			(r) =>
-				r.processName.toLowerCase().includes(search) ||
-				r.requesterName.toLowerCase().includes(search) ||
-				r.corporateEmail.toLowerCase().includes(search)
-		);
-	}
-
-	if (query.status) {
-		requests = requests.filter((r) => r.status === query.status);
-	}
-
-	const page = query.page ?? 1;
-	const pageSize = query.pageSize ?? 10;
-	const total = requests.length;
-	const totalPages = Math.ceil(total / pageSize);
-	const start = (page - 1) * pageSize;
-	const data = requests.slice(start, start + pageSize);
-
-	const result: PaginatedResponse<RequestSummary> = { data, page, pageSize, total, totalPages };
-	return Promise.resolve(result);
-}
-
-function getRequestByProtocolMock(protocol: string): Promise<RequestDetail> {
-	const normalized = protocol.toLowerCase().trim();
-	const detail = mockRequestDetails.find((d) => d.protocol.toLowerCase().trim() === normalized);
-
-	if (!detail) {
-		return Promise.reject(new Error('Solicitação não encontrada'));
-	}
-
-	return Promise.resolve(detail);
-}
