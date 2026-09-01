@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import Icon from '$lib/components/Icon.svelte';
 	import { mockSolicitations } from '$lib/mocks/solicitations';
 	import type { RequestDetail, RequestStatus } from '$lib/types/solicitation';
 	import { formatDate, formatDateTime } from '$lib/utils/dates';
@@ -74,7 +75,10 @@
 		{#if solicitation.meeting}
 			<div class="meeting-card">
 				<div class="meeting-info">
-					<h3>Reunião de Alinhamento</h3>
+					<div class="title-with-icon">
+						<Icon iconName="calendarCheck" iconSize="md" />
+						<h3>Reunião de Alinhamento</h3>
+					</div>
 					<p>{formatDateTime(solicitation.meeting.scheduledFor)}</p>
 				</div>
 				{#if solicitation.meeting.link}
@@ -84,11 +88,13 @@
 						rel="noopener noreferrer"
 						class="btn-join"
 					>
-						Entrar na reunião
+						<Icon iconName="link" iconSize="sm" />
+						<span>Entrar na reunião</span>
 					</a>
 				{:else}
 					<button class="btn-join disabled" disabled title="Link da reunião ainda não disponibilizado">
-						Entrar na reunião
+						<Icon iconName="link" iconSize="sm" />
+						<span>Entrar na reunião</span>
 					</button>
 				{/if}
 			</div>
@@ -96,13 +102,17 @@
 
 		{#if solicitation.lastTechnicalMessage}
 			<div class="history-section">
-				<h3>Última Mensagem do Responsável</h3>
+				<div class="title-with-icon">
+					<Icon iconName="history" iconSize="md" />
+					<h3>Última Mensagem do Responsável</h3>
+				</div>
 				<p class="technical-message">{solicitation.lastTechnicalMessage}</p>
 			</div>
 		{/if}
 	</div>
 {:else}
 	<div class="not-found-card" role="alert">
+		<Icon iconName="info" iconSize="xl" />
 		<h2>Solicitação não encontrada</h2>
 		<p>
 			Não encontramos nenhuma solicitação cadastrada com o protocolo <strong>"{protocol}"</strong>.
@@ -118,6 +128,11 @@
 		border-radius: 8px;
 		padding: 24px;
 		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+	}
+
+	.not-found-card {
+		text-align: center;
+		padding: 48px 24px;
 	}
 
 	.card-header-top {
@@ -182,7 +197,23 @@
 		margin-bottom: 20px;
 	}
 
+	.title-with-icon {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		margin-bottom: 4px;
+	}
+
+	.title-with-icon h3 {
+		margin: 0;
+		font-size: 1rem;
+		font-weight: 600;
+	}
+
 	.btn-join {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
 		padding: 8px 16px;
 		background: #16a34a;
 		color: white;
@@ -202,6 +233,7 @@
 		padding: 12px;
 		border-left: 4px solid #0284c7;
 		border-radius: 0 4px 4px 0;
+		margin-top: 8px;
 	}
 
 	.hint {
