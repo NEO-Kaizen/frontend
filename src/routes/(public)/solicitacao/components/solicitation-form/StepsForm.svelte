@@ -11,6 +11,7 @@
 		current: number;
 		completedSteps?: Set<number>;
 		visitedSteps?: Set<number>;
+		disabled?: boolean;
 		onstepclick?: (stepId: number) => void;
 	}
 
@@ -19,16 +20,20 @@
 		current,
 		completedSteps = new Set(),
 		visitedSteps = new Set(),
+		disabled = false,
 		onstepclick
 	}: Props = $props();
 
 	function getStepState(stepId: number): 'completed' | 'current' | 'pending' {
+		const isCompleted = completedSteps.has(stepId);
+		if (isCompleted && disabled) return 'completed';
 		if (stepId === current) return 'current';
-		if (completedSteps.has(stepId)) return 'completed';
+		if (isCompleted) return 'completed';
 		return 'pending';
 	}
 
 	function handleStepClick(stepId: number) {
+		if (disabled) return;
 		if (visitedSteps.has(stepId)) {
 			onstepclick?.(stepId);
 		}
@@ -51,9 +56,9 @@
 				<button
 					type="button"
 					class="step-button"
-					class:clickable={visitedSteps.has(step.id)}
+					class:clickable={!disabled && visitedSteps.has(step.id)}
 					onclick={() => handleStepClick(step.id)}
-					disabled={!visitedSteps.has(step.id)}
+					disabled={disabled || !visitedSteps.has(step.id)}
 					aria-current={state === 'current' ? 'step' : undefined}
 					aria-label="Etapa {step.id}: {step.label}{isCompleted
 						? ' (concluída)'

@@ -371,8 +371,8 @@
 		current={currentStep}
 		{completedSteps}
 		{visitedSteps}
+		disabled={isSubmitting || submitted}
 		onstepclick={handleStepClick}
-		
 	/>
 
 	<div class="form-card">
