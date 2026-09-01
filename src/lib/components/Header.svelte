@@ -59,8 +59,12 @@
 
 	const isNotSolicitante = $derived(currentUser != null && currentUser.role !== 'Solicitante');
 
+	let isSearching = $state(false);
+
 	async function handleSearchSubmit(event: SubmitEvent) {
 		event.preventDefault();
+
+		if (isSearching) return;
 
 		const form = event.currentTarget as HTMLFormElement;
 		const formData = new FormData(form);
@@ -68,25 +72,31 @@
 
 		if (!value) return;
 
-		const result = await searchRequests(value);
+		isSearching = true;
 
-		if (!result.ok) {
-			console.error(result.error.message);
-			return;
+		try {
+			const result = await searchRequests(value);
+
+			if (!result.ok) {
+				console.error(result.error.message);
+				return;
+			}
+
+			if ('protocol' in result.data) {
+				await goto(
+					resolve('/(public)/acompanhar/[protocolo]', {
+						protocolo: result.data.protocol
+					})
+				);
+				return;
+			}
+
+			const searchParams = new URLSearchParams({ email: value });
+
+			await goto(resolve(`/(public)/chamado?${searchParams.toString()}` as '/(public)/chamado'));
+		} finally {
+			isSearching = false;
 		}
-
-		if ('protocol' in result.data) {
-			await goto(
-				resolve('/(public)/acompanhar/[protocolo]', {
-					protocolo: result.data.protocol
-				})
-			);
-			return;
-		}
-
-		const searchParams = new URLSearchParams({ email: value });
-
-		await goto(resolve(`/(public)/chamado?${searchParams.toString()}` as '/(public)/chamado'));
 	}
 
 	let isLoggingOut = $state(false);
@@ -116,6 +126,7 @@
 					placeholder="Buscar chamados"
 					aria-label="Buscar chamados"
 					name="pesquisar-chamados"
+					disabled={isSearching}
 				/>
 			</form>
 			<Button>
