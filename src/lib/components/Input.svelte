@@ -19,6 +19,7 @@
 		name?: string;
 		id?: string;
 		icon?: IconName;
+		prefix?: string;
 	}
 
 	type ActionProps =
@@ -46,6 +47,7 @@
 		name,
 		id,
 		icon,
+		prefix,
 		actionIcon,
 		actionLabel,
 		onAction,
@@ -62,7 +64,11 @@
 	{/if}
 
 	<div class="input-wrapper">
-		{#if icon}
+		{#if prefix}
+			<span class="leading-prefix" aria-hidden="true">
+				{prefix}
+			</span>
+		{:else if icon}
 			<span class="leading-icon" aria-hidden="true">
 				<Icon iconName={icon} iconSize="md" />
 			</span>
@@ -80,7 +86,8 @@
 			aria-invalid={error ? true : undefined}
 			aria-describedby={error ? `${inputId}-error` : undefined}
 			class:error={Boolean(error)}
-			class:has-leading-icon={Boolean(icon)}
+			class:has-leading-icon={Boolean(icon && !prefix)}
+			class:has-leading-prefix={Boolean(prefix)}
 			class:has-action-icon={Boolean(actionIcon)}
 		/>
 
@@ -135,7 +142,8 @@
 		transition: var(--transition-default);
 	}
 
-	input.has-leading-icon {
+	input.has-leading-icon,
+	input.has-leading-prefix {
 		padding-left: 48px;
 	}
 
@@ -147,7 +155,8 @@
 		color: var(--gray);
 	}
 
-	.leading-icon {
+	.leading-icon,
+	.leading-prefix {
 		position: absolute;
 		left: var(--spacing-md);
 		top: 50%;
@@ -155,6 +164,10 @@
 		display: inline-flex;
 		pointer-events: none;
 		color: var(--gray);
+	}
+
+	.leading-prefix {
+		font: var(--paragrafo);
 	}
 
 	.action-button {

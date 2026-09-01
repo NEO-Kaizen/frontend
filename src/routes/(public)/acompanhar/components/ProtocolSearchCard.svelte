@@ -1,65 +1,84 @@
 <script lang="ts">
+	import Button from '$lib/components/Button.svelte';
+	import Icon from '$lib/components/Icon.svelte';
+	import Input from '$lib/components/Input.svelte';
+
 	interface Props {
-		onSearch: (protocolo: string, email: string) => void;
+		onSearch: (protocol: string, email: string) => void;
 	}
 
 	let { onSearch }: Props = $props();
 
-	let pesquisou = $state(false);
-	let protocolo = $state('');
+	let protocol = $state('');
 	let email = $state('');
 
-	function consultarProtocolo() {
-		if (!protocolo && !email) {
-			console.log('Preencha o protocolo ou o e-mail.');
+	let protocolError = $state('');
+	let emailError = $state('');
+
+	function isValidEmail(value: string) {
+		return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+	}
+
+	function handleSubmit(event: SubmitEvent) {
+		event.preventDefault();
+
+		const normalizedProtocol = protocol.trim();
+		const normalizedEmail = email.trim();
+
+		protocolError = '';
+		emailError = '';
+
+		if (!normalizedProtocol && !normalizedEmail) {
+			protocolError = 'Informe o protocolo ou o e-mail.';
 			return;
 		}
 
-		pesquisou = true;
+		if (normalizedProtocol) {
+			onSearch(normalizedProtocol, '');
+			return;
+		}
 
-		onSearch(protocolo, email);
+		if (!isValidEmail(normalizedEmail)) {
+			emailError = 'Informe um e-mail válido.';
+			return;
+		}
+
+		onSearch('', normalizedEmail);
 	}
 </script>
 
-<div class="consulta">
-	<div class="campo">
-		<label for="protocolo">Número do Protocolo</label>
-
-		<div class="input-container">
-			<span class="input-icon">#</span>
-
-			<input
-				id="protocolo"
-				type="text"
-				placeholder="Ex: NEO-2026-000102"
-				bind:value={protocolo}
-			/>
-		</div>
+<form class="protocol-search-card" onsubmit={handleSubmit}>
+	<div class="field">
+		<Input
+			label="Número do Protocolo"
+			placeholder="Ex: NEO-2026-000102"
+			prefix="#"
+			error={protocolError}
+			bind:value={protocol}
+		/>
 	</div>
 
-	<div class="campo">
-		<label for="email">E-mail Corporativo</label>
-
-		<div class="input-container">
-			<span class="input-icon">@</span>
-
-			<input id="email" type="email" placeholder="emaildofulano@neo.com.br" bind:value={email} />
-		</div>
+	<div class="field">
+		<Input
+			type="email"
+			label="E-mail Corporativo"
+			placeholder="emaildofulano@neo.com.br"
+			prefix="@"
+			error={emailError}
+			bind:value={email}
+		/>
 	</div>
 
-	<button
-		type="button"
-		class="consultar"
-		onclick=
-			{consultarProtocolo}
-	
-	>
-		Consultar Protocolo
-	</button>
-</div>
+	<div class="action">
+		<Button type="submit">
+			<Icon iconName="search" />
+			Consultar Protocolo
+		</Button>
+	</div>
+</form>
 
 <style>
-  .consulta {
+	.protocol-search-card {
 		display: flex;
 		align-items: flex-end;
 		width: 100%;
@@ -70,57 +89,12 @@
 		border-radius: var(--radius-md);
 	}
 
-	.campo {
-		display: flex;
-		flex-direction: column;
+	.field {
 		flex: 1;
+		min-width: 0;
 	}
 
-	.campo label {
-		margin-bottom: var(--spacing-sm);
-		color: var(--black);
-	}
-
-	.input-container {
-		display: flex;
-		align-items: center;
-		width: 100%;
-		border: var(--border-default);
-		border-radius: var(--radius-sm);
-		background: var(--white);
-	}
-
-	.input-icon {
-		padding-left: var(--spacing-md);
-		color: var(--gray);
-		font: var(--paragrafo);
-	}
-
-	.input-container input {
-		width: 100%;
-		padding: var(--spacing-md);
-		border: none;
-		outline: none;
-		background: transparent;
-		color: var(--black);
-		font: var(--paragrafo);
-	}
-
-	.input-container:focus-within {
-		border-color: var(--secondary-color);
-	}
-
-	.consultar {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: var(--spacing-sm);
-		padding: var(--spacing-md) var(--spacing-xl);
-		border: none;
-		border-radius: var(--radius-sm);
-		background: var(--primary-color);
-		color: var(--white);
-		cursor: pointer;
-		white-space: nowrap;
+	.action {
+		flex-shrink: 0;
 	}
 </style>

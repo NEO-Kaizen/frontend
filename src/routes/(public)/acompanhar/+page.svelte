@@ -65,7 +65,17 @@
 			status: 'Em Análise',
 			responsavel: 'Nenhum',
 			solicitante: 'marcotti@neo.com'
-		}
+		},
+    {
+      protocolo: '#NEO-2026-08-9842',
+      data: '14/10/2023',
+      horario: '14:15',
+      processo: 'Reembolso Corporativo',
+      prioridade: 'Média',
+      status: 'Processado',
+      responsavel: 'Nenhum',
+      solicitante: 'pessoal@email.com'
+      }
 	];
 
 	function pesquisar(protocolo: string, email: string) {
@@ -199,9 +209,7 @@
 					</table>
 
 					<div class="table-footer">
-						<p>
-							Mostrando {resultados.length} de
-							{resultados.length} solicitações
+						<p>Mostrando {solicitacoesPagina.length} de {resultados.length} solicitações
 						</p>
 
 						<div class="pagination">
@@ -342,6 +350,8 @@
 
 	.baixa {
 		color: var(--black);
+    display: inline-block;
+		padding: var(--spacing-sm) var(--spacing-md);
 	}
 	.status {
 		display: flex;
