@@ -10,12 +10,11 @@
 
 	interface Props {
 		data: ComplementaryData;
-		errors: StepFieldErrors;
-		onClearError: (field: string) => void;
-		onvalidate?: (validate: () => boolean) => void;
 	}
 
-	let { data = $bindable(), errors = $bindable(), onClearError, onvalidate }: Props = $props();
+	let { data = $bindable() }: Props = $props();
+
+	let errors = $state<StepFieldErrors>({});
 
 	const todayTimestamp = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
 		.toISOString()
@@ -31,7 +30,7 @@
 		data.preferredSchedule = data.preferredSchedule.filter((_, i) => i !== index);
 	}
 
-	function validate(): boolean {
+	export function validate(): boolean {
 		const e: StepFieldErrors = {};
 
 		if (data.hasProcessDocumentation === 'Sim' && !isRequired(data.hasProcessDocumentationDetail)) {
@@ -60,9 +59,13 @@
 		return Object.keys(e).length === 0;
 	}
 
-	$effect(() => {
-		onvalidate?.(validate);
-	});
+	export function clearErrors(): void {
+		errors = {};
+	}
+
+	function clearError(field: string): void {
+		errors[field] = undefined;
+	}
 </script>
 
 <div class="step-content">
@@ -84,7 +87,7 @@
 				options={YES_NO_OPTIONS}
 				bind:value={data.hasProcessDocumentation}
 				error={errors.hasProcessDocumentation}
-				onchange={() => onClearError('hasProcessDocumentation')}
+				onchange={() => clearError('hasProcessDocumentation')}
 			/>
 
 			<Input
@@ -94,7 +97,7 @@
 				disabled={data.hasProcessDocumentation !== 'Sim'}
 				bind:value={data.hasProcessDocumentationDetail}
 				error={errors.hasProcessDocumentationDetail}
-				oninput={() => onClearError('hasProcessDocumentationDetail')}
+				oninput={() => clearError('hasProcessDocumentationDetail')}
 			/>
 
 			<Select
@@ -103,7 +106,7 @@
 				options={YES_NO_OPTIONS}
 				bind:value={data.hasSimilarSolution}
 				error={errors.hasSimilarSolution}
-				onchange={() => onClearError('hasSimilarSolution')}
+				onchange={() => clearError('hasSimilarSolution')}
 			/>
 
 			<Input
@@ -113,7 +116,7 @@
 				disabled={data.hasSimilarSolution !== 'Sim'}
 				bind:value={data.hasSimilarSolutionDetail}
 				error={errors.hasSimilarSolutionDetail}
-				oninput={() => onClearError('hasSimilarSolutionDetail')}
+				oninput={() => clearError('hasSimilarSolutionDetail')}
 			/>
 
 			<Select
@@ -122,7 +125,7 @@
 				options={YES_NO_OPTIONS}
 				bind:value={data.dependsOnOtherAreas}
 				error={errors.dependsOnOtherAreas}
-				onchange={() => onClearError('dependsOnOtherAreas')}
+				onchange={() => clearError('dependsOnOtherAreas')}
 			/>
 
 			<Input
@@ -132,7 +135,7 @@
 				disabled={data.dependsOnOtherAreas !== 'Sim'}
 				bind:value={data.dependsOnOtherAreasDetail}
 				error={errors.dependsOnOtherAreasDetail}
-				oninput={() => onClearError('dependsOnOtherAreasDetail')}
+				oninput={() => clearError('dependsOnOtherAreasDetail')}
 			/>
 
 			<Select
@@ -141,7 +144,7 @@
 				options={YES_NO_OPTIONS}
 				bind:value={data.handlesRestrictedInfo}
 				error={errors.handlesRestrictedInfo}
-				onchange={() => onClearError('handlesRestrictedInfo')}
+				onchange={() => clearError('handlesRestrictedInfo')}
 			/>
 
 			<Input
@@ -151,7 +154,7 @@
 				disabled={data.handlesRestrictedInfo !== 'Sim'}
 				bind:value={data.handlesRestrictedInfoDetail}
 				error={errors.handlesRestrictedInfoDetail}
-				oninput={() => onClearError('handlesRestrictedInfoDetail')}
+				oninput={() => clearError('handlesRestrictedInfoDetail')}
 			/>
 		</div>
 
@@ -163,7 +166,7 @@
 				maxlength={2000}
 				bind:value={data.additionalNotes}
 				error={errors.additionalNotes}
-				oninput={() => onClearError('additionalNotes')}
+				oninput={() => clearError('additionalNotes')}
 			/>
 		</div>
 
@@ -193,7 +196,7 @@
 							placeholder="dd/mm/aaaa"
 							bind:value={data.preferredSchedule[index]}
 							error={errors[`schedule_${index}`]}
-							oninput={() => onClearError(`schedule_${index}`)}
+							oninput={() => clearError(`schedule_${index}`)}
 						/>
 						<button
 							type="button"
@@ -210,7 +213,7 @@
 
 		<div class="upload-section field-span-2">
 			<span class="section-label">Anexos</span>
-			<FileUpload bind:files={data.files} onchange={() => onClearError('files')} />
+			<FileUpload bind:files={data.files} onchange={() => clearError('files')} />
 		</div>
 	</div>
 </div>

@@ -9,26 +9,19 @@
 
 	interface Props {
 		data: DemandData;
-		errors: StepFieldErrors;
-		onClearError: (field: string) => void;
-		onvalidate?: (validate: () => boolean) => void;
 		categoryOptions?: { value: string; label: string }[];
 	}
 
-	let {
-		data = $bindable(),
-		errors = $bindable(),
-		onClearError,
-		onvalidate,
-		categoryOptions
-	}: Props = $props();
+	let { data = $bindable(), categoryOptions }: Props = $props();
+
+	let errors = $state<StepFieldErrors>({});
 
 	// permite suporte a novas categorias gerenciadas na página de configurações
 	let effectiveCategoryOptions = $derived(
 		categoryOptions && categoryOptions.length > 0 ? categoryOptions : CATEGORY_OPTIONS
 	);
 
-	function validate(): boolean {
+	export function validate(): boolean {
 		const e: StepFieldErrors = {};
 
 		if (!isRequired(data.title)) {
@@ -67,9 +60,13 @@
 		return Object.keys(e).length === 0;
 	}
 
-	$effect(() => {
-		onvalidate?.(validate);
-	});
+	export function clearErrors(): void {
+		errors = {};
+	}
+
+	function clearError(field: string): void {
+		errors[field] = undefined;
+	}
 </script>
 
 <div class="step-content">
@@ -89,7 +86,7 @@
 				maxlength={150}
 				bind:value={data.title}
 				error={errors.title}
-				oninput={() => onClearError('title')}
+				oninput={() => clearError('title')}
 			/>
 
 			<Input
@@ -99,7 +96,7 @@
 				maxlength={150}
 				bind:value={data.processName}
 				error={errors.processName}
-				oninput={() => onClearError('processName')}
+				oninput={() => clearError('processName')}
 			/>
 		</div>
 
@@ -111,7 +108,7 @@
 				required
 				bind:value={data.requestType}
 				error={errors.requestType}
-				onchange={() => onClearError('requestType')}
+				onchange={() => clearError('requestType')}
 			/>
 
 			<Select
@@ -121,7 +118,7 @@
 				required
 				bind:value={data.category}
 				error={errors.category}
-				onchange={() => onClearError('category')}
+				onchange={() => clearError('category')}
 			/>
 		</div>
 
@@ -134,7 +131,7 @@
 				maxlength={4000}
 				bind:value={data.description}
 				error={errors.description}
-				oninput={() => onClearError('description')}
+				oninput={() => clearError('description')}
 			/>
 		</div>
 
@@ -147,7 +144,7 @@
 				maxlength={4000}
 				bind:value={data.problem}
 				error={errors.problem}
-				oninput={() => onClearError('problem')}
+				oninput={() => clearError('problem')}
 			/>
 		</div>
 
@@ -160,7 +157,7 @@
 				maxlength={4000}
 				bind:value={data.justification}
 				error={errors.justification}
-				oninput={() => onClearError('justification')}
+				oninput={() => clearError('justification')}
 			/>
 		</div>
 
@@ -173,7 +170,7 @@
 				maxlength={4000}
 				bind:value={data.expectedResult}
 				error={errors.expectedResult}
-				oninput={() => onClearError('expectedResult')}
+				oninput={() => clearError('expectedResult')}
 			/>
 		</div>
 	</div>

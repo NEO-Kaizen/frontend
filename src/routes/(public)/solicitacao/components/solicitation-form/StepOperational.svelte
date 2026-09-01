@@ -14,18 +14,17 @@
 
 	interface Props {
 		data: OperationalData;
-		errors: StepFieldErrors;
-		onClearError: (field: string) => void;
-		onvalidate?: (validate: () => boolean) => void;
 	}
 
-	let { data = $bindable(), errors = $bindable(), onClearError, onvalidate }: Props = $props();
+	let { data = $bindable() }: Props = $props();
+
+	let errors = $state<StepFieldErrors>({});
 
 	const todayDate = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
 		.toISOString()
 		.slice(0, 10);
 
-	function validate(): boolean {
+	export function validate(): boolean {
 		const e: StepFieldErrors = {};
 
 		if (!isRequired(data.processDescription)) {
@@ -96,9 +95,13 @@
 		return Object.keys(e).length === 0;
 	}
 
-	$effect(() => {
-		onvalidate?.(validate);
-	});
+	export function clearErrors(): void {
+		errors = {};
+	}
+
+	function clearError(field: string): void {
+		errors[field] = undefined;
+	}
 </script>
 
 <div class="step-content">
@@ -119,7 +122,7 @@
 				maxlength={4000}
 				bind:value={data.processDescription}
 				error={errors.processDescription}
-				oninput={() => onClearError('processDescription')}
+				oninput={() => clearError('processDescription')}
 			/>
 		</div>
 
@@ -132,7 +135,7 @@
 				maxlength={4000}
 				bind:value={data.processSteps}
 				error={errors.processSteps}
-				oninput={() => onClearError('processSteps')}
+				oninput={() => clearError('processSteps')}
 			/>
 		</div>
 
@@ -144,7 +147,7 @@
 				maxlength={255}
 				bind:value={data.systemsUsed}
 				error={errors.systemsUsed}
-				oninput={() => onClearError('systemsUsed')}
+				oninput={() => clearError('systemsUsed')}
 			/>
 
 			<Select
@@ -154,7 +157,7 @@
 				required
 				bind:value={data.executionFrequency}
 				error={errors.executionFrequency}
-				onchange={() => onClearError('executionFrequency')}
+				onchange={() => clearError('executionFrequency')}
 			/>
 
 			<Input
@@ -164,7 +167,7 @@
 				maxlength={100}
 				bind:value={data.volumetry}
 				error={errors.volumetry}
-				oninput={() => onClearError('volumetry')}
+				oninput={() => clearError('volumetry')}
 			/>
 
 			<Input
@@ -176,7 +179,7 @@
 				step="1"
 				bind:value={data.peopleInvolved}
 				error={errors.peopleInvolved}
-				oninput={() => onClearError('peopleInvolved')}
+				oninput={() => clearError('peopleInvolved')}
 			/>
 
 			<Input
@@ -186,7 +189,7 @@
 				maxlength={60}
 				bind:value={data.averageExecutionTime}
 				error={errors.averageExecutionTime}
-				oninput={() => onClearError('averageExecutionTime')}
+				oninput={() => clearError('averageExecutionTime')}
 			/>
 
 			<Input
@@ -198,7 +201,7 @@
 				step="0.1"
 				bind:value={data.monthlyEffortHours}
 				error={errors.monthlyEffortHours}
-				oninput={() => onClearError('monthlyEffortHours')}
+				oninput={() => clearError('monthlyEffortHours')}
 			/>
 
 			<Select
@@ -208,7 +211,7 @@
 				required
 				bind:value={data.hasManualControls}
 				error={errors.hasManualControls}
-				onchange={() => onClearError('hasManualControls')}
+				onchange={() => clearError('hasManualControls')}
 			/>
 
 			<Input
@@ -218,7 +221,7 @@
 				disabled={data.hasManualControls !== 'Sim'}
 				bind:value={data.hasManualControlsDetail}
 				error={errors.hasManualControlsDetail}
-				oninput={() => onClearError('hasManualControlsDetail')}
+				oninput={() => clearError('hasManualControlsDetail')}
 			/>
 		</div>
 
@@ -231,7 +234,7 @@
 				maxlength={2000}
 				bind:value={data.mainRisks}
 				error={errors.mainRisks}
-				oninput={() => onClearError('mainRisks')}
+				oninput={() => clearError('mainRisks')}
 			/>
 		</div>
 
@@ -244,7 +247,7 @@
 				maxlength={2000}
 				bind:value={data.clientImpact}
 				error={errors.clientImpact}
-				oninput={() => onClearError('clientImpact')}
+				oninput={() => clearError('clientImpact')}
 			/>
 		</div>
 
@@ -256,7 +259,7 @@
 				required
 				bind:value={data.operationalImpact}
 				error={errors.operationalImpact}
-				onchange={() => onClearError('operationalImpact')}
+				onchange={() => clearError('operationalImpact')}
 			/>
 
 			<Select
@@ -266,7 +269,7 @@
 				required
 				bind:value={data.perceivedCriticality}
 				error={errors.perceivedCriticality}
-				onchange={() => onClearError('perceivedCriticality')}
+				onchange={() => clearError('perceivedCriticality')}
 			/>
 
 			<Input
@@ -276,7 +279,7 @@
 				required
 				bind:value={data.desiredDeadline}
 				error={errors.desiredDeadline}
-				oninput={() => onClearError('desiredDeadline')}
+				oninput={() => clearError('desiredDeadline')}
 			/>
 		</div>
 	</div>

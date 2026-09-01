@@ -7,21 +7,14 @@
 
 	interface Props {
 		data: IdentificationData;
-		errors: StepFieldErrors;
-		onClearError: (field: string) => void;
-		onvalidate?: (validate: () => boolean) => void;
 		departmentOptions?: { value: string; label: string }[];
 	}
 
-	let {
-		data = $bindable(),
-		errors = $bindable(),
-		onClearError,
-		onvalidate,
-		departmentOptions
-	}: Props = $props();
+	let { data = $bindable(), departmentOptions }: Props = $props();
 
-	function validate(): boolean {
+	let errors = $state<StepFieldErrors>({});
+
+	export function validate(): boolean {
 		const e: StepFieldErrors = {};
 
 		if (!isValidText(data.fullName) || !isRequired(data.fullName)) {
@@ -63,9 +56,13 @@
 		return Object.keys(e).length === 0;
 	}
 
-	$effect(() => {
-		onvalidate?.(validate);
-	});
+	export function clearErrors(): void {
+		errors = {};
+	}
+
+	function clearError(field: string): void {
+		errors[field] = undefined;
+	}
 </script>
 
 <div class="step-content">
@@ -83,7 +80,7 @@
 			required
 			bind:value={data.fullName}
 			error={errors.fullName}
-			oninput={() => onClearError('fullName')}
+			oninput={() => clearError('fullName')}
 		/>
 
 		<Input
@@ -93,7 +90,7 @@
 			required
 			bind:value={data.corporateEmail}
 			error={errors.corporateEmail}
-			oninput={() => onClearError('corporateEmail')}
+			oninput={() => clearError('corporateEmail')}
 		/>
 
 		<Input
@@ -102,7 +99,7 @@
 			required
 			bind:value={data.area}
 			error={errors.area}
-			onchange={() => onClearError('area')}
+			onchange={() => clearError('area')}
 		/>
 
 		{#if departmentOptions && departmentOptions.length > 0}
@@ -112,7 +109,7 @@
 				options={departmentOptions}
 				bind:value={data.department}
 				error={errors.department}
-				onchange={() => onClearError('department')}
+				onchange={() => clearError('department')}
 			/>
 		{:else}
 			<Input
@@ -120,7 +117,7 @@
 				placeholder="Ex: Gestão de Contas"
 				bind:value={data.department}
 				error={errors.department}
-				oninput={() => onClearError('department')}
+				oninput={() => clearError('department')}
 			/>
 		{/if}
 
@@ -130,7 +127,7 @@
 			required
 			bind:value={data.manager}
 			error={errors.manager}
-			oninput={() => onClearError('manager')}
+			oninput={() => clearError('manager')}
 		/>
 
 		<Input
@@ -138,7 +135,7 @@
 			placeholder="Ramal, Celular ou e-mail alternativo"
 			bind:value={data.additionalContact}
 			error={errors.additionalContact}
-			oninput={() => onClearError('additionalContact')}
+			oninput={() => clearError('additionalContact')}
 		/>
 	</div>
 </div>
