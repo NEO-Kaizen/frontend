@@ -155,6 +155,7 @@
 		margin: 4px 0;
 		font-size: 1.25rem;
 		line-height: 1.4;
+		color: var(--primary-color, #0f172a);
 	}
 
 	.protocol-code {
