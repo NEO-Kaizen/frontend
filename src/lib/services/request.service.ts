@@ -10,6 +10,8 @@ import type {
 	RequestDetail
 } from '$lib/types/request';
 
+import { isEmail, isProtocol } from '$lib/utils/validations';
+
 type ListRequestsResult =
 	| { ok: true; data: PaginatedResponse<RequestSummary> }
 	| { ok: false; error: { status?: number; message: string } };
@@ -81,12 +83,4 @@ export async function searchRequests(value: string): Promise<SearchRequestsResul
 			message: 'Informe um protocolo ou e-mail válido.'
 		}
 	};
-}
-
-function isProtocol(value: string): boolean {
-	return /^[A-Z]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/i.test(value);
-}
-
-function isEmail(value: string): boolean {
-	return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
