@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import Icon from '$lib/components/Icon.svelte';
+	import NotFoundState from '$lib/components/NotFoundState.svelte';
 	import { mockSolicitations } from '$lib/mocks/solicitations';
 	import type { RequestDetail, RequestStatus } from '$lib/types/solicitation';
 	import { formatDate, formatDateTime } from '$lib/utils/dates';
@@ -115,44 +116,45 @@
 		{/if}
 	</div>
 {:else}
-	<div class="not-found-card" role="alert">
-		<Icon iconName="info" iconSize="xl" />
-		<h2>Solicitação não encontrada</h2>
-		<p>
-			Não encontramos nenhuma solicitação cadastrada com o protocolo <strong>"{protocol}"</strong>.
-		</p>
-		<p class="hint">Verifique o número digitado e tente novamente.</p>
-	</div>
+	<NotFoundState
+		title="Solicitação não encontrada"
+		message={`Não encontramos nenhuma solicitação cadastrada com o protocolo <strong>"${protocol}"</strong>.`}
+		hint="Verifique o número digitado e tente novamente."
+	/>
 {/if}
 
 <style>
-	.solicitation-card,
-	.not-found-card {
+	.solicitation-card {
 		background: #ffffff;
 		border-radius: 8px;
 		padding: 24px;
 		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-	}
-
-	.not-found-card {
-		text-align: center;
-		padding: 48px 24px;
+		word-break: break-word;
 	}
 
 	.card-header-top {
 		display: flex;
 		justify-content: space-between;
 		align-items: flex-start;
+		gap: 16px;
 		margin-bottom: 20px;
 	}
 
 	.badge-active {
+		display: inline-block;
 		font-size: 0.75rem;
 		font-weight: 700;
 		color: #1e40af;
 		background: #dbeafe;
 		padding: 4px 8px;
 		border-radius: 4px;
+		margin-bottom: 8px;
+	}
+
+	.left-badges h2 {
+		margin: 4px 0;
+		font-size: 1.25rem;
+		line-height: 1.4;
 	}
 
 	.protocol-code {
@@ -166,6 +168,7 @@
 		font-size: 0.875rem;
 		font-weight: 600;
 		display: inline-block;
+		white-space: nowrap;
 	}
 
 	.metadata-grid {
@@ -194,6 +197,7 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
+		gap: 16px;
 		padding: 16px;
 		background: #f0fdf4;
 		border: 1px solid #bbf7d0;
@@ -217,6 +221,7 @@
 	.btn-join {
 		display: inline-flex;
 		align-items: center;
+		justify-content: center;
 		gap: 6px;
 		padding: 8px 16px;
 		background: #16a34a;
@@ -225,6 +230,7 @@
 		text-decoration: none;
 		font-weight: 600;
 		border: none;
+		white-space: nowrap;
 	}
 
 	.btn-join.disabled {
@@ -241,8 +247,27 @@
 		margin-top: 8px;
 	}
 
-	.hint {
-		color: #64748b;
-		font-size: 0.875rem;
+	@media (max-width: 640px) {
+		.solicitation-card {
+			padding: 16px;
+		}
+
+		.card-header-top {
+			flex-direction: column;
+			align-items: flex-start;
+		}
+
+		.meeting-card {
+			flex-direction: column;
+			align-items: stretch;
+		}
+
+		.btn-join {
+			width: 100%;
+		}
+
+		.metadata-grid {
+			grid-template-columns: 1fr;
+		}
 	}
 </style>
