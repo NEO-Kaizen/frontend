@@ -1,13 +1,30 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { mockSolicitations } from '$lib/mocks/solicitations';
-	import type { RequestDetail } from '$lib/types/solicitation';
+	import type { RequestDetail, RequestStatus } from '$lib/types/solicitation';
 	import { formatDate, formatDateTime } from '$lib/utils/dates';
 
 	const protocol = page.params.protocolo;
 	const solicitation: RequestDetail | undefined = mockSolicitations.find(
 		(s) => s.protocol.toLowerCase() === protocol?.toLowerCase()
 	);
+
+	function getStatusTheme(status: RequestStatus): { bg: string; color: string; border: string } {
+		switch (status) {
+			case 'Concluído':
+			case 'Elegível':
+				return { bg: '#f0fdf4', color: '#166534', border: '#bbf7d0' };
+			case 'Pendente de informações':
+			case 'Aguardando triagem':
+			case 'Aguardando mapeamento':
+				return { bg: '#fefce8', color: '#854d0e', border: '#fef08a' };
+			case 'Cancelado':
+			case 'Não elegível':
+				return { bg: '#fef2f2', color: '#991b1b', border: '#fecaca' };
+			default:
+				return { bg: '#eff6ff', color: '#1e40af', border: '#bfdbfe' };
+		}
+	}
 </script>
 
 <svelte:head>
@@ -15,6 +32,7 @@
 </svelte:head>
 
 {#if solicitation}
+	{@const statusStyle = getStatusTheme(solicitation.status)}
 	<div class="solicitation-card">
 		<div class="card-header-top">
 			<div class="left-badges">
@@ -23,7 +41,14 @@
 				<span class="protocol-code">#{solicitation.protocol}</span>
 			</div>
 			<div class="right-status">
-				<span class="status-pill">{solicitation.status}</span>
+				<span
+					class="status-pill"
+					style:background-color={statusStyle.bg}
+					style:color={statusStyle.color}
+					style:border={`1px solid ${statusStyle.border}`}
+				>
+					{solicitation.status}
+				</span>
 			</div>
 		</div>
 
@@ -117,11 +142,11 @@
 	}
 
 	.status-pill {
-		background: #f1f5f9;
 		padding: 6px 12px;
 		border-radius: 16px;
 		font-size: 0.875rem;
 		font-weight: 600;
+		display: inline-block;
 	}
 
 	.metadata-grid {
