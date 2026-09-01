@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolveRoute } from '$app/paths';
 	import { page } from '$app/state';
 	import Icon from '$lib/components/Icon.svelte';
 	import NotFoundState from '$lib/components/NotFoundState.svelte';
@@ -84,7 +85,7 @@
 				</div>
 				{#if solicitation.meeting.link}
 					<a
-						href={solicitation.meeting.link}
+						href={resolveRoute(solicitation.meeting.link as unknown as '/')}
 						target="_blank"
 						rel="noopener noreferrer"
 						class="btn-join"
@@ -118,7 +119,7 @@
 {:else}
 	<NotFoundState
 		title="Solicitação não encontrada"
-		message={`Não encontramos nenhuma solicitação cadastrada com o protocolo <strong>"${protocol}"</strong>.`}
+		message={`Não encontramos nenhuma solicitação cadastrada com o protocolo "${protocol}".`}
 		hint="Verifique o número digitado e tente novamente."
 	/>
 {/if}

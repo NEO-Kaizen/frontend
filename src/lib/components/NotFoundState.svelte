@@ -3,19 +3,24 @@
 
 	interface Props {
 		title?: string;
-		message: string;
+		message?: string;
 		hint?: string;
 	}
 
-	let { title = 'Solicitação não encontrada', message, hint }: Props = $props();
+	let {
+		title = 'Não encontrado',
+		message = 'Não encontramos informações para esta consulta.',
+		hint = 'Verifique os dados informados e tente novamente.'
+	}: Props = $props();
 </script>
 
-<div class="not-found-card" role="alert">
+<div class="not-found-card">
 	<div class="icon-wrapper">
-		<Icon iconName="info" iconSize="xl" />
+		<Icon iconName="searchOff" iconSize="lg" />
 	</div>
 	<h2>{title}</h2>
-	<p>{@html message}</p>
+	<p>{message}</p>
+
 	{#if hint}
 		<p class="hint">{hint}</p>
 	{/if}
@@ -25,32 +30,39 @@
 	.not-found-card {
 		background: #ffffff;
 		border-radius: 8px;
-		padding: 48px 24px;
+		padding: 32px 24px;
 		text-align: center;
 		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+		margin-top: 24px;
 	}
 
 	.icon-wrapper {
-		display: flex;
+		display: inline-flex;
+		align-items: center;
 		justify-content: center;
-		margin-bottom: 12px;
+		width: 48px;
+		height: 48px;
+		background-color: #f1f5f9;
 		color: #64748b;
+		border-radius: 50%;
+		margin-bottom: 16px;
 	}
 
 	h2 {
+		margin: 0 0 8px 0;
 		font-size: 1.25rem;
-		font-weight: 600;
 		color: #0f172a;
-		margin-bottom: 8px;
 	}
 
 	p {
+		margin: 0 0 8px 0;
 		color: #475569;
-		margin-bottom: 8px;
+		font-size: 0.95rem;
 	}
 
 	.hint {
+		font-size: 0.85rem;
 		color: #64748b;
-		font-size: 0.875rem;
+		margin-bottom: 0;
 	}
 </style>
