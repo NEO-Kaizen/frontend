@@ -31,7 +31,7 @@
 			extension as (typeof ALLOWED_FILE_EXTENSIONS)[number]
 		);
 
-		if (!typeValid && !extensionValid) {
+		if (!typeValid || !extensionValid) {
 			return 'Tipo de arquivo não permitido. Use PDF, DOCX, XLSX, PNG ou JPG.';
 		}
 

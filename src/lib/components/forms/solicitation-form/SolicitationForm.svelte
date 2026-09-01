@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import Button from '$lib/components/Button.svelte';
 	import StepComplementary from '$lib/components/forms/solicitation-form/StepComplementary.svelte';
 	import StepDemand from '$lib/components/forms/solicitation-form/StepDemand.svelte';
@@ -187,7 +189,7 @@
 
 	function handleCancel() {
 		resetForm();
-		window.location.href = '/';
+		goto(resolve('/'));
 	}
 
 	function resetForm() {
@@ -195,6 +197,8 @@
 		currentStep = 1;
 		completedSteps = new Set();
 		visitedSteps = new Set([1]);
+		submitted = false;
+		isSubmitting = false;
 		identification = {
 			fullName: '',
 			corporateEmail: '',
@@ -401,7 +405,7 @@
 				<div class="success-btn">
 					<Button
 						variant="primary"
-						onclick={() => (window.location.href = '/solicitacao')}
+						onclick={resetForm}
 						loading={isSubmitting}
 					>
 						<span>+</span> Nova Solicitação
