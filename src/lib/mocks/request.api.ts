@@ -61,4 +61,3 @@ export function getRequestByProtocolMock(protocol: string): Promise<RequestDetai
 
 	return Promise.resolve(detail);
 }
-

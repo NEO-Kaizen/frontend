@@ -1,9 +1,6 @@
 import { apiClient } from './client';
 
-import {
-	listRequestsMock,
-	getRequestByProtocolMock
-} from '$lib/mocks/request.api';
+import { listRequestsMock, getRequestByProtocolMock } from '$lib/mocks/request.api';
 
 import type {
 	ListRequestsQuery,
@@ -45,4 +42,3 @@ export function getRequestByProtocol(protocol: string): Promise<RequestDetail> {
 	const encoded = encodeURIComponent(protocol);
 	return apiClient<RequestDetail>(`${REQUESTS_PATH}/${encoded}`);
 }
-
