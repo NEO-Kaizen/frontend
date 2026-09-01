@@ -10,6 +10,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { logout } from '$lib/services/auth.service';
+	import { searchRequests } from '$lib/services/request.service';
 
 	interface NavButton {
 		name: string;
@@ -58,9 +59,34 @@
 
 	const isNotSolicitante = $derived(currentUser != null && currentUser.role !== 'Solicitante');
 
-	function handleSearchSubmit(event: SubmitEvent) {
+	async function handleSearchSubmit(event: SubmitEvent) {
 		event.preventDefault();
-		// TODO: implementar a busca quando a feature existir
+
+		const form = event.currentTarget as HTMLFormElement;
+		const formData = new FormData(form);
+		const value = String(formData.get('pesquisar-chamados') ?? '').trim();
+
+		if (!value) return;
+
+		const result = await searchRequests(value);
+
+		if (!result.ok) {
+			console.error(result.error.message);
+			return;
+		}
+
+		if ('protocol' in result.data) {
+			await goto(
+				resolve('/(public)/acompanhar/[protocolo]', {
+					protocolo: result.data.protocol
+				})
+			);
+			return;
+		}
+
+		const searchParams = new URLSearchParams({ email: value });
+
+		await goto(resolve(`/(public)/chamado?${searchParams.toString()}` as '/(public)/chamado'));
 	}
 
 	let isLoggingOut = $state(false);

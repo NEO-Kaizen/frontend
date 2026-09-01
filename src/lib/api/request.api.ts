@@ -44,9 +44,13 @@ export function getRequestByProtocol(protocol: string): Promise<RequestDetail> {
 function listRequestsMock(query: ListRequestsQuery): Promise<PaginatedResponse<RequestSummary>> {
 	let requests = [...mockRequests];
 
+	if (query.email) {
 	const email = query.email.toLowerCase().trim();
-	requests = requests.filter((r) => r.corporateEmail.toLowerCase().trim() === email);
 
+	requests = requests.filter(
+		(r) => r.corporateEmail.toLowerCase().trim() === email
+	);
+}
 	if (query.search) {
 		const search = query.search.toLowerCase().trim();
 		requests = requests.filter(
