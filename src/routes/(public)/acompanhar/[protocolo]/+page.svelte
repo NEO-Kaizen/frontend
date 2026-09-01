@@ -1,15 +1,13 @@
 <script lang="ts">
-	import { page } from '$app/stores';
-	import ProtocolSearchCard from '$lib/components/forms/ProtocolSearchCard.svelte';
+	import { page } from '$app/state';
 	import { mockSolicitations } from '$lib/mocks/solicitations';
+	import type { RequestDetail } from '$lib/types/solicitation';
 
-	// Lê o parâmetro do protocolo diretamente da URL
-	let currentProtocol = $derived($page.params.protocolo);
+	const protocol = page.params.protocolo;
+	const solicitation: RequestDetail | undefined = mockSolicitations.find(
+		(s) => s.protocol.toLowerCase() === protocol?.toLowerCase()
+	);
 
-	// Procura a solicitação correspondente no mock
-	let solicitation = $derived(mockSolicitations.find((s) => s.protocol === currentProtocol));
-
-	// Helper para formatação de data ISO
 	function formatDate(isoString: string | null) {
 		if (!isoString) return 'N/A';
 		const date = new Date(isoString);
@@ -19,412 +17,235 @@
 			year: 'numeric'
 		});
 	}
-
-	function formatDateTime(isoString: string | null) {
-		if (!isoString) return 'N/A';
-		const date = new Date(isoString);
-		return date.toLocaleDateString('pt-BR', {
-			day: '2-digit',
-			month: 'long',
-			hour: '2-digit',
-			minute: '2-digit'
-		});
-	}
 </script>
 
-<div class="page-viewport">
-	<ProtocolSearchCard />
+<svelte:head>
+	<title>Detalhes da Solicitação {protocol} - NEO</title>
+</svelte:head>
 
+<main class="container">
 	{#if solicitation}
-		<div class="details-card">
-			<div class="card-header-top">
-				<div class="left-badges">
-					<span class="badge-active">SOLICITAÇÃO ATIVA</span>
-					<h2>{solicitation.demandTitle}</h2>
-					<span class="protocol-code">#{solicitation.protocol}</span>
+		<div class="header-actions">
+			<a href="/" class="btn-back">
+				&larr; Voltar para busca
+			</a>
+		</div>
+
+		<div class="card-detail">
+			<div class="detail-header">
+				<div>
+					<span class="protocol-number">Protocolo #{solicitation.protocol}</span>
+					<h1 class="demand-title">{solicitation.demandTitle}</h1>
 				</div>
-				<div class="right-status">
-					<span class="status-pill">{solicitation.status}</span>
+				<span class="status-tag">{solicitation.status}</span>
+			</div>
+
+			<div class="info-grid">
+				<div class="info-item">
+					<span class="info-label">Responsável Técnico</span>
+					<span class="info-value">{solicitation.assigneeName || 'Não atribuído'}</span>
+				</div>
+				<div class="info-item">
+					<span class="info-label">Data de Abertura</span>
+					<span class="info-value">{formatDate(solicitation.openedAt)}</span>
+				</div>
+				<div class="info-item">
+					<span class="info-label">Previsão de Conclusão</span>
+					<span class="info-value">{formatDate(solicitation.estimatedCompletion)}</span>
+				</div>
+				<div class="info-item">
+					<span class="info-label">Última Atualização</span>
+					<span class="info-value">{formatDate(solicitation.lastUpdate)}</span>
 				</div>
 			</div>
 
-			<hr class="divider" />
-
-			<div class="metrics-grid">
-				<div class="metric-item">
-					<div class="icon-box">
-						<svg
-							width="20"
-							height="20"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="#002068"
-							stroke-width="2"
-							><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle
-								cx="9"
-								cy="7"
-								r="4"
-							/><path d="M22 21v-2a4 4 0 0 3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg
-						>
-					</div>
-					<div>
-						<span class="label">RESPONSÁVEL TÉCNICO</span>
-						<strong>{solicitation.assigneeName || 'Aguardando atribuição'}</strong>
-					</div>
+			{#if solicitation.lastTechnicalMessage}
+				<div class="section">
+					<h2>Última Atualização Técnica</h2>
+					<p class="description">{solicitation.lastTechnicalMessage}</p>
 				</div>
-
-				<div class="metric-item">
-					<div class="icon-box">
-						<svg
-							width="20"
-							height="20"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="#002068"
-							stroke-width="2"
-							><rect width="18" height="18" x="3" y="4" rx="2" ry="2" /><line
-								x1="16"
-								x2="16"
-								y1="2"
-								y2="6"
-							/><line x1="8" x2="8" y1="2" y2="6" /><line x1="3" x2="21" y1="10" y2="10" /></svg
-						>
-					</div>
-					<div>
-						<span class="label">DATA DE ABERTURA</span>
-						<strong>{formatDateTime(solicitation.openedAt)}</strong>
-					</div>
-				</div>
-
-				<div class="metric-item">
-					<div class="icon-box">
-						<svg
-							width="20"
-							height="20"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="#002068"
-							stroke-width="2"
-							><rect width="18" height="18" x="3" y="4" rx="2" ry="2" /><line
-								x1="16"
-								x2="16"
-								y1="2"
-								y2="6"
-							/><line x1="8" x2="8" y1="2" y2="6" /><line x1="3" x2="21" y1="10" y2="10" /></svg
-						>
-					</div>
-					<div>
-						<span class="label">PREVISÃO DE CONCLUSÃO</span>
-						<strong>{formatDate(solicitation.estimatedCompletion)}</strong>
-					</div>
-				</div>
-
-				<div class="metric-item">
-					<div class="icon-box">
-						<svg
-							width="20"
-							height="20"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="#002068"
-							stroke-width="2"
-							><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg
-						>
-					</div>
-					<div>
-						<span class="label">ÚLTIMA ATUALIZAÇÃO</span>
-						<strong>{formatDateTime(solicitation.lastUpdate)}</strong>
-					</div>
-				</div>
-			</div>
+			{/if}
 
 			{#if solicitation.meeting}
-				<div class="meeting-card-box">
-					<div class="meeting-left">
-						<div class="video-icon">
-							<svg
-								width="20"
-								height="20"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="#ffffff"
-								stroke-width="2"
-								><path d="m22 8-6 4 6 4V8Z" /><rect
-									width="14"
-									height="12"
-									x="2"
-									y="6"
-									rx="2"
-									ry="2"
-								/></svg
-							>
-						</div>
-						<div>
-							<span class="meeting-label">REUNIÃO DE ALINHAMENTO</span>
-							<div class="meeting-time">{formatDateTime(solicitation.meeting.scheduledFor)}</div>
-						</div>
-					</div>
+				<div class="section">
+					<h2>Reunião de Alinhamento</h2>
+					<p class="description">Data: {formatDate(solicitation.meeting.scheduledFor)}</p>
 					{#if solicitation.meeting.link}
-						<a
-							href={solicitation.meeting.link}
-							target="_blank"
-							rel="external noopener noreferrer"
-							class="btn-join"
-						>
-							<svg
-								width="16"
-								height="16"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="2"
-								><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path
-									d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"
-								/></svg
-							>
+						<a href={solicitation.meeting.link} target="_blank" rel="noopener noreferrer" class="btn-primary">
 							Entrar na reunião
 						</a>
 					{:else}
-						<button class="btn-join disabled" disabled>
-							<svg
-								width="16"
-								height="16"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="2"
-								><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path
-									d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"
-								/></svg
-							>
-							Entrar na reunião
+						<button class="btn-primary disabled" disabled title="Link da reunião ainda não disponível">
+							Entrar na reunião (Link indisponível)
 						</button>
 					{/if}
 				</div>
 			{/if}
-
-			<div class="message-section">
-				<h3>Última mensagem do responsável técnico</h3>
-				<div class="message-bubble">
-					{solicitation.lastTechnicalMessage ||
-						'Sua solicitação está em análise. Assim que houver uma atualização, entraremos em contato.'}
-				</div>
-			</div>
 		</div>
 	{:else}
-		<div class="not-found-card">
-			<div class="not-found-icon">
-				<svg
-					width="48"
-					height="48"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="#94a3b8"
-					stroke-width="1.5"
-					><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /><path d="m8 11 6 0" /></svg
-				>
+		<div class="not-found" role="alert">
+			<div class="alert-box">
+				<h2>Solicitação não encontrada</h2>
+				<p>Não encontramos nenhuma solicitação cadastrada com o protocolo <strong>"{protocol}"</strong>.</p>
+				<p class="hint">Verifique o número digitado e tente novamente.</p>
 			</div>
-			<h2>Solicitação não encontrada</h2>
-			<p>
-				Não encontramos nenhuma solicitação cadastrada com o protocolo <strong
-					>"{currentProtocol}"</strong
-				>.
-			</p>
-			<p class="hint">Verifique o número digitado e tente novamente.</p>
+			<div class="action-center">
+				<a href="/" class="btn-primary"> Nova Consulta </a>
+			</div>
 		</div>
 	{/if}
-</div>
+</main>
 
 <style>
-	.page-viewport {
-		max-width: 1100px;
+	.container {
+		max-width: 900px;
 		margin: 0 auto;
-		padding: 40px 20px;
+		padding: var(--spacing-xl) var(--spacing-md);
 	}
 
-	.details-card {
-		background: #ffffff;
-		border-radius: 16px;
-		padding: 32px;
-		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
-		border: 1px solid #f1f5f9;
+	.header-actions {
+		margin-bottom: var(--spacing-md);
 	}
 
-	.card-header-top {
+	.btn-back {
+		color: var(--primary-color);
+		text-decoration: none;
+		font-weight: 500;
+		font-size: var(--font-size-sm);
+	}
+
+	.btn-back:hover {
+		text-decoration: underline;
+	}
+
+	.card-detail {
+		background: var(--white);
+		border-radius: 12px;
+		border: var(--border-default);
+		padding: var(--spacing-xl);
+		box-shadow: var(--shadow-sm);
+	}
+
+	.detail-header {
 		display: flex;
 		justify-content: space-between;
 		align-items: flex-start;
+		border-bottom: var(--border-default);
+		padding-bottom: var(--spacing-lg);
+		margin-bottom: var(--spacing-lg);
+		gap: var(--spacing-md);
 	}
 
-	.badge-active {
-		display: inline-block;
-		background-color: #dbeafe;
-		color: #1e40af;
-		font-size: 0.75rem;
-		font-weight: 700;
-		padding: 4px 10px;
-		border-radius: 12px;
-		margin-bottom: 8px;
-	}
-
-	.left-badges h2 {
-		font-size: 1.35rem;
-		color: #0f172a;
-		margin: 0 0 4px 0;
-	}
-
-	.protocol-code {
+	.protocol-number {
+		font-size: var(--font-size-sm);
 		color: #64748b;
-		font-size: 0.875rem;
-	}
-
-	.status-pill {
-		background-color: #e2e8f0;
-		color: #334155;
-		font-size: 0.875rem;
 		font-weight: 600;
-		padding: 8px 16px;
-		border-radius: 8px;
 	}
 
-	.divider {
-		border: none;
-		border-top: 1px solid #f1f5f9;
-		margin: 24px 0;
+	.demand-title {
+		font-size: var(--font-size-xl);
+		color: var(--primary-color);
+		margin-top: var(--spacing-xs);
 	}
 
-	.metrics-grid {
+	.status-tag {
+		background: var(--bg-light);
+		padding: var(--spacing-xs) var(--spacing-sm);
+		border-radius: var(--radius-md);
+		font-size: var(--font-size-sm);
+		font-weight: 600;
+		text-transform: uppercase;
+	}
+
+	.info-grid {
 		display: grid;
-		grid-template-columns: repeat(4, 1fr);
-		gap: 20px;
-		margin-bottom: 24px;
-	}
-
-	.metric-item {
-		display: flex;
-		align-items: flex-start;
-		gap: 12px;
-	}
-
-	.icon-box {
-		padding: 8px;
+		grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+		gap: var(--spacing-md);
 		background-color: #f8fafc;
+		padding: var(--spacing-md);
 		border-radius: 8px;
+		margin-bottom: var(--spacing-lg);
 	}
 
-	.metric-item .label {
-		display: block;
-		font-size: 0.7rem;
-		font-weight: 700;
+	.info-item {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.info-label {
+		font-size: 0.75rem;
 		color: #64748b;
-		margin-bottom: 2px;
+		text-transform: uppercase;
+		font-weight: 600;
 	}
 
-	.metric-item strong {
-		font-size: 0.9rem;
-		color: #0f172a;
+	.info-value {
+		font-size: var(--font-size-sm);
+		color: var(--text-color);
+		font-weight: 500;
+		margin-top: 2px;
 	}
 
-	.meeting-card-box {
-		background-color: #f8fafc;
-		border: 1px solid #e2e8f0;
-		border-radius: 12px;
-		padding: 16px 24px;
+	.section {
+		margin-top: var(--spacing-xl);
+	}
+
+	.section h2 {
+		font-size: var(--font-size-md);
+		color: var(--text-color);
+		margin-bottom: var(--spacing-sm);
+	}
+
+	.description {
+		color: #334155;
+		line-height: 1.6;
+		font-size: var(--font-size-sm);
+	}
+
+	.not-found {
+		margin-top: var(--spacing-xl);
 		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-bottom: 28px;
+		flex-direction: column;
+		gap: var(--spacing-lg);
 	}
 
-	.meeting-left {
-		display: flex;
-		align-items: center;
-		gap: 16px;
-	}
-
-	.video-icon {
-		background-color: #0052cc;
-		width: 40px;
-		height: 40px;
+	.alert-box {
+		background-color: #fef2f2;
+		border: 1px solid #fecaca;
 		border-radius: 8px;
+		padding: var(--spacing-lg);
+		color: #991b1b;
+	}
+
+	.alert-box h2 {
+		font-size: var(--font-size-md);
+		margin-bottom: var(--spacing-xs);
+	}
+
+	.hint {
+		font-size: var(--font-size-sm);
+		margin-top: var(--spacing-xs);
+	}
+
+	.action-center {
 		display: flex;
-		align-items: center;
 		justify-content: center;
 	}
 
-	.meeting-label {
-		font-size: 0.7rem;
-		font-weight: 700;
-		color: #64748b;
-	}
-
-	.meeting-time {
-		font-size: 1rem;
-		font-weight: 700;
-		color: #0f172a;
-	}
-
-	.btn-join {
-		background-color: #0052cc;
-		color: #ffffff;
-		padding: 10px 20px;
+	.btn-primary {
+		display: inline-block;
+		background-color: var(--primary-color);
+		color: var(--white);
+		padding: var(--spacing-sm) var(--spacing-lg);
 		border-radius: 8px;
 		text-decoration: none;
-		font-weight: 600;
-		font-size: 0.875rem;
-		display: flex;
-		align-items: center;
-		gap: 8px;
+		font-weight: 500;
 		border: none;
+		cursor: pointer;
 	}
 
-	.btn-join.disabled {
+	.btn-primary.disabled {
 		opacity: 0.6;
 		cursor: not-allowed;
-	}
-
-	.message-section h3 {
-		font-size: 0.9rem;
-		font-weight: 700;
-		color: #0f172a;
-		margin: 0 0 12px 0;
-	}
-
-	.message-bubble {
-		background-color: #fafafa;
-		border: 1px solid #e2e8f0;
-		border-radius: 12px;
-		padding: 16px 20px;
-		color: #334155;
-		font-size: 0.95rem;
-	}
-
-	.not-found-card {
-		background: #ffffff;
-		border-radius: 16px;
-		padding: 48px 32px;
-		text-align: center;
-		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
-		border: 1px solid #f1f5f9;
-	}
-
-	.not-found-icon {
-		margin-bottom: 16px;
-	}
-
-	.not-found-card h2 {
-		font-size: 1.25rem;
-		color: #0f172a;
-		margin: 0 0 8px 0;
-	}
-
-	.not-found-card p {
-		color: #64748b;
-		margin: 0 0 4px 0;
-	}
-
-	.not-found-card .hint {
-		font-size: 0.875rem;
-		color: #94a3b8;
 	}
 </style>
