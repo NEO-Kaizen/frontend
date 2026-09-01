@@ -216,19 +216,6 @@
 </div>
 
 <style>
-	:global(.error-message) {
-		position: absolute;
-		top: 100%;
-		left: 0;
-		width: 100%;
-		margin: 0;
-		margin-top: 4px;
-	}
-
-	.upload-section :global(.error-message) {
-		position: static;
-	}
-
 	.step-content {
 		display: flex;
 		flex-direction: column;
