@@ -9,6 +9,7 @@
 	import Input from './Input.svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { logout } from '$lib/services/auth.service';
 
 	interface NavButton {
 		name: string;
@@ -60,6 +61,19 @@
 	function handleSearchSubmit(event: SubmitEvent) {
 		event.preventDefault();
 		// TODO: implementar a busca quando a feature existir
+	}
+
+	let isLoggingOut = $state(false);
+
+	async function handleLogout() {
+		if (isLoggingOut) return;
+		isLoggingOut = true;
+		try {
+			await logout();
+			await goto(resolve('/(public)/login'), { invalidateAll: true });
+		} finally {
+			isLoggingOut = false;
+		}
 	}
 </script>
 
@@ -120,12 +134,16 @@
 					</div>
 				{/each}
 			</div>
-			<form method="POST" action="/logout">
-				<button class="nav-item" type="submit">
-					<Icon iconName="logout" />
-					Sair
-				</button>
-			</form>
+			<button
+				class="nav-item"
+				type="button"
+				disabled={isLoggingOut}
+				aria-busy={isLoggingOut}
+				onclick={handleLogout}
+			>
+				<Icon iconName="logout" />
+				Sair
+			</button>
 		</div>
 	{/if}
 </header>
@@ -135,7 +153,6 @@
 		display: flex;
 		flex-direction: column;
 		width: 90vw;
-		margin: 30px 80px;
 		gap: var(--spacing-md);
 		padding: var(--spacing-md) var(--spacing-lg);
 		background-color: var(--white);
@@ -216,6 +233,10 @@
 	.nav-item.active {
 		background-color: var(--primary-color);
 		color: var(--white);
+	}
+	.nav-item:disabled {
+		cursor: not-allowed;
+		opacity: 0.6;
 	}
 
 	a {
