@@ -29,7 +29,9 @@ Ele **não modifica o projeto**, **não implementa funcionalidades** e **não ge
 ---
 
 # Quando utilizar
+
 Utilize este agente quando desejar:
+
 - compreender conceitos de Svelte ou TypeScript;
 - esclarecer dúvidas sobre APIs;
 - entender mensagens de erro;

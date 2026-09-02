@@ -9,6 +9,8 @@
 	import Input from './Input.svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { logout } from '$lib/services/auth.service';
+	import { searchRequests } from '$lib/services/request.service';
 
 	interface NavButton {
 		name: string;
@@ -57,15 +59,63 @@
 
 	const isNotSolicitante = $derived(currentUser != null && currentUser.role !== 'Solicitante');
 
-	function handleSearchSubmit(event: SubmitEvent) {
+	let isSearching = $state(false);
+
+	async function handleSearchSubmit(event: SubmitEvent) {
 		event.preventDefault();
-		// TODO: implementar a busca quando a feature existir
+
+		if (isSearching) return;
+
+		const form = event.currentTarget as HTMLFormElement;
+		const formData = new FormData(form);
+		const value = String(formData.get('pesquisar-chamados') ?? '').trim();
+
+		if (!value) return;
+
+		isSearching = true;
+
+		try {
+			const result = await searchRequests(value);
+
+			if (!result.ok) {
+				console.error(result.error.message);
+				return;
+			}
+
+			if ('protocol' in result.data) {
+				await goto(
+					resolve('/(public)/acompanhar/[protocolo]', {
+						protocolo: result.data.protocol
+					})
+				);
+				return;
+			}
+
+			const searchParams = new URLSearchParams({ email: value });
+
+			await goto(resolve(`/(public)/chamado?${searchParams.toString()}` as '/(public)/chamado'));
+		} finally {
+			isSearching = false;
+		}
+	}
+
+	let isLoggingOut = $state(false);
+
+	async function handleLogout() {
+		if (isLoggingOut) return;
+		isLoggingOut = true;
+		try {
+			await logout();
+			await goto(resolve('/(public)/login'), { invalidateAll: true });
+		} finally {
+			isLoggingOut = false;
+		}
 	}
 </script>
 
 <header>
 	<div class="top_bar">
-		<a class="top_bar-logo" href="/">
+		<a class="top_bar-logo" href={resolve('/')}>
 			<img width="80" height="29" alt="NEO" src={logo} />
 		</a>
 		<div class="top_bar-interactables">
@@ -76,6 +126,7 @@
 					placeholder="Buscar chamados"
 					aria-label="Buscar chamados"
 					name="pesquisar-chamados"
+					disabled={isSearching}
 				/>
 			</form>
 			<Button
@@ -123,12 +174,16 @@
 					</div>
 				{/each}
 			</div>
-			<form method="POST" action="/logout">
-				<button class="nav-item" type="submit">
-					<Icon iconName="logout" />
-					Sair
-				</button>
-			</form>
+			<button
+				class="nav-item"
+				type="button"
+				disabled={isLoggingOut}
+				aria-busy={isLoggingOut}
+				onclick={handleLogout}
+			>
+				<Icon iconName="logout" />
+				Sair
+			</button>
 		</div>
 	{/if}
 </header>
@@ -138,7 +193,6 @@
 		display: flex;
 		flex-direction: column;
 		width: 90vw;
-		margin: 30px 80px;
 		gap: var(--spacing-md);
 		padding: var(--spacing-md) var(--spacing-lg);
 		background-color: var(--white);
@@ -219,6 +273,10 @@
 	.nav-item.active {
 		background-color: var(--primary-color);
 		color: var(--white);
+	}
+	.nav-item:disabled {
+		cursor: not-allowed;
+		opacity: 0.6;
 	}
 
 	a {

@@ -1,9 +1,9 @@
 ---
 name: project-overview
 description: Visão geral do Projeto NEO, mais especificamente o frontend. Use esta skill para acessar contexto específico do projeto.
-metadata: 
-  version: "1.0" 
-  tags: [visão geral do projeto, regras projeto, contexto do projeto, review] 
+metadata:
+  version: '1.0'
+  tags: [visão geral do projeto, regras projeto, contexto do projeto, review]
 ---
 
 # Visão Geral do Frontend
@@ -77,11 +77,11 @@ O frontend deve:
 
 ## 5. Organização da documentação
 
-| Documento                       | Conteúdo                                    |
-| ------------------------------- | ------------------------------------------- |
-| `01-Visao-Geral.md`             | Objetivo, tecnologias, perfis e princípios  |
-| `02-Arquitetura-Frontend.md`    | Camadas e fluxo da aplicação                |
-| `03-Padrões-de-Desenvolvimento.md`       | Regras de TypeScript, Svelte e nomenclatura |
+| Documento                          | Conteúdo                                    |
+| ---------------------------------- | ------------------------------------------- |
+| `01-Visao-Geral.md`                | Objetivo, tecnologias, perfis e princípios  |
+| `02-Arquitetura-Frontend.md`       | Camadas e fluxo da aplicação                |
+| `03-Padrões-de-Desenvolvimento.md` | Regras de TypeScript, Svelte e nomenclatura |
 
 ---
 

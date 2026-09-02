@@ -75,7 +75,7 @@ read-only git commands listed in your permissions. Do not run write commands.
    their neighbours to judge consistency. Do NOT re-read whole documents or
    unrelated files; read on demand.
 3. **Run validations when available** (for example `npm run lint`, `npm run
-   typecheck`, `npm run build`). If the repository has none, state explicitly
+typecheck`, `npm run build`). If the repository has none, state explicitly
    that no automated checks are configured — never claim success.
 4. **Sensitive data check.** Inspect the list of staged file names only (for
    example `git diff --cached --name-only`); do NOT read, open, or print the

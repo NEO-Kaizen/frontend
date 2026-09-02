@@ -25,7 +25,7 @@
 -->
 
 <section class="banner">
-<!--
+	<!--
 	Conteúdo principal do Banner:
 	título e texto de apoio definidos no protótipo.
 -->
@@ -34,7 +34,7 @@
 
 		<p>{descricao}</p>
 	</div>
-<!--
+	<!--
 	Elemento visual decorativo do Banner,
 	conforme identidade definida no protótipo.
 -->
@@ -110,15 +110,15 @@
 
 		opacity: 0.15;
 	}
-/*
+	/*
  * Comportamento responsivo do Banner.
  * Ajusta espaçamento, tipografia e elemento visual
  * para telas menores.
  */
 	@media (max-width: 640px) {
-	.banner {
-		border-radius: var(--radius-md);
-	}
+		.banner {
+			border-radius: var(--radius-md);
+		}
 		h1 {
 			font: var(--h3);
 		}
@@ -129,8 +129,8 @@
 
 		.background-logo span {
 			font-size: 4.5rem;
-		font-weight: 700;
-		line-height: 1.2;
-		}}
-	
+			font-weight: 700;
+			line-height: 1.2;
+		}
+	}
 </style>

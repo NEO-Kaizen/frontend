@@ -3,8 +3,9 @@
  * - `sm`: 16px
  * - `md`: 20px
  * - `lg`: 24px
+ * - `xl`: 32px
  */
-export type IconSize = 'sm' | 'md' | 'lg';
+export type IconSize = 'sm' | 'md' | 'lg' | 'xl';
 
 //Mais fácil manter aqui por hora, mas se tivermos separações de outras coisas similares, movemos
 export const iconDictionary = {

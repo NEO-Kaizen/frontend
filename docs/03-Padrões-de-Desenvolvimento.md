@@ -25,17 +25,17 @@ Evite criar abstrações, componentes ou estruturas sem uma necessidade real.
 
 # 3. Nomenclatura
 
-| Elemento | Padrão | Exemplo |
-|----------|--------|---------|
-| Variável | camelCase | `currentUser` |
-| Função | camelCase com verbo | `loadUsers` |
-| Componente | PascalCase | `UserTable.svelte` |
-| Tipo / Interface | PascalCase | `UserRole` |
-| Constante global | UPPER_SNAKE_CASE | `MAX_FILE_SIZE` |
-| Arquivo TypeScript | kebab-case | `auth.service.ts` |
-| Store | `.store.ts` | `auth.store.ts` |
-| Service | `.service.ts` | `user.service.ts` |
-| API | `.api.ts` | `user.api.ts` |
+| Elemento           | Padrão              | Exemplo            |
+| ------------------ | ------------------- | ------------------ |
+| Variável           | camelCase           | `currentUser`      |
+| Função             | camelCase com verbo | `loadUsers`        |
+| Componente         | PascalCase          | `UserTable.svelte` |
+| Tipo / Interface   | PascalCase          | `UserRole`         |
+| Constante global   | UPPER_SNAKE_CASE    | `MAX_FILE_SIZE`    |
+| Arquivo TypeScript | kebab-case          | `auth.service.ts`  |
+| Store              | `.store.ts`         | `auth.store.ts`    |
+| Service            | `.service.ts`       | `user.service.ts`  |
+| API                | `.api.ts`           | `user.api.ts`      |
 
 A equipe deve manter um único padrão durante todo o projeto.
 
@@ -45,13 +45,13 @@ A equipe deve manter um único padrão durante todo o projeto.
 
 Para manter o código alinhado às práticas do Svelte 5 e SvelteKit:
 
-* Priorizar os recursos nativos e padrões idiomáticos do Svelte.
-* Manter o estado local quando não houver necessidade de compartilhamento.
-* Utilizar `$derived` para valores que podem ser derivados de outros estados, evitando duplicação de estado.
-* Evitar o uso de `$effect` quando o comportamento puder ser representado por estado derivado.
-* Evitar manipulação manual do DOM quando o comportamento puder ser implementado pelos recursos do Svelte.
-* Manter clara a separação entre código executado no cliente e no servidor no SvelteKit.
-* Consultar a documentação oficial do Svelte antes de introduzir soluções alternativas para comportamentos já suportados pelo framework.
+- Priorizar os recursos nativos e padrões idiomáticos do Svelte.
+- Manter o estado local quando não houver necessidade de compartilhamento.
+- Utilizar `$derived` para valores que podem ser derivados de outros estados, evitando duplicação de estado.
+- Evitar o uso de `$effect` quando o comportamento puder ser representado por estado derivado.
+- Evitar manipulação manual do DOM quando o comportamento puder ser implementado pelos recursos do Svelte.
+- Manter clara a separação entre código executado no cliente e no servidor no SvelteKit.
+- Consultar a documentação oficial do Svelte antes de introduzir soluções alternativas para comportamentos já suportados pelo framework.
 
 Esses padrões podem ser revisados e ampliados conforme novas necessidades forem identificadas durante o desenvolvimento.
 

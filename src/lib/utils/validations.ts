@@ -31,3 +31,7 @@ export function isValidDate(value: string): boolean {
 export function isFutureOrToday(value: string, reference: string): boolean {
 	return value >= reference;
 }
+
+export function isProtocol(value: string): boolean {
+	return /^[A-Z]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/i.test(value);
+}
