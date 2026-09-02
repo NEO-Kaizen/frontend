@@ -1,15 +1,11 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Input from '$lib/components/Input.svelte';
 
-	interface Props {
-		onSearch: (protocol: string, email: string) => void;
-		isSearching?: boolean;
-	}
-
-	let { onSearch, isSearching = false }: Props = $props();
-
+	let isSearching = $state(false);
 	let protocol = $state('');
 	let email = $state('');
 	let hasSubmitted = $state(false);
@@ -63,7 +59,7 @@
 		email.trim() && !isEmail(email.trim()) ? 'Informe um e-mail válido.' : ''
 	);
 
-	function handleSubmit(event: SubmitEvent) {
+	async function handleSubmit(event: SubmitEvent) {
 		event.preventDefault();
 
 		hasSubmitted = true;
@@ -76,12 +72,17 @@
 		}
 
 		if (isProtocol(normalizedProtocol)) {
-			onSearch(normalizedProtocol, '');
+			isSearching = true;
+			await goto(resolve('/(public)/acompanhar/[protocolo]', { protocolo: normalizedProtocol }));
+			isSearching = false;
 			return;
 		}
 
 		if (isEmail(normalizedEmail)) {
-			onSearch('', normalizedEmail);
+			isSearching = true;
+			const search = new URLSearchParams({ email: normalizedEmail }).toString();
+			await goto(resolve(`/(public)/acompanhar?${search}`));
+			isSearching = false;
 		}
 	}
 </script>
