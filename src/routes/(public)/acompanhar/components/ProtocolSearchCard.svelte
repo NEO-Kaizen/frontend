@@ -15,51 +15,52 @@
 	let hasSubmitted = $state(false);
 
 	function formatProtocol(value: string) {
-		const digits = value.replace(/\D/g, '').slice(0, 10);
+		const normalized = value
+			.replace(/[^A-Z0-9]/gi, '')
+			.toUpperCase()
+			.slice(0, 12);
 
-		if (!digits) {
-			return '';
+		const firstBlock = normalized.slice(0, 4);
+		const secondBlock = normalized.slice(4, 8);
+		const thirdBlock = normalized.slice(8, 12);
+
+		if (normalized.length <= 4) {
+			return firstBlock;
 		}
 
-		const year = digits.slice(0, 4);
-		const number = digits.slice(4, 10);
-
-		if (digits.length <= 4) {
-			return `NEO-${year}`;
+		if (normalized.length <= 8) {
+			return `${firstBlock}-${secondBlock}`;
 		}
 
-		return `NEO-${year}-${number}`;
+		return `${firstBlock}-${secondBlock}-${thirdBlock}`;
 	}
 
 	function handleProtocolInput(event: Event) {
 		const input = event.currentTarget as HTMLInputElement;
-		protocol = formatProtocol(input.value);
+		const formattedProtocol = formatProtocol(input.value);
+
+		input.value = formattedProtocol;
+		protocol = formattedProtocol;
 	}
 
-	function isValidProtocol(value: string) {
-		return /^NEO-\d{4}-\d{6}$/.test(value);
+	function isProtocol(value: string): boolean {
+		return /^[A-Z]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/i.test(value);
 	}
 
-	function isValidEmail(value: string) {
+	function isEmail(value: string): boolean {
 		return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 	}
 
 	let formError = $derived(
-		hasSubmitted && !protocol.trim() && !email.trim()
-			? 'Informe o protocolo ou o e-mail.'
-			: ''
+		hasSubmitted && !protocol.trim() && !email.trim() ? 'Informe o protocolo ou o e-mail.' : ''
 	);
 
 	let protocolError = $derived(
-		protocol.trim() && !isValidProtocol(protocol.trim())
-			? 'Informe um protocolo válido.'
-			: ''
+		protocol.trim() && !isProtocol(protocol.trim()) ? 'Informe um protocolo válido.' : ''
 	);
 
 	let emailError = $derived(
-		email.trim() && !isValidEmail(email.trim())
-			? 'Informe um e-mail válido.'
-			: ''
+		email.trim() && !isEmail(email.trim()) ? 'Informe um e-mail válido.' : ''
 	);
 
 	function handleSubmit(event: SubmitEvent) {
@@ -74,12 +75,12 @@
 			return;
 		}
 
-		if (isValidProtocol(normalizedProtocol)) {
+		if (isProtocol(normalizedProtocol)) {
 			onSearch(normalizedProtocol, '');
 			return;
 		}
 
-		if (isValidEmail(normalizedEmail)) {
+		if (isEmail(normalizedEmail)) {
 			onSearch('', normalizedEmail);
 		}
 	}
@@ -95,9 +96,9 @@
 	<div class="field">
 		<Input
 			label="Número do Protocolo"
-			placeholder="Ex: NEO-2026-000102"
+			placeholder="Ex: MAAT-2026-0001"
 			prefix="#"
-			maxlength={15}
+			maxlength={14}
 			oninput={handleProtocolInput}
 			bind:value={protocol}
 		/>
