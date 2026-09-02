@@ -4,6 +4,7 @@
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Input from '$lib/components/Input.svelte';
+	import { isEmail, isProtocol } from '$lib/utils/validations';
 
 	let isSearching = $state(false);
 	let protocol = $state('');
@@ -11,24 +12,25 @@
 	let hasSubmitted = $state(false);
 
 	function formatProtocol(value: string) {
-		const normalized = value
+		const withoutPrefix = value.replace(/^MAAT-?/i, '');
+
+		const normalized = withoutPrefix
 			.replace(/[^A-Z0-9]/gi, '')
 			.toUpperCase()
-			.slice(0, 12);
+			.slice(0, 8);
 
-		const firstBlock = normalized.slice(0, 4);
-		const secondBlock = normalized.slice(4, 8);
-		const thirdBlock = normalized.slice(8, 12);
+		if (!normalized) {
+			return '';
+		}
+
+		const secondBlock = normalized.slice(0, 4);
+		const thirdBlock = normalized.slice(4, 8);
 
 		if (normalized.length <= 4) {
-			return firstBlock;
+			return `MAAT-${secondBlock}`;
 		}
 
-		if (normalized.length <= 8) {
-			return `${firstBlock}-${secondBlock}`;
-		}
-
-		return `${firstBlock}-${secondBlock}-${thirdBlock}`;
+		return `MAAT-${secondBlock}-${thirdBlock}`;
 	}
 
 	function handleProtocolInput(event: Event) {
@@ -37,14 +39,11 @@
 
 		input.value = formattedProtocol;
 		protocol = formattedProtocol;
+		hasSubmitted = false;
 	}
 
-	function isProtocol(value: string): boolean {
-		return /^[A-Z]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/i.test(value);
-	}
-
-	function isEmail(value: string): boolean {
-		return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+	function handleEmailInput() {
+		hasSubmitted = false;
 	}
 
 	let formError = $derived(
@@ -101,14 +100,9 @@
 			prefix="#"
 			maxlength={14}
 			oninput={handleProtocolInput}
+			error={protocolError}
 			bind:value={protocol}
 		/>
-
-		{#if protocolError}
-			<p class="field-error" role="alert">
-				{protocolError}
-			</p>
-		{/if}
 	</div>
 
 	<div class="field">
@@ -117,14 +111,9 @@
 			label="E-mail Corporativo"
 			placeholder="emaildofulano@neo.com.br"
 			prefix="@"
+			error={emailError}
 			bind:value={email}
 		/>
-
-		{#if emailError}
-			<p class="field-error" role="alert">
-				{emailError}
-			</p>
-		{/if}
 	</div>
 
 	<div class="action">
@@ -161,15 +150,6 @@
 		position: relative;
 		flex: 1;
 		min-width: 0;
-	}
-
-	.field-error {
-		position: absolute;
-		top: 97%;
-		left: 0;
-		margin: 4px 0 0;
-		color: var(--status-red);
-		font: var(--label);
 	}
 
 	.action {
