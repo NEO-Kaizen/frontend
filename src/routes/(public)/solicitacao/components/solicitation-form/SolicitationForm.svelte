@@ -362,8 +362,7 @@
 
 <div class="form-container">
 	<header class="form-header">
-		<h1>Formulário de Demanda</h1>
-		<p>Preencha os detalhes abaixo para registrar sua nova solicitação no Portal NEO.</p>
+		<h1>Cadastre sua Solicitação</h1>
 	</header>
 
 	<StepsForm
@@ -447,11 +446,11 @@
 		margin: 0 auto;
 		display: flex;
 		flex-direction: column;
-		gap: var(--spacing-lg);
+		gap: var(--spacing-md);
 	}
 
 	.form-header {
-		text-align: left;
+		text-align: center;
 		display: flex;
 		flex-direction: column;
 	}
