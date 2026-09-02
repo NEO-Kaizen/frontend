@@ -69,7 +69,7 @@ body {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-    padding-top: var(--spacing-xl);
+	padding-top: var(--spacing-xl);
 	gap: var(--spacing-xl);
 	background-color: var(--background-color);
 	color: var(--black);

@@ -16,7 +16,7 @@
 
 <div class="not-found-card">
 	<div class="icon-wrapper">
-		<Icon iconName="searchOff" iconSize="lg" />
+		<Icon iconName="search" iconSize="lg" />
 	</div>
 	<h2>{title}</h2>
 	<p>{message}</p>
