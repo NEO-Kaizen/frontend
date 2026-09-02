@@ -4,8 +4,8 @@
 	import Input from '$lib/components/Input.svelte';
 	import Select from '$lib/components/Select.svelte';
 	import Textarea from '$lib/components/Textarea.svelte';
-	import type { ComplementaryData, StepFieldErrors } from '$lib/types/solicitation';
-	import { YES_NO_OPTIONS } from '$lib/types/solicitation';
+	import type { ComplementaryData, StepFieldErrors } from '$lib/types/request';
+	import { YES_NO_OPTIONS } from '$lib/types/request';
 	import { isFutureOrToday, isRequired } from '$lib/utils/validations';
 
 	interface Props {

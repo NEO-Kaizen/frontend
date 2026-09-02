@@ -1,11 +1,7 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
-	import type { DemandFile } from '$lib/types/solicitation';
-	import {
-		ALLOWED_FILE_TYPES,
-		ALLOWED_FILE_EXTENSIONS,
-		MAX_FILE_SIZE
-	} from '$lib/types/solicitation';
+	import type { DemandFile } from '$lib/types/request';
+	import { ALLOWED_FILE_TYPES, ALLOWED_FILE_EXTENSIONS, MAX_FILE_SIZE } from '$lib/types/request';
 
 	interface Props {
 		files?: DemandFile[];

@@ -2,7 +2,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import Select from '$lib/components/Select.svelte';
-	import type { IdentificationData, StepFieldErrors } from '$lib/types/solicitation';
+	import type { IdentificationData, StepFieldErrors } from '$lib/types/request';
 	import { isRequired, isValidEmail, isValidText } from '$lib/utils/validations';
 
 	interface Props {

@@ -16,7 +16,6 @@
 		type SolicitationDraft
 	} from '$lib/services/solicitationDraft.service';
 	import type {
-		AttachmentMetadata,
 		ComplementaryData,
 		CreateRequestPayload,
 		Criticality,
@@ -29,7 +28,7 @@
 		RequestType,
 		YesNo,
 		YesNoDetail
-	} from '$lib/types/solicitation';
+	} from '$lib/types/request';
 
 	const steps = [
 		{ id: 1, label: 'Identificação' },
@@ -241,12 +240,6 @@
 	}
 
 	function buildPayload(): CreateRequestPayload {
-		const attachments: AttachmentMetadata[] = complementary.files.map((f) => ({
-			fileName: f.fileName,
-			mimeType: f.mimeType,
-			sizeBytes: f.sizeBytes
-		}));
-
 		const hasProcessDocumentation = toYesNoDetail(
 			complementary.hasProcessDocumentation,
 			complementary.hasProcessDocumentationDetail
@@ -270,8 +263,7 @@
 			hasSimilarSolution !== undefined ||
 			dependsOnOtherAreas !== undefined ||
 			handlesRestrictedInfo !== undefined ||
-			additionalNotes !== undefined ||
-			attachments.length > 0;
+			additionalNotes !== undefined;
 
 		return {
 			requester: {
@@ -317,8 +309,7 @@
 						...(hasSimilarSolution !== undefined ? { hasSimilarSolution } : {}),
 						...(dependsOnOtherAreas !== undefined ? { dependsOnOtherAreas } : {}),
 						...(handlesRestrictedInfo !== undefined ? { handlesRestrictedInfo } : {}),
-						...(additionalNotes !== undefined ? { additionalNotes } : {}),
-						...(attachments.length > 0 ? { attachments } : {})
+						...(additionalNotes !== undefined ? { additionalNotes } : {})
 					}
 				: undefined,
 			schedulePreferences:

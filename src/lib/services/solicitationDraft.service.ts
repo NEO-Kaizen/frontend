@@ -4,7 +4,7 @@ import type {
 	DemandData,
 	IdentificationData,
 	OperationalData
-} from '$lib/types/solicitation';
+} from '$lib/types/request';
 
 const STORAGE_KEY = 'neo:solicitation-form:draft';
 const STORAGE_VERSION = 1;

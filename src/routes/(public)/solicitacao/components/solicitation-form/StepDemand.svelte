@@ -3,8 +3,8 @@
 	import Input from '$lib/components/Input.svelte';
 	import Select from '$lib/components/Select.svelte';
 	import Textarea from '$lib/components/Textarea.svelte';
-	import type { DemandData, StepFieldErrors } from '$lib/types/solicitation';
-	import { CATEGORY_OPTIONS, REQUEST_TYPE_OPTIONS } from '$lib/types/solicitation';
+	import type { DemandData, StepFieldErrors } from '$lib/types/request';
+	import { CATEGORY_OPTIONS, REQUEST_TYPE_OPTIONS } from '$lib/types/request';
 	import { isRequired } from '$lib/utils/validations';
 
 	interface Props {

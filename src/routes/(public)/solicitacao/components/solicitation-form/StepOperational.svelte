@@ -3,13 +3,13 @@
 	import Input from '$lib/components/Input.svelte';
 	import Select from '$lib/components/Select.svelte';
 	import Textarea from '$lib/components/Textarea.svelte';
-	import type { OperationalData, StepFieldErrors } from '$lib/types/solicitation';
+	import type { OperationalData, StepFieldErrors } from '$lib/types/request';
 	import {
 		CRITICALITY_OPTIONS,
 		FREQUENCY_OPTIONS,
 		IMPACT_OPTIONS,
 		YES_NO_OPTIONS
-	} from '$lib/types/solicitation';
+	} from '$lib/types/request';
 	import { isFutureOrToday, isRequired, parseNumber } from '$lib/utils/validations';
 
 	interface Props {
