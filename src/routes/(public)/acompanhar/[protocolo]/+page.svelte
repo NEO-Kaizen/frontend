@@ -3,14 +3,30 @@
 	import { page } from '$app/state';
 	import Icon from '$lib/components/Icon.svelte';
 	import NotFoundState from '$lib/components/NotFoundState.svelte';
-	import { mockSolicitations } from '$lib/mocks/solicitations';
-	import type { RequestDetail, RequestStatus } from '$lib/types/solicitation';
+	import { getRequestByProtocol } from '$lib/services/request.service';
+	import type { RequestDetail, RequestStatus } from '$lib/types/request';
 	import { formatDate, formatDateTime } from '$lib/utils/dates';
 
 	const protocol = page.params.protocolo;
-	const solicitation: RequestDetail | undefined = mockSolicitations.find(
-		(s) => s.protocol.toLowerCase() === protocol?.toLowerCase()
-	);
+
+	let solicitation = $state<RequestDetail | null>(null);
+	let isLoading = $state(true);
+
+	$effect(() => {
+		if (protocol) {
+			isLoading = true;
+			getRequestByProtocol(protocol).then((result) => {
+				if (result.ok) {
+					solicitation = result.data;
+				} else {
+					solicitation = null;
+				}
+				isLoading = false;
+			});
+		} else {
+			isLoading = false;
+		}
+	});
 
 	function getStatusTheme(status: RequestStatus): { bg: string; color: string; border: string } {
 		switch (status) {
@@ -31,10 +47,14 @@
 </script>
 
 <svelte:head>
-	<title>Detalhes da Solicitação {protocol} - NEO</title>
+	<title>Detalhes da Solicitação {protocol ?? ''} - NEO</title>
 </svelte:head>
 
-{#if solicitation}
+{#if isLoading}
+	<div style="text-align: center; padding: 48px 0; color: #64748b;">
+		<p>Carregando informações da solicitação...</p>
+	</div>
+{:else if solicitation}
 	{@const statusStyle = getStatusTheme(solicitation.status)}
 	<div class="solicitation-card">
 		<div class="card-header-top">
@@ -119,7 +139,7 @@
 {:else}
 	<NotFoundState
 		title="Solicitação não encontrada"
-		message={`Não encontramos nenhuma solicitação cadastrada com o protocolo "${protocol}".`}
+		message={`Não encontramos nenhuma solicitação cadastrada com o protocolo "${protocol ?? ''}".`}
 		hint="Verifique o número digitado e tente novamente."
 	/>
 {/if}
