@@ -105,7 +105,7 @@
 
 		{#if maxlength && type !== 'number' && type !== 'date' && type !== 'datetime-local'}
 			<span class="char-counter" aria-hidden="true">
-				{value.length}/{maxlength}
+				{getValue().length}/{maxlength}
 			</span>
 		{/if}
 
@@ -198,7 +198,7 @@
 
 	.input-wrapper:focus-within .char-counter {
 		opacity: 1;
-  }
+	}
 
 	.leading-prefix {
 		font: var(--paragrafo);

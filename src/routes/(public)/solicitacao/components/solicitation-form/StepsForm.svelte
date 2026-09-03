@@ -156,12 +156,6 @@
 		background-color: var(--secondary-color);
 	}
 
-	/* .current .circle {
-		background-color: var(--primary-color);
-		border-color: var(--primary-color);
-		color: var(--white);
-	} */
-
 	.current .step-label {
 		color: var(--primary-color);
 		font-weight: 700;

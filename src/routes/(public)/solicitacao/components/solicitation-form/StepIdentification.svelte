@@ -61,7 +61,7 @@
 	}
 
 	function clearError(field: string): void {
-		errors[field] = undefined;
+		delete errors[field];
 	}
 </script>
 

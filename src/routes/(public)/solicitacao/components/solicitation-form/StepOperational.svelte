@@ -20,9 +20,9 @@
 
 	let errors = $state<StepFieldErrors>({});
 
-	const todayDate = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
-		.toISOString()
-		.slice(0, 10);
+	const todayDate = $derived(
+		new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10)
+	);
 
 	export function validate(): boolean {
 		const e: StepFieldErrors = {};
@@ -100,7 +100,7 @@
 	}
 
 	function clearError(field: string): void {
-		errors[field] = undefined;
+		delete errors[field];
 	}
 </script>
 
