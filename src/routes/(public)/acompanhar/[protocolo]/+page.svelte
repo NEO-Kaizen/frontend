@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { resolveRoute } from '$app/paths';
 	import { page } from '$app/state';
 	import Icon from '$lib/components/Icon.svelte';
 	import NotFoundState from '$lib/components/NotFoundState.svelte';
@@ -32,16 +31,32 @@
 		switch (status) {
 			case 'Concluído':
 			case 'Elegível':
-				return { bg: '#f0fdf4', color: '#166534', border: '#bbf7d0' };
+				return {
+					bg: 'var(--status-green-bg)',
+					color: 'var(--status-green)',
+					border: 'var(--status-green)'
+				};
 			case 'Pendente de informações':
 			case 'Aguardando triagem':
 			case 'Aguardando mapeamento':
-				return { bg: '#fefce8', color: '#854d0e', border: '#fef08a' };
+				return {
+					bg: 'var(--status-yellow-bg)',
+					color: 'var(--status-yellow)',
+					border: 'var(--status-yellow)'
+				};
 			case 'Cancelado':
 			case 'Não elegível':
-				return { bg: '#fef2f2', color: '#991b1b', border: '#fecaca' };
+				return {
+					bg: 'var(--status-red-bg)',
+					color: 'var(--status-red)',
+					border: 'var(--status-red)'
+				};
 			default:
-				return { bg: '#eff6ff', color: '#1e40af', border: '#bfdbfe' };
+				return {
+					bg: 'var(--status-blue-bg)',
+					color: 'var(--status-blue)',
+					border: 'var(--status-blue)'
+				};
 		}
 	}
 </script>
@@ -51,17 +66,18 @@
 </svelte:head>
 
 {#if isLoading}
-	<div style="text-align: center; padding: 48px 0; color: #64748b;">
+	<div class="loading-state">
 		<p>Carregando informações da solicitação...</p>
 	</div>
 {:else if solicitation}
 	{@const statusStyle = getStatusTheme(solicitation.status)}
 	<div class="solicitation-card">
+		<!-- Cabeçalho -->
 		<div class="card-header-top">
 			<div class="left-badges">
 				<span class="badge-active">SOLICITAÇÃO ATIVA</span>
 				<h2>{solicitation.demandTitle}</h2>
-				<span class="protocol-code">#{solicitation.protocol}</span>
+				<span class="protocol-code">{solicitation.protocol}</span>
 			</div>
 			<div class="right-status">
 				<span
@@ -75,42 +91,64 @@
 			</div>
 		</div>
 
-		<div class="metadata-grid">
+		<!-- Linha divisória -->
+		<hr class="divider" />
+
+		<!-- Grade de Metadados (4 colunas lado a lado) -->
+		<div class="metadata-row">
 			<div class="meta-item">
-				<span class="meta-label">Responsável Técnico</span>
+				<div class="meta-header">
+					<Icon iconName="manageUsers" iconSize="sm" />
+					<span class="meta-label">RESPONSÁVEL TÉCNICO</span>
+				</div>
 				<span class="meta-value">{solicitation.assigneeName ?? 'Não atribuído'}</span>
 			</div>
+
 			<div class="meta-item">
-				<span class="meta-label">Data de Abertura</span>
+				<div class="meta-header">
+					<Icon iconName="calendarCheck" iconSize="sm" />
+					<span class="meta-label">DATA DE ABERTURA</span>
+				</div>
 				<span class="meta-value">{formatDate(solicitation.openedAt)}</span>
 			</div>
+
 			<div class="meta-item">
-				<span class="meta-label">Previsão de Conclusão</span>
+				<div class="meta-header">
+					<Icon iconName="calendarCheck" iconSize="sm" />
+					<span class="meta-label">PREVISÃO DE CONCLUSÃO</span>
+				</div>
 				<span class="meta-value">{formatDate(solicitation.estimatedCompletion)}</span>
 			</div>
+
 			<div class="meta-item">
-				<span class="meta-label">Última Atualização</span>
+				<div class="meta-header">
+					<Icon iconName="history" iconSize="sm" />
+					<span class="meta-label">ÚLTIMA ATUALIZAÇÃO</span>
+				</div>
 				<span class="meta-value">{formatDateTime(solicitation.lastUpdate)}</span>
 			</div>
 		</div>
 
+		<!-- Card de Reunião de Alinhamento -->
 		{#if solicitation.meeting}
 			<div class="meeting-card">
-				<div class="meeting-info">
-					<div class="title-with-icon">
+				<div class="meeting-left">
+					<div class="icon-square">
 						<Icon iconName="calendarCheck" iconSize="md" />
-						<h3>Reunião de Alinhamento</h3>
 					</div>
-					<p>{formatDateTime(solicitation.meeting.scheduledFor)}</p>
+					<div class="meeting-details">
+						<span class="meeting-label">REUNIÃO DE ALINHAMENTO</span>
+						<span class="meeting-time">{formatDateTime(solicitation.meeting.scheduledFor)}</span>
+					</div>
 				</div>
 				{#if solicitation.meeting.link}
 					<a
-						href={resolveRoute(solicitation.meeting.link as unknown as '/')}
+						href={solicitation.meeting.link}
 						target="_blank"
 						rel="noopener noreferrer"
 						class="btn-join"
 					>
-						<Icon iconName="link" iconSize="sm" />
+						<Icon iconName="arrowForward" iconSize="sm" />
 						<span>Entrar na reunião</span>
 					</a>
 				{:else}
@@ -126,13 +164,13 @@
 			</div>
 		{/if}
 
+		<!-- Seção Última Mensagem do Responsável -->
 		{#if solicitation.lastTechnicalMessage}
 			<div class="history-section">
-				<div class="title-with-icon">
-					<Icon iconName="history" iconSize="md" />
-					<h3>Última Mensagem do Responsável</h3>
+				<h3>Última mensagem do responsável técnico</h3>
+				<div class="speech-bubble">
+					<p>{solicitation.lastTechnicalMessage}</p>
 				</div>
-				<p class="technical-message">{solicitation.lastTechnicalMessage}</p>
 			</div>
 		{/if}
 	</div>
@@ -145,11 +183,18 @@
 {/if}
 
 <style>
+	.loading-state {
+		text-align: center;
+		padding: var(--spacing-xl) 0;
+		color: var(--gray);
+	}
+
 	.solicitation-card {
-		background: #ffffff;
-		border-radius: 8px;
-		padding: 24px;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+		background: var(--white);
+		border-radius: var(--radius-sm);
+		padding: var(--spacing-lg);
+		box-shadow: var(--regular-shadow);
+		border: var(--border-default);
 		word-break: break-word;
 	}
 
@@ -157,126 +202,202 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: flex-start;
-		gap: 16px;
-		margin-bottom: 20px;
+		gap: var(--spacing-md);
 	}
 
 	.badge-active {
 		display: inline-block;
-		font-size: 0.75rem;
+		font-size: 11px;
 		font-weight: 700;
-		color: #1e40af;
-		background: #dbeafe;
-		padding: 4px 8px;
-		border-radius: 4px;
-		margin-bottom: 8px;
+		color: var(--secondary-color);
+		background: var(--status-blue-bg);
+		padding: 3px 10px;
+		border-radius: var(--radius-md);
+		margin-bottom: var(--spacing-sm);
+		letter-spacing: 0.03em;
+		font-family: var(--font-inter);
 	}
 
 	.left-badges h2 {
 		margin: 4px 0;
-		font-size: 1.25rem;
-		line-height: 1.4;
-		color: var(--primary-color, #0f172a);
+		font-size: 20px;
+		font-weight: 700;
+		color: var(--primary-color);
+		line-height: 1.3;
+		font-family: var(--font-montserrat);
 	}
 
 	.protocol-code {
-		font-weight: 600;
-		color: #64748b;
+		font-size: 14px;
+		font-weight: 500;
+		color: var(--gray);
+		font-family: var(--font-inter);
 	}
 
 	.status-pill {
-		padding: 6px 12px;
-		border-radius: 16px;
-		font-size: 0.875rem;
+		padding: 6px 14px;
+		border-radius: var(--radius-md);
+		font-size: 13px;
 		font-weight: 600;
 		display: inline-block;
 		white-space: nowrap;
+		font-family: var(--font-inter);
 	}
 
-	.metadata-grid {
+	.divider {
+		border: none;
+		border-top: var(--border-default);
+		margin: var(--spacing-lg) 0;
+	}
+
+	.metadata-row {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-		gap: 16px;
-		margin-bottom: 24px;
-		padding: 16px;
-		background: #f8fafc;
-		border-radius: 6px;
+		grid-template-columns: repeat(4, 1fr);
+		gap: var(--spacing-md);
+		margin-bottom: var(--spacing-lg);
+	}
+
+	.meta-header {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		margin-bottom: 6px;
+		color: var(--gray);
 	}
 
 	.meta-label {
-		display: block;
-		font-size: 0.75rem;
-		color: #64748b;
-		margin-bottom: 4px;
+		font-size: 11px;
+		font-weight: 700;
+		color: var(--gray);
+		letter-spacing: 0.03em;
+		font-family: var(--font-inter);
 	}
 
 	.meta-value {
-		font-weight: 600;
-		color: #0f172a;
+		display: block;
+		font-weight: 700;
+		font-size: 14px;
+		color: var(--black);
+		line-height: 1.3;
+		font-family: var(--font-inter);
 	}
 
 	.meeting-card {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		gap: 16px;
-		padding: 16px;
-		background: #f0fdf4;
-		border: 1px solid #bbf7d0;
-		border-radius: 6px;
-		margin-bottom: 20px;
+		gap: var(--spacing-md);
+		padding: var(--spacing-md);
+		background: var(--white);
+		border: var(--border-default);
+		border-radius: var(--radius-sm);
+		margin-bottom: var(--spacing-lg);
 	}
 
-	.title-with-icon {
+	.meeting-left {
 		display: flex;
 		align-items: center;
-		gap: 8px;
-		margin-bottom: 4px;
+		gap: 12px;
 	}
 
-	.title-with-icon h3 {
-		margin: 0;
-		font-size: 1rem;
-		font-weight: 600;
+	.icon-square {
+		width: 40px;
+		height: 40px;
+		background: var(--secondary-color);
+		color: var(--white);
+		border-radius: var(--radius-sm);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+	}
+
+	.meeting-details {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+
+	.meeting-label {
+		font-size: 11px;
+		font-weight: 700;
+		color: var(--gray);
+		letter-spacing: 0.03em;
+		font-family: var(--font-inter);
+	}
+
+	.meeting-time {
+		font-size: 15px;
+		font-weight: 700;
+		color: var(--black);
+		font-family: var(--font-inter);
 	}
 
 	.btn-join {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		gap: 6px;
-		padding: 8px 16px;
-		background: #16a34a;
-		color: white;
-		border-radius: 6px;
+		gap: 8px;
+		padding: 10px 18px;
+		background: var(--secondary-color);
+		color: var(--white);
+		border-radius: var(--radius-sm);
 		text-decoration: none;
 		font-weight: 600;
+		font-size: 14px;
 		border: none;
 		white-space: nowrap;
+		font-family: var(--font-inter);
+		cursor: pointer;
 	}
 
 	.btn-join.disabled {
-		background: #9ca3af;
-		opacity: 0.8;
+		background: var(--gray);
+		opacity: 0.6;
 		cursor: not-allowed;
 	}
 
-	.technical-message {
-		background: #f8fafc;
-		padding: 12px;
-		border-left: 4px solid #0284c7;
-		border-radius: 0 4px 4px 0;
-		margin-top: 8px;
+	.history-section h3 {
+		font-size: 14px;
+		font-weight: 700;
+		color: var(--black);
+		margin: 0 0 10px 0;
+		font-family: var(--font-montserrat);
+	}
+
+	.speech-bubble {
+		position: relative;
+		background: var(--white);
+		border: var(--border-default);
+		border-radius: var(--radius-sm);
+		padding: var(--spacing-md);
+	}
+
+	.speech-bubble p {
+		margin: 0;
+		font-style: italic;
+		color: var(--black);
+		font-size: 14px;
+		font-family: var(--font-inter);
+	}
+
+	@media (max-width: 768px) {
+		.metadata-row {
+			grid-template-columns: repeat(2, 1fr);
+		}
 	}
 
 	@media (max-width: 640px) {
 		.solicitation-card {
-			padding: 16px;
+			padding: var(--spacing-md);
 		}
 
 		.card-header-top {
 			flex-direction: column;
-			align-items: flex-start;
+		}
+
+		.metadata-row {
+			grid-template-columns: 1fr;
 		}
 
 		.meeting-card {
@@ -286,10 +407,6 @@
 
 		.btn-join {
 			width: 100%;
-		}
-
-		.metadata-grid {
-			grid-template-columns: 1fr;
 		}
 	}
 </style>
