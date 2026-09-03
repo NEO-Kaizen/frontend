@@ -133,7 +133,8 @@
 				variant="primary"
 				onclick={() => {
 					goto(resolve('/(public)/solicitacao'));
-				}}>
+				}}
+			>
 				<span>+</span> Nova solicitação
 			</Button>
 			{#if isNotSolicitante}

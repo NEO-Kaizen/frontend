@@ -1,11 +1,9 @@
 <script lang="ts">
-  import FormDemanda from './components/solicitation-form/SolicitationForm.svelte'
+	import SolicitationForm from './components/solicitation-form/SolicitationForm.svelte';
 </script>
 
-
 <main class="content-container">
-<FormDemanda />
-
+	<SolicitationForm />
 </main>
 
 <style>
@@ -17,5 +15,3 @@
 		padding: var(--spacing-xl) 0;
 	}
 </style>
-
-
