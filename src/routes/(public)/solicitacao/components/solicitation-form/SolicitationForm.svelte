@@ -115,26 +115,22 @@
 		}
 	}
 
+	let draft = $derived<SolicitationDraft>({
+		version: 1,
+		identification: { ...identification },
+		demand: { ...demand },
+		operational: { ...operational },
+		complementary: {
+			...complementary,
+			preferredSchedule: [...complementary.preferredSchedule],
+			files: [...complementary.files]
+		},
+		currentStep,
+		completedSteps: [...completedSteps],
+		visitedSteps: [...visitedSteps]
+	});
+
 	$effect(() => {
-		if (!browser) return;
-		void identification;
-		void demand;
-		void operational;
-		void complementary;
-		void currentStep;
-		void completedSteps;
-		void visitedSteps;
-		void isSubmitting;
-		const draft: SolicitationDraft = {
-			version: 1,
-			identification,
-			demand,
-			operational,
-			complementary,
-			currentStep,
-			completedSteps: [...completedSteps],
-			visitedSteps: [...visitedSteps]
-		};
 		saveDraft(draft);
 	});
 

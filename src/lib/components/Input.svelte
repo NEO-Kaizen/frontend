@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
 	import type { IconName } from '$lib/types/icons';
 	import type { HTMLInputAttributes } from 'svelte/elements';
 	import Icon from './Icon.svelte';
@@ -59,21 +58,13 @@
 	const uid = $props.id();
 	const inputId = $derived(id ?? uid);
 
-	let boundValue = $state(value ?? '');
+	function getValue() {
+		return value == null ? '' : String(value);
+	}
 
-	$effect(() => {
-		const normalized = boundValue == null ? '' : String(boundValue);
-		if (untrack(() => value) !== normalized) {
-			value = normalized;
-		}
-	});
-
-	$effect(() => {
-		const external = value ?? '';
-		if (String(boundValue ?? '') !== external) {
-			boundValue = external;
-		}
-	});
+	function setValue(newValue: string | number | null | undefined) {
+		value = newValue == null ? '' : String(newValue);
+	}
 </script>
 
 <div class="input-field">
@@ -97,7 +88,7 @@
 			{required}
 			{disabled}
 			{maxlength}
-			bind:value={boundValue}
+			bind:value={getValue, setValue}
 			aria-invalid={error ? true : undefined}
 			aria-describedby={error ? `${inputId}-error` : undefined}
 			class:error={Boolean(error)}
