@@ -1,8 +1,9 @@
+<script lang="ts">
+	import SolicitationForm from './components/solicitation-form/SolicitationForm.svelte';
+</script>
+
 <main class="content-container">
-	<section class="placeholder">
-		<h1>Abrir solicitação</h1>
-		<p>Esta área está prevista para uma próxima sprint.</p>
-	</section>
+	<SolicitationForm />
 </main>
 
 <style>

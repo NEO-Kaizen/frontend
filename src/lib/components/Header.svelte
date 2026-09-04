@@ -129,9 +129,13 @@
 					disabled={isSearching}
 				/>
 			</form>
-			<Button>
-				<span>+</span>
-				Nova solicitação
+			<Button
+				variant="primary"
+				onclick={() => {
+					goto(resolve('/(public)/solicitacao'));
+				}}
+			>
+				<span>+</span> Nova solicitação
 			</Button>
 			{#if isNotSolicitante}
 				<div class="separator_bar-column"></div>

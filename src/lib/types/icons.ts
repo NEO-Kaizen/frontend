@@ -35,6 +35,7 @@ export const iconDictionary = {
 	visibility: 'visibility',
 	visibilityOff: 'visibility_off',
 	arrowForward: 'arrow_forward',
+	arrowBack: 'arrow_back',
 	adminPanel: 'admin_panel_settings',
 	calendarCheck: 'event_available',
 	security: 'security',
@@ -44,7 +45,14 @@ export const iconDictionary = {
 	pending: 'pending',
 	calculate: 'calculate',
 	link: 'link',
-	info: 'info'
+	info: 'info',
+	check: 'check',
+	person: 'person',
+	description: 'description',
+	send: 'send',
+	cloudUpload: 'cloud_upload',
+	delete: 'delete',
+	calendarMonth: 'calendar_month'
 } as const;
 
 export type IconName = keyof typeof iconDictionary;
