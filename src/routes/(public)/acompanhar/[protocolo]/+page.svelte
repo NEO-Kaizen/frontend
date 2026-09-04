@@ -133,7 +133,7 @@
 					<a
 						href={solicitation.meeting.link}
 						target="_blank"
-						rel="noopener noreferrer"
+						rel="external noopener noreferrer"
 						class="btn-join"
 					>
 						<Icon iconName="arrowForward" iconSize="sm" />
