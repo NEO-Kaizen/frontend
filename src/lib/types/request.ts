@@ -184,6 +184,9 @@ export interface RequestSummary {
 	assignee: string | null;
 	requesterName: string;
 }
+export interface RequestsTableSummery extends RequestSummary {
+  corporateEmail: string;
+}
 
 export interface RequestDetail {
 	protocol: string;
