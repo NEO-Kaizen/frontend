@@ -28,12 +28,13 @@
 
 <style>
 	.not-found-card {
-		background: #ffffff;
-		border-radius: 8px;
-		padding: 32px 24px;
+		background: var(--white);
+		border: var(--border-default);
+		border-radius: var(--radius-sm);
+		padding: var(--spacing-lg);
 		text-align: center;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-		margin-top: 24px;
+		box-shadow: var(--regular-shadow);
+		margin-top: var(--spacing-lg);
 	}
 
 	.icon-wrapper {
@@ -42,27 +43,27 @@
 		justify-content: center;
 		width: 48px;
 		height: 48px;
-		background-color: #f1f5f9;
-		color: #64748b;
+		background-color: var(--background-color);
+		color: var(--primary-color);
 		border-radius: 50%;
-		margin-bottom: 16px;
+		margin-bottom: var(--spacing-md);
 	}
 
 	h2 {
-		margin: 0 0 8px 0;
-		font-size: 1.25rem;
-		color: #0f172a;
+		margin: 0 0 var(--spacing-sm) 0;
+		font: var(--h3);
+		color: var(--primary-color);
 	}
 
 	p {
-		margin: 0 0 8px 0;
-		color: #475569;
-		font-size: 0.95rem;
+		margin: 0 0 var(--spacing-sm) 0;
+		color: var(--black);
+		font: var(--paragrafo);
 	}
 
 	.hint {
-		font-size: 0.85rem;
-		color: #64748b;
+		font: var(--paragrafo);
+		color: var(--gray);
 		margin-bottom: 0;
 	}
 </style>
