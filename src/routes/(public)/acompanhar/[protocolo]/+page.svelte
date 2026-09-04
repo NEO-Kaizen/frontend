@@ -12,6 +12,14 @@
 	const solicitation = $derived(data.solicitation);
 	const error = $derived(data.error);
 
+	const TERMINAL_STATUSES: RequestStatus[] = ['Concluído', 'Cancelado', 'Não elegível'];
+
+	const badgeLabel = $derived(
+		solicitation && TERMINAL_STATUSES.includes(solicitation.status)
+			? 'SOLICITAÇÃO ENCERRADA'
+			: 'SOLICITAÇÃO ATIVA'
+	);
+
 	function getStatusTheme(status: RequestStatus): { bg: string; color: string; border: string } {
 		switch (status) {
 			case 'Concluído':
@@ -63,8 +71,8 @@
 		<!-- Cabeçalho -->
 		<div class="card-header-top">
 			<div class="left-badges">
-				<span class="badge-active">SOLICITAÇÃO ATIVA</span>
-				<h2>{solicitation.demandTitle}</h2>
+				<span class="badge-active">{badgeLabel}</span>
+				<h1>{solicitation.demandTitle}</h1>
 				<span class="protocol-code">{solicitation.protocol}</span>
 			</div>
 			<div class="right-status">
@@ -147,6 +155,7 @@
 					>
 						<Icon iconName="block" iconSize="sm" />
 						<span>Link indisponível</span>
+						<span class="sr-only">: o link será disponibilizado após o agendamento da reunião</span>
 					</button>
 				{/if}
 			</div>
@@ -155,7 +164,7 @@
 		<!-- Seção Última Mensagem do Responsável -->
 		{#if solicitation.lastTechnicalMessage}
 			<div class="history-section">
-				<h3>Última mensagem do responsável técnico</h3>
+				<h2>Última mensagem do responsável técnico</h2>
 				<div class="speech-bubble">
 					<p>{solicitation.lastTechnicalMessage}</p>
 				</div>
@@ -235,7 +244,7 @@
 		font-family: var(--font-inter);
 	}
 
-	.left-badges h2 {
+	.left-badges h1 {
 		margin: 4px 0;
 		font-size: 20px;
 		font-weight: 700;
@@ -374,7 +383,7 @@
 		cursor: not-allowed;
 	}
 
-	.history-section h3 {
+	.history-section h2 {
 		font-size: 14px;
 		font-weight: 700;
 		color: var(--black);
