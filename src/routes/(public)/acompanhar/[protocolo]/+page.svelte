@@ -10,21 +10,33 @@
 
 	let solicitation = $state<RequestDetail | null>(null);
 	let isLoading = $state(true);
+	let errorMessage = $state<string | null>(null);
+
+	async function loadSolicitation(): Promise<void> {
+		if (!protocol) {
+			isLoading = false;
+			return;
+		}
+
+		isLoading = true;
+		errorMessage = null;
+
+		const result = await getRequestByProtocol(protocol);
+
+		if (result.ok) {
+			solicitation = result.data;
+		} else {
+			solicitation = null;
+			if (result.error.status !== 404) {
+				errorMessage = result.error.message;
+			}
+		}
+
+		isLoading = false;
+	}
 
 	$effect(() => {
-		if (protocol) {
-			isLoading = true;
-			getRequestByProtocol(protocol).then((result) => {
-				if (result.ok) {
-					solicitation = result.data;
-				} else {
-					solicitation = null;
-				}
-				isLoading = false;
-			});
-		} else {
-			isLoading = false;
-		}
+		void loadSolicitation();
 	});
 
 	function getStatusTheme(status: RequestStatus): { bg: string; color: string; border: string } {
@@ -68,6 +80,13 @@
 {#if isLoading}
 	<div class="loading-state">
 		<p>Carregando informações da solicitação...</p>
+	</div>
+{:else if errorMessage}
+	<div class="error-state" role="alert">
+		<p>{errorMessage}</p>
+		<button type="button" class="btn-retry" onclick={() => loadSolicitation()}>
+			Tentar novamente
+		</button>
 	</div>
 {:else if solicitation}
 	{@const statusStyle = getStatusTheme(solicitation.status)}
@@ -187,6 +206,41 @@
 		text-align: center;
 		padding: var(--spacing-xl) 0;
 		color: var(--gray);
+	}
+
+	.error-state {
+		background: var(--white);
+		border: var(--border-default);
+		border-radius: var(--radius-sm);
+		padding: var(--spacing-lg);
+		text-align: center;
+		box-shadow: var(--regular-shadow);
+		margin-top: var(--spacing-lg);
+		color: var(--status-red);
+	}
+
+	.error-state p {
+		margin-bottom: var(--spacing-md);
+		font: var(--paragrafo);
+		color: var(--status-red);
+	}
+
+	.btn-retry {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: 8px 16px;
+		background: var(--primary-color);
+		color: var(--white);
+		border: none;
+		border-radius: var(--radius-sm);
+		font: var(--button);
+		cursor: pointer;
+		transition: var(--transition-default);
+	}
+
+	.btn-retry:hover {
+		background: var(--secondary-color);
 	}
 
 	.solicitation-card {
