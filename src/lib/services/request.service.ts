@@ -13,7 +13,7 @@ import type {
 	RequestDetail
 } from '$lib/types/request';
 
-import { isEmail, isProtocol } from '$lib/utils/validations';
+import { isProtocol, isValidEmail } from '$lib/utils/validations';
 
 type SubmitDemandResult =
 	| { ok: true; data: CreateRequestResponse }
@@ -89,7 +89,7 @@ export async function searchRequests(value: string): Promise<SearchRequestsResul
 		return getRequestByProtocol(normalizedValue);
 	}
 
-	if (isEmail(normalizedValue)) {
+	if (isValidEmail(normalizedValue)) {
 		return listRequests({
 			email: normalizedValue
 		});
