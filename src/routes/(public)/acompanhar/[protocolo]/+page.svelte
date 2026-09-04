@@ -1,43 +1,16 @@
 <script lang="ts">
-	import { page } from '$app/state';
+	import { invalidateAll } from '$app/navigation';
 	import Icon from '$lib/components/Icon.svelte';
 	import NotFoundState from '$lib/components/NotFoundState.svelte';
-	import { getRequestByProtocol } from '$lib/services/request.service';
-	import type { RequestDetail, RequestStatus } from '$lib/types/request';
+	import type { RequestStatus } from '$lib/types/request';
 	import { formatDate, formatDateTime } from '$lib/utils/dates';
+	import type { PageProps } from './$types';
 
-	const protocol = page.params.protocolo;
+	let { data }: PageProps = $props();
 
-	let solicitation = $state<RequestDetail | null>(null);
-	let isLoading = $state(true);
-	let errorMessage = $state<string | null>(null);
-
-	async function loadSolicitation(): Promise<void> {
-		if (!protocol) {
-			isLoading = false;
-			return;
-		}
-
-		isLoading = true;
-		errorMessage = null;
-
-		const result = await getRequestByProtocol(protocol);
-
-		if (result.ok) {
-			solicitation = result.data;
-		} else {
-			solicitation = null;
-			if (result.error.status !== 404) {
-				errorMessage = result.error.message;
-			}
-		}
-
-		isLoading = false;
-	}
-
-	$effect(() => {
-		void loadSolicitation();
-	});
+	const protocol = $derived(data.protocol);
+	const solicitation = $derived(data.solicitation);
+	const error = $derived(data.error);
 
 	function getStatusTheme(status: RequestStatus): { bg: string; color: string; border: string } {
 		switch (status) {
@@ -77,14 +50,10 @@
 	<title>Detalhes da Solicitação {protocol ?? ''} - NEO</title>
 </svelte:head>
 
-{#if isLoading}
-	<div class="loading-state">
-		<p>Carregando informações da solicitação...</p>
-	</div>
-{:else if errorMessage}
+{#if error && error.status !== 404}
 	<div class="error-state" role="alert">
-		<p>{errorMessage}</p>
-		<button type="button" class="btn-retry" onclick={() => loadSolicitation()}>
+		<p>{error.message}</p>
+		<button type="button" class="btn-retry" onclick={() => invalidateAll()}>
 			Tentar novamente
 		</button>
 	</div>
@@ -202,12 +171,6 @@
 {/if}
 
 <style>
-	.loading-state {
-		text-align: center;
-		padding: var(--spacing-xl) 0;
-		color: var(--gray);
-	}
-
 	.error-state {
 		background: var(--white);
 		border: var(--border-default);
