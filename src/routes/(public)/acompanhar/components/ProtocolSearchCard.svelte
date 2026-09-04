@@ -4,7 +4,7 @@
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Input from '$lib/components/Input.svelte';
-	import { isEmail, isProtocol } from '$lib/utils/validations';
+	import { isValidEmail, isProtocol } from '$lib/utils/validations';
 	import { onMount } from 'svelte';
 
 	let isSearching = $state(false);
@@ -68,7 +68,7 @@
 	);
 
 	let emailError = $derived(
-		email.trim() && !isEmail(email.trim()) ? 'Informe um e-mail válido.' : ''
+		email.trim() && !isValidEmail(email.trim()) ? 'Informe um e-mail válido.' : ''
 	);
 
 	async function handleSubmit(event: SubmitEvent) {
@@ -90,7 +90,7 @@
 				return;
 			}
 
-			if (isEmail(normalizedEmail)) {
+			if (isValidEmail(normalizedEmail)) {
 				isSearching = true;
 				const search = new URLSearchParams({ email: normalizedEmail }).toString();
 				await goto(resolve(`/(public)/acompanhar?${search}`));
