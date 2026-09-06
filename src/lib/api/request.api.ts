@@ -1,6 +1,6 @@
 import { ApiError, apiClient } from './client';
 import { env } from '$env/dynamic/public';
-import { listRequestsMock, getRequestByProtocolMock } from '$lib/mocks/request.api';
+import { listRequestsMock, getRequestByProtocolMock } from '$lib/mocks/requests.mock';
 import type {
 	ApiErrorResponse,
 	CreateRequestPayload,

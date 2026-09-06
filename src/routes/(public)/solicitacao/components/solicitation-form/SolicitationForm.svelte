@@ -14,7 +14,7 @@
 		loadDraft,
 		saveDraft,
 		type SolicitationDraft
-	} from '$lib/services/solicitationDraft.service';
+	} from '$lib/services/solicitation-draft.service';
 	import type {
 		ComplementaryData,
 		CreateRequestPayload,
