@@ -2,8 +2,9 @@
 	import Icon from './Icon.svelte';
 	import type { IconName } from '$lib/types/icons';
 	import { page } from '$app/state';
-	import Button from './Button.svelte';
+	import Button from '$lib/components/Button.svelte';
 	import logo from '$lib/assets/NEO-logo.svg';
+	import avatar from '$lib/assets/avatar-default.svg';
 	import type { RouteId } from '$app/types';
 	import type { UserType } from '$lib/types/user';
 	import Input from './Input.svelte';
@@ -15,7 +16,6 @@
 	interface NavButton {
 		name: string;
 		icon: IconName;
-		//Opcional até ter as rotas definidas
 		href?: RouteId;
 	}
 
@@ -25,18 +25,19 @@
 		{
 			name: 'Home',
 			icon: 'home',
-			//Mais para quesito de teste visual
 			href: '/'
 		},
 		{
 			name: 'Fila Centralizada',
-			icon: 'centralQueue'
+			icon: 'centralQueue',
+			href: '/(admin)/fila'
 		}
 	];
 
 	const gestorNav: NavButton[] = [
 		...analistaNav,
 		{
+			// 'Histórico de Logs' ainda não tem rota (prevista em outra issue)
 			name: 'Histórico de Logs',
 			icon: 'history'
 		}
@@ -46,7 +47,8 @@
 		...gestorNav,
 		{
 			name: 'Gerenciar Usuários',
-			icon: 'manageUsers'
+			icon: 'manageUsers',
+			href: '/(admin)/usuarios'
 		}
 	];
 
@@ -93,7 +95,10 @@
 
 			const searchParams = new URLSearchParams({ email: value });
 
-			await goto(resolve(`/(public)/chamado?${searchParams.toString()}` as '/(public)/chamado'));
+			// Plugin não aceita query string após resolve() (eslint-plugin-svelte#1327);
+			// a navegação é validada em runtime pelo SvelteKit.
+			// eslint-disable-next-line svelte/no-navigation-without-resolve
+			await goto(`${resolve('/(public)/acompanhar')}?${searchParams.toString()}`);
 		} finally {
 			isSearching = false;
 		}
@@ -144,10 +149,7 @@
 						<p class="profile_block-name">{currentUser?.name}</p>
 						<p class="profile_block-role">{currentUser?.role}</p>
 					</div>
-					<img
-						src="https://images.icon-icons.com/1238/PNG/512/blacksquare_83753.png"
-						alt="imagem do usuário"
-					/>
+					<img src={avatar} alt="Imagem do usuário" width="47" height="47" />
 				</div>
 			{:else}
 				<Button
@@ -169,7 +171,10 @@
 		<div class="nav">
 			<div class="nav-items-group">
 				{#each navItems[currentUser?.role ?? 'Solicitante'] as item (item.name)}
-					<div class="nav-item" class:active={page.url.pathname === item.href}>
+					<div
+						class="nav-item"
+						class:active={item.href ? page.url.pathname === resolve(item.href) : false}
+					>
 						<Icon iconName={item.icon} />
 						<a href={item.href ? resolve(item.href) : undefined}>{item.name}</a>
 					</div>
