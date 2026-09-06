@@ -235,6 +235,8 @@
 		return trimmed ? trimmed : undefined;
 	}
 
+	// Consumido pelo épico #52 — substituirá o submit simulado.
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	function buildPayload(): CreateRequestPayload {
 		const hasProcessDocumentation = toYesNoDetail(
 			complementary.hasProcessDocumentation,
