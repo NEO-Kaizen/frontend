@@ -44,7 +44,7 @@ Utilize o Svelte MCP sempre que a dúvida envolver svelte e/ou algum dos tópico
 - SSR
 - CSR
 - hydration
-- stores
+- stores (legado) / estados com runes
 - snippets
 - breaking changes
 - recursos específicos do framework

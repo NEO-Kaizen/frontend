@@ -2,7 +2,7 @@
 
 ## 1. Objetivo
 
-Este documento define como as partes do frontend do Projeto NEO se relacionam e quais são as responsabilidades de cada camada.
+Este documento define como as partes do frontend do projeto MAAT se relacionam e quais são as responsabilidades de cada camada.
 
 A arquitetura busca separar:
 
@@ -23,7 +23,7 @@ src/
 ├── lib/
 │   ├── types/
 │   │   ├── user.ts
-│   │   ├── solicitation.ts
+│   │   ├── request.ts
 │   │   ├── queue.ts
 │   │   ├── auth.ts
 │   │   └── index.ts
@@ -31,23 +31,24 @@ src/
 │   ├── api/
 │   │   ├── client.ts
 │   │   ├── user.api.ts
-│   │   ├── solicitation.api.ts
+│   │   ├── request.api.ts
 │   │   ├── queue.api.ts
 │   │   ├── auth.api.ts
 │   │   └── index.ts
 │   │
 │   ├── services/
 │   │   ├── user.service.ts
-│   │   ├── solicitation.service.ts
+│   │   ├── request.service.ts
 │   │   ├── assignment.service.ts
 │   │   ├── queue.service.ts
 │   │   ├── auth.service.ts
+│   │   ├── access.service.ts
 │   │   └── index.ts
 │   │
 │   ├── mocks/
-│   │   ├── users.ts
-│   │   ├── solicitations.ts
-│   │   ├── auth.ts
+│   │   ├── users.mock.ts
+│   │   ├── requests.mock.ts
+│   │   ├── auth.mock.ts
 │   │   └── index.ts
 │   │
 │   ├── states/
@@ -60,7 +61,7 @@ src/
 │   │   ├── layout/
 │   │   ├── forms/
 │   │   ├── users/
-│   │   └── solicitation/
+│   │   └── request/
 │   │
 │   ├── styles/
 │   │   ├── tokens.css
@@ -226,9 +227,7 @@ services/
 
 ## 9. Estado compartilhado
 
-Estados compartilhados podem ser gerenciados com recursos do Svelte, como `$state`, ou stores, dependendo da necessidade.
-
-Exemplos:
+Estado compartilhado é implementado em `states/*.svelte.ts` com runes do Svelte 5 (`$state`/`$derived`), padrão oficial do Svelte 5. States não substituem a sessão definida no servidor. Exemplos:
 
 - usuário autenticado;
 - sessão;
@@ -276,7 +275,7 @@ A pasta `utils/` contém funções genéricas e reutilizáveis, como:
 - manipulação de parâmetros de URL;
 - debounce.
 
-Uma função que representa uma regra específica do NEO deve pertencer a um service, e não a `utils/`.
+Uma função que representa uma regra específica do MAAT deve pertencer a um service, e não a `utils/`.
 
 ### Constants
 
@@ -318,11 +317,27 @@ routes/
 └── (admin)/
 ```
 
-- `(public)`: páginas públicas;
-- `(app)`: páginas disponíveis para usuários autenticados;
-- `(admin)`: páginas administrativas.
+- `(public)`: páginas públicas (anônimos e Solicitante);
+- `(app)`: páginas de qualquer usuário autenticado — `guard('anySession')`;
+- `(admin)`: páginas das áreas internas (Analista, Gestor, Administrador) — `guard('internalArea')`.
 
 Os grupos entre parênteses organizam as rotas sem alterar diretamente a URL e devem ser criados conforme a necessidade do projeto.
+
+**Grupo ≠ perfil.** O perfil do usuário (Solicitante, Analista, Gestor, Administrador) nunca gera um novo grupo de rotas; é resolvido na tabela `GUARD_RULES` do access service (`src/lib/services/access.service.ts`). Um futuro perfil Gestor, por exemplo, é uma linha em `profiles` de uma regra — não um grupo `(gestor)/`.
+
+O grupo `(admin)` tem papel de guard server-side (não define layout visual): o Header permanece único, com navegação por perfil.
+
+**Colocação de componentes.** Componentes específicos de uma página podem ficar colocalizados em `routes/.../components/` (padrão suportado pelo SvelteKit: arquivos sem prefixo `+` nunca se tornam rotas). Componentes reutilizados por várias páginas pertencem a `lib/components/`.
+
+### Regra da home
+
+O logo e o item "Home" da navegação apontam sempre para `/`; a decisão de "qual é a home por contexto" vive em um único lugar no servidor (`(public)/+page.server.ts`, via access service):
+
+- anônimo → permanece na home pública;
+- Solicitante autenticado → permanece na home pública;
+- Analista/Gestor/Administrador → `redirect(303, '/painel')`.
+
+Nenhum `href` na UI é fixado em `/painel`.
 
 ---
 

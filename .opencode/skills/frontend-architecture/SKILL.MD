@@ -31,7 +31,7 @@ src/
 ├── lib/
 │   ├── types/
 │   │   ├── user.ts
-│   │   ├── solicitation.ts
+│   │   ├── request.ts
 │   │   ├── queue.ts
 │   │   ├── auth.ts
 │   │   └── index.ts
@@ -39,28 +39,28 @@ src/
 │   ├── api/
 │   │   ├── client.ts
 │   │   ├── user.api.ts
-│   │   ├── solicitation.api.ts
+│   │   ├── request.api.ts
 │   │   ├── queue.api.ts
 │   │   ├── auth.api.ts
 │   │   └── index.ts
 │   │
 │   ├── services/
 │   │   ├── user.service.ts
-│   │   ├── solicitation.service.ts
+│   │   ├── request.service.ts
 │   │   ├── assignment.service.ts
 │   │   ├── queue.service.ts
 │   │   ├── auth.service.ts
 │   │   └── index.ts
 │   │
 │   ├── mocks/
-│   │   ├── users.ts
-│   │   ├── solicitations.ts
-│   │   ├── auth.ts
+│   │   ├── users.mock.ts
+│   │   ├── requests.mock.ts
+│   │   ├── auth.mock.ts
 │   │   └── index.ts
 │   │
-│   ├── stores/
-│   │   ├── auth.store.ts
-│   │   ├── toast.store.ts
+│   ├── states/
+│   │   ├── auth.svelte.ts
+│   │   ├── toast.svelte.ts
 │   │   └── index.ts
 │   │
 │   ├── components/
@@ -68,7 +68,7 @@ src/
 │   │   ├── layout/
 │   │   ├── forms/
 │   │   ├── users/
-│   │   └── solicitation/
+│   │   └── request/
 │   │
 │   ├── styles/
 │   │   ├── tokens.css
@@ -119,12 +119,12 @@ API
    ↓
 Service
    ↓
-Store ou página
+State ou página
    ↓
 Interface
 ```
 
-Nem toda operação precisa utilizar uma store. Estados utilizados apenas em uma página ou componente devem permanecer locais.
+Nem toda operação precisa utilizar estado compartilhado. Estados utilizados apenas em uma página ou componente devem permanecer locais.
 
 ## 4. Componentes e páginas
 
@@ -135,7 +135,7 @@ Devem:
 - exibir dados;
 - capturar eventos;
 - controlar estados visuais;
-- chamar services ou stores;
+- chamar services ou states;
 - mostrar loading, erro, vazio e sucesso;
 - evitar conhecer detalhes de endpoints;
 - evitar concentrar regras de negócio.
@@ -158,7 +158,7 @@ Pode conter:
 
 > **Importante:** Os tipos do frontend devem representar fielmente o contrato da API. Os exemplos e estruturas iniciais deverão ser atualizados conforme as definições do backend.
 
-A pasta `types/` não deve realizar requisições, acessar stores ou conter regras de negócio.
+A pasta `types/` não deve realizar requisições, acessar states ou conter regras de negócio.
 
 ---
 
@@ -280,8 +280,8 @@ A pasta `constants/` contém valores fixos utilizados em diferentes partes do pr
 A pasta `routes/` segue o sistema de rotas baseado em arquivos do SvelteKit.
 
 - `(public)`: páginas públicas, como login;
-- `(app)`: páginas disponíveis para usuários autenticados;
-- `(admin)`: páginas administrativas.
+- `(app)`: páginas de qualquer usuário autenticado — `guard('anySession')`;
+- `(admin)`: páginas das áreas internas (Analista, Gestor, Administrador) — `guard('internalArea')`. Grupo tem papel de guard server-side, nunca de layout visual; perfil é resolvido no access service (`GUARD_RULES`), nunca criando grupos por perfil.
 
 Os grupos entre parênteses organizam as rotas sem alterar diretamente a URL.
 
@@ -290,9 +290,9 @@ Os grupos entre parênteses organizam as rotas sem alterar diretamente a URL.
 ## 12. Dependências permitidas
 
 ```text
-components → services, stores, types, utils e constants
-pages      → components, services, stores e types
-stores     → services e types
+components → services, states, types, utils e constants
+pages      → components, services, states e types
+states     → services e types
 services   → api, types, mocks, utils e constants
 api        → types e utils
 mocks      → types
@@ -311,7 +311,7 @@ lib/
 ├── components/
 ├── types/
 ├── mocks/
-└── stores/
+└── states/
 ```
 
 Caso uma funcionalidade cresça muito, seus arquivos podem ser agrupados:
@@ -334,7 +334,7 @@ A pasta `features/` não precisa ser criada no início. Ela deve ser adotada som
 
 - Não realizar chamadas HTTP diretamente em componentes reutilizáveis.
 - Não colocar regras extensas dentro de páginas.
-- Não criar stores para estados locais.
+- Não criar states para estados locais.
 - Evitar o uso de `any`.
 - Manter os tipos sincronizados com o backend.
 - O backend deve validar definitivamente todas as permissões e regras.
