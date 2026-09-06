@@ -1,11 +1,8 @@
-import { ApiError } from '$lib/api/client';
 import { login as loginRequest, logout as logoutRequest } from '$lib/api/auth.api';
 import type { LoginCredentials, LoginResponse } from '$lib/types/auth';
+import { ApiError, type Result } from '$lib/types/result';
 
-type LoginResult =
-	{ ok: true; data: LoginResponse } | { ok: false; error: { status?: number; message: string } };
-
-export async function login(credentials: LoginCredentials): Promise<LoginResult> {
+export async function login(credentials: LoginCredentials): Promise<Result<LoginResponse>> {
 	try {
 		const data = await loginRequest(credentials);
 		return { ok: true, data };

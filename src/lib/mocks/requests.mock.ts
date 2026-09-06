@@ -1,4 +1,4 @@
-import { ApiError } from '$lib/api/client';
+import { ApiError } from '$lib/types/result';
 import type {
 	ListRequestsQuery,
 	PaginatedResponse,
