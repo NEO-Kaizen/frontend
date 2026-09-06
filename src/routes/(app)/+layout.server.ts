@@ -1,8 +1,6 @@
-import { redirect } from '@sveltejs/kit';
+import { guard } from '$lib/services/access.service';
 import type { LayoutServerLoad } from './$types';
 
 export const load: LayoutServerLoad = ({ locals }) => {
-	if (!locals.user) {
-		redirect(303, '/sem-autorizacao');
-	}
+	guard('anySession', locals.user);
 };
