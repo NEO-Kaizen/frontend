@@ -17,6 +17,8 @@
 		name: string;
 		icon: IconName;
 		href?: RouteId;
+		// Sem rota associada: item exibido como indisponível, sem link.
+		disabled?: boolean;
 	}
 
 	const currentUser = $derived(page.data.user);
@@ -38,8 +40,10 @@
 		...analistaNav,
 		{
 			// 'Histórico de Logs' ainda não tem rota (prevista em outra issue)
+			// (Sprint 4) — item cinza até a rota existir, impede link sem href.
 			name: 'Histórico de Logs',
-			icon: 'history'
+			icon: 'history',
+			disabled: true
 		}
 	];
 
@@ -171,13 +175,20 @@
 		<div class="nav">
 			<div class="nav-items-group">
 				{#each navItems[currentUser?.role ?? 'Solicitante'] as item (item.name)}
-					<div
-						class="nav-item"
-						class:active={item.href ? page.url.pathname === resolve(item.href) : false}
-					>
-						<Icon iconName={item.icon} />
-						<a href={item.href ? resolve(item.href) : undefined}>{item.name}</a>
-					</div>
+					{#if item.disabled}
+						<div class="nav-item inactive" aria-disabled="true">
+							<Icon iconName={item.icon} />
+							<span>{item.name}</span>
+						</div>
+					{:else}
+						<div
+							class="nav-item"
+							class:active={item.href ? page.url.pathname === resolve(item.href) : false}
+						>
+							<Icon iconName={item.icon} />
+							<a href={item.href ? resolve(item.href) : undefined}>{item.name}</a>
+						</div>
+					{/if}
 				{/each}
 			</div>
 			<button
@@ -273,14 +284,18 @@
 		transition: var(--transition-default);
 		border-radius: var(--radius-md);
 	}
-	.nav-item:hover,
+	.nav-item:not(.inactive):hover,
 	.nav-item:has(a:focus-visible),
-	.nav-item:focus-visible,
+	.nav-item:not(.inactive):focus-visible,
 	.nav-item.active {
 		background-color: var(--primary-color);
 		color: var(--white);
 	}
 	.nav-item:disabled {
+		cursor: not-allowed;
+		opacity: 0.6;
+	}
+	.nav-item.inactive {
 		cursor: not-allowed;
 		opacity: 0.6;
 	}
