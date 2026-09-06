@@ -2,9 +2,9 @@
 
 ## 1. Objetivo
 
-Este documento apresenta a visão geral do frontend do **Projeto NEO**.
+Este documento apresenta a visão geral do frontend do **Projeto MAAT Flow**.
 
-O NEO é uma aplicação web interna destinada ao recebimento, organização, triagem, priorização, delegação e acompanhamento de solicitações.
+O MAAT Flow é uma aplicação web interna destinada ao recebimento, organização, triagem, priorização, delegação e acompanhamento de solicitações.
 
 A documentação desta pasta define como o frontend deve ser organizado, desenvolvido, revisado e mantido pela equipe.
 

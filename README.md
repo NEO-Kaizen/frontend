@@ -1,6 +1,6 @@
-# NEO
+# MAAT Flow
 
-O **NEO** é uma aplicação voltada para a **gestão de solicitações**, permitindo a abertura, acompanhamento e gerenciamento de demandas de forma centralizada.
+O **MAAT Flow** é uma aplicação voltada para a **gestão de solicitações**, permitindo a abertura, acompanhamento e gerenciamento de demandas de forma centralizada.
 
 A aplicação possui diferentes níveis de acesso, permitindo que **solicitantes, analistas, gestores e administradores** tenham acesso às funcionalidades de acordo com suas responsabilidades.
 
