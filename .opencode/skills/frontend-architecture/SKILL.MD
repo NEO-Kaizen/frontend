@@ -44,13 +44,14 @@ src/
 │   │   ├── auth.api.ts
 │   │   └── index.ts
 │   │
-│   ├── services/
-│   │   ├── user.service.ts
-│   │   ├── request.service.ts
-│   │   ├── assignment.service.ts
-│   │   ├── queue.service.ts
-│   │   ├── auth.service.ts
-│   │   └── index.ts
+	│   ├── services/
+	│   │   ├── user.service.ts
+	│   │   ├── request.service.ts
+	│   │   ├── assignment.service.ts
+	│   │   ├── queue.service.ts
+	│   │   ├── auth.service.ts
+	│   │   ├── access.service.ts
+	│   │   └── index.ts
 │   │
 │   ├── mocks/
 │   │   ├── users.mock.ts
