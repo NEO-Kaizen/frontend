@@ -183,7 +183,7 @@
 		pointer-events: none;
 		color: var(--gray);
 	}
-	
+
 	.char-counter {
 		position: absolute;
 		right: var(--spacing-sm);
