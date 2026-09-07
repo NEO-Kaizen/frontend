@@ -14,9 +14,10 @@
 	import { searchRequests } from '$lib/services/request.service';
 
 	// KNOWN ISSUE (svelte-check) — não estreitar este tipo sem entender a causa:
-	// `resolve(item.href)` (abaixo, no markup) acusa erro porque o `RouteId`
-	// gerado inclui ids de diretórios sem página (ex.: pastas `components/` da
-	// colocação de componentes) e `resolve()` usa tipo condicional distributivo.
+	// `resolve(item.href)` (no helper `isActive` e abaixo, no markup) acusa erro
+	// porque o `RouteId` gerado inclui ids de diretórios sem página (ex.: pastas
+	// `components/` da colocação de componentes) e `resolve()` usa tipo
+	// condicional distributivo.
 	// Falso-positivo: runtime e build passam; só o `check` fica vermelho.
 	interface NavButton {
 		name: string;
@@ -28,11 +29,17 @@
 
 	const currentUser = $derived(page.data.user);
 
+	function isActive(item: NavButton, pathname: string): boolean {
+		if (!item.href) return false;
+		const resolved = resolve(item.href);
+		return pathname === resolved || pathname.startsWith(`${resolved}/`);
+	}
+
 	const analistaNav: NavButton[] = [
 		{
 			name: 'Home',
 			icon: 'home',
-			href: '/'
+			href: '/(admin)/home'
 		},
 		{
 			name: 'Fila Centralizada',
@@ -188,7 +195,7 @@
 					{:else}
 						<div
 							class="nav-item"
-							class:active={item.href ? page.url.pathname === resolve(item.href) : false}
+							class:active={isActive(item, page.url.pathname)}
 						>
 							<Icon iconName={item.icon} />
 							<a href={item.href ? resolve(item.href) : undefined}>{item.name}</a>
