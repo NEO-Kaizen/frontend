@@ -1,9 +1,10 @@
-<!-- src/lib/components/TabelaSolicitacoes.svelte -->
+<!-- src/routes/(public)/acompanhar/components/SolicitationTable.svelte -->
 <script lang="ts">
 	import foundImg from '$lib/assets/SolicitationIllustration.svg';
 	import Pagination from '$lib/components/Pagination.svelte';
-	import { mockRequests } from '$lib/mocks/requests';
-	import type { RequestStatus } from '$lib/types/request';
+	import { listRequests } from '$lib/services/request.service';
+	import { formatShortDate, formatShortTime } from '$lib/utils/dates';
+	import type { PaginatedResponse, RequestStatus, RequestSummary } from '$lib/types/request';
 	import { resolve } from '$app/paths';
 
 	const mapStatusToClass: Record<RequestStatus, string> = {
@@ -26,55 +27,74 @@
 		Backlog: 'status-gray'
 	};
 
+	const PAGE_SIZE = 4;
+
 	let { email = '' } = $props();
 
-	const solicitacoes = mockRequests;
-
-	let solicitacoesFiltradas = $derived(
-		solicitacoes.filter((item) => {
-			if (email) {
-				return item.corporateEmail.toLowerCase() === email.toLowerCase();
-			}
-
-			return false;
-		})
-	);
-
 	let paginaAtual = $state(1);
-	let ultimoEmail = $state('');
+	let isFetching = $state(false);
+	let fetchError = $state<{ message: string } | null>(null);
+	let pageData = $state<PaginatedResponse<RequestSummary> | null>(null);
+	let retryTick = $state(0);
 
-	$effect(() => {
-		if (email !== ultimoEmail) {
-			ultimoEmail = email;
-			paginaAtual = 1;
-		}
-	});
+	// Não reativo: invalida respostas de buscas atrasadas (ordem de chegada).
+	let buscaAtiva = 0;
 
-	const itensPorPagina = 4;
-
-	let totalPaginas = $derived(Math.ceil(solicitacoesFiltradas.length / itensPorPagina));
-
-	let solicitacoesPagina = $derived(
-		solicitacoesFiltradas.slice((paginaAtual - 1) * itensPorPagina, paginaAtual * itensPorPagina)
+	const resultados = $derived(pageData?.data ?? []);
+	const totalPaginas = $derived(pageData?.totalPages ?? 0);
+	const totalResultados = $derived(pageData?.total ?? 0);
+	const inicioExibicao = $derived(
+		pageData && totalResultados > 0 ? (pageData.page - 1) * pageData.pageSize + 1 : 0
+	);
+	const fimExibicao = $derived(
+		pageData ? Math.min(pageData.page * pageData.pageSize, totalResultados) : 0
 	);
 
-	let inicioExibicao = $derived(
-		solicitacoesFiltradas.length === 0 ? 0 : (paginaAtual - 1) * itensPorPagina + 1
-	);
+	async function carregarResultados(emailBusca: string, paginaBusca: number, busca: number) {
+		isFetching = true;
+		fetchError = null;
 
-	let fimExibicao = $derived(Math.min(paginaAtual * itensPorPagina, solicitacoesFiltradas.length));
-
-	function formatarDataHora(dataString: string) {
-		const date = new Date(dataString);
-
-		const data = date.toLocaleDateString('pt-BR');
-
-		const hora = date.toLocaleTimeString('pt-BR', {
-			hour: '2-digit',
-			minute: '2-digit'
+		const result = await listRequests({
+			email: emailBusca,
+			page: paginaBusca,
+			pageSize: PAGE_SIZE
 		});
 
-		return { data, hora };
+		if (busca !== buscaAtiva) return;
+
+		isFetching = false;
+
+		if (!result.ok) {
+			fetchError = result.error;
+			return;
+		}
+
+		// E-mail trocado com página antiga em memória: volta para a primeira página.
+		if (paginaBusca > result.data.totalPages) {
+			paginaAtual = 1;
+			return;
+		}
+
+		pageData = result.data;
+	}
+
+	$effect(() => {
+		if (!email) {
+			// Sem consulta: invalida buscas em voo e mantém o estado inicial.
+			buscaAtiva += 1;
+			return;
+		}
+
+		const busca = ++buscaAtiva;
+		const emailBusca = email;
+		void retryTick;
+		const paginaBusca = paginaAtual;
+
+		carregarResultados(emailBusca, paginaBusca, busca);
+	});
+
+	function tentarNovamente() {
+		retryTick += 1;
 	}
 </script>
 
@@ -97,8 +117,45 @@
 						</thead>
 
 						<tbody>
-							{#if solicitacoesFiltradas.length > 0}
-								{#each solicitacoesPagina as solicitacao (solicitacao.protocol)}
+							{#if !email}
+								<tr>
+									<td colspan="7">
+										<div class="empty-state">
+											<img
+												class="empty-illustration"
+												src={foundImg}
+												alt="Nenhuma solicitação consultada"
+											/>
+
+											<h3>Nenhuma solicitação consultada</h3>
+											<p>
+												Preencha um ou ambos os campos acima e clique em "Consultar Protocolo" para
+												visualizar os resultados.
+											</p>
+										</div>
+									</td>
+								</tr>
+							{:else if isFetching}
+								<tr>
+									<td colspan="7">
+										<div class="loading-state" role="status" aria-live="polite">
+											<p>Carregando solicitações…</p>
+										</div>
+									</td>
+								</tr>
+							{:else if fetchError}
+								<tr>
+									<td colspan="7">
+										<div class="error-state" role="alert">
+											<p>{fetchError.message}</p>
+											<button type="button" class="btn-retry" onclick={tentarNovamente}>
+												Tentar novamente
+											</button>
+										</div>
+									</td>
+								</tr>
+							{:else if resultados.length > 0}
+								{#each resultados as solicitacao (solicitacao.protocol)}
 									<tr>
 										<td class="protocolo">
 											<a
@@ -111,8 +168,8 @@
 										</td>
 
 										<td class="data-col">
-											{formatarDataHora(solicitacao.createdAt).data} <br />
-											{formatarDataHora(solicitacao.createdAt).hora}
+											{formatShortDate(solicitacao.createdAt)} <br />
+											{formatShortTime(solicitacao.createdAt)}
 										</td>
 
 										<td class="processo">{solicitacao.processName}</td>
@@ -137,10 +194,10 @@
 										</td>
 
 										<td class="solicitante">{solicitacao.requesterName}</td>
-										<td class="responsavel">{solicitacao.corporateEmail ?? '-'}</td>
+										<td class="responsavel">{solicitacao.assignee ?? '-'}</td>
 									</tr>
 								{/each}
-							{:else if email}
+							{:else}
 								<tr>
 									<td colspan="7">
 										<div class="empty-state">
@@ -151,35 +208,13 @@
 										</div>
 									</td>
 								</tr>
-							{:else}
-								<tr>
-									<td colspan="7">
-										<div class="empty-state">
-											<img
-												class="empty-illustration"
-												src={foundImg}
-												alt="Nenhuma solicitação consultada"
-											/>
-
-											<h3>Nenhuma solicitação consultada</h3>
-											<p>
-												Preencha um ou ambos os campos acima e clique em "Consultar Protocolo" para
-												visualizar os resultados.
-											</p>
-										</div>
-									</td>
-								</tr>
 							{/if}
 						</tbody>
 					</table>
 				</div>
 				<div class="table-footer">
 					<span class="pagination-info">
-						{#if solicitacoesFiltradas.length === 0}
-							Exibindo 0 de 0 entradas
-						{:else}
-							Exibindo {inicioExibicao}–{fimExibicao} de {solicitacoesFiltradas.length} entradas
-						{/if}
+						Exibindo {inicioExibicao}–{fimExibicao} de {totalResultados} entradas
 					</span>
 					<Pagination bind:paginaAtual {totalPaginas} />
 				</div>
@@ -247,6 +282,10 @@
 	.protocolo {
 		color: var(--secondary-color);
 		font-weight: 700;
+	}
+
+	.protocolo a {
+		color: inherit;
 	}
 
 	.processo {
@@ -372,6 +411,40 @@
 		color: var(--gray);
 	}
 
+	.loading-state,
+	.error-state {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: var(--spacing-sm);
+		padding: var(--spacing-xl) 24px;
+		text-align: center;
+	}
+
+	.loading-state p,
+	.error-state p {
+		margin: 0;
+		font: var(--paragrafo);
+		color: var(--gray);
+	}
+
+	.btn-retry {
+		padding: var(--spacing-xs) var(--spacing-md);
+		font: var(--paragrafo);
+		font-weight: 600;
+		color: var(--secondary-color);
+		background: none;
+		border: var(--border-default);
+		border-radius: var(--radius-sm);
+		cursor: pointer;
+		transition: var(--transition-default);
+	}
+
+	.btn-retry:hover {
+		background: var(--background-color);
+	}
+
 	.table-footer {
 		display: flex;
 		align-items: center;
@@ -389,12 +462,6 @@
 	.data-col {
 		color: var(--gray);
 		line-height: 1.4;
-	}
-
-	.pagination-info {
-		font: var(--label);
-		color: var(--gray);
-		font-weight: 400;
 	}
 
 	.pagination-controls {
