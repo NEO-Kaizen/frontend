@@ -3,8 +3,6 @@
 	import type { IconName } from '$lib/types/icons';
 	import { page } from '$app/state';
 	import Button from '$lib/components/Button.svelte';
-	import logo from '$lib/assets/NEO-logo.svg';
-	import avatar from '$lib/assets/avatar-default.svg';
 	import type { RouteId } from '$app/types';
 	import type { UserType } from '$lib/types/user';
 	import Input from './Input.svelte';
@@ -28,6 +26,7 @@
 	}
 
 	const currentUser = $derived(page.data.user);
+	const appConfig = $derived(page.data.portalConfig);
 
 	function isActive(item: NavButton, pathname: string): boolean {
 		if (!item.href) return false;
@@ -93,7 +92,7 @@
 		isSearching = true;
 
 		try {
-			const result = await searchRequests(value);
+			const result = await searchRequests(value, appConfig.protocolMask);
 
 			if (!result.ok) {
 				console.error(result.error.message);
@@ -137,7 +136,7 @@
 <header>
 	<div class="top_bar">
 		<a class="top_bar-logo" href={resolve('/')}>
-			<img width="80" height="29" alt="NEO" src={logo} />
+			<img width="123" height="37" alt={appConfig.platformName} src={appConfig.assets.logoUrl} />
 		</a>
 		<div class="top_bar-interactables">
 			<form role="search" class="search-container" onsubmit={handleSearchSubmit}>
@@ -165,7 +164,7 @@
 						<p class="profile_block-name">{currentUser?.name}</p>
 						<p class="profile_block-role">{currentUser?.role}</p>
 					</div>
-					<img src={avatar} alt="Imagem do usuário" width="47" height="47" />
+					<img src={appConfig.assets.avatarUrl} alt="Imagem do usuário" width="47" height="47" />
 				</div>
 			{:else}
 				<Button
@@ -235,7 +234,7 @@
 	}
 	.top_bar-logo {
 		color: var(--primary-color);
-		width: 80px;
+		width: 123px;
 		font: var(--h1);
 		display: flex;
 	}

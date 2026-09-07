@@ -1,11 +1,15 @@
 <script lang="ts">
+	import { page } from '$app/state';
+
+	const platformName = $derived(page.data.portalConfig.platformName);
+
 	interface Props {
 		titulo?: string;
 		descricao?: string;
 	}
 
 	let {
-		titulo = 'Bem-vindo ao portal de solicitações do NEO',
+		titulo = `Bem-vindo ao portal de solicitações do ${platformName}`,
 		descricao = 'Sua central unificada para gestão de chamados, suporte técnico e fluxos administrativos. Comece uma nova demanda ou acompanhe o progresso das existentes abaixo.'
 	}: Props = $props();
 </script>
@@ -39,9 +43,9 @@
 	conforme identidade definida no protótipo.
 -->
 	<div class="background-logo" aria-hidden="true">
-		<span>NEO</span>
-		<span>NEO</span>
-		<span>NEO</span>
+		<span>{platformName}</span>
+		<span>{platformName}</span>
+		<span>{platformName}</span>
 	</div>
 </section>
 

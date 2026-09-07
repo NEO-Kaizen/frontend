@@ -1,11 +1,14 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import { isValidEmail, isProtocol } from '$lib/utils/validations';
 	import { onMount } from 'svelte';
+
+	const protocolMask = $derived(page.data.portalConfig.protocolMask);
 
 	let isSearching = $state(false);
 	let protocol = $state('');
@@ -25,7 +28,7 @@
 	});
 
 	function formatProtocol(value: string) {
-		const withoutPrefix = value.replace(/^MAAT-?/i, '');
+		const withoutPrefix = value.replace(new RegExp(`^${protocolMask}-?`, 'i'), '');
 
 		const normalized = withoutPrefix
 			.replace(/[^A-Z0-9]/gi, '')
@@ -40,10 +43,10 @@
 		const thirdBlock = normalized.slice(4, 8);
 
 		if (normalized.length <= 4) {
-			return `MAAT-${secondBlock}`;
+			return `${protocolMask}-${secondBlock}`;
 		}
 
-		return `MAAT-${secondBlock}-${thirdBlock}`;
+		return `${protocolMask}-${secondBlock}-${thirdBlock}`;
 	}
 
 	function handleProtocolInput(event: Event) {
@@ -64,7 +67,9 @@
 	);
 
 	let protocolError = $derived(
-		protocol.trim() && !isProtocol(protocol.trim()) ? 'Informe um protocolo válido.' : ''
+		protocol.trim() && !isProtocol(protocol.trim(), protocolMask)
+			? 'Informe um protocolo válido.'
+			: ''
 	);
 
 	let emailError = $derived(
@@ -84,7 +89,7 @@
 		}
 
 		try {
-			if (isProtocol(normalizedProtocol)) {
+			if (isProtocol(normalizedProtocol, protocolMask)) {
 				isSearching = true;
 				await goto(resolve('/(public)/acompanhar/[protocolo]', { protocolo: normalizedProtocol }));
 				return;
@@ -111,9 +116,9 @@
 	<div class="field">
 		<Input
 			label="Número do Protocolo"
-			placeholder="Ex: MAAT-2026-0001"
+			placeholder={`Ex: ${protocolMask}-2026-0001`}
 			prefix="#"
-			maxlength={14}
+			maxlength={protocolMask.length + 10}
 			error={protocolError}
 			oninput={handleProtocolInput}
 			bind:value={protocol}
@@ -124,7 +129,7 @@
 		<Input
 			type="email"
 			label="E-mail Corporativo"
-			placeholder="emaildofulano@neo.com.br"
+			placeholder="emaildofulano@maat.com.br"
 			prefix="@"
 			error={emailError}
 			oninput={handleEmailInput}
