@@ -1,4 +1,5 @@
 import { redirect } from '@sveltejs/kit';
+import type { RouteId } from '$app/types';
 import type { SessionUser } from '$lib/types/auth';
 import type { UserType } from '$lib/types/user';
 
@@ -7,9 +8,11 @@ const UNAUTHORIZED_PATH = '/sem-autorizacao';
 
 export type GuardRuleId = 'anySession' | 'internalArea' | 'adminOnly';
 
+const INTERNAL_PROFILES: readonly UserType[] = ['Analista', 'Gestor', 'Administrador'];
+
 const GUARD_RULES: Record<GuardRuleId, { profiles: 'any' | readonly UserType[] }> = {
 	anySession: { profiles: 'any' },
-	internalArea: { profiles: ['Analista', 'Gestor', 'Administrador'] },
+	internalArea: { profiles: INTERNAL_PROFILES },
 	adminOnly: { profiles: ['Administrador'] }
 };
 
@@ -25,11 +28,11 @@ export function guard(rule: GuardRuleId, user: SessionUser | null): void {
 	}
 }
 
-const INTERNAL_PROFILES: readonly UserType[] = ['Analista', 'Gestor', 'Administrador'];
-
-export function getHomeRedirect(user: SessionUser | null): string | null {
+export function getHomeRedirect(
+	user: SessionUser | null
+): Extract<RouteId, '/(admin)/home'> | null {
 	if (user && INTERNAL_PROFILES.includes(user.role)) {
-		return '/painel';
+		return '/(admin)/home';
 	}
 	return null;
 }

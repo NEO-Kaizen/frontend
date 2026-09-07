@@ -335,9 +335,9 @@ O logo e o item "Home" da navegação apontam sempre para `/`; a decisão de "qu
 
 - anônimo → permanece na home pública;
 - Solicitante autenticado → permanece na home pública;
-- Analista/Gestor/Administrador → `redirect(303, '/painel')`.
+- Analista/Gestor/Administrador → `redirect(303, '/home')`.
 
-Nenhum `href` na UI é fixado em `/painel`.
+Nenhum `href` na UI é fixado em `/home`.
 
 ---
 
