@@ -40,6 +40,7 @@ export function decodeJwt(token: string): SessionUser | null {
 function base64UrlDecode(value: string): string {
 	const base64 = value.replace(/-/g, '+').replace(/_/g, '/');
 	const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
+	const bytes = Uint8Array.from(atob(padded), (char) => char.charCodeAt(0));
 
-	return atob(padded);
+	return new TextDecoder().decode(bytes);
 }

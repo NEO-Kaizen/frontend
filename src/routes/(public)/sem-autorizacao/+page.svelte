@@ -1,12 +1,31 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
+	import { getHomeRedirect } from '$lib/services/access.service';
+
+	const user = $derived(page.data.user);
+
+	const message = $derived(
+		user
+			? 'Você não tem permissão para acessar esta página. Se necessário, entre em contato com um administrador.'
+			: 'Você não tem autorização para acessar esta página. Efetue o login para continuar.'
+	);
 </script>
 
 <main class="content-container">
 	<section class="blocked">
 		<h1>Acesso negado</h1>
-		<p>Você não tem autorização para acessar esta página. Efetue o login para continuar.</p>
-		<a class="login-link" href={resolve('/(public)/login')}>Fazer login</a>
+		<p>{message}</p>
+		{#if user}
+			{@const home = getHomeRedirect(user)}
+			{#if home}
+				<a class="action-link" href={resolve(home)}>Voltar ao início</a>
+			{:else}
+				<a class="action-link" href={resolve('/')}>Voltar ao início</a>
+			{/if}
+		{:else}
+			<a class="action-link" href={resolve('/(public)/login')}>Fazer login</a>
+		{/if}
 	</section>
 </main>
 
@@ -25,7 +44,7 @@
 		max-width: 40ch;
 	}
 
-	.login-link {
+	.action-link {
 		padding: var(--spacing-sm) var(--spacing-lg);
 		background-color: var(--primary-color);
 		color: var(--white);
@@ -35,11 +54,11 @@
 		transition: var(--transition-default);
 	}
 
-	.login-link:hover {
+	.action-link:hover {
 		background-color: var(--secondary-color);
 	}
 
-	.login-link:focus-visible {
+	.action-link:focus-visible {
 		outline: 2px solid var(--secondary-color);
 		outline-offset: 2px;
 	}

@@ -57,7 +57,8 @@
 		isSubmitting = false;
 
 		if (result.ok) {
-			await goto(resolve('/(app)/painel'), { invalidateAll: true }); // ENDPOINT DE SUCESSO DE LOGIN DEVE SER ADICIONADO AQUI
+			// A home decide o destino por perfil (redirect server-side em (public)/+page.server.ts)
+			await goto(resolve('/'), { invalidateAll: true });
 			return;
 		}
 		errorMessage = result.error.message;
