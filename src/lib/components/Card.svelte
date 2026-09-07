@@ -1,14 +1,15 @@
 <script lang="ts">
-	import IconBadge from './IconBadge.svelte';
-	import Icon from './Icon.svelte';
-	import Button from './Button.svelte';
-	import type { IconName } from '$lib/types/icons';
-	import type { RouteId } from '$app/types';
 	import { resolve } from '$app/paths';
+	import type { IconName } from '$lib/types/icons';
+	import Button from './Button.svelte';
+	import Icon from './Icon.svelte';
+	import IconBadge from './IconBadge.svelte';
 
 	export type CardVariant = 'primary' | 'secondary';
 	export type BadgeVariant = 'green' | 'cyan';
 	export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'outline-neutral';
+
+	type StaticCardRoute = '/(public)/solicitacao' | '/(public)/login';
 
 	interface BaseProps {
 		title: string;
@@ -22,7 +23,16 @@
 	}
 
 	type Props = BaseProps &
-		({ href: RouteId; onAction?: never } | { onAction: (event: MouseEvent) => void; href?: never });
+		(
+			| {
+					href: StaticCardRoute;
+					onAction?: never;
+			  }
+			| {
+					onAction: (event: MouseEvent) => void;
+					href?: never;
+			  }
+		);
 
 	let {
 		title,

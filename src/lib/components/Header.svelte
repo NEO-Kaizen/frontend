@@ -12,11 +12,13 @@
 	import { logout } from '$lib/services/auth.service';
 	import { searchRequests } from '$lib/services/request.service';
 
+	type StaticRouteId = Exclude<RouteId, `${string}[${string}]${string}`>;
+
 	interface NavButton {
 		name: string;
 		icon: IconName;
-		//Opcional até ter as rotas definidas
-		href?: RouteId;
+		// Opcional até ter as rotas definidas
+		href?: StaticRouteId;
 	}
 
 	const currentUser = $derived(page.data.user);
@@ -25,7 +27,7 @@
 		{
 			name: 'Home',
 			icon: 'home',
-			//Mais para quesito de teste visual
+			// Mais para quesito de teste visual
 			href: '/'
 		},
 		{
@@ -93,7 +95,7 @@
 
 			const searchParams = new URLSearchParams({ email: value });
 
-			await goto(resolve(`/(public)/chamado?${searchParams.toString()}` as '/(public)/chamado'));
+			await goto(resolve(`/(public)/acompanhar?${searchParams.toString()}`));
 		} finally {
 			isSearching = false;
 		}
@@ -103,7 +105,9 @@
 
 	async function handleLogout() {
 		if (isLoggingOut) return;
+
 		isLoggingOut = true;
+
 		try {
 			await logout();
 			await goto(resolve('/(public)/login'), { invalidateAll: true });
@@ -118,6 +122,7 @@
 		<a class="top_bar-logo" href={resolve('/')}>
 			<img width="80" height="29" alt="NEO" src={logo} />
 		</a>
+
 		<div class="top_bar-interactables">
 			<form role="search" class="search-container" onsubmit={handleSearchSubmit}>
 				<Input
@@ -129,6 +134,7 @@
 					disabled={isSearching}
 				/>
 			</form>
+
 			<Button
 				variant="primary"
 				onclick={() => {
@@ -137,13 +143,16 @@
 			>
 				<span>+</span> Nova solicitação
 			</Button>
+
 			{#if isNotSolicitante}
 				<div class="separator_bar-column"></div>
+
 				<div class="profile_block">
 					<div class="profile_block-identification">
 						<p class="profile_block-name">{currentUser?.name}</p>
 						<p class="profile_block-role">{currentUser?.role}</p>
 					</div>
+
 					<img
 						src="https://images.icon-icons.com/1238/PNG/512/blacksquare_83753.png"
 						alt="imagem do usuário"
@@ -175,6 +184,7 @@
 					</div>
 				{/each}
 			</div>
+
 			<button
 				class="nav-item"
 				type="button"
