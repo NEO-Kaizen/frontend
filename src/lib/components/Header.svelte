@@ -13,6 +13,11 @@
 	import { logout } from '$lib/services/auth.service';
 	import { searchRequests } from '$lib/services/request.service';
 
+	// KNOWN ISSUE (svelte-check) — não estreitar este tipo sem entender a causa:
+	// `resolve(item.href)` (abaixo, no markup) acusa erro porque o `RouteId`
+	// gerado inclui ids de diretórios sem página (ex.: pastas `components/` da
+	// colocação de componentes) e `resolve()` usa tipo condicional distributivo.
+	// Falso-positivo: runtime e build passam; só o `check` fica vermelho.
 	interface NavButton {
 		name: string;
 		icon: IconName;
