@@ -8,6 +8,7 @@ declare global {
 		// interface Error {}
 		interface Locals {
 			user: SessionUser | null;
+			portalConfig: PortalConfig;
 		}
 		interface PageData {
 			user?: SessionUser | null;
