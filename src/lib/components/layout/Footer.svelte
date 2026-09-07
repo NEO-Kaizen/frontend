@@ -1,17 +1,29 @@
+<script lang="ts">
+	import { page } from '$app/state';
+	import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
+
+	// Marca do produto de base (não configuravel) — copyright e atribuição.
+	const PRODUCT_NAME = 'MAAT Flow';
+
+	const platformName = $derived(page.data.portalConfig.platformName);
+	const isRebranded = $derived(platformName !== DEFAULT_PORTAL_CONFIG.platformName);
+</script>
+
 <footer class="footer">
 	<div class="footer__content">
-		<p class="footer__brand">Portal NEO</p>
+		<p class="footer__brand">{platformName}</p>
 
-		<p class="footer__copyright">© 2026 Portal NEO. Todos os direitos reservados.</p>
+		{#if isRebranded}
+			<p class="footer__powered">Powered by {PRODUCT_NAME}</p>
+		{/if}
+
+		<p class="footer__copyright">© 2026 {PRODUCT_NAME}. Todos os direitos reservados.</p>
 
 		<p class="footer__credits">Desenvolvido pela Turma 8 Kaizen — Alpha EdTech</p>
 	</div>
 </footer>
 
 <style>
-	:global(body) {
-		min-height: 100dvh;
-	}
 	.footer {
 		width: 100%;
 		margin-top: auto;
@@ -28,6 +40,7 @@
 	}
 
 	.footer__brand,
+	.footer__powered,
 	.footer__copyright,
 	.footer__credits {
 		margin: 0;
@@ -39,6 +52,11 @@
 		color: var(--primary-color);
 		font-weight: 700;
 		text-align: left;
+	}
+
+	.footer__powered {
+		color: var(--gray);
+		text-align: center;
 	}
 
 	.footer__copyright {
@@ -58,6 +76,7 @@
 		}
 
 		.footer__brand,
+		.footer__powered,
 		.footer__copyright,
 		.footer__credits {
 			text-align: center;

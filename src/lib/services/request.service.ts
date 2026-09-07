@@ -63,8 +63,14 @@ export async function getRequestByProtocol(protocol: string): Promise<Result<Req
  *
  * Se o valor informado for um protocolo, a busca é feita pelo protocolo.
  * Caso contrário, a busca é feita pelo e-mail.
+ *
+ * `protocolMask` é o prefixo configurável do protocolo (PortalConfig) — quem
+ * chama (componente) lê de page.data e repassa; o service não acessa config.
  */
-export async function searchRequests(value: string): Promise<SearchRequestsResult> {
+export async function searchRequests(
+	value: string,
+	protocolMask: string
+): Promise<SearchRequestsResult> {
 	const normalizedValue = value.trim();
 
 	if (!normalizedValue) {
@@ -76,7 +82,7 @@ export async function searchRequests(value: string): Promise<SearchRequestsResul
 		};
 	}
 
-	if (isProtocol(normalizedValue)) {
+	if (isProtocol(normalizedValue, protocolMask)) {
 		return getRequestByProtocol(normalizedValue);
 	}
 

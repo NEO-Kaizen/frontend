@@ -55,7 +55,7 @@
 </script>
 
 <svelte:head>
-	<title>Detalhes da Solicitação {protocol ?? ''} - NEO</title>
+	<title>Detalhes da Solicitação {protocol ?? ''} - {data.portalConfig.platformName}</title>
 </svelte:head>
 
 {#if error && error.status !== 404}
