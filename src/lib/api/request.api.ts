@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import { listRequestsMock, getRequestByProtocolMock } from '$lib/mocks/requests.mock';
+import { MOCK_DOMAINS } from '$lib/mocks';
 import type {
 	CreateRequestPayload,
 	CreateRequestResponse,
@@ -11,15 +11,18 @@ import type {
 
 const REQUESTS_PATH = '/requests';
 
-// TODO: Substituir o mock pela integração com a API quando o backend estiver disponível.
-const USE_MOCK = true;
-
 // POST /requests — envia o formulário (parte textual "payload") e os anexos
 // (0 a 5 partes binárias "attachments") num único multipart/form-data.
 export async function createRequest(
 	payload: CreateRequestPayload,
 	files: Blob[] = []
 ): Promise<CreateRequestResponse> {
+	// DEV inline no ponto de chamada garante a eliminação do mock no build (DCE).
+	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.request) {
+		const { createRequestMock } = await import('$lib/mocks/requests.mock');
+		return createRequestMock(payload, files);
+	}
+
 	const formData = new FormData();
 	formData.append('payload', JSON.stringify(payload));
 
@@ -36,7 +39,9 @@ export async function createRequest(
 export async function listRequests(
 	query: ListRequestsQuery
 ): Promise<PaginatedResponse<RequestSummary>> {
-	if (USE_MOCK) {
+	// DEV inline no ponto de chamada garante a eliminação do mock no build (DCE).
+	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.request) {
+		const { listRequestsMock } = await import('$lib/mocks/requests.mock');
 		return listRequestsMock(query);
 	}
 
@@ -56,7 +61,9 @@ export async function listRequests(
 }
 
 export async function getRequestByProtocol(protocol: string): Promise<RequestDetail> {
-	if (USE_MOCK) {
+	// DEV inline no ponto de chamada garante a eliminação do mock no build (DCE).
+	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.request) {
+		const { getRequestByProtocolMock } = await import('$lib/mocks/requests.mock');
 		return getRequestByProtocolMock(protocol);
 	}
 
