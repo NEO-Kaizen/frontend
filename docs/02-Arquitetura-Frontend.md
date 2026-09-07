@@ -45,6 +45,11 @@ src/
 │   │   ├── access.service.ts
 │   │   └── index.ts
 │   │
+│   ├── config/
+│   │   ├── portal-defaults.ts
+│   │   ├── portal-config.api.ts
+│   │   └── portal-config.service.ts
+│   │
 │   ├── mocks/
 │   │   ├── users.mock.ts
 │   │   ├── requests.mock.ts
@@ -247,6 +252,36 @@ Estados compartilhados não substituem:
 - cookies;
 - validação de sessão no servidor.
 
+### 9.1 Configuração do portal (`config/`)
+
+A configuração pública do portal (runtime) vive na pasta `config/` com o tipo em `types/portal-config.ts`:
+
+- `types/portal-config.ts` — contrato `PortalConfig` (nome da plataforma, modo de solicitação `PUBLIC`/`AUTHENTICATED`, prefixo de exibição do protocolo, tokens de tema e assets). O contrato definitivo é definido pela issue #90; issues futuras (#88, #89, #92) incrementam campos em vez de criar mecanismos próprios;
+- `config/portal-defaults.ts` — único dono dos defaults locais (espelha `global.css` `:root` e os assets estáticos);
+- `config/portal-config.api.ts` — leitura via camada `api/` (`apiClient`); o endpoint real nasce com a #90;
+- `config/portal-config.service.ts` — resolução com fallback: falha de rede ou valor inválido cai no default por campo (validação allowlist — apenas strings tipadas e URLs seguras; nenhum HTML/CSS/JS vindo da API é aceito).
+
+Fluxo:
+
+```text
+hooks.server.ts (loadPortalConfig → locals.portalConfig, com fallback)
+        ↓
++layout.server.ts (repassa locals → data.portalConfig)
+        ↓
++layout.svelte (favicon/title/estilos do tema a partir de data)
+        ↓
+Componentes (leem via page.data.portalConfig; nunca fetch direto)
+```
+
+Regras:
+
+- a configuração é resolvida no servidor (no `hooks.server.ts`, mesmo padrão do `locals.user`) e entregue por `data`; componentes não leem a API diretamente;
+- consumidores leem `page.data.portalConfig` (reativo, SSR-consistente) — não há store/estado de módulo para config; se no futuro houver mutação cliente a partir do admin (#90), um estado em `states/*.svelte.ts` (runes) pode ser adicionado na hora da necessidade;
+- `protocolMask` (prefixo do protocolo) é repassado como parâmetro a services/validações (`isProtocol(value, prefix)`), pois services não acessam `page.data`;
+- o tema (3 tokens de cor) é aplicado como exemplo/baseline no `+layout.svelte` via wrapper `.app-root` + diretivas `style:--*` (CSS custom properties): o wrapper é o container de layout (flex, centralização, `min-height: 100dvh`, fundo via `--background-color`), cobrindo o `body` — renderizado no SSR (sem `$effect`, sem flash) e reativo a `data`. Nota: o Svelte 5 não suporta interpolação `{expr}` em `<style>` (recurso removido do Svelte 4), e `:global()` só serve para CSS estático — por isso as custom properties reativas vão via `style:` num wrapper;
+- configuração de portal (runtime) é diferente do toggle dev de mocks: o toggle dev de mock/API permanece **apenas** em `mocks/index.ts` (`dev` de `$app/environment`), inerte em produção; nenhum flag runtime do portal entra nos mocks. O mock/domínio `config` da API real será adicionado em `mocks/index.ts` quando o endpoint existir (#90);
+- a aplicação do tema completo (tokens em páginas, flash minimizado) é escopo da issue #89; esta camada apenas prepara o transporte.
+
 ---
 
 ## 10. Mocks
@@ -370,6 +405,7 @@ Nenhum `href` na UI é fixado em `/home`.
 components → services, states, types, utils e constants
 pages      → components, services, states e types
 states     → services e types
+config     → api, types e utils
 services   → api, types, mocks, utils e constants
 api        → types e utils
 mocks      → types
