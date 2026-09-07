@@ -1,4 +1,4 @@
-import { ApiError } from '$lib/api/client';
+import { ApiError, type Result } from '$lib/types/result';
 import {
 	createRequest,
 	listRequests as listRequestsApi,
@@ -15,18 +15,7 @@ import type {
 
 import { isProtocol, isValidEmail } from '$lib/utils/validations';
 
-type SubmitDemandResult =
-	| { ok: true; data: CreateRequestResponse }
-	| { ok: false; error: { status?: number; message: string } };
-
-type ListRequestsResult =
-	| { ok: true; data: PaginatedResponse<RequestSummary> }
-	| { ok: false; error: { status?: number; message: string } };
-
-type RequestDetailResult =
-	{ ok: true; data: RequestDetail } | { ok: false; error: { status?: number; message: string } };
-
-type SearchRequestsResult = ListRequestsResult | RequestDetailResult;
+type SearchRequestsResult = Result<PaginatedResponse<RequestSummary>> | Result<RequestDetail>;
 
 // Limites espelhados do contrato — o backend permanece a validação definitiva.
 const MAX_FILES = 5;
@@ -39,7 +28,9 @@ const ALLOWED_MIME_TYPES = [
 	'image/jpeg'
 ];
 
-export async function listRequests(query: ListRequestsQuery): Promise<ListRequestsResult> {
+export async function listRequests(
+	query: ListRequestsQuery
+): Promise<Result<PaginatedResponse<RequestSummary>>> {
 	try {
 		const data = await listRequestsApi(query);
 		return { ok: true, data };
@@ -54,7 +45,7 @@ export async function listRequests(query: ListRequestsQuery): Promise<ListReques
 	}
 }
 
-export async function getRequestByProtocol(protocol: string): Promise<RequestDetailResult> {
+export async function getRequestByProtocol(protocol: string): Promise<Result<RequestDetail>> {
 	try {
 		const data = await getRequestByProtocolApi(protocol);
 		return { ok: true, data };
@@ -106,7 +97,7 @@ export async function searchRequests(value: string): Promise<SearchRequestsResul
 export async function submitDemand(
 	payload: CreateRequestPayload,
 	files: File[] = []
-): Promise<SubmitDemandResult> {
+): Promise<Result<CreateRequestResponse>> {
 	const validation = validateFiles(files);
 	if (validation) {
 		return { ok: false, error: validation };
