@@ -1,8 +1,11 @@
 <!-- src/lib/components/TabelaSolicitacoes.svelte -->
 <script lang="ts">
 	import foundImg from '$lib/assets/SolicitationIllustration.svg';
-	import type { RequestsTableSummery, RequestStatus, RequestSummary } from '$lib/types/request';
 	import Pagination from '$lib/components/Pagination.svelte';
+	import { mockRequests } from '$lib/mocks/requests';
+	import type { RequestStatus } from '$lib/types/request';
+	import { resolve } from '$app/paths';
+
 	const mapStatusToClass: Record<RequestStatus, string> = {
 		'Aguardando triagem': 'status-blue',
 		'Aguardando mapeamento': 'status-blue',
@@ -22,194 +25,55 @@
 		Cancelado: 'status-red',
 		Backlog: 'status-gray'
 	};
+
 	let { email = '' } = $props();
 
-	const solicitacoes: RequestsTableSummery[] = [
-		{
-			protocol: 'MAAT-8K3P-9X2M',
-			corporateEmail: 'maria.oliveira@neo.com.br',
-			createdAt: '2026-08-25T14:03:11.000Z',
-			processName: 'Pagamento de diárias',
-			priority: 'Baixa',
-			status: 'Aguardando triagem',
-			assignee: null,
-			requesterName: 'Maria Oliveira'
-		},
-		{
-			protocol: 'MAAT-8K3P-9X2M',
-			corporateEmail: 'maria.oliveira@neo.com.br',
-			createdAt: '2026-08-25T14:03:11.000Z',
-			processName: 'Pagamento de diárias',
-			priority: 'Baixa',
-			status: 'Aguardando mapeamento',
-			assignee: null,
-			requesterName: 'Maria Oliveira'
-		},
-		{
-			protocol: 'MAAT-8K3P-9X2M',
-			corporateEmail: 'maria.oliveira@neo.com.br',
-			createdAt: '2026-08-25T14:03:11.000Z',
-			processName: 'Pagamento de diárias',
-			priority: 'Baixa',
-			status: 'Em triagem',
-			assignee: null,
-			requesterName: 'Maria Oliveira'
-		},
-		{
-			protocol: 'MAAT-8K3P-9X2M',
-			corporateEmail: 'maria.oliveira@neo.com.br',
-			createdAt: '2026-08-25T14:03:11.000Z',
-			processName: 'Pagamento de diárias',
-			priority: 'Baixa',
-			status: 'Em desenvolvimento',
-			assignee: null,
-			requesterName: 'Maria Oliveira'
-		},
-		{
-			protocol: 'MAAT-8K3P-9X2M',
-			corporateEmail: 'maria.oliveira@neo.com.br',
-			createdAt: '2026-08-25T14:03:11.000Z',
-			processName: 'Pagamento de diárias',
-			priority: 'Baixa',
-			status: 'Concluído',
-			assignee: null,
-			requesterName: 'Maria Oliveira'
-		},
-		{
-			protocol: 'MAAT-8K3P-9X2M',
-			corporateEmail: 'maria.oliveira@neo.com.br',
-			createdAt: '2026-08-25T14:03:11.000Z',
-			processName: 'Pagamento de diárias',
-			priority: 'Baixa',
-			status: 'Cancelado',
-			assignee: null,
-			requesterName: 'Maria Oliveira'
-		},
-		{
-			protocol: 'MAAT-8K3P-9X2M',
-			corporateEmail: 'maria.oliveira@neo.com.br',
-			createdAt: '2026-08-25T14:03:11.000Z',
-			processName: 'Pagamento de diárias',
-			priority: 'Baixa',
-			status: 'Backlog',
-			assignee: null,
-			requesterName: 'Maria Oliveira'
-		},
-		{
-			protocol: 'MAAT-8K3P-9X2M',
-			corporateEmail: 'maria.oliveira@neo.com.br',
-			createdAt: '2026-08-25T14:03:11.000Z',
-			processName: 'Pagamento de diárias',
-			priority: 'Baixa',
-			status: 'Direcionado para outra área',
-			assignee: null,
-			requesterName: 'Maria Oliveira'
-		},
-		{
-			protocol: 'MAAT-8K3P-9X2M',
-			corporateEmail: 'maria.oliveira@neo.com.br',
-			createdAt: '2026-08-25T14:03:11.000Z',
-			processName: 'Pagamento de diárias',
-			priority: 'Baixa',
-			status: 'Em análise de viabilidade',
-			assignee: null,
-			requesterName: 'Maria Oliveira'
-		},
-		{
-			protocol: 'MAAT-8K3P-9X2M',
-			corporateEmail: 'maria.oliveira@neo.com.br',
-			createdAt: '2026-08-25T14:03:11.000Z',
-			processName: 'Pagamento de diárias',
-			priority: 'Baixa',
-			status: 'Em homologação',
-			assignee: null,
-			requesterName: 'Maria Oliveira'
-		},
-		{
-			protocol: 'MAAT-6N2W-8VBM',
-			corporateEmail: 'maria.oliveira@neo.com.br',
-			createdAt: '2026-08-10T09:41:20.000Z',
-			processName: 'Fechamento mensal de ponto',
-			priority: 'Alta',
-			status: 'Em mapeamento',
-			assignee: 'Fernando Alves',
-			requesterName: 'Maria Oliveira'
-		},
-		{
-			protocol: 'MAAT-4P7K-2LQX',
-			corporateEmail: 'maria.oliveira@neo.com.br',
-			createdAt: '2026-08-18T11:20:00.000Z',
-			processName: 'Controle de férias',
-			priority: 'Média',
-			status: 'Não elegível',
-			assignee: 'Ana Souza',
-			requesterName: 'Maria Oliveira'
-		},
-		{
-			protocol: 'MAAT-8K3P-9X2M',
-			corporateEmail: 'maria.oliveira@neo.com.br',
-			createdAt: '2026-08-25T14:03:11.000Z',
-			processName: 'Pagamento de diárias',
-			priority: 'Baixa',
-			status: 'Pendente de informações',
-			assignee: null,
-			requesterName: 'Maria Oliveira'
-		},
-		{
-			protocol: 'MAAT-8K3P-9X2M',
-			corporateEmail: 'maria.oliveira@neo.com.br',
-			createdAt: '2026-08-25T14:03:11.000Z',
-			processName: 'Pagamento de diárias',
-			priority: 'Baixa',
-			status: 'Elegível',
-			assignee: null,
-			requesterName: 'Maria Oliveira'
-		},
-		{
-			protocol: 'MAAT-8K3P-9X2M',
-			corporateEmail: 'maria.oliveira@neo.com.br',
-			createdAt: '2026-08-25T14:03:11.000Z',
-			processName: 'Pagamento de diárias',
-			priority: 'Baixa',
-			status: 'Priorizado',
-			assignee: null,
-			requesterName: 'Maria Oliveira'
-		},
-		{
-			protocol: 'MAAT-8K3P-9X2M',
-			corporateEmail: 'maria.oliveira@neo.com.br',
-			createdAt: '2026-08-25T14:03:11.000Z',
-			processName: 'Pagamento de diárias',
-			priority: 'Baixa',
-			status: 'Solicitação enviada',
-			assignee: null,
-			requesterName: 'Maria Oliveira'
-		},
-		{
-			protocol: 'MAAT-8K3P-9X2M',
-			corporateEmail: 'maria.oliveira@neo.com.br',
-			createdAt: '2026-08-25T14:03:11.000Z',
-			processName: 'Pagamento de diárias',
-			priority: 'Baixa',
-			status: 'Mapeamento agendado',
-			assignee: null,
-			requesterName: 'Maria Oliveira'
-		}
-	];
+	const solicitacoes = mockRequests;
 
 	let solicitacoesFiltradas = $derived(
 		solicitacoes.filter((item) => {
 			if (email) {
 				return item.corporateEmail.toLowerCase() === email.toLowerCase();
 			}
+
 			return false;
 		})
 	);
 
+	let paginaAtual = $state(1);
+	let ultimoEmail = $state('');
+
+	$effect(() => {
+		if (email !== ultimoEmail) {
+			ultimoEmail = email;
+			paginaAtual = 1;
+		}
+	});
+
+	const itensPorPagina = 4;
+
+	let totalPaginas = $derived(Math.ceil(solicitacoesFiltradas.length / itensPorPagina));
+
+	let solicitacoesPagina = $derived(
+		solicitacoesFiltradas.slice((paginaAtual - 1) * itensPorPagina, paginaAtual * itensPorPagina)
+	);
+
+	let inicioExibicao = $derived(
+		solicitacoesFiltradas.length === 0 ? 0 : (paginaAtual - 1) * itensPorPagina + 1
+	);
+
+	let fimExibicao = $derived(Math.min(paginaAtual * itensPorPagina, solicitacoesFiltradas.length));
+
 	function formatarDataHora(dataString: string) {
 		const date = new Date(dataString);
+
 		const data = date.toLocaleDateString('pt-BR');
-		const hora = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+		const hora = date.toLocaleTimeString('pt-BR', {
+			hour: '2-digit',
+			minute: '2-digit'
+		});
+
 		return { data, hora };
 	}
 </script>
@@ -234,10 +98,16 @@
 
 						<tbody>
 							{#if solicitacoesFiltradas.length > 0}
-								{#each solicitacoesFiltradas as solicitacao}
+								{#each solicitacoesPagina as solicitacao (solicitacao.protocol)}
 									<tr>
 										<td class="protocolo">
-											#{solicitacao.protocol}
+											<a
+												href={resolve('/(public)/acompanhar/[protocolo]', {
+													protocolo: solicitacao.protocol
+												})}
+											>
+												#{solicitacao.protocol}
+											</a>
 										</td>
 
 										<td class="data-col">
@@ -303,18 +173,15 @@
 						</tbody>
 					</table>
 				</div>
-
 				<div class="table-footer">
 					<span class="pagination-info">
-						Mostrando {solicitacoesFiltradas.length > 0 ? `1-${solicitacoesFiltradas.length}` : '0'} de
-						{solicitacoesFiltradas.length} solicitações
+						{#if solicitacoesFiltradas.length === 0}
+							Exibindo 0 de 0 entradas
+						{:else}
+							Exibindo {inicioExibicao}–{fimExibicao} de {solicitacoesFiltradas.length} entradas
+						{/if}
 					</span>
-
-					<div class="pagination-controls">
-						<button class="arrow" disabled>&lt;</button>
-						<button class="page active">1</button>
-						<button class="arrow" disabled>&gt;</button>
-					</div>
+					<Pagination bind:paginaAtual {totalPaginas} />
 				</div>
 			</div>
 		</section>
@@ -533,33 +400,5 @@
 		display: flex;
 		align-items: center;
 		gap: var(--spacing-sm);
-	}
-
-	.pagination-controls .arrow {
-		background: transparent;
-		border: none;
-		color: var(--gray);
-		font-size: 16px;
-		font-weight: 600;
-		cursor: not-allowed;
-		padding: 0 8px;
-	}
-
-	.pagination-controls .page.active {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 28px;
-		height: 28px;
-		background: var(--secondary-color);
-		color: var(--white);
-		border: none;
-		border-radius: 4px;
-		font: var(--label);
-		cursor: pointer;
-	}
-	.pagination-controls .arrow:disabled {
-		opacity: 0.4;
-		cursor: not-allowed;
 	}
 </style>

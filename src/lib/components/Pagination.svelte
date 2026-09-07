@@ -19,8 +19,11 @@
 		}
 	}
 
-	// Lógica para gerar os números e as reticências de forma inteligente
 	let paginasVisiveis = $derived.by(() => {
+		if (totalPaginas <= 0) {
+			return [];
+		}
+
 		if (totalPaginas <= 5) {
 			return Array.from({ length: totalPaginas }, (_, i) => i + 1);
 		}
@@ -50,7 +53,7 @@
 		</svg>
 	</button>
 
-	{#each paginasVisiveis as page}
+	{#each paginasVisiveis as page, index (`${page}-${index}`)}
 		{#if page === '...'}
 			<span class="ellipsis">...</span>
 		{:else}
