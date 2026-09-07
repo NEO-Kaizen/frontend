@@ -1,14 +1,21 @@
 <script lang="ts">
-	import favicon from '$lib/assets/favicon.svg';
-
-	let { children } = $props();
+	let { data, children } = $props();
 </script>
 
 <svelte:head>
-	<link rel="icon" href={favicon} />
+	<link rel="icon" href={data.portalConfig.assets.faviconUrl} />
+	<title>{data.portalConfig.platformName}</title>
 </svelte:head>
 
-{@render children()}
+<!-- Tokens do tema aplicados via wrapper (Svelte 5 não interpola `{expr}` em <style>). -->
+<div
+	class="app-root"
+	style:--primary-color={data.portalConfig.theme.primaryColor}
+	style:--secondary-color={data.portalConfig.theme.secondaryColor}
+	style:--background-color={data.portalConfig.theme.backgroundColor}
+>
+	{@render children()}
+</div>
 
 <style>
 	@import '../lib/styles/global.css';
