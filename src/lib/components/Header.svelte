@@ -2,8 +2,7 @@
 	import Icon from './Icon.svelte';
 	import type { IconName } from '$lib/types/icons';
 	import { page } from '$app/state';
-	import Button from './Button.svelte';
-	import logo from '$lib/assets/NEO-logo.svg';
+	import Button from '$lib/components/Button.svelte';
 	import type { RouteId } from '$app/types';
 	import type { UserType } from '$lib/types/user';
 	import Input from './Input.svelte';
@@ -12,35 +11,50 @@
 	import { logout } from '$lib/services/auth.service';
 	import { searchRequests } from '$lib/services/request.service';
 
-	type StaticRouteId = Exclude<RouteId, `${string}[${string}]${string}`>;
-
+	// KNOWN ISSUE (svelte-check) — não estreitar este tipo sem entender a causa:
+	// `resolve(item.href)` (no helper `isActive` e abaixo, no markup) acusa erro
+	// porque o `RouteId` gerado inclui ids de diretórios sem página (ex.: pastas
+	// `components/` da colocação de componentes) e `resolve()` usa tipo
+	// condicional distributivo.
+	// Falso-positivo: runtime e build passam; só o `check` fica vermelho.
 	interface NavButton {
 		name: string;
 		icon: IconName;
-		// Opcional até ter as rotas definidas
-		href?: StaticRouteId;
+		href?: RouteId;
+		// Sem rota associada: item exibido como indisponível, sem link.
+		disabled?: boolean;
 	}
 
 	const currentUser = $derived(page.data.user);
+	const appConfig = $derived(page.data.portalConfig);
+
+	function isActive(item: NavButton, pathname: string): boolean {
+		if (!item.href) return false;
+		const resolved = resolve(item.href);
+		return pathname === resolved || pathname.startsWith(`${resolved}/`);
+	}
 
 	const analistaNav: NavButton[] = [
 		{
 			name: 'Home',
 			icon: 'home',
-			// Mais para quesito de teste visual
-			href: '/'
+			href: '/(admin)/home'
 		},
 		{
 			name: 'Fila Centralizada',
-			icon: 'centralQueue'
+			icon: 'centralQueue',
+			href: '/(admin)/fila'
 		}
 	];
 
 	const gestorNav: NavButton[] = [
 		...analistaNav,
 		{
+			// 'Histórico de Logs' ainda não tem rota (prevista em outra issue)
+			// (Sprint 4) — item cinza até a rota existir, impede link sem href.
 			name: 'Histórico de Logs',
-			icon: 'history'
+			icon: 'history',
+			disabled: true
 		}
 	];
 
@@ -48,7 +62,8 @@
 		...gestorNav,
 		{
 			name: 'Gerenciar Usuários',
-			icon: 'manageUsers'
+			icon: 'manageUsers',
+			href: '/(admin)/usuarios'
 		}
 	];
 
@@ -77,7 +92,7 @@
 		isSearching = true;
 
 		try {
-			const result = await searchRequests(value);
+			const result = await searchRequests(value, appConfig.protocolMask);
 
 			if (!result.ok) {
 				console.error(result.error.message);
@@ -95,7 +110,10 @@
 
 			const searchParams = new URLSearchParams({ email: value });
 
-			await goto(resolve(`/(public)/acompanhar?${searchParams.toString()}`));
+			// Plugin não aceita query string após resolve() (eslint-plugin-svelte#1327);
+			// a navegação é validada em runtime pelo SvelteKit.
+			// eslint-disable-next-line svelte/no-navigation-without-resolve
+			await goto(`${resolve('/(public)/acompanhar')}?${searchParams.toString()}`);
 		} finally {
 			isSearching = false;
 		}
@@ -120,7 +138,7 @@
 <header>
 	<div class="top_bar">
 		<a class="top_bar-logo" href={resolve('/')}>
-			<img width="80" height="29" alt="NEO" src={logo} />
+			<img width="123" height="37" alt={appConfig.platformName} src={appConfig.assets.logoUrl} />
 		</a>
 
 		<div class="top_bar-interactables">
@@ -152,11 +170,7 @@
 						<p class="profile_block-name">{currentUser?.name}</p>
 						<p class="profile_block-role">{currentUser?.role}</p>
 					</div>
-
-					<img
-						src="https://images.icon-icons.com/1238/PNG/512/blacksquare_83753.png"
-						alt="imagem do usuário"
-					/>
+					<img src={appConfig.assets.avatarUrl} alt="Imagem do usuário" width="47" height="47" />
 				</div>
 			{:else}
 				<Button
@@ -178,10 +192,17 @@
 		<div class="nav">
 			<div class="nav-items-group">
 				{#each navItems[currentUser?.role ?? 'Solicitante'] as item (item.name)}
-					<div class="nav-item" class:active={page.url.pathname === item.href}>
-						<Icon iconName={item.icon} />
-						<a href={item.href ? resolve(item.href) : undefined}>{item.name}</a>
-					</div>
+					{#if item.disabled}
+						<div class="nav-item inactive" aria-disabled="true">
+							<Icon iconName={item.icon} />
+							<span>{item.name}</span>
+						</div>
+					{:else}
+						<div class="nav-item" class:active={isActive(item, page.url.pathname)}>
+							<Icon iconName={item.icon} />
+							<a href={item.href ? resolve(item.href) : undefined}>{item.name}</a>
+						</div>
+					{/if}
 				{/each}
 			</div>
 
@@ -217,7 +238,7 @@
 	}
 	.top_bar-logo {
 		color: var(--primary-color);
-		width: 80px;
+		width: 123px;
 		font: var(--h1);
 		display: flex;
 	}
@@ -278,14 +299,18 @@
 		transition: var(--transition-default);
 		border-radius: var(--radius-md);
 	}
-	.nav-item:hover,
+	.nav-item:not(.inactive):hover,
 	.nav-item:has(a:focus-visible),
-	.nav-item:focus-visible,
+	.nav-item:not(.inactive):focus-visible,
 	.nav-item.active {
 		background-color: var(--primary-color);
 		color: var(--white);
 	}
 	.nav-item:disabled {
+		cursor: not-allowed;
+		opacity: 0.6;
+	}
+	.nav-item.inactive {
 		cursor: not-allowed;
 		opacity: 0.6;
 	}

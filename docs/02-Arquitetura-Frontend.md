@@ -2,7 +2,7 @@
 
 ## 1. Objetivo
 
-Este documento define como as partes do frontend do Projeto NEO se relacionam e quais são as responsabilidades de cada camada.
+Este documento define como as partes do frontend do projeto MAAT se relacionam e quais são as responsabilidades de cada camada.
 
 A arquitetura busca separar:
 
@@ -23,7 +23,7 @@ src/
 ├── lib/
 │   ├── types/
 │   │   ├── user.ts
-│   │   ├── solicitation.ts
+│   │   ├── request.ts
 │   │   ├── queue.ts
 │   │   ├── auth.ts
 │   │   └── index.ts
@@ -31,23 +31,29 @@ src/
 │   ├── api/
 │   │   ├── client.ts
 │   │   ├── user.api.ts
-│   │   ├── solicitation.api.ts
+│   │   ├── request.api.ts
 │   │   ├── queue.api.ts
 │   │   ├── auth.api.ts
 │   │   └── index.ts
 │   │
 │   ├── services/
 │   │   ├── user.service.ts
-│   │   ├── solicitation.service.ts
+│   │   ├── request.service.ts
 │   │   ├── assignment.service.ts
 │   │   ├── queue.service.ts
 │   │   ├── auth.service.ts
+│   │   ├── access.service.ts
 │   │   └── index.ts
 │   │
+│   ├── config/
+│   │   ├── portal-defaults.ts
+│   │   ├── portal-config.api.ts
+│   │   └── portal-config.service.ts
+│   │
 │   ├── mocks/
-│   │   ├── users.ts
-│   │   ├── solicitations.ts
-│   │   ├── auth.ts
+│   │   ├── users.mock.ts
+│   │   ├── requests.mock.ts
+│   │   ├── auth.mock.ts
 │   │   └── index.ts
 │   │
 │   ├── states/
@@ -60,7 +66,7 @@ src/
 │   │   ├── layout/
 │   │   ├── forms/
 │   │   ├── users/
-│   │   └── solicitation/
+│   │   └── request/
 │   │
 │   ├── styles/
 │   │   ├── tokens.css
@@ -226,9 +232,7 @@ services/
 
 ## 9. Estado compartilhado
 
-Estados compartilhados podem ser gerenciados com recursos do Svelte, como `$state`, ou stores, dependendo da necessidade.
-
-Exemplos:
+Estado compartilhado é implementado em `states/*.svelte.ts` com runes do Svelte 5 (`$state`/`$derived`), padrão oficial do Svelte 5. States não substituem a sessão definida no servidor. Exemplos:
 
 - usuário autenticado;
 - sessão;
@@ -248,6 +252,36 @@ Estados compartilhados não substituem:
 - cookies;
 - validação de sessão no servidor.
 
+### 9.1 Configuração do portal (`config/`)
+
+A configuração pública do portal (runtime) vive na pasta `config/` com o tipo em `types/portal-config.ts`:
+
+- `types/portal-config.ts` — contrato `PortalConfig` (nome da plataforma, modo de solicitação `PUBLIC`/`AUTHENTICATED`, prefixo de exibição do protocolo, tokens de tema e assets). O contrato definitivo é definido pela issue #90; issues futuras (#88, #89, #92) incrementam campos em vez de criar mecanismos próprios;
+- `config/portal-defaults.ts` — único dono dos defaults locais (espelha `global.css` `:root` e os assets estáticos);
+- `config/portal-config.api.ts` — leitura via camada `api/` (`apiClient`); o endpoint real nasce com a #90;
+- `config/portal-config.service.ts` — resolução com fallback: falha de rede ou valor inválido cai no default por campo (validação allowlist — apenas strings tipadas e URLs seguras; nenhum HTML/CSS/JS vindo da API é aceito).
+
+Fluxo:
+
+```text
+hooks.server.ts (loadPortalConfig → locals.portalConfig, com fallback)
+        ↓
++layout.server.ts (repassa locals → data.portalConfig)
+        ↓
++layout.svelte (favicon/title/estilos do tema a partir de data)
+        ↓
+Componentes (leem via page.data.portalConfig; nunca fetch direto)
+```
+
+Regras:
+
+- a configuração é resolvida no servidor (no `hooks.server.ts`, mesmo padrão do `locals.user`) e entregue por `data`; componentes não leem a API diretamente;
+- consumidores leem `page.data.portalConfig` (reativo, SSR-consistente) — não há store/estado de módulo para config; se no futuro houver mutação cliente a partir do admin (#90), um estado em `states/*.svelte.ts` (runes) pode ser adicionado na hora da necessidade;
+- `protocolMask` (prefixo do protocolo) é repassado como parâmetro a services/validações (`isProtocol(value, prefix)`), pois services não acessam `page.data`;
+- o tema (3 tokens de cor) é aplicado como exemplo/baseline no `+layout.svelte` via wrapper `.app-root` + diretivas `style:--*` (CSS custom properties): o wrapper é o container de layout (flex, centralização, `min-height: 100dvh`, fundo via `--background-color`), cobrindo o `body` — renderizado no SSR (sem `$effect`, sem flash) e reativo a `data`. Nota: o Svelte 5 não suporta interpolação `{expr}` em `<style>` (recurso removido do Svelte 4), e `:global()` só serve para CSS estático — por isso as custom properties reativas vão via `style:` num wrapper;
+- configuração de portal (runtime) é diferente do toggle dev de mocks: o toggle dev de mock/API permanece **apenas** em `mocks/index.ts` (`dev` de `$app/environment`), inerte em produção; nenhum flag runtime do portal entra nos mocks. O mock/domínio `config` da API real será adicionado em `mocks/index.ts` quando o endpoint existir (#90);
+- a aplicação do tema completo (tokens em páginas, flash minimizado) é escopo da issue #89; esta camada apenas prepara o transporte.
+
 ---
 
 ## 10. Mocks
@@ -261,6 +295,29 @@ Os mocks devem:
 - representar diferentes cenários;
 - incluir sucesso, vazio, erro e diferentes status;
 - nunca utilizar informações reais de clientes ou usuários.
+
+### Toggle central de mocks
+
+Os mocks são controlados por `src/lib/mocks/index.ts` — único ponto para ligar/desligar:
+
+- `MOCKS_ENABLED`: interruptor global (ligado em desenvolvimento);
+- `MOCK_DOMAINS`: toggle por domínio (`auth`, `request`; novos domínios entram aqui).
+
+Regras:
+
+- mocks existem apenas em desenvolvimento: em build de produção, as branches dos `*.api.ts` e os módulos de mock são eliminados do bundle;
+- para testar com a API real, desligue o interruptor global (`MOCKS_ENABLED`) ou um domínio específico em `MOCK_DOMAINS` (mudança local, sem commit);
+- os `*.api.ts` consomem o toggle com `import.meta.env.DEV` inline no ponto de chamada — o que garante a eliminação do import dinâmico no build de produção;
+- feature flags em tempo de execução não pertencem aos mocks (pertencem à camada de app-config).
+
+### Obrigatoriedade do padrão
+
+Toda integração com o backend nasce acompanhada do mock correspondente, sempre neste formato:
+
+- novos domínios entram em `MOCK_DOMAINS` (`src/lib/mocks/index.ts`);
+- os `*.api.ts` consomem o toggle com `import.meta.env.DEV` inline no ponto de chamada, via import dinâmico do módulo de mock.
+
+Esse formato garante duas coisas: o frontend funciona integralmente desacoplado do backend (desenvolvimento e testes sem API), e o código de mock nunca entra no bundle de produção. Mocks fora desse padrão — imports estáticos, flags em runtime lidas no build de produção — quebram uma das duas garantias e não devem ser introduzidos.
 
 ---
 
@@ -276,7 +333,7 @@ A pasta `utils/` contém funções genéricas e reutilizáveis, como:
 - manipulação de parâmetros de URL;
 - debounce.
 
-Uma função que representa uma regra específica do NEO deve pertencer a um service, e não a `utils/`.
+Uma função que representa uma regra específica do MAAT deve pertencer a um service, e não a `utils/`.
 
 ### Constants
 
@@ -318,11 +375,27 @@ routes/
 └── (admin)/
 ```
 
-- `(public)`: páginas públicas;
-- `(app)`: páginas disponíveis para usuários autenticados;
-- `(admin)`: páginas administrativas.
+- `(public)`: páginas públicas (anônimos e Solicitante);
+- `(app)`: páginas de qualquer usuário autenticado — `guard('anySession')`;
+- `(admin)`: páginas das áreas internas (Analista, Gestor, Administrador) — `guard('internalArea')`.
 
 Os grupos entre parênteses organizam as rotas sem alterar diretamente a URL e devem ser criados conforme a necessidade do projeto.
+
+**Grupo ≠ perfil.** O perfil do usuário (Solicitante, Analista, Gestor, Administrador) nunca gera um novo grupo de rotas; é resolvido na tabela `GUARD_RULES` do access service (`src/lib/services/access.service.ts`). Um futuro perfil Gestor, por exemplo, é uma linha em `profiles` de uma regra — não um grupo `(gestor)/`.
+
+O grupo `(admin)` tem papel de guard server-side (não define layout visual): o Header permanece único, com navegação por perfil.
+
+**Colocação de componentes.** Componentes específicos de uma página podem ficar colocalizados em `routes/.../components/` (padrão suportado pelo SvelteKit: arquivos sem prefixo `+` nunca se tornam rotas). Componentes reutilizados por várias páginas pertencem a `lib/components/`.
+
+### Regra da home
+
+O logo e o item "Home" da navegação apontam sempre para `/`; a decisão de "qual é a home por contexto" vive em um único lugar no servidor (`(public)/+page.server.ts`, via access service):
+
+- anônimo → permanece na home pública;
+- Solicitante autenticado → permanece na home pública;
+- Analista/Gestor/Administrador → `redirect(303, '/home')`.
+
+Nenhum `href` na UI é fixado em `/home`.
 
 ---
 
@@ -332,6 +405,7 @@ Os grupos entre parênteses organizam as rotas sem alterar diretamente a URL e d
 components → services, states, types, utils e constants
 pages      → components, services, states e types
 states     → services e types
+config     → api, types e utils
 services   → api, types, mocks, utils e constants
 api        → types e utils
 mocks      → types

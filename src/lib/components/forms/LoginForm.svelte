@@ -1,11 +1,15 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import { login } from '$lib/services/auth.service';
 	import type { LoginCredentials } from '$lib/types/auth';
+
+	const platformName = $derived(page.data.portalConfig.platformName);
+	const loginImageUrl = $derived(page.data.portalConfig.assets.loginImageUrl);
 
 	let email = $state('');
 	let password = $state('');
@@ -57,7 +61,8 @@
 		isSubmitting = false;
 
 		if (result.ok) {
-			await goto(resolve('/(app)/painel'), { invalidateAll: true }); // ENDPOINT DE SUCESSO DE LOGIN DEVE SER ADICIONADO AQUI
+			// A home decide o destino por perfil (redirect server-side em (public)/+page.server.ts)
+			await goto(resolve('/'), { invalidateAll: true });
 			return;
 		}
 		errorMessage = result.error.message;
@@ -65,7 +70,7 @@
 </script>
 
 <form onsubmit={handleSubmit} novalidate>
-	<div class="container-banner">
+	<div class="container-banner" style:background-image={`url('${loginImageUrl}')`}>
 		<h2>Potencializando a Gestão Inteligente.</h2>
 		<span style="display: flex; align-items: center; gap: var(--spacing-sm);">
 			<svg xmlns="http://www.w3.org/2000/svg" width="48" height="2" viewBox="0 0 48 2" fill="none">
@@ -76,7 +81,7 @@
 	</div>
 	<div class="container-form">
 		<div class="container-titulo">
-			<h1>Bem-vindo ao NEO</h1>
+			<h1>Bem-vindo ao {platformName}</h1>
 			<p>Insira suas credenciais.</p>
 		</div>
 
@@ -145,7 +150,6 @@
 		justify-content: flex-end;
 		width: 50%;
 		gap: var(--spacing-xl);
-		background-image: url('$lib/assets/login.png');
 		background-size: cover;
 		background-position: center;
 		padding: var(--spacing-xl);

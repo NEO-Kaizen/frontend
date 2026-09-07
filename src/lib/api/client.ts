@@ -1,4 +1,5 @@
 import { env } from '$env/dynamic/public';
+import { ApiError } from '$lib/types/result';
 
 const PUBLIC_API_URL = env.PUBLIC_API_URL;
 
@@ -6,22 +7,15 @@ if (!PUBLIC_API_URL) {
 	throw new Error('PUBLIC_API_URL não está definida no ambiente.');
 }
 
-export class ApiError extends Error {
-	status: number;
-
-	constructor(status: number, message: string) {
-		super(message);
-		this.name = 'ApiError';
-		this.status = status;
-	}
-}
-
+// FormData sem Content-Type: o browser gera o boundary do multipart.
 export async function apiClient<T>(path: string, options: RequestInit = {}): Promise<T> {
+	const isMultipart = options.body instanceof FormData;
+
 	const response = await fetch(`${PUBLIC_API_URL}${path}`, {
 		credentials: 'include',
 		...options,
 		headers: {
-			'Content-Type': 'application/json',
+			...(isMultipart ? undefined : { 'Content-Type': 'application/json' }),
 			...options.headers
 		}
 	});

@@ -32,6 +32,9 @@ export function isFutureOrToday(value: string, reference: string): boolean {
 	return value >= reference;
 }
 
-export function isProtocol(value: string): boolean {
-	return /^[A-Z]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/i.test(value);
+// Protocolo no formato "{prefixo}-XXXX-XXXX" — o prefixo (primeiro bloco) é
+// configurável via PortalConfig.protocolMask. `prefix` é escapado para regex.
+export function isProtocol(value: string, prefix: string): boolean {
+	const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	return new RegExp(`^${escapedPrefix}-[A-Z0-9]{4}-[A-Z0-9]{4}$`, 'i').test(value);
 }

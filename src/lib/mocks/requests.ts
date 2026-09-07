@@ -7,7 +7,7 @@ export type MockRequest = RequestSummary & {
 export const mockRequests: MockRequest[] = [
 	{
 		protocol: 'MAAT-8K3P-9X2M',
-		corporateEmail: 'maria.oliveira@neo.com.br',
+		corporateEmail: 'maria.oliveira@maat.com.br',
 		createdAt: '2026-08-25T14:03:11.000Z',
 		processName: 'Pagamento de diárias',
 		priority: null,
@@ -17,7 +17,7 @@ export const mockRequests: MockRequest[] = [
 	},
 	{
 		protocol: 'MAAT-6N2W-8VBM',
-		corporateEmail: 'maria.oliveira@neo.com.br',
+		corporateEmail: 'maria.oliveira@maat.com.br',
 		createdAt: '2026-08-10T09:41:20.000Z',
 		processName: 'Fechamento mensal de ponto',
 		priority: 'Alta',
@@ -27,7 +27,7 @@ export const mockRequests: MockRequest[] = [
 	},
 	{
 		protocol: 'MAAT-4P7K-2LQX',
-		corporateEmail: 'maria.oliveira@neo.com.br',
+		corporateEmail: 'maria.oliveira@maat.com.br',
 		createdAt: '2026-08-18T11:20:00.000Z',
 		processName: 'Controle de férias',
 		priority: 'Média',
@@ -37,7 +37,7 @@ export const mockRequests: MockRequest[] = [
 	},
 	{
 		protocol: 'MAAT-9R3D-7KWF',
-		corporateEmail: 'joao.santos@neo.com.br',
+		corporateEmail: 'joao.santos@maat.com.br',
 		createdAt: '2026-08-20T08:15:00.000Z',
 		processName: 'Automatização de relatórios',
 		priority: 'Alta',
@@ -47,7 +47,7 @@ export const mockRequests: MockRequest[] = [
 	},
 	{
 		protocol: 'MAAT-5X8M-3QTP',
-		corporateEmail: 'joao.santos@neo.com.br',
+		corporateEmail: 'joao.santos@maat.com.br',
 		createdAt: '2026-08-22T15:40:00.000Z',
 		processName: 'Integração de sistemas',
 		priority: 'Crítica',
@@ -57,7 +57,7 @@ export const mockRequests: MockRequest[] = [
 	},
 	{
 		protocol: 'MAAT-2B6V-9HKS',
-		corporateEmail: 'ana.souza@neo.com.br',
+		corporateEmail: 'ana.souza@maat.com.br',
 		createdAt: '2026-08-24T10:30:00.000Z',
 		processName: 'Acesso ao sistema interno',
 		priority: 'Baixa',
@@ -67,7 +67,7 @@ export const mockRequests: MockRequest[] = [
 	},
 	{
 		protocol: 'MAAT-7C4F-1NXR',
-		corporateEmail: 'ana.souza@neo.com.br',
+		corporateEmail: 'ana.souza@maat.com.br',
 		createdAt: '2026-08-26T13:45:00.000Z',
 		processName: 'Atualização cadastral',
 		priority: null,
@@ -77,7 +77,7 @@ export const mockRequests: MockRequest[] = [
 	},
 	{
 		protocol: 'MAAT-3J8L-6PQM',
-		corporateEmail: 'carlos.mendes@neo.com.br',
+		corporateEmail: 'carlos.mendes@maat.com.br',
 		createdAt: '2026-08-27T09:10:00.000Z',
 		processName: 'Revisão de processo',
 		priority: 'Média',
@@ -87,7 +87,7 @@ export const mockRequests: MockRequest[] = [
 	},
 	{
 		protocol: 'MAAT-8T2K-4WNB',
-		corporateEmail: 'fernanda.lima@neo.com.br',
+		corporateEmail: 'fernanda.lima@maat.com.br',
 		createdAt: '2026-08-28T16:25:00.000Z',
 		processName: 'Novo fluxo de atendimento',
 		priority: 'Alta',
@@ -97,7 +97,7 @@ export const mockRequests: MockRequest[] = [
 	},
 	{
 		protocol: 'MAAT-1Q9Z-5RKC',
-		corporateEmail: 'rafael.costa@neo.com.br',
+		corporateEmail: 'rafael.costa@maat.com.br',
 		createdAt: '2026-08-29T11:50:00.000Z',
 		processName: 'Dashboard de indicadores',
 		priority: 'Média',
@@ -107,7 +107,7 @@ export const mockRequests: MockRequest[] = [
 	},
 	{
 		protocol: 'MAAT-6H3P-8VXM',
-		corporateEmail: 'juliana.alves@neo.com.br',
+		corporateEmail: 'juliana.alves@maat.com.br',
 		createdAt: '2026-08-30T08:40:00.000Z',
 		processName: 'Melhoria no processo de atendimento',
 		priority: 'Alta',
@@ -117,7 +117,7 @@ export const mockRequests: MockRequest[] = [
 	},
 	{
 		protocol: 'MAAT-4K7N-2DQS',
-		corporateEmail: 'bruno.martins@neo.com.br',
+		corporateEmail: 'bruno.martins@maat.com.br',
 		createdAt: '2026-08-30T14:15:00.000Z',
 		processName: 'Solicitação de cancelamento',
 		priority: 'Baixa',

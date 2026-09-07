@@ -5,7 +5,7 @@
 	import Card from '$lib/components/Card.svelte';
 	import Banner from '$lib/components/layout/Banner.svelte';
 
-	function openChamados() {
+	function openTracking() {
 		goto(resolve('/(public)/acompanhar'));
 	}
 </script>
@@ -45,7 +45,7 @@ Nosso fluxo guiado ajudará você a fornecer os detalhes necessários."
 			variant="secondary"
 			badgeVariant="green"
 			buttonVariant="outline"
-			onAction={openChamados}
+			onAction={openTracking}
 		/>
 	</section>
 </main>

@@ -1,6 +1,6 @@
-# NEO
+# MAAT Flow
 
-O **NEO** é uma aplicação voltada para a **gestão de solicitações**, permitindo a abertura, acompanhamento e gerenciamento de demandas de forma centralizada.
+O **MAAT Flow** é uma aplicação voltada para a **gestão de solicitações**, permitindo a abertura, acompanhamento e gerenciamento de demandas de forma centralizada.
 
 A aplicação possui diferentes níveis de acesso, permitindo que **solicitantes, analistas, gestores e administradores** tenham acesso às funcionalidades de acordo com suas responsabilidades.
 
@@ -18,6 +18,7 @@ A aplicação possui diferentes níveis de acesso, permitindo que **solicitantes
   - [TypeScript para Segurança de Tipos](#3-typescript-para-segurança-de-tipos)
   - [Componentes Reutilizáveis](#4-componentes-reutilizáveis)
   - [Autenticação e Controle de Acesso](#5-autenticação-e-controle-de-acesso)
+  - [Mocks](#6-mocks)
 
 - [Equipe](#equipe)
 
@@ -143,6 +144,15 @@ A comunicação com o Backend é centralizada nas camadas de `api` e `services`,
 | Administrador | Gerenciar usuários e áreas administrativas |
 
 As regras de acesso serão implementadas e refinadas conforme a evolução do projeto.
+
+### 6. Mocks
+
+Em desenvolvimento, a aplicação funciona integralmente com dados fictícios (mocks), sem depender do backend.
+
+- O controle dos mocks fica em `src/lib/mocks/index.ts` — ponto único para ligar/desligar globalmente (`MOCKS_ENABLED`) ou por domínio (`MOCK_DOMAINS`);
+- para testar contra a API real, desligue o interruptor global ou o domínio desejado (mudança local, sem commit);
+- mocks existem apenas em desenvolvimento: no build de produção o código de mock é eliminado do bundle;
+- todo mock novo segue obrigatoriamente este formato (toggle em `src/lib/mocks/index.ts` + import dinâmico nos `*.api.ts`): é o que mantém o frontend desacoplado do backend e o código de mock fora do build.
 
 ## Equipe
 
