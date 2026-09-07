@@ -3,7 +3,8 @@
 	import type { HTMLInputAttributes } from 'svelte/elements';
 	import Icon from './Icon.svelte';
 
-	type InputType = 'text' | 'email' | 'password' | 'tel' | 'url' | 'search';
+	type InputType =
+		'text' | 'email' | 'password' | 'tel' | 'url' | 'search' | 'number' | 'date' | 'datetime-local';
 
 	interface BaseProps extends Omit<
 		HTMLInputAttributes,
@@ -18,6 +19,7 @@
 		error?: string;
 		name?: string;
 		id?: string;
+		maxlength?: number;
 		icon?: IconName;
 		prefix?: string;
 	}
@@ -46,6 +48,7 @@
 		error = '',
 		name,
 		id,
+		maxlength,
 		icon,
 		prefix,
 		actionIcon,
@@ -56,6 +59,14 @@
 
 	const uid = $props.id();
 	const inputId = $derived(id ?? uid);
+
+	function getValue() {
+		return value == null ? '' : String(value);
+	}
+
+	function setValue(newValue: string | number | null | undefined) {
+		value = newValue == null ? '' : String(newValue);
+	}
 </script>
 
 <div class="input-field">
@@ -82,7 +93,8 @@
 			{placeholder}
 			{required}
 			{disabled}
-			bind:value
+			{maxlength}
+			bind:value={getValue, setValue}
 			aria-invalid={error ? true : undefined}
 			aria-describedby={error ? `${inputId}-error` : undefined}
 			class:error={Boolean(error)}
@@ -90,6 +102,12 @@
 			class:has-leading-prefix={Boolean(prefix)}
 			class:has-action-icon={Boolean(actionIcon)}
 		/>
+
+		{#if maxlength && type !== 'number' && type !== 'date' && type !== 'datetime-local'}
+			<span class="char-counter" aria-hidden="true">
+				{getValue().length}/{maxlength}
+			</span>
+		{/if}
 
 		{#if actionIcon}
 			<button
@@ -164,6 +182,22 @@
 		display: inline-flex;
 		pointer-events: none;
 		color: var(--gray);
+	}
+	
+	.char-counter {
+		position: absolute;
+		right: var(--spacing-sm);
+		bottom: 6px;
+		font-size: 12px;
+		line-height: 1;
+		color: var(--gray);
+		pointer-events: none;
+		opacity: 0;
+		transition: var(--transition-default);
+	}
+
+	.input-wrapper:focus-within .char-counter {
+		opacity: 1;
 	}
 
 	.leading-prefix {

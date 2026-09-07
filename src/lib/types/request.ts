@@ -19,6 +19,14 @@ export type RequestStatus =
 
 export type RequestPriority = 'Baixa' | 'Média' | 'Alta' | 'Crítica';
 
+export type RequestType = 'Automação' | 'Melhoria' | 'Manutenção';
+
+export type Frequency = 'Diária' | 'Semanal' | 'Mensal' | 'Por Demanda';
+
+export type YesNo = 'Sim' | 'Não';
+
+export type Criticality = RequestPriority;
+
 export type TriageResult =
 	| 'Elegível para avaliação'
 	| 'Pendente de informações'
@@ -156,6 +164,187 @@ export interface ApiErrorResponse {
 	statusCode: number;
 	message: string;
 }
+
+// ---- Formulário de solicitação (estado das etapas da UI) ----
+
+// Etapa 1 — identificação do solicitante.
+export type IdentificationData = {
+	fullName: string;
+	corporateEmail: string;
+	area: string;
+	department: string;
+	manager: string;
+	additionalContact: string;
+};
+
+// Etapa 2 — dados da demanda.
+export type DemandData = {
+	title: string;
+	category: RequestCategory | '';
+	processName: string;
+	requestType: RequestType | '';
+	description: string;
+	problem: string;
+	justification: string;
+	expectedResult: string;
+};
+
+// Etapa 3 — dados operacionais.
+export type OperationalData = {
+	processDescription: string;
+	processSteps: string;
+	systemsUsed: string;
+	executionFrequency: Frequency | '';
+	volumetry: string;
+	peopleInvolved: string;
+	averageExecutionTime: string;
+	monthlyEffortHours: string;
+	hasManualControls: YesNo | '';
+	hasManualControlsDetail: string;
+	mainRisks: string;
+	clientImpact: string;
+	operationalImpact: OperationalImpact | '';
+	desiredDeadline: string;
+	perceivedCriticality: Criticality | '';
+};
+
+// Arquivo em anexo — dados de UI para o estado do formulário (o upload binário
+// real é enviado separadamente na parte "attachments" do multipart).
+export type DemandFile = {
+	id: string;
+	fileName: string;
+	mimeType: string;
+	sizeBytes: number;
+};
+
+// Etapa 4 — dados complementares (opcional).
+export type ComplementaryData = {
+	hasProcessDocumentation: YesNo | '';
+	hasProcessDocumentationDetail: string;
+	hasSimilarSolution: YesNo | '';
+	hasSimilarSolutionDetail: string;
+	dependsOnOtherAreas: YesNo | '';
+	dependsOnOtherAreasDetail: string;
+	handlesRestrictedInfo: YesNo | '';
+	handlesRestrictedInfoDetail: string;
+	additionalNotes: string;
+	files: DemandFile[];
+	preferredSchedule: string[];
+};
+
+export type DemandFormData = {
+	requester: IdentificationData;
+	demand: DemandData;
+	operational: OperationalData;
+	complementary: ComplementaryData;
+};
+
+// Erros de validação por campo de etapa.
+export type StepFieldErrors = Partial<Record<string, string>>;
+
+// Campos por etapa (para validação/gatilhos).
+export const STEP_FIELDS = {
+	1: ['fullName', 'corporateEmail', 'area', 'manager'] as const,
+	2: [
+		'title',
+		'processName',
+		'requestType',
+		'category',
+		'description',
+		'problem',
+		'justification',
+		'expectedResult'
+	] as const,
+	3: [
+		'processDescription',
+		'processSteps',
+		'systemsUsed',
+		'executionFrequency',
+		'volumetry',
+		'peopleInvolved',
+		'averageExecutionTime',
+		'monthlyEffortHours',
+		'hasManualControls',
+		'mainRisks',
+		'clientImpact',
+		'operationalImpact',
+		'desiredDeadline',
+		'perceivedCriticality'
+	] as const,
+	4: [] as const
+} as const;
+
+// ---- Opções de formulário (valores e rótulos para selects) ----
+
+export const CATEGORY_OPTIONS: { value: RequestCategory; label: string }[] = [
+	{ value: 'Automação', label: 'Automação' },
+	{ value: 'Melhoria de processo', label: 'Melhoria de processo' },
+	{ value: 'Indicador', label: 'Indicador' },
+	{ value: 'Dashboard ou relatório', label: 'Dashboard ou relatório' },
+	{ value: 'Análise de dados', label: 'Análise de dados' },
+	{ value: 'Padronização', label: 'Padronização' },
+	{ value: 'Revisão de processo', label: 'Revisão de processo' },
+	{ value: 'Apoio técnico', label: 'Apoio técnico' },
+	{ value: 'Estudo de viabilidade', label: 'Estudo de viabilidade' },
+	{ value: 'Outros', label: 'Outros' }
+];
+
+export const IMPACT_OPTIONS: { value: OperationalImpact; label: string }[] = [
+	{ value: 'Baixo', label: 'Baixo' },
+	{ value: 'Médio', label: 'Médio' },
+	{ value: 'Alto', label: 'Alto' },
+	{ value: 'Crítico', label: 'Crítico' }
+];
+
+export const AREA_OPTIONS = [
+	{ value: 'Tecnologia da Informação', label: 'Tecnologia da Informação' },
+	{ value: 'Recursos Humanos', label: 'Recursos Humanos' },
+	{ value: 'Financeiro', label: 'Financeiro' },
+	{ value: 'Operações', label: 'Operações' },
+	{ value: 'Comercial', label: 'Comercial' },
+	{ value: 'Marketing', label: 'Marketing' },
+	{ value: 'Jurídico', label: 'Jurídico' },
+	{ value: 'Administrativo', label: 'Administrativo' }
+];
+
+export const REQUEST_TYPE_OPTIONS: { value: RequestType; label: string }[] = [
+	{ value: 'Automação', label: 'Automação' },
+	{ value: 'Melhoria', label: 'Melhoria' },
+	{ value: 'Manutenção', label: 'Manutenção' }
+];
+
+export const FREQUENCY_OPTIONS: { value: Frequency; label: string }[] = [
+	{ value: 'Diária', label: 'Diária' },
+	{ value: 'Semanal', label: 'Semanal' },
+	{ value: 'Mensal', label: 'Mensal' },
+	{ value: 'Por Demanda', label: 'Por Demanda' }
+];
+
+export const CRITICALITY_OPTIONS: { value: Criticality; label: string }[] = [
+	{ value: 'Baixa', label: 'Baixa' },
+	{ value: 'Média', label: 'Média' },
+	{ value: 'Alta', label: 'Alta' },
+	{ value: 'Crítica', label: 'Crítica' }
+];
+
+export const YES_NO_OPTIONS: { value: YesNo; label: string }[] = [
+	{ value: 'Sim', label: 'Sim' },
+	{ value: 'Não', label: 'Não' }
+];
+
+// ---- Configuração de anexos ----
+
+export const ALLOWED_FILE_TYPES = [
+	'application/pdf',
+	'image/png',
+	'image/jpeg',
+	'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+	'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+] as const;
+
+export const ALLOWED_FILE_EXTENSIONS = ['.pdf', '.docx', '.xlsx', '.png', '.jpg'] as const;
+
+export const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 // ---- Endpoints GET (contrato firmado; páginas futuras) ----
 

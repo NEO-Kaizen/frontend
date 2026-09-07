@@ -4,12 +4,25 @@
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Input from '$lib/components/Input.svelte';
-	import { isEmail, isProtocol } from '$lib/utils/validations';
+	import { isValidEmail, isProtocol } from '$lib/utils/validations';
+	import { onMount } from 'svelte';
 
 	let isSearching = $state(false);
 	let protocol = $state('');
 	let email = $state('');
 	let hasSubmitted = $state(false);
+
+	onMount(() => {
+		function handlePageShow() {
+			isSearching = false;
+		}
+
+		window.addEventListener('pageshow', handlePageShow);
+
+		return () => {
+			window.removeEventListener('pageshow', handlePageShow);
+		};
+	});
 
 	function formatProtocol(value: string) {
 		const withoutPrefix = value.replace(/^MAAT-?/i, '');
@@ -55,7 +68,7 @@
 	);
 
 	let emailError = $derived(
-		email.trim() && !isEmail(email.trim()) ? 'Informe um e-mail válido.' : ''
+		email.trim() && !isValidEmail(email.trim()) ? 'Informe um e-mail válido.' : ''
 	);
 
 	async function handleSubmit(event: SubmitEvent) {
@@ -70,17 +83,19 @@
 			return;
 		}
 
-		if (isProtocol(normalizedProtocol)) {
-			isSearching = true;
-			await goto(resolve('/(public)/acompanhar/[protocolo]', { protocolo: normalizedProtocol }));
-			isSearching = false;
-			return;
-		}
+		try {
+			if (isProtocol(normalizedProtocol)) {
+				isSearching = true;
+				await goto(resolve('/(public)/acompanhar/[protocolo]', { protocolo: normalizedProtocol }));
+				return;
+			}
 
-		if (isEmail(normalizedEmail)) {
-			isSearching = true;
-			const search = new URLSearchParams({ email: normalizedEmail }).toString();
-			await goto(resolve(`/(public)/acompanhar?${search}`));
+			if (isValidEmail(normalizedEmail)) {
+				isSearching = true;
+				const search = new URLSearchParams({ email: normalizedEmail }).toString();
+				await goto(resolve(`/(public)/acompanhar?${search}`));
+			}
+		} finally {
 			isSearching = false;
 		}
 	}
@@ -99,8 +114,8 @@
 			placeholder="Ex: MAAT-2026-0001"
 			prefix="#"
 			maxlength={14}
-			oninput={handleProtocolInput}
 			error={protocolError}
+			oninput={handleProtocolInput}
 			bind:value={protocol}
 		/>
 	</div>
@@ -112,6 +127,7 @@
 			placeholder="emaildofulano@neo.com.br"
 			prefix="@"
 			error={emailError}
+			oninput={handleEmailInput}
 			bind:value={email}
 		/>
 	</div>
@@ -150,6 +166,9 @@
 		position: relative;
 		flex: 1;
 		min-width: 0;
+	}
+	.field :global(input.error:focus-visible) {
+		outline-color: var(--status-red);
 	}
 
 	.action {

@@ -36,8 +36,8 @@ export async function apiClient<T>(path: string, options: RequestInit = {}): Pro
 async function readErrorMessage(response: Response): Promise<string> {
 	try {
 		const body = (await response.json()) as { message?: string; error?: string };
-		return body.message ?? body.error ?? 'Request failed';
+		return body.message || body.error || 'Não foi possível concluir a operação.';
 	} catch {
-		return 'Request failed';
+		return 'Não foi possível concluir a operação.';
 	}
 }
