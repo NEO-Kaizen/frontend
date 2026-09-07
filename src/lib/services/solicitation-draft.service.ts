@@ -6,7 +6,7 @@ import type {
 	OperationalData
 } from '$lib/types/request';
 
-const STORAGE_KEY = 'neo:solicitation-form:draft';
+const STORAGE_KEY = 'maat:solicitation-form:draft';
 const STORAGE_VERSION = 1;
 
 export interface SolicitationDraft {
