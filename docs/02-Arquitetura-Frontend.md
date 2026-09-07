@@ -261,6 +261,29 @@ Os mocks devem:
 - incluir sucesso, vazio, erro e diferentes status;
 - nunca utilizar informações reais de clientes ou usuários.
 
+### Toggle central de mocks
+
+Os mocks são controlados por `src/lib/mocks/index.ts` — único ponto para ligar/desligar:
+
+- `MOCKS_ENABLED`: interruptor global (ligado em desenvolvimento);
+- `MOCK_DOMAINS`: toggle por domínio (`auth`, `request`; novos domínios entram aqui).
+
+Regras:
+
+- mocks existem apenas em desenvolvimento: em build de produção, as branches dos `*.api.ts` e os módulos de mock são eliminados do bundle;
+- para testar com a API real, desligue o interruptor global (`MOCKS_ENABLED`) ou um domínio específico em `MOCK_DOMAINS` (mudança local, sem commit);
+- os `*.api.ts` consomem o toggle com `import.meta.env.DEV` inline no ponto de chamada — o que garante a eliminação do import dinâmico no build de produção;
+- feature flags em tempo de execução não pertencem aos mocks (pertencem à camada de app-config).
+
+### Obrigatoriedade do padrão
+
+Toda integração com o backend nasce acompanhada do mock correspondente, sempre neste formato:
+
+- novos domínios entram em `MOCK_DOMAINS` (`src/lib/mocks/index.ts`);
+- os `*.api.ts` consomem o toggle com `import.meta.env.DEV` inline no ponto de chamada, via import dinâmico do módulo de mock.
+
+Esse formato garante duas coisas: o frontend funciona integralmente desacoplado do backend (desenvolvimento e testes sem API), e o código de mock nunca entra no bundle de produção. Mocks fora desse padrão — imports estáticos, flags em runtime lidas no build de produção — quebram uma das duas garantias e não devem ser introduzidos.
+
 ---
 
 ## 11. Utils e constants
