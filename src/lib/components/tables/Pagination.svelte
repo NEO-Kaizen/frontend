@@ -1,21 +1,23 @@
 <script lang="ts">
 	let {
-		paginaAtual = $bindable(1),
-		totalPaginas
+		paginaAtual,
+		totalPaginas,
+		onpagechange
 	}: {
 		paginaAtual: number;
 		totalPaginas: number;
+		onpagechange: (page: number) => void;
 	} = $props();
 
 	function paginaAnterior() {
 		if (paginaAtual > 1) {
-			paginaAtual--;
+			onpagechange(paginaAtual - 1);
 		}
 	}
 
 	function proximaPagina() {
 		if (paginaAtual < totalPaginas) {
-			paginaAtual++;
+			onpagechange(paginaAtual + 1);
 		}
 	}
 
@@ -61,7 +63,7 @@
 				type="button"
 				class="page-btn"
 				class:active={paginaAtual === page}
-				onclick={() => (paginaAtual = page as number)}
+				onclick={() => onpagechange(page as number)}
 			>
 				{page}
 			</button>

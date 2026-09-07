@@ -1,10 +1,11 @@
-<!-- src/routes/(public)/acompanhar/components/SolicitationTable.svelte -->
+<!-- Componente global: usado em /acompanhar e reutilizável na fila admin (issue própria) -->
 <script lang="ts">
 	import foundImg from '$lib/assets/SolicitationIllustration.svg';
-	import Pagination from '$lib/components/Pagination.svelte';
-	import { listRequests } from '$lib/services/request.service';
+	import Pagination from './Pagination.svelte';
+	import { invalidateAll } from '$app/navigation';
 	import { formatShortDate, formatShortTime } from '$lib/utils/dates';
 	import type { PaginatedResponse, RequestStatus, RequestSummary } from '$lib/types/request';
+	import type { Result } from '$lib/types/result';
 	import { resolve } from '$app/paths';
 
 	const mapStatusToClass: Record<RequestStatus, string> = {
@@ -27,75 +28,38 @@
 		Backlog: 'status-gray'
 	};
 
-	const PAGE_SIZE = 4;
+	// União literal estreita: evita o falso-positivo RouteId × resolve() documentado.
+	type DetailRoute = '/(public)/acompanhar/[protocolo]' | '/(admin)/fila/[protocolo]';
 
-	let { email = '' } = $props();
+	type Props = {
+		page: number;
+		resultado: Result<PaginatedResponse<RequestSummary>> | null;
+		isFetching: boolean;
+		detailRoute?: DetailRoute;
+		onpagechange: (page: number) => void;
+	};
 
-	let paginaAtual = $state(1);
-	let isFetching = $state(false);
-	let fetchError = $state<{ message: string } | null>(null);
-	let pageData = $state<PaginatedResponse<RequestSummary> | null>(null);
-	let retryTick = $state(0);
+	let {
+		page,
+		resultado = null,
+		isFetching = false,
+		detailRoute = '/(public)/acompanhar/[protocolo]',
+		onpagechange
+	}: Props = $props();
 
-	// Não reativo: invalida respostas de buscas atrasadas (ordem de chegada).
-	let buscaAtiva = 0;
-
-	const resultados = $derived(pageData?.data ?? []);
-	const totalPaginas = $derived(pageData?.totalPages ?? 0);
-	const totalResultados = $derived(pageData?.total ?? 0);
+	const resultados = $derived(resultado?.ok ? resultado.data.data : []);
+	const totalPaginas = $derived(resultado?.ok ? resultado.data.totalPages : 0);
+	const totalResultados = $derived(resultado?.ok ? resultado.data.total : 0);
 	const inicioExibicao = $derived(
-		pageData && totalResultados > 0 ? (pageData.page - 1) * pageData.pageSize + 1 : 0
+		resultado?.ok && resultado.data.total > 0
+			? (resultado.data.page - 1) * resultado.data.pageSize + 1
+			: 0
 	);
 	const fimExibicao = $derived(
-		pageData ? Math.min(pageData.page * pageData.pageSize, totalResultados) : 0
+		resultado?.ok
+			? Math.min(resultado.data.page * resultado.data.pageSize, resultado.data.total)
+			: 0
 	);
-
-	async function carregarResultados(emailBusca: string, paginaBusca: number, busca: number) {
-		isFetching = true;
-		fetchError = null;
-
-		const result = await listRequests({
-			email: emailBusca,
-			page: paginaBusca,
-			pageSize: PAGE_SIZE
-		});
-
-		if (busca !== buscaAtiva) return;
-
-		isFetching = false;
-
-		if (!result.ok) {
-			fetchError = result.error;
-			return;
-		}
-
-		// E-mail trocado com página antiga em memória: volta para a primeira página.
-		if (paginaBusca > result.data.totalPages) {
-			paginaAtual = 1;
-			return;
-		}
-
-		pageData = result.data;
-	}
-
-	$effect(() => {
-		if (!email) {
-			// Sem consulta: invalida buscas em voo e mantém o estado inicial.
-			buscaAtiva += 1;
-			return;
-		}
-
-		const busca = ++buscaAtiva;
-		const emailBusca = email;
-		void retryTick;
-		const paginaBusca = paginaAtual;
-
-		carregarResultados(emailBusca, paginaBusca, busca);
-	});
-
-	function tentarNovamente() {
-		retryTick += 1;
-	}
 </script>
 
 <main class="content-container">
@@ -117,7 +81,7 @@
 						</thead>
 
 						<tbody>
-							{#if !email}
+							{#if resultado === null}
 								<tr>
 									<td colspan="7">
 										<div class="empty-state">
@@ -143,12 +107,12 @@
 										</div>
 									</td>
 								</tr>
-							{:else if fetchError}
+							{:else if resultado && !resultado.ok}
 								<tr>
 									<td colspan="7">
 										<div class="error-state" role="alert">
-											<p>{fetchError.message}</p>
-											<button type="button" class="btn-retry" onclick={tentarNovamente}>
+											<p>{resultado.error.message}</p>
+											<button type="button" class="btn-retry" onclick={() => invalidateAll()}>
 												Tentar novamente
 											</button>
 										</div>
@@ -159,7 +123,7 @@
 									<tr>
 										<td class="protocolo">
 											<a
-												href={resolve('/(public)/acompanhar/[protocolo]', {
+												href={resolve(detailRoute, {
 													protocolo: solicitacao.protocol
 												})}
 											>
@@ -202,9 +166,6 @@
 									<td colspan="7">
 										<div class="empty-state">
 											<h3>Nenhuma solicitação encontrada</h3>
-											<p>
-												Não encontramos solicitações para o e-mail <strong>{email}</strong>.
-											</p>
 										</div>
 									</td>
 								</tr>
@@ -216,7 +177,7 @@
 					<span class="pagination-info">
 						Exibindo {inicioExibicao}–{fimExibicao} de {totalResultados} entradas
 					</span>
-					<Pagination bind:paginaAtual {totalPaginas} />
+					<Pagination paginaAtual={page} {totalPaginas} {onpagechange} />
 				</div>
 			</div>
 		</section>
