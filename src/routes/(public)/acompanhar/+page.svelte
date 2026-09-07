@@ -32,7 +32,8 @@
 		// eslint-disable-next-line svelte/no-navigation-without-resolve
 		void goto(`${resolve('/(public)/acompanhar')}?${query}`, {
 			keepFocus: true,
-			invalidateAll: true
+			invalidateAll: true,
+			replaceState: true
 		});
 	}
 </script>
