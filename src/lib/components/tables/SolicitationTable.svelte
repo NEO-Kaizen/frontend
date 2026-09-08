@@ -58,140 +58,123 @@
 	);
 </script>
 
-<main class="content-container">
-	<section class="acompanhar">
-		<section class="solicitacoes">
-			<div class="table-container">
-				<div class="table-scroll">
-					<table>
-						<thead>
-							<tr>
-								<th>PROTOCOLO</th>
-								<th>DATA</th>
-								<th>PROCESSO</th>
-								<th>PRIORIDADE</th>
-								<th>STATUS</th>
-								<th>RESPONSÁVEL</th>
-								<th>SOLICITANTE</th>
-							</tr>
-						</thead>
+<div class="table-container">
+	<div class="table-scroll">
+		<table>
+			<thead>
+				<tr>
+					<th>PROTOCOLO</th>
+					<th>DATA</th>
+					<th>PROCESSO</th>
+					<th>PRIORIDADE</th>
+					<th>STATUS</th>
+					<th>RESPONSÁVEL</th>
+					<th>SOLICITANTE</th>
+				</tr>
+			</thead>
 
-						<tbody>
-							{#if result === null}
-								<tr>
-									<td colspan="7">
-										<div class="empty-state">
-											<img
-												class="empty-illustration"
-												src={foundImg}
-												alt="Nenhuma solicitação consultada"
-											/>
+			<tbody>
+				{#if result === null}
+					<tr>
+						<td colspan="7">
+							<div class="empty-state">
+								<img
+									class="empty-illustration"
+									src={foundImg}
+									alt="Nenhuma solicitação consultada"
+								/>
 
-											<h3>Nenhuma solicitação consultada</h3>
-											<p>
-												Preencha um ou ambos os campos acima e clique em "Consultar Protocolo" para
-												visualizar os resultados.
-											</p>
-										</div>
-									</td>
-								</tr>
-							{:else if isFetching}
-								<tr>
-									<td colspan="7">
-										<div class="loading-state" role="status" aria-live="polite">
-											<p>Carregando solicitações…</p>
-										</div>
-									</td>
-								</tr>
-							{:else if result && !result.ok}
-								<tr>
-									<td colspan="7">
-										<div class="error-state" role="alert">
-											<p>{result.error.message}</p>
-											<button type="button" class="btn-retry" onclick={() => invalidateAll()}>
-												Tentar novamente
-											</button>
-										</div>
-									</td>
-								</tr>
-							{:else if results.length > 0}
-								{#each results as request (request.protocol)}
-									<tr>
-										<td class="protocolo">
-											<a
-												href={resolve(detailRoute, {
-													protocolo: request.protocol
-												})}
-											>
-												#{request.protocol}
-											</a>
-										</td>
+								<h3>Nenhuma solicitação consultada</h3>
+								<p>
+									Preencha um ou ambos os campos acima e clique em "Consultar Protocolo" para
+									visualizar os resultados.
+								</p>
+							</div>
+						</td>
+					</tr>
+				{:else if isFetching}
+					<tr>
+						<td colspan="7">
+							<div class="loading-state" role="status" aria-live="polite">
+								<p>Carregando solicitações…</p>
+							</div>
+						</td>
+					</tr>
+				{:else if result && !result.ok}
+					<tr>
+						<td colspan="7">
+							<div class="error-state" role="alert">
+								<p>{result.error.message}</p>
+								<button type="button" class="btn-retry" onclick={() => invalidateAll()}>
+									Tentar novamente
+								</button>
+							</div>
+						</td>
+					</tr>
+				{:else if results.length > 0}
+					{#each results as request (request.protocol)}
+						<tr>
+							<td class="protocolo">
+								<a
+									href={resolve(detailRoute, {
+										protocolo: request.protocol
+									})}
+								>
+									#{request.protocol}
+								</a>
+							</td>
 
-										<td class="data-col">
-											{formatShortDate(request.createdAt)} <br />
-											{formatShortTime(request.createdAt)}
-										</td>
+							<td class="data-col">
+								{formatShortDate(request.createdAt)} <br />
+								{formatShortTime(request.createdAt)}
+							</td>
 
-										<td class="processo">{request.processName}</td>
+							<td class="processo">{request.processName}</td>
 
-										<td>
-											<span
-												class="prioridade"
-												class:critica={request.priority === 'Crítica'}
-												class:alta={request.priority === 'Alta'}
-												class:media={request.priority === 'Média'}
-												class:baixa={request.priority === 'Baixa'}
-											>
-												{request.priority?.toUpperCase() ?? '-'}
-											</span>
-										</td>
+							<td>
+								<span
+									class="prioridade"
+									class:critica={request.priority === 'Crítica'}
+									class:alta={request.priority === 'Alta'}
+									class:media={request.priority === 'Média'}
+									class:baixa={request.priority === 'Baixa'}
+								>
+									{request.priority?.toUpperCase() ?? '-'}
+								</span>
+							</td>
 
-										<td>
-											<span class="status {mapStatusToClass[request.status] ?? 'status-gray'}">
-												<span class="status-dot"></span>
-												{request.status}
-											</span>
-										</td>
+							<td>
+								<span class="status {mapStatusToClass[request.status] ?? 'status-gray'}">
+									<span class="status-dot"></span>
+									{request.status}
+								</span>
+							</td>
 
-										<td class="responsavel">{request.assignee ?? '-'}</td>
-										<td class="solicitante">{request.requesterName}</td>
-									</tr>
-								{/each}
-							{:else}
-								<tr>
-									<td colspan="7">
-										<div class="empty-state">
-											<h3>Nenhuma solicitação encontrada</h3>
-										</div>
-									</td>
-								</tr>
-							{/if}
-						</tbody>
-					</table>
-				</div>
-				<div class="table-footer">
-					<span class="pagination-info">
-						Exibindo {firstVisibleItem}–{lastVisibleItem} de {totalItems} entradas
-					</span>
-					<Pagination currentPage={page} {totalPages} {onpagechange} />
-				</div>
-			</div>
-		</section>
-	</section>
-</main>
+							<td class="responsavel">{request.assignee ?? '-'}</td>
+							<td class="solicitante">{request.requesterName}</td>
+						</tr>
+					{/each}
+				{:else}
+					<tr>
+						<td colspan="7">
+							<div class="empty-state">
+								<h3>Nenhuma solicitação encontrada</h3>
+							</div>
+						</td>
+					</tr>
+				{/if}
+			</tbody>
+		</table>
+	</div>
+	<div class="table-footer">
+		<span class="pagination-info">
+			Exibindo {firstVisibleItem}–{lastVisibleItem} de {totalItems} entradas
+		</span>
+		<Pagination currentPage={page} {totalPages} {onpagechange} />
+	</div>
+</div>
 
 <style>
-	.acompanhar {
-		display: flex;
-		flex-direction: column;
-		gap: var(--spacing-lg);
-		width: 100%;
-	}
-
-	.solicitacoes {
-		width: 100%;
-	}
-
 	.table-container {
 		width: 100%;
 		background: var(--white);
