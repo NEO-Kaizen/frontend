@@ -192,10 +192,7 @@
 							<span>{item.name}</span>
 						</div>
 					{:else}
-						<div
-							class="nav-item"
-							class:active={isActive(item, page.url.pathname)}
-						>
+						<div class="nav-item" class:active={isActive(item, page.url.pathname)}>
 							<Icon iconName={item.icon} />
 							<a href={item.href ? resolve(item.href) : undefined}>{item.name}</a>
 						</div>
