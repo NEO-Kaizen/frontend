@@ -419,6 +419,7 @@
 						title="Copiar protocolo"
 					>
 						{submittedProtocol}
+						<Icon iconName="content_copy" />
 					</button>
 					{#if protocolCopied}
 						<span class="copy-feedback" role="status">copiado</span>
