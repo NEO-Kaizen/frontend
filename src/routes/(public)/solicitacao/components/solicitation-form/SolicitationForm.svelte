@@ -9,6 +9,7 @@
 	import StepOperational from './StepOperational.svelte';
 	import StepsForm from './StepsForm.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import { submitDemand } from '$lib/services/request.service';
 	import {
 		clearDraft,
 		loadDraft,
@@ -42,6 +43,22 @@
 	let visitedSteps = $state(new Set<number>([1]));
 	let isSubmitting = $state(false);
 	let submitted = $state(false);
+	let submittedProtocol = $state('');
+	let submitError = $state('');
+	let protocolCopied = $state(false);
+
+	let copyTimeout: ReturnType<typeof setTimeout> | undefined;
+
+	async function copyProtocol() {
+		try {
+			await navigator.clipboard.writeText(submittedProtocol);
+			protocolCopied = true;
+			clearTimeout(copyTimeout);
+			copyTimeout = setTimeout(() => (protocolCopied = false), 2000);
+		} catch {
+			// Permissão de clipboard negada — o protocolo permanece visível na tela.
+		}
+	}
 
 	let identification = $state<IdentificationData>({
 		fullName: '',
@@ -123,7 +140,13 @@
 		complementary: {
 			...complementary,
 			preferredSchedule: [...complementary.preferredSchedule],
-			files: [...complementary.files]
+			// O binário (file) não é serializável — o rascunho guarda apenas metadados.
+			files: complementary.files.map(({ id, fileName, mimeType, sizeBytes }) => ({
+				id,
+				fileName,
+				mimeType,
+				sizeBytes
+			}))
 		},
 		currentStep,
 		completedSteps: [...completedSteps],
@@ -174,6 +197,10 @@
 		visitedSteps = new Set([1]);
 		submitted = false;
 		isSubmitting = false;
+		submittedProtocol = '';
+		submitError = '';
+		protocolCopied = false;
+		clearTimeout(copyTimeout);
 		identification = {
 			fullName: '',
 			corporateEmail: '',
@@ -235,8 +262,7 @@
 		return trimmed ? trimmed : undefined;
 	}
 
-	// Consumido pelo épico #52 — substituirá o submit simulado.
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	// Consumido pelo épico #52 — envio real via service.
 	function buildPayload(): CreateRequestPayload {
 		const hasProcessDocumentation = toYesNoDetail(
 			complementary.hasProcessDocumentation,
@@ -340,12 +366,25 @@
 		completedSteps = new Set([...completedSteps, 1, 2, 3, 4]);
 
 		isSubmitting = true;
+		submitError = '';
 
-		await new Promise((resolve) => setTimeout(resolve, 1000));
+		// Binários presentes apenas na sessão atual — itens restaurados do
+		// rascunho ficam com metadados e precisam ser reanexados.
+		const attachments = complementary.files
+			.map((entry) => entry.file)
+			.filter((file): file is File => Boolean(file));
+
+		const result = await submitDemand(buildPayload(), attachments);
 
 		isSubmitting = false;
-		submitted = true;
-		clearDraft();
+
+		if (result.ok) {
+			submittedProtocol = result.data.protocol;
+			submitted = true;
+			clearDraft();
+		} else {
+			submitError = result.error.message;
+		}
 	}
 </script>
 
@@ -371,6 +410,20 @@
 				</span>
 				<h3>Solicitação enviada com sucesso!</h3>
 				<p>Sua demanda foi registrada e será analisada pela equipe responsável.</p>
+				<p class="success-protocol">
+					Guarde o número do protocolo:
+					<button
+						type="button"
+						class="protocol-copy"
+						onclick={copyProtocol}
+						title="Copiar protocolo"
+					>
+						{submittedProtocol}
+					</button>
+					{#if protocolCopied}
+						<span class="copy-feedback" role="status">copiado</span>
+					{/if}
+				</p>
 				<div class="success-btn">
 					<Button variant="primary" onclick={resetForm} loading={isSubmitting}>
 						<span>+</span> Nova Solicitação
@@ -394,6 +447,10 @@
 			<div hidden={currentStep !== 4}>
 				<StepComplementary bind:this={step4Ref} bind:data={complementary} />
 			</div>
+
+			{#if submitError}
+				<p class="form-error" role="alert">{submitError}</p>
+			{/if}
 
 			<footer class="form-actions">
 				<Button variant="outline-neutral" onclick={handleCancel}>Cancelar</Button>
@@ -449,11 +506,6 @@
 		color: var(--primary-color);
 	}
 
-	.form-header p {
-		font: var(--paragrafo);
-		color: var(--gray);
-	}
-
 	.form-card {
 		background-color: var(--white);
 		border-radius: var(--radius-md);
@@ -507,5 +559,46 @@
 	.success-message p {
 		font: var(--paragrafo);
 		color: var(--gray);
+	}
+
+	.success-protocol {
+		font: var(--paragrafo);
+		color: var(--gray);
+	}
+
+	.protocol-copy {
+		font: var(--label);
+		color: var(--primary-color);
+		letter-spacing: 0.05em;
+	}
+
+	.protocol-copy {
+		padding: 0;
+		border: none;
+		background: none;
+		cursor: pointer;
+		text-decoration: underline dotted transparent;
+		transition: var(--transition-default);
+	}
+
+	.protocol-copy:hover {
+		text-decoration-color: currentColor;
+	}
+
+	.protocol-copy:focus-visible {
+		outline: 2px solid var(--secondary-color);
+		outline-offset: 2px;
+	}
+
+	.copy-feedback {
+		font: var(--label);
+		color: var(--status-green);
+	}
+
+	.form-error {
+		margin: 0;
+		font: var(--paragrafo);
+		color: var(--status-red);
+		text-align: right;
 	}
 </style>

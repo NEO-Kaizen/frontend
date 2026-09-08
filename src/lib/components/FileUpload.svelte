@@ -56,7 +56,8 @@
 					id: generateId(),
 					fileName: file.name,
 					mimeType: file.type,
-					sizeBytes: file.size
+					sizeBytes: file.size,
+					file
 				}
 			];
 		}
