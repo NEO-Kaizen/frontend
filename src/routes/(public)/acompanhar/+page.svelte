@@ -9,16 +9,16 @@
 
 	let { data }: PageProps = $props();
 
-	const emailBuscado = $derived(data.email);
+	const searchedEmail = $derived(data.email);
 
 	// Navegação pendente para a própria rota: estado de carregamento da tabela.
 	const isFetching = $derived(navigating.to?.route?.id === page.route.id);
 
-	function irParaPagina(pagina: number) {
+	function goToPage(pagina: number) {
 		const searchParams = new SvelteURLSearchParams();
 
-		if (emailBuscado) {
-			searchParams.set('email', emailBuscado);
+		if (searchedEmail) {
+			searchParams.set('email', searchedEmail);
 		}
 
 		if (pagina > 1) {
@@ -51,12 +51,7 @@
 	<ProtocolSearchCard />
 
 	<div style="margin-top: var(--spacing-xl);">
-		<SolicitationTable
-			page={data.page}
-			resultado={data.resultado}
-			{isFetching}
-			onpagechange={irParaPagina}
-		/>
+		<SolicitationTable page={data.page} result={data.result} {isFetching} onpagechange={goToPage} />
 	</div>
 </main>
 

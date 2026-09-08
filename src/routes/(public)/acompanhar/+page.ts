@@ -11,10 +11,10 @@ export const load: PageLoad = async ({ url }) => {
 	const page = Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1;
 
 	if (!email) {
-		return { email, page: 1, resultado: null };
+		return { email, page: 1, result: null };
 	}
 
-	const resultado = await listRequests({ email, page, pageSize: PAGE_SIZE });
+	const result = await listRequests({ email, page, pageSize: PAGE_SIZE });
 
-	return { email, page, resultado };
+	return { email, page, result };
 };

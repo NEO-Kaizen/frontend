@@ -33,7 +33,7 @@
 
 	type Props = {
 		page: number;
-		resultado: Result<PaginatedResponse<RequestSummary>> | null;
+		result: Result<PaginatedResponse<RequestSummary>> | null;
 		isFetching: boolean;
 		detailRoute?: DetailRoute;
 		onpagechange: (page: number) => void;
@@ -41,24 +41,20 @@
 
 	let {
 		page,
-		resultado = null,
+		result = null,
 		isFetching = false,
 		detailRoute = '/(public)/acompanhar/[protocolo]',
 		onpagechange
 	}: Props = $props();
 
-	const resultados = $derived(resultado?.ok ? resultado.data.data : []);
-	const totalPaginas = $derived(resultado?.ok ? resultado.data.totalPages : 0);
-	const totalResultados = $derived(resultado?.ok ? resultado.data.total : 0);
-	const inicioExibicao = $derived(
-		resultado?.ok && resultado.data.total > 0
-			? (resultado.data.page - 1) * resultado.data.pageSize + 1
-			: 0
+	const results = $derived(result?.ok ? result.data.data : []);
+	const totalPages = $derived(result?.ok ? result.data.totalPages : 0);
+	const totalItems = $derived(result?.ok ? result.data.total : 0);
+	const firstVisibleItem = $derived(
+		result?.ok && result.data.total > 0 ? (result.data.page - 1) * result.data.pageSize + 1 : 0
 	);
-	const fimExibicao = $derived(
-		resultado?.ok
-			? Math.min(resultado.data.page * resultado.data.pageSize, resultado.data.total)
-			: 0
+	const lastVisibleItem = $derived(
+		result?.ok ? Math.min(result.data.page * result.data.pageSize, result.data.total) : 0
 	);
 </script>
 
@@ -81,7 +77,7 @@
 						</thead>
 
 						<tbody>
-							{#if resultado === null}
+							{#if result === null}
 								<tr>
 									<td colspan="7">
 										<div class="empty-state">
@@ -107,58 +103,58 @@
 										</div>
 									</td>
 								</tr>
-							{:else if resultado && !resultado.ok}
+							{:else if result && !result.ok}
 								<tr>
 									<td colspan="7">
 										<div class="error-state" role="alert">
-											<p>{resultado.error.message}</p>
+											<p>{result.error.message}</p>
 											<button type="button" class="btn-retry" onclick={() => invalidateAll()}>
 												Tentar novamente
 											</button>
 										</div>
 									</td>
 								</tr>
-							{:else if resultados.length > 0}
-								{#each resultados as solicitacao (solicitacao.protocol)}
+							{:else if results.length > 0}
+								{#each results as request (request.protocol)}
 									<tr>
 										<td class="protocolo">
 											<a
 												href={resolve(detailRoute, {
-													protocolo: solicitacao.protocol
+													protocolo: request.protocol
 												})}
 											>
-												#{solicitacao.protocol}
+												#{request.protocol}
 											</a>
 										</td>
 
 										<td class="data-col">
-											{formatShortDate(solicitacao.createdAt)} <br />
-											{formatShortTime(solicitacao.createdAt)}
+											{formatShortDate(request.createdAt)} <br />
+											{formatShortTime(request.createdAt)}
 										</td>
 
-										<td class="processo">{solicitacao.processName}</td>
+										<td class="processo">{request.processName}</td>
 
 										<td>
 											<span
 												class="prioridade"
-												class:critica={solicitacao.priority === 'Crítica'}
-												class:alta={solicitacao.priority === 'Alta'}
-												class:media={solicitacao.priority === 'Média'}
-												class:baixa={solicitacao.priority === 'Baixa'}
+												class:critica={request.priority === 'Crítica'}
+												class:alta={request.priority === 'Alta'}
+												class:media={request.priority === 'Média'}
+												class:baixa={request.priority === 'Baixa'}
 											>
-												{solicitacao.priority?.toUpperCase() ?? '-'}
+												{request.priority?.toUpperCase() ?? '-'}
 											</span>
 										</td>
 
 										<td>
-											<span class="status {mapStatusToClass[solicitacao.status] ?? 'status-gray'}">
+											<span class="status {mapStatusToClass[request.status] ?? 'status-gray'}">
 												<span class="status-dot"></span>
-												{solicitacao.status}
+												{request.status}
 											</span>
 										</td>
 
-										<td class="solicitante">{solicitacao.requesterName}</td>
-										<td class="responsavel">{solicitacao.assignee ?? '-'}</td>
+										<td class="solicitante">{request.requesterName}</td>
+										<td class="responsavel">{request.assignee ?? '-'}</td>
 									</tr>
 								{/each}
 							{:else}
@@ -175,9 +171,9 @@
 				</div>
 				<div class="table-footer">
 					<span class="pagination-info">
-						Exibindo {inicioExibicao}–{fimExibicao} de {totalResultados} entradas
+						Exibindo {firstVisibleItem}–{lastVisibleItem} de {totalItems} entradas
 					</span>
-					<Pagination paginaAtual={page} {totalPaginas} {onpagechange} />
+					<Pagination currentPage={page} {totalPages} {onpagechange} />
 				</div>
 			</div>
 		</section>

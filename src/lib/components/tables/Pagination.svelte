@@ -1,44 +1,44 @@
 <script lang="ts">
 	let {
-		paginaAtual,
-		totalPaginas,
+		currentPage,
+		totalPages,
 		onpagechange
 	}: {
-		paginaAtual: number;
-		totalPaginas: number;
+		currentPage: number;
+		totalPages: number;
 		onpagechange: (page: number) => void;
 	} = $props();
 
-	function paginaAnterior() {
-		if (paginaAtual > 1) {
-			onpagechange(paginaAtual - 1);
+	function previousPage() {
+		if (currentPage > 1) {
+			onpagechange(currentPage - 1);
 		}
 	}
 
-	function proximaPagina() {
-		if (paginaAtual < totalPaginas) {
-			onpagechange(paginaAtual + 1);
+	function nextPage() {
+		if (currentPage < totalPages) {
+			onpagechange(currentPage + 1);
 		}
 	}
 
-	let paginasVisiveis = $derived.by(() => {
-		if (totalPaginas <= 0) {
+	let visiblePages = $derived.by(() => {
+		if (totalPages <= 0) {
 			return [];
 		}
 
-		if (totalPaginas <= 5) {
-			return Array.from({ length: totalPaginas }, (_, i) => i + 1);
+		if (totalPages <= 5) {
+			return Array.from({ length: totalPages }, (_, i) => i + 1);
 		}
 
-		if (paginaAtual <= 3) {
-			return [1, 2, 3, '...', totalPaginas];
+		if (currentPage <= 3) {
+			return [1, 2, 3, '...', totalPages];
 		}
 
-		if (paginaAtual >= totalPaginas - 2) {
-			return [1, '...', totalPaginas - 2, totalPaginas - 1, totalPaginas];
+		if (currentPage >= totalPages - 2) {
+			return [1, '...', totalPages - 2, totalPages - 1, totalPages];
 		}
 
-		return [1, '...', paginaAtual - 1, paginaAtual, paginaAtual + 1, '...', totalPaginas];
+		return [1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages];
 	});
 </script>
 
@@ -46,8 +46,8 @@
 	<button
 		type="button"
 		class="arrow"
-		onclick={paginaAnterior}
-		disabled={paginaAtual === 1}
+		onclick={previousPage}
+		disabled={currentPage <= 1}
 		aria-label="Página anterior"
 	>
 		<svg viewBox="0 0 24 24" aria-hidden="true">
@@ -55,14 +55,14 @@
 		</svg>
 	</button>
 
-	{#each paginasVisiveis as page, index (`${page}-${index}`)}
+	{#each visiblePages as page, index (`${page}-${index}`)}
 		{#if page === '...'}
 			<span class="ellipsis">...</span>
 		{:else}
 			<button
 				type="button"
 				class="page-btn"
-				class:active={paginaAtual === page}
+				class:active={currentPage === page}
 				onclick={() => onpagechange(page as number)}
 			>
 				{page}
@@ -73,8 +73,8 @@
 	<button
 		type="button"
 		class="arrow"
-		onclick={proximaPagina}
-		disabled={paginaAtual === totalPaginas}
+		onclick={nextPage}
+		disabled={currentPage >= totalPages || totalPages <= 0}
 		aria-label="Próxima página"
 	>
 		<svg viewBox="0 0 24 24" aria-hidden="true">
