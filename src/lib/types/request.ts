@@ -210,11 +210,14 @@ export type OperationalData = {
 
 // Arquivo em anexo — dados de UI para o estado do formulário (o upload binário
 // real é enviado separadamente na parte "attachments" do multipart).
+// `file` mantém o binário da sessão atual para o envio; não sobrevive ao
+// rascunho (localStorage) e é ausente após restaurar o formulário.
 export type DemandFile = {
 	id: string;
 	fileName: string;
 	mimeType: string;
 	sizeBytes: number;
+	file?: File;
 };
 
 // Etapa 4 — dados complementares (opcional).
@@ -373,7 +376,6 @@ export interface RequestSummary {
 	assignee: string | null;
 	requesterName: string;
 }
-
 export interface RequestDetail {
 	protocol: string;
 	demandTitle: string;

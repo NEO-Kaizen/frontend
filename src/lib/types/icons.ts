@@ -52,7 +52,8 @@ export const iconDictionary = {
 	send: 'send',
 	cloudUpload: 'cloud_upload',
 	delete: 'delete',
-	calendarMonth: 'calendar_month'
+	calendarMonth: 'calendar_month',
+	content_copy: 'content_copy'
 } as const;
 
 export type IconName = keyof typeof iconDictionary;
