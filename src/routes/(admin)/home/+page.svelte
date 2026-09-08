@@ -6,29 +6,24 @@
 	import type { RequestSummary, RequestPriority, RequestStatus } from '$lib/types/request';
 	import Icon from '$lib/components/Icon.svelte';
 
-	// Estado da página
 	let requests = $state<RequestSummary[]>([]);
 	let assignedCount = $state<number>(0);
 	let loading = $state<boolean>(true);
 	let errorMessage = $state<string | null>(null);
 
-	// Padrões de Paginação
 	let currentPage = $state<number>(1);
 	let pageSize = $state<number>(10);
 	let totalItems = $state<number>(0);
 	let totalPages = $state<number>(1);
 
-	// Dados do usuário logado
 	let user = $derived(page.data.user);
 	let userName = $derived(user?.name ?? 'Usuário');
-	let userEmail = $derived(user?.email ?? '');
 
 	async function fetchDashboardData(pageNumber = 1) {
 		loading = true;
 		errorMessage = null;
 
 		const result = await listRequests({
-			email: userEmail,
 			page: pageNumber,
 			pageSize
 		});
@@ -36,13 +31,9 @@
 		if (result.ok) {
 			const allData = result.data.data;
 
-			// Tabela: Filtra apenas solicitações sem responsável (assignee === null ou vazio)
 			requests = allData.filter((req) => !req.assignee);
-
-			// Contagem: Atribuídas ao usuário atual
 			assignedCount = allData.filter((req) => req.assignee === userName).length;
 
-			// Paginação
 			currentPage = result.data.page;
 			totalItems = requests.length;
 			totalPages = Math.ceil(totalItems / pageSize) || 1;
@@ -105,7 +96,6 @@
 </script>
 
 <div class="content-container dashboard">
-	<!-- Banner Hero de Saudação -->
 	<section class="hero-banner">
 		<div class="hero-content">
 			<h1>Bem-vindo de volta, {userName}.</h1>
@@ -119,7 +109,6 @@
 		</div>
 	</section>
 
-	<!-- Tabela de Solicitações sem responsável -->
 	<section class="table-section">
 		<h2>Solicitações sem responsável</h2>
 
@@ -192,7 +181,6 @@
 				</table>
 			</div>
 
-			<!-- Paginação -->
 			<footer class="pagination-container">
 				<span class="pagination-info">
 					Mostrando 1-{requests.length} de {totalItems} solicitações
