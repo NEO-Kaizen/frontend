@@ -25,7 +25,8 @@
 
 		const result = await listRequests({
 			page: pageNumber,
-			pageSize
+			pageSize,
+			email: undefined
 		});
 
 		if (result.ok) {
