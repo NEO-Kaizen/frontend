@@ -373,7 +373,6 @@ export interface RequestSummary {
 	assignee: string | null;
 	requesterName: string;
 }
-
 export interface RequestDetail {
 	protocol: string;
 	demandTitle: string;
