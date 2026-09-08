@@ -153,8 +153,8 @@
 											</span>
 										</td>
 
-										<td class="solicitante">{request.requesterName}</td>
 										<td class="responsavel">{request.assignee ?? '-'}</td>
+										<td class="solicitante">{request.requesterName}</td>
 									</tr>
 								{/each}
 							{:else}
