@@ -28,3 +28,20 @@ export function formatDateTime(isoString: string | null): string {
 		minute: '2-digit'
 	});
 }
+
+export function formatShortDate(isoString: string | null): string {
+	if (!isoString) return 'N/A';
+	const date = parseIsoDate(isoString);
+	if (Number.isNaN(date.getTime())) return 'N/A';
+	return date.toLocaleDateString('pt-BR');
+}
+
+export function formatShortTime(isoString: string | null): string {
+	if (!isoString) return 'N/A';
+	const date = parseIsoDate(isoString);
+	if (Number.isNaN(date.getTime())) return 'N/A';
+	return date.toLocaleTimeString('pt-BR', {
+		hour: '2-digit',
+		minute: '2-digit'
+	});
+}

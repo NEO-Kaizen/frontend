@@ -123,7 +123,9 @@
 
 	async function handleLogout() {
 		if (isLoggingOut) return;
+
 		isLoggingOut = true;
+
 		try {
 			await logout();
 			await goto(resolve('/(public)/login'), { invalidateAll: true });
@@ -138,6 +140,7 @@
 		<a class="top_bar-logo" href={resolve('/')}>
 			<img width="123" height="37" alt={appConfig.platformName} src={appConfig.assets.logoUrl} />
 		</a>
+
 		<div class="top_bar-interactables">
 			<form role="search" class="search-container" onsubmit={handleSearchSubmit}>
 				<Input
@@ -149,6 +152,7 @@
 					disabled={isSearching}
 				/>
 			</form>
+
 			<Button
 				variant="primary"
 				onclick={() => {
@@ -157,8 +161,10 @@
 			>
 				<span>+</span> Nova solicitação
 			</Button>
+
 			{#if isNotSolicitante}
 				<div class="separator_bar-column"></div>
+
 				<div class="profile_block">
 					<div class="profile_block-identification">
 						<p class="profile_block-name">{currentUser?.name}</p>
@@ -199,6 +205,7 @@
 					{/if}
 				{/each}
 			</div>
+
 			<button
 				class="nav-item"
 				type="button"
