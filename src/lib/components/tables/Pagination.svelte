@@ -63,6 +63,7 @@
 				type="button"
 				class="page-btn"
 				class:active={currentPage === page}
+				aria-current={currentPage === page ? 'page' : undefined}
 				onclick={() => onpagechange(page as number)}
 			>
 				{page}
