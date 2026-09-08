@@ -206,6 +206,9 @@ const ALLOWED_MIME_TYPES = [
 	'image/jpeg'
 ];
 
+// Latência artificial para tornar o estado de carregamento perceptível na UI.
+const MOCK_LATENCY_MS = 500;
+
 export function createRequestMock(
 	payload: CreateRequestPayload,
 	files: Blob[] = []
@@ -215,10 +218,52 @@ export function createRequestMock(
 		return Promise.reject(new ApiError(400, rejection));
 	}
 
-	return Promise.resolve({
-		protocol: generateMockProtocol(),
+	const protocol = generateMockProtocol();
+	registerCreatedRequest(protocol, payload);
+
+	return delay(MOCK_LATENCY_MS).then(() => ({
+		protocol,
 		status: 'Solicitação enviada',
 		createdAt: new Date().toISOString()
+	}));
+}
+
+function delay(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Registra a solicitação criada nos fixtures em memória, fechando o loop de
+// desenvolvimento: o novo protocolo fica rastreável em /acompanhar e na busca.
+function registerCreatedRequest(protocol: string, payload: CreateRequestPayload): void {
+	const requester = payload.requester;
+	const now = new Date().toISOString();
+
+	mockRequests.unshift({
+		protocol,
+		corporateEmail: requester.corporateEmail,
+		createdAt: now,
+		processName: payload.demand.processName,
+		priority: null,
+		status: 'Solicitação enviada',
+		assignee: null,
+		requesterName: requester.fullName
+	});
+
+	mockRequestDetails.unshift({
+		protocol,
+		demandTitle: payload.demand.title,
+		processName: payload.demand.processName,
+		status: 'Solicitação enviada',
+		assigneeName: null,
+		openedAt: now,
+		estimatedCompletion: null,
+		mappingDate: null,
+		meeting: null,
+		pendingIssues: [],
+		nextStep: 'Aguarde o contato do analista',
+		lastTechnicalMessage: 'Sua solicitação foi registrada e aguarda triagem.',
+		lastUpdate: now,
+		conclusion: null
 	});
 }
 
