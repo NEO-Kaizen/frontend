@@ -7,7 +7,7 @@ import type {
 } from '$lib/types/prioritization';
 
 // TODO: Substituir o mock pela integração com a API quando o backend estiver disponível.
-const USE_MOCK = false;
+const USE_MOCK = true;
 
 const REQUESTS_PATH = '/requests';
 
