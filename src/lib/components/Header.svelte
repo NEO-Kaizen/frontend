@@ -64,6 +64,11 @@
 			name: 'Gerenciar Usuários',
 			icon: 'manageUsers',
 			href: '/(admin)/usuarios'
+		},
+		{
+			name: 'Configurações',
+			icon: 'settings',
+			href: '/(admin)/configuracoes'
 		}
 	];
 
