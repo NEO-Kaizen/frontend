@@ -179,8 +179,8 @@
 						goto(resolve('/(public)/login'));
 					}}
 				>
-					<Icon iconName="security" />
-					Acesso administrativo
+					<Icon iconName="login" />
+					Acessar
 				</Button>
 			{/if}
 		</div>
