@@ -395,3 +395,46 @@ export interface RequestDetail {
 		justification: string;
 	} | null;
 }
+
+// ---- DTO administrativo (superconjunto) ----
+// Futuro service: getAdminRequestByProtocol(protocol: string): Promise<Result<AdminRequestDetail>>
+
+export interface AdminAttachment {
+	fileName: string;
+	mimeType: string;
+	sizeBytes: number;
+	downloadUrl: string | null;
+	canDownload: boolean;
+}
+
+export interface PrioritizationResult {
+	score: number | null;
+	maxScore: 25;
+	label: RequestPriority | null;
+}
+
+export interface AdminRequestDetail {
+	protocol: string;
+	status: RequestStatus;
+	priority: RequestPriority | null;
+	prioritization: PrioritizationResult;
+	assignee: { name: string | null; email?: string | null } | null;
+	correctionAlert?: { count: number; message: string } | null;
+
+	// blocos da solicitação
+	requester: RequesterBlock;
+	demand: DemandBlock;
+	operational: OperationalBlock;
+	complementary?: ComplementaryBlock;
+	schedulePreferences: SchedulePreferences | null;
+	isSchedulingAllowed: boolean;
+	
+	schedulingReason?: string | null;
+	mappingDate: string | null;
+	meeting: { scheduledFor: string; link: string | null } | null;
+
+	attachments: AdminAttachment[];
+	openedAt: string;
+	lastUpdate: string;
+	internalObservations?: string | null;
+}

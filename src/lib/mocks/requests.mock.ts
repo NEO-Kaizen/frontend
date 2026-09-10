@@ -1,5 +1,6 @@
 import { ApiError } from '$lib/types/result';
 import type {
+	AdminRequestDetail,
 	CreateRequestPayload,
 	CreateRequestResponse,
 	ListRequestsQuery,
@@ -519,4 +520,223 @@ export function getRequestByProtocolMock(protocol: string): Promise<RequestDetai
 	}
 
 	return Promise.resolve(detail);
+}
+
+export const mockAdminRequestDetails: AdminRequestDetail[] = [
+	{
+		protocol: 'MAAT-2026-000102',
+		status: 'Em triagem',
+		priority: 'Alta',
+		prioritization: { score: 16, maxScore: 25, label: 'Alta' },
+		assignee: { name: 'Ana Rodrigues', email: 'ana.rodrigues@empresa.com.br' },
+		correctionAlert: { count: 2, message: 'Alteração respondida pelo solicitante (2 campos)' },
+		requester: {
+			fullName: 'Carlos Eduardo da Silva',
+			corporateEmail: 'carlos.silva@empresa.com.br',
+			area: 'Tecnologia da Informação',
+			department: 'Operações Logísticas',
+			manager: 'Ana Rodrigues',
+			additionalContact: 'carlos.silva.pessoal@email.com'
+		},
+		demand: {
+			title: 'Automatização do fluxo de aprovação de faturas',
+			requestType: 'Automação',
+			category: 'Automação',
+			processName: 'AP-REC-04 Pagamentos',
+			description:
+				'Criar fluxo automatizado que valide e encaminhe faturas para aprovação conforme valor e centro de custo.',
+			problem:
+				'Atualmente a aprovação exige assinaturas físicas de dois diretores e causa atrasos frequentes.',
+			expectedResult: 'Fluxo digital com aprovação baseada em regras e rastreabilidade completa.',
+			justification:
+				'Atualmente, a aprovação de faturas acima de R$ 50.000 exige assinaturas físicas de dois diretores. O processo demora em média 5 dias e frequentemente causa atrasos em pagamentos de fornecedores críticos, gerando multas. Necessitamos de uma solução que automatize a coleta de aprovações via sistema baseado no valor da fatura, com notificações e trilha de auditoria.'
+		},
+		operational: {
+			processDescription:
+				'Processo de recebimento, validação e pagamento de faturas de fornecedores nacionais e internacionais.',
+			processSteps:
+				'1. Recebimento da fatura por e-mail\n2. Validação manual do centro de custo\n3. Coleta de assinaturas físicas\n4. Lançamento no ERP\n5. Agendamento de pagamento',
+			systemsUsed: 'ERP Protheus, e-mail corporativo, planilhas Excel',
+			executionFrequency: 'Diária',
+			volumetry: '500',
+			peopleInvolved: 4,
+			averageExecutionTime: '30 minutos',
+			monthlyEffortHours: 80,
+			hasManualControls: 'Planilha de controle manual com conferência dupla antes do lançamento.',
+			mainRisks:
+				'Erro de digitação, pagamento duplicado e atraso que gera multa por descumprimento contratual.',
+			clientImpact:
+				'Fornecedores com pagamento em atraso; risco de suspensão de fornecimento crítico.',
+			operationalImpact: 'Alto',
+			desiredDeadline: '2026-10-08',
+			perceivedCriticality: 'Alta'
+		},
+		complementary: {
+			hasProcessDocumentation: 'Disponível na intranet: manual AP-REC-04 v3.1.',
+			hasSimilarSolution: false,
+			dependsOnOtherAreas: 'Depende do Financeiro e do Jurídico para validação de regras.',
+			handlesRestrictedInfo: false,
+			additionalNotes: 'Preferência por validacao por workflow no Teams.'
+		},
+		schedulePreferences: ['2026-10-08T15:00', '2026-10-08T17:00'],
+		isSchedulingAllowed: false,
+		schedulingReason: 'Fora do período de Sprint vigente',
+		mappingDate: null,
+		meeting: null,
+		attachments: [
+			{
+				fileName: 'fluxo-atual.png',
+				mimeType: 'image/png',
+				sizeBytes: 245000,
+				downloadUrl: '/mocks/fluxo-atual.png',
+				canDownload: true
+			},
+			{
+				fileName: 'regras-de-aprovacao.pdf',
+				mimeType: 'application/pdf',
+				sizeBytes: 512000,
+				downloadUrl: '/mocks/regras-de-aprovacao.pdf',
+				canDownload: true
+			}
+		],
+		openedAt: '2026-08-10T09:00:00.000Z',
+		lastUpdate: '2026-08-12T14:20:00.000Z',
+		internalObservations: null
+	},
+	{
+		protocol: 'MAAT-2026-000103',
+		status: 'Aguardando triagem',
+		priority: null,
+		prioritization: { score: null, maxScore: 25, label: null },
+		assignee: null,
+		correctionAlert: null,
+		requester: {
+			fullName: 'Juliana Almeida',
+			corporateEmail: 'juliana.almeida@empresa.com.br',
+			area: 'Recursos Humanos',
+			department: undefined,
+			manager: 'Roberto Lima',
+			additionalContact: undefined
+		},
+		demand: {
+			title: 'Padronização do processo de onboarding',
+			requestType: 'Melhoria',
+			category: 'Padronização',
+			processName: 'RH-ONB-01 Admissão',
+			description:
+				'Padronizar etapas de onboarding para garantir experiência consistente entre unidades.',
+			problem:
+				'Cada unidade executa o onboarding de forma distinta, gerando retrabalho e inconsistências.',
+			expectedResult: 'Checklist único e trilha de capacitação inicial padronizada.',
+			justification: 'Reduzir turnover nos primeiros 90 dias com integração estruturada.'
+		},
+		operational: {
+			processDescription: 'Admissão, integração e acompanhamento de novos colaboradores.',
+			processSteps:
+				'1. Contratação\n2. Envio de kit\n3. Treinamento inicial\n4. Acompanhamento 30/60/90 dias',
+			systemsUsed: 'Gupy, planilhas',
+			executionFrequency: 'Semanal',
+			volumetry: '20',
+			peopleInvolved: 3,
+			averageExecutionTime: '2 horas',
+			monthlyEffortHours: 40,
+			hasManualControls: false,
+			mainRisks: 'Informações desencontradas entre unidades.',
+			clientImpact: 'Experiência inicial inconsistente.',
+			operationalImpact: 'Médio',
+			desiredDeadline: '2026-11-15',
+			perceivedCriticality: 'Média'
+		},
+		complementary: undefined,
+		schedulePreferences: null,
+		isSchedulingAllowed: false,
+		schedulingReason: 'Sem priorização definida',
+		mappingDate: null,
+		meeting: null,
+		attachments: [],
+		openedAt: '2026-09-01T10:00:00.000Z',
+		lastUpdate: '2026-09-01T10:00:00.000Z',
+		internalObservations: null
+	},
+	{
+		protocol: 'MAAT-2026-000104',
+		status: 'Em triagem',
+		priority: null,
+		prioritization: { score: null, maxScore: 25, label: null },
+		assignee: { name: 'Lucas Gomes', email: 'lucas.gomes@empresa.com.br' },
+		correctionAlert: null,
+		requester: {
+			fullName: 'Bruno Martins',
+			corporateEmail: 'bruno.martins@empresa.com.br',
+			area: 'Financeiro',
+			department: 'Controladoria',
+			manager: 'Patrícia Melo',
+			additionalContact: '11988887777'
+		},
+		demand: {
+			title: 'Dashboard de acompanhamento orçamentário',
+			requestType: 'Melhoria',
+			category: 'Dashboard ou relatório',
+			processName: 'FIN-ORC-02 Orçamento',
+			description: 'Dashboard para acompanhamento de orçamento por centro de custo.',
+			problem: 'Relatórios atuais são estáticos e consolidados manualmente.',
+			expectedResult: 'Painel dinâmico com atualização diária e alertas automáticos.',
+			justification: 'Melhorar visibilidade gerencial e antecipar desvios orçamentários.'
+		},
+		operational: {
+			processDescription: 'Consolidação de despesas e acompanhamento versus orçado.',
+			processSteps:
+				'1. Coleta de dados do ERP\n2. Consolidação em Excel\n3. Envio por e-mail\n4. Apresentação em reunião mensal',
+			systemsUsed: 'ERP, Excel, PowerPoint',
+			executionFrequency: 'Mensal',
+			volumetry: '50',
+			peopleInvolved: 2,
+			averageExecutionTime: '4 horas',
+			monthlyEffortHours: 16,
+			hasManualControls: 'Conferência manual em planilha antes do envio.',
+			mainRisks: 'Erro manual e decisões tardias por falta de visibilidade em tempo real.',
+			clientImpact: 'Gestores sem visão tempestiva do orçado vs realizado.',
+			operationalImpact: 'Médio',
+			desiredDeadline: '2026-12-01',
+			perceivedCriticality: 'Média'
+		},
+		complementary: {
+			hasProcessDocumentation: false,
+			hasSimilarSolution: 'Dashboard legado em Excel, sem atualização automática.',
+			dependsOnOtherAreas: false,
+			handlesRestrictedInfo: 'Dados financeiros restritos a diretoria.',
+			additionalNotes: undefined
+		},
+		schedulePreferences: ['2026-09-15T10:00:00.000Z'],
+		isSchedulingAllowed: true,
+		schedulingReason: null,
+		mappingDate: null,
+		meeting: null,
+		attachments: [
+			{
+				fileName: 'exemplo-indisponivel.xlsx',
+				mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+				sizeBytes: 128000,
+				downloadUrl: null,
+				canDownload: false
+			}
+		],
+		openedAt: '2026-09-10T08:30:00.000Z',
+		lastUpdate: '2026-09-10T08:30:00.000Z',
+		internalObservations: 'Aguardando definição de origem de dados.'
+	}
+];
+
+export function getAdminRequestByProtocolMock(protocol: string): Promise<AdminRequestDetail> {
+	const normalized = protocol.toLowerCase().trim();
+	if (normalized === 'maat-500-teste') return Promise.reject(new ApiError(500, 'Erro interno simulado.'));
+  if (normalized === 'maat-401-teste') return Promise.reject(new ApiError(401, 'Não autorizado.'));
+  if (normalized === 'maat-403-teste') return Promise.reject(new ApiError(403, 'Acesso negado.'));
+	const detail = mockAdminRequestDetails.find(
+		(d) => d.protocol.toLowerCase().trim() === normalized
+	);
+	if (!detail) {
+		return Promise.reject(new ApiError(404, 'Solicitação não encontrada.'));
+	}
+	return delay(MOCK_LATENCY_MS).then(() => structuredClone(detail));
 }
