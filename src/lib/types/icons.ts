@@ -38,11 +38,13 @@ export const iconDictionary = {
 	arrowBack: 'arrow_back',
 	adminPanel: 'admin_panel_settings',
 	calendarCheck: 'event_available',
+	category: 'category',
 	security: 'security',
 	email: 'mail',
 	group: 'group',
 	userApproved: 'person_check',
 	pending: 'pending',
+	palette: 'palette',
 	calculate: 'calculate',
 	link: 'link',
 	info: 'info',
@@ -52,6 +54,7 @@ export const iconDictionary = {
 	send: 'send',
 	cloudUpload: 'cloud_upload',
 	delete: 'delete',
+	dragIndicator: 'drag_indicator',
 	calendarMonth: 'calendar_month',
 	content_copy: 'content_copy'
 } as const;

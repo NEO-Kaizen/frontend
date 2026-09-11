@@ -107,19 +107,24 @@
 	}
 
 	.token-hex {
-		padding: 4px var(--spacing-sm);
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 90px;
+		height: 30px;
 		border: var(--border-default);
 		border-radius: var(--radius-sm);
 		background-color: var(--white);
 		font: var(--label);
 		font-size: 13px;
 		color: var(--rich-black);
+		flex-shrink: 0;
 	}
 
 	.token-preview {
-		width: 40px;
-		height: 24px;
-		border-radius: 4px;
+		width: 90px;
+		height: 30px;
+		border-radius: var(--radius-sm);
 		flex-shrink: 0;
 	}
 

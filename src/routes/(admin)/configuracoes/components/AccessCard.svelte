@@ -10,7 +10,19 @@
 	<fieldset class="access-group">
 		<legend class="access-legend">
 			<span class="access-legend-text">Modo de abertura do portal</span>
-			<span class="field-indicator" aria-hidden="true"></span>
+			<span class="info-tip-container">
+				<button
+					class="info-tip"
+					type="button"
+					aria-label="Ver informação sobre o modo de abertura do portal"
+				>
+					<span aria-hidden="true">i</span>
+				</button>
+				<span class="info-tip-tooltip" role="tooltip">
+					Define se o portal pode ser acessado sem login (Público) ou exige autenticação
+					(Autenticado).
+				</span>
+			</span>
 		</legend>
 
 		<label class="access-option">
@@ -58,11 +70,58 @@
 		color: var(--black);
 	}
 
-	.field-indicator {
-		width: 8px;
-		height: 8px;
+	.info-tip-container {
+		position: relative;
+		display: inline-flex;
+		flex-shrink: 0;
+	}
+
+	.info-tip {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 14px;
+		height: 14px;
+		padding: 0;
+		border: none;
 		border-radius: 50%;
 		background-color: var(--secondary-color);
+		color: var(--white);
+		font: var(--label);
+		font-size: 12px;
+		line-height: 1;
+		cursor: help;
+		transition: var(--transition-default);
+	}
+
+	.info-tip:hover {
+		opacity: 0.9;
+	}
+
+	.info-tip-tooltip {
+		position: absolute;
+		top: calc(100% + 8px);
+		left: 0;
+		z-index: 10;
+		width: max-content;
+		max-width: 280px;
+		padding: var(--spacing-sm) var(--spacing-md);
+		border-radius: var(--radius-sm);
+		background-color: var(--rich-black);
+		color: var(--white);
+		font: var(--paragrafo);
+		font-size: 13px;
+		line-height: 1.4;
+		opacity: 0;
+		pointer-events: none;
+		transform: translateY(-4px);
+		transition: var(--transition-default);
+	}
+
+	.info-tip-container:hover .info-tip-tooltip,
+	.info-tip-container:focus-within .info-tip-tooltip {
+		opacity: 1;
+		transform: translateY(0);
 	}
 
 	.access-option {

@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import SettingsPageHeader from './components/SettingsPageHeader.svelte';
-	import SettingsActions from './components/SettingsActions.svelte';
 	import AccessCard from './components/AccessCard.svelte';
-	import PlatformIdentityCard from './components/PlatformIdentityCard.svelte';
-	import VisualIdentityCard from './components/VisualIdentityCard.svelte';
 	import AssetsCard from './components/AssetsCard.svelte';
 	import CategoriesCard from './components/CategoriesCard.svelte';
+	import PlatformIdentityCard from './components/PlatformIdentityCard.svelte';
+	import SettingsActions from './components/SettingsActions.svelte';
+	import SettingsPageHeader from './components/SettingsPageHeader.svelte';
 	import StatusCard from './components/StatusCard.svelte';
+	import VisualIdentityCard from './components/VisualIdentityCard.svelte';
 </script>
 
 <svelte:head>
@@ -37,6 +37,9 @@
 	}
 
 	.settings-grid {
+		background-color: var(--white-gray);
+		padding: var(--spacing-lg);
+		border-radius: var(--radius-sm);
 		display: grid;
 		grid-template-columns: repeat(2, 1fr);
 		gap: var(--spacing-lg);

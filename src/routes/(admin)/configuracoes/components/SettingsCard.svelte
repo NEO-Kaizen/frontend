@@ -17,7 +17,7 @@
 	<header class="settings-card-header">
 		{#if iconName}
 			<span class="icon-square" aria-hidden="true">
-				<Icon {iconName} iconSize="sm" />
+				<Icon {iconName} iconSize="md" />
 			</span>
 		{/if}
 		<div class="settings-card-text">
@@ -74,7 +74,7 @@
 	h2 {
 		margin: 0;
 		font: var(--h4);
-		color: var(--primary-color);
+		color: var(--rich-black);
 	}
 
 	p {
