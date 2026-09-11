@@ -29,6 +29,7 @@ export const iconDictionary = {
 	doNotDisturb: 'do_not_disturb_on',
 	block: 'block',
 	priority: 'priority_high',
+	autorenew: 'autorenew',
 	edit: 'edit',
 	more: 'more_vert',
 	lock: 'lock',

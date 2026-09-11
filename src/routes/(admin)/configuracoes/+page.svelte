@@ -43,7 +43,6 @@
 		display: grid;
 		grid-template-columns: repeat(2, 1fr);
 		gap: var(--spacing-lg);
-		align-items: start;
 	}
 
 	@media (max-width: 900px) {
