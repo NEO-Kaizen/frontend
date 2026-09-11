@@ -7,10 +7,11 @@
 		title: string;
 		description?: string;
 		iconName?: IconName;
+		headerAction?: Snippet;
 		children?: Snippet;
 	}
 
-	let { title, description = '', iconName, children }: Props = $props();
+	let { title, description = '', iconName, headerAction, children }: Props = $props();
 </script>
 
 <article class="settings-card">
@@ -26,6 +27,12 @@
 				<p>{description}</p>
 			{/if}
 		</div>
+
+		{#if headerAction}
+			<div class="settings-card-action">
+				{@render headerAction()}
+			</div>
+		{/if}
 	</header>
 
 	{#if children}
@@ -69,6 +76,13 @@
 		display: flex;
 		flex-direction: column;
 		min-width: 0;
+	}
+
+	.settings-card-action {
+		margin-left: auto;
+		display: flex;
+		align-items: flex-start;
+		flex-shrink: 0;
 	}
 
 	h2 {
