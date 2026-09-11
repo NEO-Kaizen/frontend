@@ -69,8 +69,8 @@
 	.asset-section {
 		display: flex;
 		flex-direction: column;
-		gap: var(--spacing-sm);
-		padding: var(--spacing-sm);
+		gap: var(--spacing-md);
+		padding: var(--spacing-md);
 		background-color: var(--background-color);
 		border: var(--border-default);
 		border-radius: var(--radius-sm);
@@ -109,8 +109,8 @@
 	}
 
 	.logo-box {
-		width: 72px;
-		height: 48px;
+		width: 80px;
+		height: 56px;
 		font: var(--label);
 		font-size: 16px;
 		color: var(--primary-color);
@@ -121,15 +121,15 @@
 	}
 
 	.avatar-img {
-		width: 48px;
-		height: 48px;
+		width: 56px;
+		height: 56px;
 		border-radius: 100%;
 		object-fit: cover;
 	}
 
 	.avatar-current {
-		width: 32px;
-		height: 32px;
+		width: 40px;
+		height: 40px;
 		border-radius: 100%;
 		border: var(--border-default);
 		background-color: var(--white);

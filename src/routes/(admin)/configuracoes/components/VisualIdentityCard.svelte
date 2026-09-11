@@ -129,6 +129,6 @@
 	}
 
 	.token-preview.light {
-		border: 1px solid var(--gray);
+		border: var(--border-default);
 	}
 </style>
