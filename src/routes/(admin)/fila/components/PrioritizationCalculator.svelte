@@ -28,11 +28,13 @@
 	let validationError = $state('');
 	let missingCriterionIds = $state<number[]>([]);
 	let result = $state<PrioritizationResult | null>(null);
+	let hasSavedNotes = $state(false);
 
 	const filledCount = $derived(
 		criteria.filter((criterion) => notes[criterion.id] !== undefined).length
 	);
 	const maxScore = $derived(criteria.length * MAX_NOTE);
+	const criterionErrors = $derived(new Set(missingCriterionIds));
 
 	async function load() {
 		isLoading = true;
@@ -40,12 +42,14 @@
 		validationError = '';
 		missingCriterionIds = [];
 		result = null;
+		hasSavedNotes = false;
 
 		const loaded = await loadPrioritization(protocol);
 
 		if (loaded.ok) {
 			criteria = loaded.data.criteria;
 			notes = loaded.data.notes;
+			hasSavedNotes = Object.keys(notes).length > 0;
 		} else {
 			loadError = loaded.error.message;
 		}
@@ -115,7 +119,7 @@
 	{:else if criteria.length === 0}
 		<div class="state-message">Nenhum critério de priorização disponível.</div>
 	{:else}
-		{#if result === null && filledCount > 0}
+		{#if hasSavedNotes && result === null && filledCount > 0}
 			<p class="revaluation-hint">
 				Notas existentes carregadas para reavaliação. Ajuste os valores e salve novamente.
 			</p>
@@ -131,13 +135,21 @@
 
 			<div class="criteria-list">
 				{#each criteria as criterion (criterion.id)}
-					<fieldset class="criterion" class:has-error={missingCriterionIds.includes(criterion.id)}>
+					<fieldset class="criterion" class:has-error={criterionErrors.has(criterion.id)}>
 						<legend class="criterion-legend">
 							<span class="criterion-name">{criterion.name}</span>
 							<span class="criterion-subtitle">{criterion.subtitle}</span>
 						</legend>
 
-						<div class="notes-group" role="radiogroup" aria-label="Nota para {criterion.name}">
+						<div
+							class="notes-group"
+							role="radiogroup"
+							aria-label="Nota para {criterion.name}"
+							aria-invalid={criterionErrors.has(criterion.id) ? true : undefined}
+							aria-describedby={criterionErrors.has(criterion.id)
+								? `criterion-error-${criterion.id}`
+								: undefined}
+						>
 							{#each notesOptions as note (note)}
 								<label class="note-option" class:selected={notes[criterion.id] === note}>
 									<input
@@ -153,6 +165,12 @@
 								</label>
 							{/each}
 						</div>
+
+						{#if criterionErrors.has(criterion.id)}
+							<p id={`criterion-error-${criterion.id}`} class="sr-only" role="alert">
+								Critério obrigatório: selecione uma nota de 1 a 5.
+							</p>
+						{/if}
 					</fieldset>
 				{/each}
 			</div>
