@@ -25,11 +25,22 @@
 			pageSize
 		});
 
-		tableResult = result;
-
 		if (result.ok) {
 			const allData = result.data.data;
 			assignedCount = allData.filter((req) => req.assignee === userName).length;
+
+			const unassignedData = allData.filter((req) => req.assignee === null);
+
+			tableResult = {
+				ok: true,
+				data: {
+					...result.data,
+					data: unassignedData,
+					total: unassignedData.length
+				}
+			};
+		} else {
+			tableResult = result;
 		}
 
 		loading = false;
