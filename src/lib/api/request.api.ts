@@ -72,8 +72,8 @@ export async function listQueueRequests(query: QueueQuery): Promise<QueueRespons
 
 	const params = new URLSearchParams();
 
-	params.set('page', String(query.page));
-	params.set('pageSize', String(query.pageSize));
+	if (query.page !== undefined) params.set('page', String(query.page));
+	if (query.pageSize !== undefined) params.set('pageSize', String(query.pageSize));
 
 	if (query.search) params.set('search', query.search);
 	if (query.status) params.set('status', query.status);
