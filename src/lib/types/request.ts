@@ -352,7 +352,7 @@ export const MAX_FILE_SIZE = 10 * 1024 * 1024;
 // ---- Endpoints GET (contrato firmado; páginas futuras) ----
 
 export interface ListRequestsQuery {
-	email: string;
+	email?: string;
 	search?: string;
 	status?: RequestStatus;
 	page?: number;
