@@ -1,112 +1,71 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { goto, invalidateAll } from '$app/navigation';
+	import { navigating, page } from '$app/state';
+	import { resolve } from '$app/paths';
+	import { SvelteURLSearchParams } from 'svelte/reactivity';
 
 	import MetricsSummary from '$lib/components/MetricsSummary.svelte';
 	import SolicitationTable from '$lib/components/tables/SolicitationTable.svelte';
 
-	import { getQueueMetrics, listQueueRequests } from '$lib/services/request.service';
-
 	import type { MetricItem } from '$lib/types/metrics';
-	import type { QueueMetricsResponse, QueueQuery, QueueResponse } from '$lib/types/queue';
-	import type { Result } from '$lib/types/result';
+	import type { PageProps } from './$types';
 
-	const PAGE_SIZE = 5;
+	let { data }: PageProps = $props();
 
-	let page = $state(1);
-
-	let result = $state<Result<QueueResponse> | null>(null);
-	let isFetching = $state(false);
-	let queueError = $state<string | null>(null);
-
-	let metricsResult = $state<Result<QueueMetricsResponse> | null>(null);
-	let isFetchingMetrics = $state(false);
-	let metricsError = $state<string | null>(null);
+	// Navegação pendente para a própria rota: estado de carregamento da tabela.
+	const isFetching = $derived(navigating.to?.route?.id === page.route.id);
 
 	const metrics = $derived.by<MetricItem[]>(() => {
-		if (!metricsResult?.ok) {
+		if (!data.metricsResult.ok) {
 			return [];
 		}
 
 		return [
 			{
 				label: 'Volume Total',
-				value: metricsResult.data.totalRequests,
+				value: data.metricsResult.data.totalRequests,
 				iconName: 'queueSummary',
 				tone: 'indigo'
 			},
 			{
 				label: 'Sem Responsável',
-				value: metricsResult.data.unassignedRequests,
+				value: data.metricsResult.data.unassignedRequests,
 				iconName: 'doNotDisturb',
 				tone: 'neutral'
 			},
 			{
 				label: 'Em Andamento',
-				value: metricsResult.data.inProgressRequests,
+				value: data.metricsResult.data.inProgressRequests,
 				iconName: 'pending',
 				tone: 'orange'
 			},
 			{
 				label: 'Atrasados',
-				value: metricsResult.data.overdueRequests,
+				value: data.metricsResult.data.overdueRequests,
 				iconName: 'priority',
 				tone: 'danger'
 			}
 		];
 	});
 
-	function buildQueueQuery(): QueueQuery {
-		return {
-			page,
-			pageSize: PAGE_SIZE
-		};
-	}
+	function goToPage(nextPage: number) {
+		const searchParams = new SvelteURLSearchParams();
 
-	async function loadQueue(): Promise<void> {
-		isFetching = true;
-		queueError = null;
-
-		try {
-			const nextResult = await listQueueRequests(buildQueueQuery());
-
-			if (nextResult.ok) {
-				result = nextResult;
-				return;
-			}
-
-			queueError = nextResult.error.message;
-		} finally {
-			isFetching = false;
+		if (nextPage > 1) {
+			searchParams.set('page', String(nextPage));
 		}
+
+		const query = searchParams.toString();
+
+		// Plugin não aceita query string após resolve() (eslint-plugin-svelte#1327);
+		// a navegação é validada em runtime pelo SvelteKit.
+		// eslint-disable-next-line svelte/no-navigation-without-resolve
+		void goto(`${resolve('/(admin)/fila')}?${query}`, {
+			keepFocus: true,
+			invalidateAll: true,
+			replaceState: true
+		});
 	}
-
-	async function loadMetrics(): Promise<void> {
-		isFetchingMetrics = true;
-		metricsError = null;
-
-		try {
-			const nextResult = await getQueueMetrics();
-
-			if (nextResult.ok) {
-				metricsResult = nextResult;
-				return;
-			}
-
-			metricsError = nextResult.error.message;
-		} finally {
-			isFetchingMetrics = false;
-		}
-	}
-
-	async function handlePageChange(nextPage: number): Promise<void> {
-		page = nextPage;
-		await loadQueue();
-	}
-
-	onMount(() => {
-		void loadQueue();
-		void loadMetrics();
-	});
 </script>
 
 <svelte:head>
@@ -119,43 +78,25 @@
 		<p>Gestão e acompanhamento operacional de demandas</p>
 	</header>
 
-	{#if isFetchingMetrics && metrics.length === 0}
-		<p class="metrics-state" role="status" aria-live="polite">Carregando indicadores…</p>
-	{:else if metricsError && metrics.length === 0}
-		<p class="metrics-state metrics-state--error" role="alert">
-			{metricsError}
-		</p>
-	{:else}
+	{#if data.metricsResult.ok}
 		<MetricsSummary {metrics} />
+	{:else}
+		<div class="metrics-state metrics-state--error" role="alert">
+			<p>{data.metricsResult.error.message}</p>
 
-		{#if metricsError}
-			<p class="metrics-state metrics-state--error" role="alert">
-				{metricsError}
-			</p>
-		{/if}
-	{/if}
-
-	{#if result === null && isFetching}
-		<div class="queue-state" role="status" aria-live="polite">
-			<p>Carregando solicitações…</p>
-		</div>
-	{:else if result === null && queueError}
-		<div class="queue-state queue-state--error" role="alert">
-			<p>{queueError}</p>
-
-			<button type="button" class="queue-state__retry" onclick={() => void loadQueue()}>
+			<button type="button" class="state-retry" onclick={() => void invalidateAll()}>
 				Tentar novamente
 			</button>
 		</div>
-	{:else if result}
-		<SolicitationTable
-			{page}
-			{result}
-			{isFetching}
-			detailRoute="/(admin)/fila/[protocolo]"
-			onpagechange={handlePageChange}
-		/>
 	{/if}
+
+	<SolicitationTable
+		page={data.page}
+		result={data.result}
+		{isFetching}
+		detailRoute="/(admin)/fila/[protocolo]"
+		onpagechange={goToPage}
+	/>
 </section>
 
 <style>
@@ -179,6 +120,10 @@
 	}
 
 	.metrics-state {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: var(--spacing-sm);
 		margin: 0;
 		padding: var(--spacing-lg);
 		text-align: center;
@@ -190,32 +135,15 @@
 		box-shadow: var(--regular-shadow);
 	}
 
+	.metrics-state p {
+		margin: 0;
+	}
+
 	.metrics-state--error {
 		color: var(--status-red);
 	}
 
-	.queue-state {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: var(--spacing-sm);
-		min-height: 240px;
-		padding: var(--spacing-xl);
-		text-align: center;
-		background: var(--white);
-		border: var(--border-default);
-		border-radius: var(--radius-md);
-		box-shadow: var(--regular-shadow);
-	}
-
-	.queue-state p {
-		margin: 0;
-		font: var(--paragrafo);
-		color: var(--gray);
-	}
-
-	.queue-state__retry {
+	.state-retry {
 		padding: var(--spacing-xs) var(--spacing-md);
 		font: var(--paragrafo);
 		font-weight: 600;
@@ -224,5 +152,10 @@
 		border: var(--border-default);
 		border-radius: var(--radius-sm);
 		cursor: pointer;
+		transition: var(--transition-default);
+	}
+
+	.state-retry:hover {
+		background: var(--background-color);
 	}
 </style>
