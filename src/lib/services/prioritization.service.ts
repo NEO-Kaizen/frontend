@@ -1,4 +1,5 @@
 import { getPrioritization, savePrioritization } from '$lib/api/prioritization.api';
+import { ApiError, type Result } from '$lib/types/result';
 import type {
 	CriterionNotes,
 	PrioritizationData,
@@ -6,16 +7,14 @@ import type {
 } from '$lib/types/prioritization';
 import { MAX_NOTE, MIN_NOTE } from '$lib/types/prioritization';
 
-type PrioritizationDataResult =
-	| { ok: true; data: PrioritizationData }
-	| { ok: false; error: { status?: number; message: string } };
+type SavePrioritizationError = {
+	status?: number;
+	message: string;
+	missingCriterionIds?: number[];
+};
 
 type SavePrioritizationResult =
-	| { ok: true; data: PrioritizationResult }
-	| {
-			ok: false;
-			error: { status?: number; message: string; missingCriterionIds?: number[] };
-	  };
+	{ ok: true; data: PrioritizationResult } | { ok: false; error: SavePrioritizationError };
 
 type ValidationResult =
 	{ ok: true } | { ok: false; error: { message: string; missingCriterionIds: number[] } };
@@ -44,11 +43,14 @@ function validateNotes(
 	return { ok: true };
 }
 
-export async function loadPrioritization(protocol: string): Promise<PrioritizationDataResult> {
+export async function loadPrioritization(protocol: string): Promise<Result<PrioritizationData>> {
 	try {
 		const data = await getPrioritization(protocol);
 		return { ok: true, data };
 	} catch (error) {
+		if (error instanceof ApiError) {
+			return { ok: false, error: { status: error.status, message: error.message } };
+		}
 		return { ok: false, error: { message: 'Não foi possível conectar ao servidor.' } };
 	}
 }
@@ -73,7 +75,9 @@ export async function submitPrioritization(
 		const data = await savePrioritization(protocol, { notes });
 		return { ok: true, data };
 	} catch (error) {
-
+		if (error instanceof ApiError) {
+			return { ok: false, error: { status: error.status, message: error.message } };
+		}
 		return { ok: false, error: { message: 'Não foi possível conectar ao servidor.' } };
 	}
 }

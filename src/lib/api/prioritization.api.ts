@@ -1,13 +1,10 @@
 import { apiClient } from './client';
-import { getPrioritizationMock, savePrioritizationMock } from '$lib/mocks/prioritization';
+import { MOCK_DOMAINS } from '$lib/mocks';
 import type {
 	PrioritizationData,
 	PrioritizationResult,
 	SavePrioritizationPayload
 } from '$lib/types/prioritization';
-
-// TODO: Substituir o mock pela integração com a API quando o backend estiver disponível.
-const USE_MOCK = true;
 
 const REQUESTS_PATH = '/requests';
 
@@ -18,8 +15,10 @@ function prioritizationPath(protocol: string): string {
 
 // Carrega os critérios oficiais e as notas já existentes da solicitação
 // (vazias na primeira avaliação; preenchidas numa reavaliação).
-export function getPrioritization(protocol: string): Promise<PrioritizationData> {
-	if (USE_MOCK) {
+export async function getPrioritization(protocol: string): Promise<PrioritizationData> {
+	// DEV inline no ponto de chamada garante a eliminação do mock no build (DCE).
+	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.prioritization) {
+		const { getPrioritizationMock } = await import('$lib/mocks/prioritization.mock');
 		return getPrioritizationMock(protocol);
 	}
 
@@ -28,11 +27,13 @@ export function getPrioritization(protocol: string): Promise<PrioritizationData>
 
 // Envia apenas as notas por critério. O score e a classificação são calculados
 // pelo Backend — o Frontend não envia score final como fonte de verdade.
-export function savePrioritization(
+export async function savePrioritization(
 	protocol: string,
 	payload: SavePrioritizationPayload
 ): Promise<PrioritizationResult> {
-	if (USE_MOCK) {
+	// DEV inline no ponto de chamada garante a eliminação do mock no build (DCE).
+	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.prioritization) {
+		const { savePrioritizationMock } = await import('$lib/mocks/prioritization.mock');
 		return savePrioritizationMock(protocol, payload.notes);
 	}
 

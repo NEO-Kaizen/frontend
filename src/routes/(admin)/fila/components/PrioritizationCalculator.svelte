@@ -32,11 +32,7 @@
 	const filledCount = $derived(
 		criteria.filter((criterion) => notes[criterion.id] !== undefined).length
 	);
-	const currentScore = $derived(
-		criteria.reduce((total, criterion) => total + (notes[criterion.id] ?? 0), 0)
-	);
 	const maxScore = $derived(criteria.length * MAX_NOTE);
-	const allFilled = $derived(filledCount === criteria.length && criteria.length > 0);
 
 	async function load() {
 		isLoading = true;
@@ -81,15 +77,21 @@
 		missingCriterionIds = [];
 		saveError = '';
 
-		const submission = await submitPrioritization(protocol, criteria, notes);
+		isSaving = true;
 
-		if (submission.ok) {
-			result = submission.data;
-		} else if (submission.error.missingCriterionIds?.length) {
-			missingCriterionIds = submission.error.missingCriterionIds;
-			validationError = submission.error.message;
-		} else {
-			saveError = submission.error.message;
+		try {
+			const submission = await submitPrioritization(protocol, criteria, notes);
+
+			if (submission.ok) {
+				result = submission.data;
+			} else if (submission.error.missingCriterionIds?.length) {
+				missingCriterionIds = submission.error.missingCriterionIds;
+				validationError = submission.error.message;
+			} else {
+				saveError = submission.error.message;
+			}
+		} finally {
+			isSaving = false;
 		}
 	}
 </script>
@@ -158,8 +160,8 @@
 			<div class="footer">
 				<div class="score-summary" aria-live="polite">
 					<span class="score-total">
-						SCORE TOTAL <strong>{allFilled ? currentScore : '—'}</strong>
-						<span class="score-max">/ {maxScore}</span>
+						SCORE TOTAL <strong>{result ? result.score : '—'}</strong>
+						<span class="score-max">/ {result?.maxScore ?? maxScore}</span>
 					</span>
 					{#if result}
 						<span class="score-level">
@@ -179,6 +181,8 @@
 
 <style>
 	.prioritization-calculator {
+		width: 460px; /* largura fixa — o cartão não muda de tamanho entre estados */
+		max-width: 100%;
 		background: var(--white);
 		border: var(--border-default);
 		border-radius: var(--radius-sm);
@@ -236,12 +240,14 @@
 	.revaluation-hint {
 		margin: 0 0 var(--spacing-md);
 		font-size: 13px;
+		overflow-wrap: anywhere; /* não deixa o texto alargar o cartão */
 		color: var(--gray);
 	}
 
 	.form-error {
 		margin: 0 0 var(--spacing-md);
 		padding: var(--spacing-sm) var(--spacing-md);
+		overflow-wrap: anywhere; /* não deixa a frase alargar o cartão (largura segue a dos critérios) */
 		background: var(--status-red-bg);
 		color: var(--status-red);
 		border-radius: var(--radius-sm);
@@ -341,6 +347,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
+		flex-wrap: wrap;
 		gap: var(--spacing-md);
 		margin-top: var(--spacing-lg);
 	}
@@ -348,6 +355,7 @@
 	.score-summary {
 		display: flex;
 		align-items: baseline;
+		flex-wrap: wrap;
 		gap: var(--spacing-lg);
 	}
 
