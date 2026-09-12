@@ -11,6 +11,12 @@
 	import { logout } from '$lib/services/auth.service';
 	import { searchRequests } from '$lib/services/request.service';
 
+	interface Props {
+		onSearch?: (value: string) => void | Promise<void>;
+	}
+
+	let { onSearch }: Props = $props();
+
 	// KNOWN ISSUE (svelte-check) — não estreitar este tipo sem entender a causa:
 	// `resolve(item.href)` (no helper `isActive` e abaixo, no markup) acusa erro
 	// porque o `RouteId` gerado inclui ids de diretórios sem página (ex.: pastas
@@ -92,6 +98,11 @@
 		isSearching = true;
 
 		try {
+			if (onSearch) {
+				await onSearch(value);
+				return;
+			}
+
 			const result = await searchRequests(value, appConfig.protocolMask);
 
 			if (!result.ok) {

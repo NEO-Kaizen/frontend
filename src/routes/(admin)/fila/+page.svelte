@@ -1,18 +1,24 @@
 <script lang="ts">
+	import { page as routePage } from '$app/state';
 	import { onMount } from 'svelte';
 
 	import MetricsSummary from '$lib/components/MetricsSummary.svelte';
+	import QueueFilters from '$lib/components/QueueFilters.svelte';
 	import SolicitationTable from '$lib/components/tables/SolicitationTable.svelte';
 
 	import { getQueueMetrics, listQueueRequests } from '$lib/services/request.service';
 
 	import type { MetricItem } from '$lib/types/metrics';
 	import type { QueueMetricsResponse, QueueQuery, QueueResponse } from '$lib/types/queue';
+	import type { RequestPriority, RequestStatus } from '$lib/types/request';
 	import type { Result } from '$lib/types/result';
 
 	const PAGE_SIZE = 5;
 
 	let page = $state(1);
+	let status = $state('all');
+	let priority = $state('all');
+	let assigneeId = $state('all');
 
 	let result = $state<Result<QueueResponse> | null>(null);
 	let isFetching = $state(false);
@@ -21,6 +27,49 @@
 	let metricsResult = $state<Result<QueueMetricsResponse> | null>(null);
 	let isFetchingMetrics = $state(false);
 	let metricsError = $state<string | null>(null);
+
+	const search = $derived(routePage.url.searchParams.get('search')?.trim() ?? '');
+
+	let previousSearch = $state('');
+
+	const statusOptions = [
+		{ value: 'all', label: 'Todos' },
+		{ value: 'Solicitação enviada', label: 'Solicitação enviada' },
+		{ value: 'Aguardando triagem', label: 'Aguardando triagem' },
+		{ value: 'Em triagem', label: 'Em triagem' },
+		{ value: 'Pendente de informações', label: 'Pendente de informações' },
+		{ value: 'Aguardando mapeamento', label: 'Aguardando mapeamento' },
+		{ value: 'Mapeamento agendado', label: 'Mapeamento agendado' },
+		{ value: 'Em mapeamento', label: 'Em mapeamento' },
+		{ value: 'Em análise de viabilidade', label: 'Em análise de viabilidade' },
+		{ value: 'Elegível', label: 'Elegível' },
+		{ value: 'Não elegível', label: 'Não elegível' },
+		{ value: 'Priorizado', label: 'Priorizado' },
+		{ value: 'Backlog', label: 'Backlog' },
+		{ value: 'Direcionado para outra área', label: 'Direcionado para outra área' },
+		{ value: 'Em desenvolvimento', label: 'Em desenvolvimento' },
+		{ value: 'Em homologação', label: 'Em homologação' },
+		{ value: 'Concluído', label: 'Concluído' },
+		{ value: 'Cancelado', label: 'Cancelado' }
+	];
+
+	const priorityOptions = [
+		{ value: 'all', label: 'Todas' },
+		{ value: 'Baixa', label: 'Baixa' },
+		{ value: 'Média', label: 'Média' },
+		{ value: 'Alta', label: 'Alta' },
+		{ value: 'Crítica', label: 'Crítica' }
+	];
+
+	const assigneeOptions = [
+		{ value: 'all', label: 'Todos' },
+		{ value: 'unassigned', label: 'Sem responsável' },
+		{ value: '1', label: 'Fernando Alves' },
+		{ value: '2', label: 'Ana Souza' },
+		{ value: '3', label: 'Lucas Gomes' },
+		{ value: '4', label: 'Gabriel Soares' },
+		{ value: '5', label: 'Carlos Mendes' }
+	];
 
 	const metrics = $derived.by<MetricItem[]>(() => {
 		if (!metricsResult?.ok) {
@@ -56,10 +105,28 @@
 	});
 
 	function buildQueueQuery(): QueueQuery {
-		return {
+		const query: QueueQuery = {
 			page,
 			pageSize: PAGE_SIZE
 		};
+
+		if (search) {
+			query.search = search;
+		}
+
+		if (status !== 'all') {
+			query.status = status as RequestStatus;
+		}
+
+		if (priority !== 'all') {
+			query.priority = priority as RequestPriority;
+		}
+
+		if (assigneeId !== 'all') {
+			query.assigneeId = assigneeId === 'unassigned' ? 'unassigned' : Number(assigneeId);
+		}
+
+		return query;
 	}
 
 	async function loadQueue(): Promise<void> {
@@ -103,9 +170,33 @@
 		await loadQueue();
 	}
 
+	async function handleFilterChange(): Promise<void> {
+		page = 1;
+		await loadQueue();
+	}
+
+	async function handleClearFilters(): Promise<void> {
+		status = 'all';
+		priority = 'all';
+		assigneeId = 'all';
+		page = 1;
+
+		await loadQueue();
+	}
+
 	onMount(() => {
+		previousSearch = search;
+
 		void loadQueue();
 		void loadMetrics();
+	});
+
+	$effect(() => {
+		if (search !== previousSearch) {
+			previousSearch = search;
+			page = 1;
+			void loadQueue();
+		}
 	});
 </script>
 
@@ -134,6 +225,17 @@
 			</p>
 		{/if}
 	{/if}
+
+	<QueueFilters
+		bind:status
+		bind:priority
+		bind:assignee={assigneeId}
+		{statusOptions}
+		{priorityOptions}
+		{assigneeOptions}
+		onFilterChange={handleFilterChange}
+		onClear={handleClearFilters}
+	/>
 
 	{#if result === null && isFetching}
 		<div class="queue-state" role="status" aria-live="polite">
@@ -176,22 +278,6 @@
 	.queue-page__header h1,
 	.queue-page__header p {
 		margin: 0;
-	}
-
-	.metrics-state {
-		margin: 0;
-		padding: var(--spacing-lg);
-		text-align: center;
-		font: var(--paragrafo);
-		color: var(--gray);
-		background: var(--white);
-		border: var(--border-default);
-		border-radius: var(--radius-lg);
-		box-shadow: var(--regular-shadow);
-	}
-
-	.metrics-state--error {
-		color: var(--status-red);
 	}
 
 	.queue-state {
