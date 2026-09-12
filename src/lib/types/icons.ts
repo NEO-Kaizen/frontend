@@ -18,6 +18,7 @@ export const iconDictionary = {
 	logout: 'logout',
 	settings: 'settings',
 	filter: 'filter_alt',
+	filterList: 'filter_list',
 	queueSummary: 'article',
 	queueChart: 'analytics',
 	addCircle: 'add_circle',
