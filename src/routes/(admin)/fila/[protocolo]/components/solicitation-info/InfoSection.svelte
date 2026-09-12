@@ -1,11 +1,11 @@
 <script lang="ts">
-	import type { YesNoDetail, AdminRequestDetail } from '$lib/types/request';
+	import type { YesNoDetail, InternalRequestDetail } from '$lib/types/request';
 	import { formatDate, formatDateTime } from '$lib/utils/dates';
 	import Field from './field.svelte';
 	import ToggleSection from './toggleSection.svelte';
 
 	interface Props {
-		solicitation: AdminRequestDetail;
+		solicitation: InternalRequestDetail;
 	}
 
 	let { solicitation }: Props = $props();
@@ -147,12 +147,6 @@
 			{:else}
 				<p class="fallback-text">{scheduleDisplay}</p>
 			{/if}
-			{#if !solicitation.isSchedulingAllowed}
-				<div class="scheduling-info" aria-disabled="true">
-					Agendamento fora da Sprint — {solicitation.schedulingReason ??
-						'Agendamento indisponível no momento'}
-				</div>
-			{/if}
 		</div>
 
 		<div class="sub-block">
@@ -277,17 +271,6 @@
 		font-family: var(--font-inter);
 		font-size: 14px;
 		color: var(--black);
-	}
-
-	.scheduling-info {
-		margin-top: 12px;
-		padding: 10px 12px;
-		background: var(--status-yellow-bg);
-		border: 1px solid var(--white-gray);
-		border-radius: var(--radius-sm);
-		font-family: var(--font-inter);
-		font-size: 13px;
-		color: var(--status-yellow);
 	}
 
 	.attachment-item {

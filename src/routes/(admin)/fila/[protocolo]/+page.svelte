@@ -54,7 +54,7 @@
 		width: 100%;
 		max-width: var(--largura-maxima-conteudo);
 		margin: 0 auto;
-		padding: var(--spacing-lg);
+		padding: 0px var(--spacing-lg);
 		display: flex;
 		flex-direction: column;
 		gap: var(--spacing-lg);

@@ -34,11 +34,7 @@
 			hint: 'Definir Prioridade ID',
 			icon: 'calculate'
 		},
-		{key: 'changeStatus', 
-			label: 'Alterar Status', 
-			hint: 'Registra alteração', 
-			icon: 'pending' 
-		},
+		{ key: 'changeStatus', label: 'Alterar Status', hint: 'Registra alteração', icon: 'pending' },
 		{
 			key: 'informPending',
 			label: 'Informar Pendência',
@@ -93,7 +89,11 @@
 						class="action-row"
 						style:animation-delay={`${prefersReducedMotion ? '0ms' : `${index * 30}ms`}`}
 					>
-						<button type="button" class="action-item" onclick={() => console.log("Quick Action Button to do")}>
+						<button
+							type="button"
+							class="action-item"
+							onclick={() => console.log('Quick Action Button to do')}
+						>
 							<span class="action-icon" aria-hidden="true">
 								<Icon iconName={action.icon} iconSize="sm" />
 							</span>
@@ -119,7 +119,7 @@
 		onclick={toggle}
 	>
 		<span class="fab-icon" class:open={isOpen} aria-hidden="true">
-			<Icon iconName={isOpen ? 'close' : 'edit'} iconSize="md" />
+			<Icon iconName={isOpen ? 'close' : 'more'} iconSize="md" />
 		</span>
 	</button>
 </div>

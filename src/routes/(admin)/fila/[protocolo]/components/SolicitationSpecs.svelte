@@ -1,11 +1,11 @@
 <script lang="ts">
 	import Icon from '$lib/components/Icon.svelte';
-	import type { AdminRequestDetail, RequestStatus } from '$lib/types/request';
+	import type { InternalRequestDetail, RequestStatus } from '$lib/types/request';
 	import InfoSection from './solicitation-info/InfoSection.svelte';
 	import QuickActions from './quickActions.svelte';
 
 	interface Props {
-		solicitation: AdminRequestDetail;
+		solicitation: InternalRequestDetail;
 	}
 
 	let { solicitation }: Props = $props();
@@ -60,18 +60,18 @@
 		disabled?: boolean;
 	};
 
-	const tabs: TabItem[] = [
+	const leftTabs: TabItem[] = [
 		{ id: 'informacoes', label: 'Informações', icon: 'description' },
-		{ id: 'editar', label: 'Editar', icon: 'edit', disabled: true },
 		{ id: 'triagem', label: 'Triagem', icon: 'filter', disabled: true },
 		{ id: 'mapeamento', label: 'Mapeamento', icon: 'calendarCheck', badge: 1, disabled: true },
 		{ id: 'historico', label: 'Histórico de Conversa', icon: 'history', badge: 1, disabled: true },
 		{ id: 'observacoes', label: 'Observações Internas', icon: 'info', disabled: true }
 	];
 
+	const rightTab: TabItem = { id: 'editar', label: 'Editar', icon: 'edit', disabled: true };
+
 	function handleTabClick(tab: TabItem) {
 		if (tab.disabled) {
-			console.warn(`[TODO] Tab ${tab.id} — implementação futura`);
 			return;
 		}
 		activeTab = tab.id;
@@ -130,6 +130,10 @@
 					{solicitation.status.toUpperCase()}
 				</span>
 				<span class="protocol">{solicitation.protocol}</span>
+				<span class="notification-skeleton" aria-label="Notificações pendentes">
+					<Icon iconName="info" iconSize="sm" />
+					<span class="notification-text">0 notificações</span>
+				</span>
 			</div>
 			<h1 class="solicitation-title">{solicitation.demand.title}</h1>
 		</div>
@@ -167,25 +171,43 @@
 
 {#snippet specTabsSnippet()}
 	<div class="tabs-bar" role="tablist" aria-label="Abas da solicitação">
-		{#each tabs as tab (tab.id)}
+		<div class="tabs-left">
+			{#each leftTabs as tab (tab.id)}
+				<button
+					type="button"
+					role="tab"
+					aria-selected={activeTab === tab.id}
+					aria-disabled={tab.disabled ? 'true' : undefined}
+					disabled={tab.disabled && tab.id !== 'informacoes' ? true : undefined}
+					class="tab-item"
+					class:active={activeTab === tab.id}
+					class:disabled={tab.disabled}
+					onclick={() => handleTabClick(tab)}
+				>
+					<Icon iconName={tab.icon} iconSize="sm" />
+					<span>{tab.label}</span>
+					{#if tab.badge}
+						<span class="tab-badge" aria-label={`${tab.badge} notificação`}>{tab.badge}</span>
+					{/if}
+				</button>
+			{/each}
+		</div>
+		<div class="tabs-right">
 			<button
 				type="button"
 				role="tab"
-				aria-selected={activeTab === tab.id}
-				aria-disabled={tab.disabled ? 'true' : undefined}
-				disabled={tab.disabled && tab.id !== 'informacoes' ? true : undefined}
+				aria-selected={activeTab === rightTab.id}
+				aria-disabled={rightTab.disabled ? 'true' : undefined}
+				disabled={rightTab.disabled ? true : undefined}
 				class="tab-item"
-				class:active={activeTab === tab.id}
-				class:disabled={tab.disabled}
-				onclick={() => handleTabClick(tab)}
+				class:active={activeTab === rightTab.id}
+				class:disabled={rightTab.disabled}
+				onclick={() => handleTabClick(rightTab)}
 			>
-				<Icon iconName={tab.icon} iconSize="sm" />
-				<span>{tab.label}</span>
-				{#if tab.badge}
-					<span class="tab-badge" aria-label={`${tab.badge} notificação`}>{tab.badge}</span>
-				{/if}
+				<Icon iconName={rightTab.icon} iconSize="sm" />
+				<span>{rightTab.label}</span>
 			</button>
-		{/each}
+		</div>
 	</div>
 {/snippet}
 
@@ -211,7 +233,7 @@
 	.solicitation-specs-page {
 		display: flex;
 		flex-direction: column;
-		gap: var(--spacing-lg);
+		gap: var(--spacing-md);
 		width: 100%;
 	}
 
@@ -255,6 +277,24 @@
 		color: var(--gray);
 	}
 
+	.notification-skeleton {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		padding: 3px 8px;
+		border-radius: var(--radius-md);
+		background: var(--background-color);
+		border: 1px solid var(--white-gray);
+		font-family: var(--font-inter);
+		font-size: 11px;
+		font-weight: 500;
+		color: var(--gray);
+	}
+
+	.notification-text {
+		white-space: nowrap;
+	}
+
 	.solicitation-title {
 		margin: 0;
 		font-family: var(--font-montserrat);
@@ -267,15 +307,16 @@
 	}
 
 	.prio-card {
-		background: var(--white);
-		border: var(--border-default);
+		background: linear-gradient(135deg, var(--white) 0%, var(--background-color) 100%);
+		border: 1px solid var(--white-gray);
+		border-left: 3px solid var(--secondary-color);
 		border-radius: var(--radius-sm);
-		padding: 12px 16px;
+		padding: 14px 18px;
 		display: flex;
 		flex-direction: column;
-		gap: 6px;
+		gap: 8px;
 		box-shadow: var(--regular-shadow);
-		min-width: 210px;
+		min-width: 220px;
 		flex-shrink: 0;
 		align-items: center;
 		justify-content: center;
@@ -303,7 +344,7 @@
 
 	.prio-score {
 		font-family: var(--font-montserrat);
-		font-size: 22px;
+		font-size: 26px;
 		font-weight: 800;
 		color: var(--status-blue);
 		line-height: 1;
@@ -314,7 +355,7 @@
 	}
 
 	.prio-max {
-		font-size: 13px;
+		font-size: 14px;
 		font-weight: 600;
 		color: var(--gray);
 		margin-left: 1px;
@@ -338,7 +379,7 @@
 		position: relative;
 		display: flex;
 		flex-direction: column;
-		gap: var(--spacing-lg);
+		gap: var(--spacing-md);
 		word-break: break-word;
 	}
 
@@ -350,6 +391,20 @@
 		border-bottom: 1px solid var(--white-gray);
 		padding-bottom: 12px;
 		margin-bottom: 4px;
+	}
+
+	.tabs-left {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		flex-wrap: wrap;
+	}
+
+	.tabs-right {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		margin-left: auto;
 	}
 
 	.tab-item {
@@ -445,6 +500,11 @@
 
 		.details-card {
 			padding: var(--spacing-md);
+		}
+
+		.tabs-right {
+			margin-left: 0;
+			margin-top: 4px;
 		}
 	}
 

@@ -1,6 +1,6 @@
 import { ApiError } from '$lib/types/result';
 import type {
-	AdminRequestDetail,
+	InternalRequestDetail,
 	CreateRequestPayload,
 	CreateRequestResponse,
 	ListRequestsQuery,
@@ -522,7 +522,7 @@ export function getRequestByProtocolMock(protocol: string): Promise<RequestDetai
 	return Promise.resolve(detail);
 }
 
-export const mockAdminRequestDetails: AdminRequestDetail[] = [
+export const mockInternalRequestDetails: InternalRequestDetail[] = [
 	{
 		protocol: 'MAAT-2026-000102',
 		status: 'Em triagem',
@@ -579,8 +579,6 @@ export const mockAdminRequestDetails: AdminRequestDetail[] = [
 			additionalNotes: 'Preferência por validacao por workflow no Teams.'
 		},
 		schedulePreferences: ['2026-10-08T15:00', '2026-10-08T17:00'],
-		isSchedulingAllowed: false,
-		schedulingReason: 'Fora do período de Sprint vigente',
 		mappingDate: null,
 		meeting: null,
 		attachments: [
@@ -649,8 +647,6 @@ export const mockAdminRequestDetails: AdminRequestDetail[] = [
 		},
 		complementary: undefined,
 		schedulePreferences: null,
-		isSchedulingAllowed: false,
-		schedulingReason: 'Sem priorização definida',
 		mappingDate: null,
 		meeting: null,
 		attachments: [],
@@ -708,8 +704,6 @@ export const mockAdminRequestDetails: AdminRequestDetail[] = [
 			additionalNotes: undefined
 		},
 		schedulePreferences: ['2026-09-15T10:00:00.000Z'],
-		isSchedulingAllowed: true,
-		schedulingReason: null,
 		mappingDate: null,
 		meeting: null,
 		attachments: [
@@ -727,12 +721,9 @@ export const mockAdminRequestDetails: AdminRequestDetail[] = [
 	}
 ];
 
-export function getAdminRequestByProtocolMock(protocol: string): Promise<AdminRequestDetail> {
+export function getInternalRequestMock(protocol: string): Promise<InternalRequestDetail> {
 	const normalized = protocol.toLowerCase().trim();
-	if (normalized === 'maat-500-teste') return Promise.reject(new ApiError(500, 'Erro interno simulado.'));
-  if (normalized === 'maat-401-teste') return Promise.reject(new ApiError(401, 'Não autorizado.'));
-  if (normalized === 'maat-403-teste') return Promise.reject(new ApiError(403, 'Acesso negado.'));
-	const detail = mockAdminRequestDetails.find(
+	const detail = mockInternalRequestDetails.find(
 		(d) => d.protocol.toLowerCase().trim() === normalized
 	);
 	if (!detail) {

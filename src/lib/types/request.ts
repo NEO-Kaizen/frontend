@@ -396,10 +396,10 @@ export interface RequestDetail {
 	} | null;
 }
 
-// ---- DTO administrativo (superconjunto) ----
-// Futuro service: getAdminRequestByProtocol(protocol: string): Promise<Result<AdminRequestDetail>>
+// ---- DTO interno (superconjunto) ----
+// Service: getInternalRequest(protocol: string): Promise<Result<InternalRequestDetail>>
 
-export interface AdminAttachment {
+export interface InternalAttachment {
 	fileName: string;
 	mimeType: string;
 	sizeBytes: number;
@@ -413,7 +413,7 @@ export interface PrioritizationResult {
 	label: RequestPriority | null;
 }
 
-export interface AdminRequestDetail {
+export interface InternalRequestDetail {
 	protocol: string;
 	status: RequestStatus;
 	priority: RequestPriority | null;
@@ -427,13 +427,10 @@ export interface AdminRequestDetail {
 	operational: OperationalBlock;
 	complementary?: ComplementaryBlock;
 	schedulePreferences: SchedulePreferences | null;
-	isSchedulingAllowed: boolean;
-	
-	schedulingReason?: string | null;
 	mappingDate: string | null;
 	meeting: { scheduledFor: string; link: string | null } | null;
 
-	attachments: AdminAttachment[];
+	attachments: InternalAttachment[];
 	openedAt: string;
 	lastUpdate: string;
 	internalObservations?: string | null;
