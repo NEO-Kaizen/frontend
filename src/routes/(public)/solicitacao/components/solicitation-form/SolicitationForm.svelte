@@ -17,6 +17,7 @@
 		type SolicitationDraft
 	} from '$lib/services/solicitation-draft.service';
 	import type { SessionUser } from '$lib/types/auth';
+	import type { SolicitationMode } from '$lib/types/portal-config';
 	import type {
 		ComplementaryData,
 		CreateRequestPayload,
@@ -34,11 +35,13 @@
 
 	interface Props {
 		user?: SessionUser | null;
+		solicitationMode: SolicitationMode;
 	}
 
-	let { user = null }: Props = $props();
+	let { user = null, solicitationMode }: Props = $props();
 
-	const isAuthenticated = $derived(Boolean(user));
+	const hasSession = $derived(Boolean(user));
+	const shouldLockIdentity = $derived(solicitationMode === 'AUTHENTICATED' && hasSession);
 
 	const steps = [
 		{ id: 1, label: 'Identificação' },
@@ -69,9 +72,14 @@
 		}
 	}
 
+	function getSessionIdentity(): Pick<IdentificationData, 'fullName' | 'corporateEmail'> {
+		return hasSession
+			? { fullName: user?.name ?? '', corporateEmail: user?.email ?? '' }
+			: { fullName: '', corporateEmail: '' };
+	}
+
 	let identification = $state<IdentificationData>({
-		fullName: '',
-		corporateEmail: '',
+		...getSessionIdentity(),
 		area: '',
 		department: '',
 		manager: '',
@@ -128,25 +136,24 @@
 	let step3Ref = $state<StepRef>();
 	let step4Ref = $state<StepRef>();
 
-	if (browser) {
-		const draft = loadDraft();
-		if (draft) {
-			currentStep = draft.currentStep;
-			completedSteps = new Set(draft.completedSteps);
-			visitedSteps = new Set(draft.visitedSteps);
-			identification = draft.identification;
-			demand = draft.demand;
-			operational = draft.operational;
-			complementary = draft.complementary;
-		}
+	function hydrateFromDraft(): void {
+		const draft = loadDraft(user?.id ?? null);
+		if (!draft) return;
+
+		currentStep = draft.currentStep;
+		completedSteps = new Set(draft.completedSteps);
+		visitedSteps = new Set(draft.visitedSteps);
+		identification = hasSession
+			? { ...draft.identification, ...getSessionIdentity() }
+			: draft.identification;
+		demand = draft.demand;
+		operational = draft.operational;
+		complementary = draft.complementary;
 	}
 
-	$effect(() => {
-		if (user) {
-			identification.fullName = user.name;
-			identification.corporateEmail = user.email;
-		}
-	});
+	if (browser) {
+		hydrateFromDraft();
+	}
 
 	let draft = $derived<SolicitationDraft>({
 		version: 1,
@@ -170,7 +177,7 @@
 	});
 
 	$effect(() => {
-		saveDraft(draft);
+		saveDraft(draft, user?.id ?? null);
 	});
 
 	function validateCurrentStep(): boolean {
@@ -207,7 +214,7 @@
 	}
 
 	function resetForm() {
-		clearDraft();
+		clearDraft(user?.id ?? null);
 		currentStep = 1;
 		completedSteps = new Set();
 		visitedSteps = new Set([1]);
@@ -218,8 +225,8 @@
 		protocolCopied = false;
 		clearTimeout(copyTimeout);
 		identification = {
-			fullName: user?.name ?? '',
-			corporateEmail: user?.email ?? '',
+			fullName: hasSession ? (user?.name ?? '') : '',
+			corporateEmail: hasSession ? (user?.email ?? '') : '',
 			area: '',
 			department: '',
 			manager: '',
@@ -305,8 +312,8 @@
 			handlesRestrictedInfo !== undefined ||
 			additionalNotes !== undefined;
 
-		const requesterIdentity = user
-			? { fullName: user.name, corporateEmail: user.email }
+		const requesterIdentity = shouldLockIdentity
+			? { fullName: user?.name ?? '', corporateEmail: user?.email ?? '' }
 			: {
 					fullName: identification.fullName.trim(),
 					corporateEmail: identification.corporateEmail.trim()
@@ -403,7 +410,7 @@
 		if (result.ok) {
 			submittedProtocol = result.data.protocol;
 			submitted = true;
-			clearDraft();
+			clearDraft(user?.id ?? null);
 		} else {
 			submitError = result.error.message;
 		}
@@ -462,7 +469,7 @@
 				<StepIdentification
 					bind:this={step1Ref}
 					bind:data={identification}
-					lockedFields={isAuthenticated ? ['fullName', 'corporateEmail'] : []}
+					lockedFields={shouldLockIdentity ? ['fullName', 'corporateEmail'] : []}
 				/>
 			</div>
 			<div hidden={currentStep !== 2}>
