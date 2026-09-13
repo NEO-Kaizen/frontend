@@ -10,6 +10,8 @@ import type {
 } from '$lib/types/request';
 
 export async function getQueueMetricsMock(): Promise<QueueMetricsResponse> {
+	// Total e "sem responsável" derivam dos fixtures. "Em andamento" e "atrasados"
+	// são valores ilustrativos: o contrato ainda não expõe data-limite/atraso.
 	return {
 		totalRequests: mockRequests.length,
 		unassignedRequests: mockRequests.filter((request) => request.assigneeId === null).length,
@@ -563,7 +565,7 @@ export function listRequestsMock(
 	});
 }
 
-export function listQueueRequestsMock(query: QueueQuery): QueueResponse {
+export function listQueueRequestsMock(query: QueueQuery): Promise<QueueResponse> {
 	let requests = [...mockRequests];
 
 	if (query.search) {
@@ -572,6 +574,8 @@ export function listQueueRequestsMock(query: QueueQuery): QueueResponse {
 		requests = requests.filter((request) => {
 			return (
 				request.protocol.toLowerCase().includes(normalizedSearch) ||
+				request.processName.toLowerCase().includes(normalizedSearch) ||
+				request.requesterName.toLowerCase().includes(normalizedSearch) ||
 				request.corporateEmail.toLowerCase().includes(normalizedSearch)
 			);
 		});
@@ -595,11 +599,13 @@ export function listQueueRequestsMock(query: QueueQuery): QueueResponse {
 		});
 	}
 
+	const page = query.page ?? 1;
+	const pageSize = query.pageSize ?? 10;
 	const total = requests.length;
-	const totalPages = Math.ceil(total / query.pageSize);
+	const totalPages = Math.ceil(total / pageSize);
 
-	const start = (query.page - 1) * query.pageSize;
-	const end = start + query.pageSize;
+	const start = (page - 1) * pageSize;
+	const end = start + pageSize;
 
 	const data = requests.slice(start, end).map((request) => ({
 		protocol: request.protocol,
@@ -612,13 +618,13 @@ export function listQueueRequestsMock(query: QueueQuery): QueueResponse {
 		requesterEmail: request.corporateEmail
 	}));
 
-	return {
+	return Promise.resolve({
 		data,
-		page: query.page,
-		pageSize: query.pageSize,
+		page,
+		pageSize,
 		total,
 		totalPages
-	};
+	});
 }
 
 export function getRequestByProtocolMock(protocol: string): Promise<RequestDetail> {

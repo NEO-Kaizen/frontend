@@ -1,36 +1,35 @@
 <script lang="ts">
-	import { page as routePage } from '$app/state';
-	import { onMount } from 'svelte';
+	import { goto, invalidateAll } from '$app/navigation';
+	import { navigating, page } from '$app/state';
+	import { resolve } from '$app/paths';
+	import { SvelteURLSearchParams } from 'svelte/reactivity';
 
 	import MetricsSummary from '$lib/components/MetricsSummary.svelte';
 	import QueueFilters from '$lib/components/QueueFilters.svelte';
 	import SolicitationTable from '$lib/components/tables/SolicitationTable.svelte';
-
-	import { getQueueMetrics, listQueueRequests } from '$lib/services/request.service';
+	import Button from '$lib/components/Button.svelte';
 
 	import type { MetricItem } from '$lib/types/metrics';
-	import type { QueueMetricsResponse, QueueQuery, QueueResponse } from '$lib/types/queue';
-	import type { RequestPriority, RequestStatus } from '$lib/types/request';
-	import type { Result } from '$lib/types/result';
+	import type { PageProps } from './$types';
 
-	const PAGE_SIZE = 5;
+	let { data }: PageProps = $props();
 
-	let page = $state(1);
-	let status = $state('all');
-	let priority = $state('all');
-	let assigneeId = $state('all');
+	// Navegação pendente para a própria rota: estado de carregamento da tabela.
+	const isFetching = $derived(navigating.to?.route?.id === page.route.id);
 
-	let result = $state<Result<QueueResponse> | null>(null);
-	let isFetching = $state(false);
-	let queueError = $state<string | null>(null);
+	const queuePath = resolve('/(admin)/fila');
 
-	let metricsResult = $state<Result<QueueMetricsResponse> | null>(null);
-	let isFetchingMetrics = $state(false);
-	let metricsError = $state<string | null>(null);
+	// A URL é a fonte de verdade: filtros e paginação vivem nos search params,
+	// e cada mudança dispara nova navegação (load server-side reexecuta).
+	const filters = $derived.by(() => {
+		const params = page.url.searchParams;
 
-	const search = $derived(routePage.url.searchParams.get('search')?.trim() ?? '');
-
-	let previousSearch = $state('');
+		return {
+			status: params.get('status') ?? 'all',
+			priority: params.get('priority') ?? 'all',
+			assignee: params.get('assigneeId') ?? 'all'
+		};
+	});
 
 	const statusOptions = [
 		{ value: 'all', label: 'Todos' },
@@ -72,132 +71,87 @@
 	];
 
 	const metrics = $derived.by<MetricItem[]>(() => {
-		if (!metricsResult?.ok) {
+		if (!data.metricsResult.ok) {
 			return [];
 		}
 
 		return [
 			{
 				label: 'Volume Total',
-				value: metricsResult.data.totalRequests,
+				value: data.metricsResult.data.totalRequests,
 				iconName: 'queueSummary',
 				tone: 'indigo'
 			},
 			{
 				label: 'Sem Responsável',
-				value: metricsResult.data.unassignedRequests,
+				value: data.metricsResult.data.unassignedRequests,
 				iconName: 'doNotDisturb',
 				tone: 'neutral'
 			},
 			{
 				label: 'Em Andamento',
-				value: metricsResult.data.inProgressRequests,
+				value: data.metricsResult.data.inProgressRequests,
 				iconName: 'pending',
 				tone: 'orange'
 			},
 			{
 				label: 'Atrasados',
-				value: metricsResult.data.overdueRequests,
+				value: data.metricsResult.data.overdueRequests,
 				iconName: 'priority',
 				tone: 'danger'
 			}
 		];
 	});
 
-	function buildQueueQuery(): QueueQuery {
-		const query: QueueQuery = {
-			page,
-			pageSize: PAGE_SIZE
-		};
+	function buildQueueParams(overrides: Record<string, string | null>): string {
+		const searchParams = new SvelteURLSearchParams(page.url.searchParams);
 
-		if (search) {
-			query.search = search;
-		}
-
-		if (status !== 'all') {
-			query.status = status as RequestStatus;
-		}
-
-		if (priority !== 'all') {
-			query.priority = priority as RequestPriority;
-		}
-
-		if (assigneeId !== 'all') {
-			query.assigneeId = assigneeId === 'unassigned' ? 'unassigned' : Number(assigneeId);
-		}
-
-		return query;
-	}
-
-	async function loadQueue(): Promise<void> {
-		isFetching = true;
-		queueError = null;
-
-		try {
-			const nextResult = await listQueueRequests(buildQueueQuery());
-
-			if (nextResult.ok) {
-				result = nextResult;
-				return;
+		for (const [key, value] of Object.entries(overrides)) {
+			if (value === null || value === 'all') {
+				searchParams.delete(key);
+			} else {
+				searchParams.set(key, value);
 			}
-
-			queueError = nextResult.error.message;
-		} finally {
-			isFetching = false;
 		}
+
+		const query = searchParams.toString();
+
+		return query ? `?${query}` : '';
 	}
 
-	async function loadMetrics(): Promise<void> {
-		isFetchingMetrics = true;
-		metricsError = null;
+	function goToPage(nextPage: number) {
+		const target = `${queuePath}${buildQueueParams({
+			page: nextPage > 1 ? String(nextPage) : null
+		})}`;
 
-		try {
-			const nextResult = await getQueueMetrics();
-
-			if (nextResult.ok) {
-				metricsResult = nextResult;
-				return;
-			}
-
-			metricsError = nextResult.error.message;
-		} finally {
-			isFetchingMetrics = false;
-		}
+		// Plugin não aceita query string após resolve() (eslint-plugin-svelte#1327);
+		// a navegação é validada em runtime pelo SvelteKit.
+		// eslint-disable-next-line svelte/no-navigation-without-resolve
+		void goto(target, {
+			keepFocus: true,
+			noScroll: true,
+			replaceState: true
+		});
 	}
 
-	async function handlePageChange(nextPage: number): Promise<void> {
-		page = nextPage;
-		await loadQueue();
-	}
+	async function handleFilterChange(status: string, priority: string, assigneeId: string) {
+		const target = `${queuePath}${buildQueueParams({ page: null, status, priority, assigneeId })}`;
 
-	async function handleFilterChange(): Promise<void> {
-		page = 1;
-		await loadQueue();
+		// eslint-disable-next-line svelte/no-navigation-without-resolve
+		await goto(target, { keepFocus: true, noScroll: true });
 	}
 
 	async function handleClearFilters(): Promise<void> {
-		status = 'all';
-		priority = 'all';
-		assigneeId = 'all';
-		page = 1;
+		const target = `${queuePath}${buildQueueParams({
+			page: null,
+			status: null,
+			priority: null,
+			assigneeId: null
+		})}`;
 
-		await loadQueue();
+		// eslint-disable-next-line svelte/no-navigation-without-resolve
+		await goto(target, { keepFocus: true, noScroll: true });
 	}
-
-	onMount(() => {
-		previousSearch = search;
-
-		void loadQueue();
-		void loadMetrics();
-	});
-
-	$effect(() => {
-		if (search !== previousSearch) {
-			previousSearch = search;
-			page = 1;
-			void loadQueue();
-		}
-	});
 </script>
 
 <svelte:head>
@@ -210,54 +164,34 @@
 		<p>Gestão e acompanhamento operacional de demandas</p>
 	</header>
 
-	{#if isFetchingMetrics && metrics.length === 0}
-		<p class="metrics-state" role="status" aria-live="polite">Carregando indicadores…</p>
-	{:else if metricsError && metrics.length === 0}
-		<p class="metrics-state metrics-state--error" role="alert">
-			{metricsError}
-		</p>
-	{:else}
+	{#if data.metricsResult.ok}
 		<MetricsSummary {metrics} />
+	{:else}
+		<div class="metrics-state metrics-state--error" role="alert">
+			<p>{data.metricsResult.error.message}</p>
 
-		{#if metricsError}
-			<p class="metrics-state metrics-state--error" role="alert">
-				{metricsError}
-			</p>
-		{/if}
+			<Button variant="outline" loading={isFetching} onclick={() => void invalidateAll()}>
+				Tentar novamente
+			</Button>
+		</div>
 	{/if}
 
 	<QueueFilters
-		bind:status
-		bind:priority
-		bind:assignee={assigneeId}
+		{...filters}
 		{statusOptions}
 		{priorityOptions}
 		{assigneeOptions}
-		onFilterChange={handleFilterChange}
-		onClear={handleClearFilters}
+		onFilterChange={(next) => void handleFilterChange(next.status, next.priority, next.assignee)}
+		onClear={() => void handleClearFilters()}
 	/>
 
-	{#if result === null && isFetching}
-		<div class="queue-state" role="status" aria-live="polite">
-			<p>Carregando solicitações…</p>
-		</div>
-	{:else if result === null && queueError}
-		<div class="queue-state queue-state--error" role="alert">
-			<p>{queueError}</p>
-
-			<button type="button" class="queue-state__retry" onclick={() => void loadQueue()}>
-				Tentar novamente
-			</button>
-		</div>
-	{:else if result}
-		<SolicitationTable
-			{page}
-			{result}
-			{isFetching}
-			detailRoute="/(admin)/fila/[protocolo]"
-			onpagechange={handlePageChange}
-		/>
-	{/if}
+	<SolicitationTable
+		page={data.page}
+		result={data.result}
+		{isFetching}
+		detailRoute="/(admin)/fila/[protocolo]"
+		onpagechange={goToPage}
+	/>
 </section>
 
 <style>
@@ -280,35 +214,27 @@
 		margin: 0;
 	}
 
-	.queue-state {
+	.metrics-state {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		justify-content: center;
 		gap: var(--spacing-sm);
-		min-height: 240px;
-		padding: var(--spacing-xl);
+		margin: 0;
+		padding: var(--spacing-lg);
 		text-align: center;
+		font: var(--paragrafo);
+		color: var(--gray);
 		background: var(--white);
 		border: var(--border-default);
-		border-radius: var(--radius-md);
+		border-radius: var(--radius-lg);
 		box-shadow: var(--regular-shadow);
 	}
 
-	.queue-state p {
+	.metrics-state p {
 		margin: 0;
-		font: var(--paragrafo);
-		color: var(--gray);
 	}
 
-	.queue-state__retry {
-		padding: var(--spacing-xs) var(--spacing-md);
-		font: var(--paragrafo);
-		font-weight: 600;
-		color: var(--secondary-color);
-		background: none;
-		border: var(--border-default);
-		border-radius: var(--radius-sm);
-		cursor: pointer;
+	.metrics-state--error {
+		color: var(--status-red);
 	}
 </style>

@@ -8,20 +8,20 @@
 	};
 
 	interface Props {
-		status?: string;
-		priority?: string;
-		assignee?: string;
+		status: string;
+		priority: string;
+		assignee: string;
 		statusOptions: FilterOption[];
 		priorityOptions: FilterOption[];
 		assigneeOptions: FilterOption[];
-		onFilterChange?: () => void;
+		onFilterChange: (filters: { status: string; priority: string; assignee: string }) => void;
 		onClear?: () => void;
 	}
 
 	let {
-		status = $bindable('all'),
-		priority = $bindable('all'),
-		assignee = $bindable('all'),
+		status,
+		priority,
+		assignee,
 		statusOptions,
 		priorityOptions,
 		assigneeOptions,
@@ -30,9 +30,6 @@
 	}: Props = $props();
 
 	function clearFilters() {
-		status = 'all';
-		priority = 'all';
-		assignee = 'all';
 		onClear?.();
 	}
 </script>
@@ -47,8 +44,9 @@
 			<select
 				name="status"
 				aria-label="Filtrar por status"
-				bind:value={status}
-				onchange={onFilterChange}
+				value={status}
+				onchange={(event) =>
+					onFilterChange({ status: event.currentTarget.value, priority, assignee })}
 			>
 				{#each statusOptions as option (option.value)}
 					<option value={option.value}>{option.label}</option>
@@ -64,8 +62,9 @@
 			<select
 				name="priority"
 				aria-label="Filtrar por prioridade"
-				bind:value={priority}
-				onchange={onFilterChange}
+				value={priority}
+				onchange={(event) =>
+					onFilterChange({ status, priority: event.currentTarget.value, assignee })}
 			>
 				{#each priorityOptions as option (option.value)}
 					<option value={option.value}>{option.label}</option>
@@ -79,8 +78,9 @@
 			<select
 				name="assignee"
 				aria-label="Filtrar por responsável"
-				bind:value={assignee}
-				onchange={onFilterChange}
+				value={assignee}
+				onchange={(event) =>
+					onFilterChange({ status, priority, assignee: event.currentTarget.value })}
 			>
 				{#each assigneeOptions as option (option.value)}
 					<option value={option.value}>{option.label}</option>

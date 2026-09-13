@@ -1,50 +1,26 @@
 <script lang="ts">
 	import IconBadge from './IconBadge.svelte';
-	import type { MetricItem, MetricTone } from '$lib/types/metrics';
+	import type { MetricItem } from '$lib/types/metrics';
 
 	interface Props {
 		metrics: MetricItem[];
 	}
 
 	let { metrics }: Props = $props();
-
-	const toneStyles: Record<MetricTone, { backgroundColor: string; iconColor: string }> = {
-		indigo: {
-			backgroundColor: 'rgba(182, 196, 255, 0.2)',
-			iconColor: 'var(--primary-color)'
-		},
-		neutral: {
-			backgroundColor: '#e5e7eb',
-			iconColor: '#4b5563'
-		},
-		orange: {
-			backgroundColor: '#ffedd5',
-			iconColor: '#c2410c'
-		},
-		danger: {
-			backgroundColor: '#fee2e2',
-			iconColor: '#b91c1c'
-		}
-	};
 </script>
 
-<div class="metrics-summary">
+<dl class="metrics-summary">
 	{#each metrics as metric (metric.label)}
 		<div class="metric-card">
-			<IconBadge
-				iconName={metric.iconName}
-				variant="override"
-				backgroundColor={toneStyles[metric.tone].backgroundColor}
-				iconColor={toneStyles[metric.tone].iconColor}
-			/>
+			<IconBadge iconName={metric.iconName} variant={metric.tone} />
 
 			<div class="metric-content">
-				<span class="metric-label">{metric.label}</span>
-				<strong class="metric-value">{metric.value}</strong>
+				<dt class="metric-label">{metric.label}</dt>
+				<dd class="metric-value">{metric.value}</dd>
 			</div>
 		</div>
 	{/each}
-</div>
+</dl>
 
 <style>
 	.metrics-summary {

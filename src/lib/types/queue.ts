@@ -1,15 +1,16 @@
-import type { PaginatedResponse, RequestPriority, RequestStatus, RequestSummary } from './request';
+import type {
+	PaginatedResponse,
+	PaginationQuery,
+	RequestPriority,
+	RequestStatus,
+	RequestSummary
+} from './request';
 
 export interface QueueMetricsResponse {
 	totalRequests: number;
 	unassignedRequests: number;
 	inProgressRequests: number;
 	overdueRequests: number;
-}
-
-export interface PaginationQuery {
-	page: number;
-	pageSize: number;
 }
 
 export interface QueueFilterQuery {
