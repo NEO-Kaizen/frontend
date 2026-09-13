@@ -7,6 +7,7 @@
 	import { changePassword, getMe } from '$lib/services/auth.service';
 	import { getPostLoginRedirect } from '$lib/services/access.service';
 	import Footer from '$lib/components/layout/Footer.svelte';
+	import { page } from '$app/state';
 
 	let currentPassword = $state('');
 	let newPassword = $state('');
@@ -15,6 +16,8 @@
 	let showNewPassword = $state(false);
 	let errorMessage = $state('');
 	let isSubmitting = $state(false);
+
+	const returnTo = page.url.searchParams.get('returnTo');
 
 	type FieldName = 'currentPassword' | 'newPassword' | 'confirmPassword';
 	let fieldErrors = $state<Partial<Record<FieldName, string>>>({});
@@ -60,7 +63,11 @@
 
 		isSubmitting = true;
 
-		const result = await changePassword({ currentPassword, newPassword });
+		const result = await changePassword({
+			currentPassword,
+			newPassword,
+			confirmNewPassword: confirmPassword
+		});
 
 		if (!result.ok) {
 			isSubmitting = false;
@@ -76,8 +83,8 @@
 			errorMessage = meResult.error.message;
 			return;
 		}
-
-		const redirectPath = getPostLoginRedirect(meResult.data);
+		
+		const redirectPath = getPostLoginRedirect(meResult.data, returnTo);
 		await goto(resolve(redirectPath), { invalidateAll: true });
 	}
 </script>

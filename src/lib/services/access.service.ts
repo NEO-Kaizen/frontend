@@ -21,17 +21,21 @@ const GUARD_RULES: Record<GuardRuleId, { profiles: 'any' | readonly UserType[] }
 	adminOnly: { profiles: ['Administrador'] }
 };
 
-function isAllowedReturnTo(value: string): value is PostLoginRoute {
+export function isAllowedReturnTo(value: string): value is PostLoginRoute {
 	if (!value.startsWith('/')) return false;
 	if (value.includes('://')) return false;
 	if (value.startsWith('//')) return false;
 	return true;
 }
 
-export function guard(rule: GuardRuleId, user: SessionUser | null): void {
+export function guard(rule: GuardRuleId, user: SessionUser | null, pathname?: string): void {
 	const profiles = GUARD_RULES[rule].profiles;
 	if (!user) {
-		redirect(303, LOGIN_PATH);
+		const returnUrl =
+			pathname && isAllowedReturnTo(pathname)
+				? `${LOGIN_PATH}?returnTo=${encodeURIComponent(pathname)}`
+				: LOGIN_PATH;
+		redirect(303, returnUrl);
 	}
 	if (profiles !== 'any' && !profiles.includes(user.role)) {
 		redirect(303, UNAUTHORIZED_PATH);
@@ -61,8 +65,11 @@ export function guardPasswordChange(user: SessionUser | null, pathname: string):
 	}
 }
 
-export function getPostLoginRedirect(user: SessionUser, returnTo?: string | null): PostLoginRoute {
+export function getPostLoginRedirect(user: SessionUser, returnTo?: string | null): string {
 	if (isPasswordChangeRequired(user)) {
+		if (returnTo && isAllowedReturnTo(returnTo)) {
+			return `${CHANGE_PASSWORD_PATH}?returnTo=${encodeURIComponent(returnTo)}`;
+		}
 		return CHANGE_PASSWORD_PATH;
 	}
 

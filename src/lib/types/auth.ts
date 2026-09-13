@@ -16,6 +16,7 @@ export interface SessionUser {
 export interface ChangePasswordPayload {
 	currentPassword: string;
 	newPassword: string;
+	confirmNewPassword: string;
 }
 
 export interface LoginResponse {

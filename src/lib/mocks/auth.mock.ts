@@ -107,6 +107,10 @@ export function changePasswordMock(payload: ChangePasswordPayload): Promise<void
 		return Promise.reject(new ApiError(400, 'Senha atual incorreta.'));
 	}
 
+	if (payload.newPassword !== payload.confirmNewPassword) {
+		return Promise.reject(new ApiError(400, 'As senhas não conferem.'));
+	}
+
 	user.password = payload.newPassword;
 	user.forcePasswordChange = false;
 
