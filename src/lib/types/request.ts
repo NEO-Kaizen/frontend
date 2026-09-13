@@ -398,3 +398,43 @@ export interface RequestDetail {
 		justification: string;
 	} | null;
 }
+
+// ---- DTO interno (superconjunto) ----
+// Service: getInternalRequest(protocol: string): Promise<Result<InternalRequestDetail>>
+
+export interface InternalAttachment {
+	fileName: string;
+	mimeType: string;
+	sizeBytes: number;
+	downloadUrl: string | null;
+	canDownload: boolean;
+}
+
+export interface PrioritizationResult {
+	score: number | null;
+	maxScore: 25;
+	label: RequestPriority | null;
+}
+
+export interface InternalRequestDetail {
+	protocol: string;
+	status: RequestStatus;
+	priority: RequestPriority | null;
+	prioritization: PrioritizationResult;
+	assignee: { name: string | null; email?: string | null } | null;
+	correctionAlert?: { count: number; message: string } | null;
+
+	// blocos da solicitação
+	requester: RequesterBlock;
+	demand: DemandBlock;
+	operational: OperationalBlock;
+	complementary?: ComplementaryBlock;
+	schedulePreferences: SchedulePreferences | null;
+	mappingDate: string | null;
+	meeting: { scheduledFor: string; link: string | null } | null;
+
+	attachments: InternalAttachment[];
+	openedAt: string;
+	lastUpdate: string;
+	internalObservations?: string | null;
+}

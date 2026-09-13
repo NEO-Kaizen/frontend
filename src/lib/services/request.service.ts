@@ -2,6 +2,7 @@ import {
 	createRequest,
 	getQueueMetrics as getQueueMetricsApi,
 	getRequestByProtocol as getRequestByProtocolApi,
+	getInternalRequest as getInternalRequestApi,
 	listQueueRequests as listQueueRequestsApi,
 	listRequests as listRequestsApi
 } from '$lib/api/request.api';
@@ -13,7 +14,8 @@ import type {
 	ListRequestsQuery,
 	PaginatedResponse,
 	RequestDetail,
-	RequestSummary
+	RequestSummary,
+	InternalRequestDetail
 } from '$lib/types/request';
 import { ApiError, type Result } from '$lib/types/result';
 
@@ -145,6 +147,19 @@ export async function getRequestByProtocol(protocol: string): Promise<Result<Req
 				message: 'Não foi possível conectar ao servidor.'
 			}
 		};
+	}
+}
+
+export async function getInternalRequest(protocol: string): Promise<Result<InternalRequestDetail>> {
+	try {
+		const data = await getInternalRequestApi(protocol);
+		return { ok: true, data };
+	} catch (error) {
+		if (error instanceof ApiError) {
+			const message = error.status === 404 ? 'Solicitação não encontrada.' : error.message;
+			return { ok: false, error: { status: error.status, message } };
+		}
+		return { ok: false, error: { message: 'Não foi possível conectar ao servidor.' } };
 	}
 }
 

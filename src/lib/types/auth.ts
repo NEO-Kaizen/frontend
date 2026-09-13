@@ -10,6 +10,13 @@ export interface SessionUser {
 	name: string;
 	email: string;
 	role: UserType;
+	forcePasswordChange: boolean;
+}
+
+export interface ChangePasswordPayload {
+	currentPassword: string;
+	newPassword: string;
+	confirmNewPassword: string;
 }
 
 export interface LoginResponse {
