@@ -8,9 +8,10 @@
 	interface Props {
 		data: IdentificationData;
 		departmentOptions?: { value: string; label: string }[];
+		lockedFields?: string[];
 	}
 
-	let { data = $bindable(), departmentOptions }: Props = $props();
+	let { data = $bindable(), departmentOptions, lockedFields = [] }: Props = $props();
 
 	let errors = $state<StepFieldErrors>({});
 
@@ -63,6 +64,10 @@
 	function clearError(field: string): void {
 		delete errors[field];
 	}
+
+	function isLocked(field: string): boolean {
+		return lockedFields.includes(field);
+	}
 </script>
 
 <div class="step-content">
@@ -80,6 +85,7 @@
 			required
 			bind:value={data.fullName}
 			error={errors.fullName}
+			disabled={isLocked('fullName')}
 			oninput={() => clearError('fullName')}
 		/>
 
@@ -90,6 +96,7 @@
 			required
 			bind:value={data.corporateEmail}
 			error={errors.corporateEmail}
+			disabled={isLocked('corporateEmail')}
 			oninput={() => clearError('corporateEmail')}
 		/>
 

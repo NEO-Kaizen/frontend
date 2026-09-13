@@ -16,6 +16,7 @@
 		saveDraft,
 		type SolicitationDraft
 	} from '$lib/services/solicitation-draft.service';
+	import type { SessionUser } from '$lib/types/auth';
 	import type {
 		ComplementaryData,
 		CreateRequestPayload,
@@ -30,6 +31,14 @@
 		YesNo,
 		YesNoDetail
 	} from '$lib/types/request';
+
+	interface Props {
+		user?: SessionUser | null;
+	}
+
+	let { user = null }: Props = $props();
+
+	const isAuthenticated = $derived(Boolean(user));
 
 	const steps = [
 		{ id: 1, label: 'Identificação' },
@@ -132,6 +141,13 @@
 		}
 	}
 
+	$effect(() => {
+		if (user) {
+			identification.fullName = user.name;
+			identification.corporateEmail = user.email;
+		}
+	});
+
 	let draft = $derived<SolicitationDraft>({
 		version: 1,
 		identification: { ...identification },
@@ -202,8 +218,8 @@
 		protocolCopied = false;
 		clearTimeout(copyTimeout);
 		identification = {
-			fullName: '',
-			corporateEmail: '',
+			fullName: user?.name ?? '',
+			corporateEmail: user?.email ?? '',
 			area: '',
 			department: '',
 			manager: '',
@@ -289,10 +305,16 @@
 			handlesRestrictedInfo !== undefined ||
 			additionalNotes !== undefined;
 
+		const requesterIdentity = user
+			? { fullName: user.name, corporateEmail: user.email }
+			: {
+					fullName: identification.fullName.trim(),
+					corporateEmail: identification.corporateEmail.trim()
+				};
+
 		return {
 			requester: {
-				fullName: identification.fullName.trim(),
-				corporateEmail: identification.corporateEmail.trim(),
+				...requesterIdentity,
 				area: identification.area,
 				department: identification.department.trim() || undefined,
 				manager: identification.manager.trim(),
@@ -437,7 +459,11 @@
 			</div>
 		{:else}
 			<div hidden={currentStep !== 1}>
-				<StepIdentification bind:this={step1Ref} bind:data={identification} />
+				<StepIdentification
+					bind:this={step1Ref}
+					bind:data={identification}
+					lockedFields={isAuthenticated ? ['fullName', 'corporateEmail'] : []}
+				/>
 			</div>
 			<div hidden={currentStep !== 2}>
 				<StepDemand bind:this={step2Ref} bind:data={demand} />
