@@ -8,7 +8,6 @@ import type {
 	RequestSummary
 } from '$lib/types/request';
 
-// Fixtures — dados fictícios do domínio de solicitações, consumidos apenas pelos mocks.
 export type MockRequest = RequestSummary & {
 	corporateEmail: string;
 };
@@ -365,7 +364,6 @@ export const mockRequestDetails: RequestDetail[] = [
 	}
 ];
 
-// Limites espelhados do contrato — o mock simula a validação do backend.
 const MAX_FILES = 5;
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 const ALLOWED_MIME_TYPES = [
@@ -376,7 +374,6 @@ const ALLOWED_MIME_TYPES = [
 	'image/jpeg'
 ];
 
-// Latência artificial para tornar o estado de carregamento perceptível na UI.
 const MOCK_LATENCY_MS = 500;
 
 export function createRequestMock(
@@ -402,8 +399,6 @@ function delay(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// Registra a solicitação criada nos fixtures em memória, fechando o loop de
-// desenvolvimento: o novo protocolo fica rastreável em /acompanhar e na busca.
 function registerCreatedRequest(protocol: string, payload: CreateRequestPayload): void {
 	const requester = payload.requester;
 	const now = new Date().toISOString();
@@ -457,7 +452,6 @@ function validateAttachments(files: Blob[]): string | null {
 
 const PROTOCOL_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
-// Protocolo fictício no formato do contrato (geração FPE/Feistel é do backend).
 function generateMockProtocol(): string {
 	const pick = () =>
 		Array.from(
@@ -519,4 +513,54 @@ export function getRequestByProtocolMock(protocol: string): Promise<RequestDetai
 	}
 
 	return Promise.resolve(detail);
+}
+
+export function listQueueMock(
+	query: import('$lib/types/queue').QueueQuery
+): Promise<import('$lib/types/queue').QueueResponse> {
+	let requests = mockRequests.map((r) => ({
+		...r,
+		requesterEmail: r.corporateEmail
+	}));
+
+	if (query.assigneeId !== undefined) {
+		if (query.assigneeId === 'unassigned') {
+			requests = requests.filter((r) => r.assignee === null);
+		} else {
+			requests = requests.filter((r) => r.assignee !== null);
+		}
+	}
+
+	if (query.status) {
+		requests = requests.filter((r) => r.status === query.status);
+	}
+
+	if (query.priority) {
+		requests = requests.filter((r) => r.priority === query.priority);
+	}
+
+	if (query.search) {
+		const search = query.search.toLowerCase().trim();
+		requests = requests.filter(
+			(r) =>
+				r.processName.toLowerCase().includes(search) ||
+				r.requesterName.toLowerCase().includes(search) ||
+				r.protocol.toLowerCase().includes(search)
+		);
+	}
+
+	const page = query.page ?? 1;
+	const pageSize = query.pageSize ?? 10;
+	const total = requests.length;
+	const totalPages = Math.ceil(total / pageSize);
+	const start = (page - 1) * pageSize;
+	const data = requests.slice(start, start + pageSize);
+
+	return Promise.resolve({
+		data,
+		page,
+		pageSize,
+		total,
+		totalPages
+	});
 }

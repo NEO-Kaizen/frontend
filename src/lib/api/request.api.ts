@@ -73,6 +73,12 @@ export async function getRequestByProtocol(protocol: string): Promise<RequestDet
 }
 
 export async function listQueue(query: QueueQuery): Promise<QueueResponse> {
+	// DEV inline no ponto de chamada garante a eliminação do mock no build (DCE).
+	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.request) {
+		const { listQueueMock } = await import('$lib/mocks/requests.mock');
+		return listQueueMock(query);
+	}
+
 	const params = new URLSearchParams();
 
 	if (query.page !== undefined) params.set('page', String(query.page));
