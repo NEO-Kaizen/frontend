@@ -1,5 +1,10 @@
 import { ApiError } from '$lib/types/result';
-import type { QueueMetricsResponse, QueueQuery, QueueResponse } from '$lib/types/queue';
+import type {
+	QueueAssignee,
+	QueueMetricsResponse,
+	QueueQuery,
+	QueueResponse
+} from '$lib/types/queue';
 import type {
 	CreateRequestPayload,
 	CreateRequestResponse,
@@ -565,6 +570,23 @@ export function listRequestsMock(
 	});
 }
 
+function hasAssignee(
+	request: MockRequest
+): request is MockRequest & { assigneeId: number; assignee: string } {
+	return request.assigneeId !== null && request.assignee !== null;
+}
+
+// Roster global derivado dos fixtures: não segue filtros nem paginação.
+function getQueueAssignees(): QueueAssignee[] {
+	return Array.from(
+		new Map(
+			mockRequests
+				.filter(hasAssignee)
+				.map((request) => [request.assigneeId, { id: request.assigneeId, name: request.assignee }])
+		).values()
+	).sort((a, b) => a.name.localeCompare(b.name));
+}
+
 export function listQueueRequestsMock(query: QueueQuery): Promise<QueueResponse> {
 	let requests = [...mockRequests];
 
@@ -599,10 +621,17 @@ export function listQueueRequestsMock(query: QueueQuery): Promise<QueueResponse>
 		});
 	}
 
-	const page = query.page ?? 1;
+	// Ordenação determinística: mais recentes primeiro, protocolo como desempate.
+	requests.sort(
+		(a, b) => b.createdAt.localeCompare(a.createdAt) || a.protocol.localeCompare(b.protocol)
+	);
+
 	const pageSize = query.pageSize ?? 10;
 	const total = requests.length;
 	const totalPages = Math.ceil(total / pageSize);
+
+	// Clamp: página fora do intervalo retorna a última válida (contrato §5).
+	const page = Math.min(Math.max(query.page ?? 1, 1), Math.max(totalPages, 1));
 
 	const start = (page - 1) * pageSize;
 	const end = start + pageSize;
@@ -615,7 +644,8 @@ export function listQueueRequestsMock(query: QueueQuery): Promise<QueueResponse>
 		status: request.status,
 		assignee: request.assignee,
 		requesterName: request.requesterName,
-		requesterEmail: request.corporateEmail
+		requesterEmail: request.corporateEmail,
+		assigneeId: request.assigneeId
 	}));
 
 	return Promise.resolve({
@@ -623,7 +653,8 @@ export function listQueueRequestsMock(query: QueueQuery): Promise<QueueResponse>
 		page,
 		pageSize,
 		total,
-		totalPages
+		totalPages,
+		assignees: getQueueAssignees()
 	});
 }
 

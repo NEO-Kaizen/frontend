@@ -60,15 +60,19 @@
 		{ value: 'Crítica', label: 'Crítica' }
 	];
 
-	const assigneeOptions = [
-		{ value: 'all', label: 'Todos' },
-		{ value: 'unassigned', label: 'Sem responsável' },
-		{ value: '1', label: 'Fernando Alves' },
-		{ value: '2', label: 'Ana Souza' },
-		{ value: '3', label: 'Lucas Gomes' },
-		{ value: '4', label: 'Gabriel Soares' },
-		{ value: '5', label: 'Carlos Mendes' }
-	];
+	// Roster vem do envelope de GET /queue (id + nome), independente dos filtros.
+	const assigneeOptions = $derived.by(() => {
+		const roster = data.result.ok ? data.result.data.assignees : [];
+
+		return [
+			{ value: 'all', label: 'Todos' },
+			{ value: 'unassigned', label: 'Sem responsável' },
+			...roster.map((assignee) => ({
+				value: String(assignee.id),
+				label: assignee.name
+			}))
+		];
+	});
 
 	const metrics = $derived.by<MetricItem[]>(() => {
 		if (!data.metricsResult.ok) {

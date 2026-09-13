@@ -1,5 +1,5 @@
 import { getQueueMetrics, listQueueRequests } from '$lib/services/request.service';
-import { parsePageParam, redirectToValidPage } from '$lib/utils/pagination';
+import { parsePageParam } from '$lib/utils/pagination';
 
 import type { QueueQuery } from '$lib/types/queue';
 import type { RequestPriority, RequestStatus } from '$lib/types/request';
@@ -43,14 +43,13 @@ function buildQueueQuery(url: URL, page: number): QueueQuery {
 }
 
 export const load: PageServerLoad = async ({ url }) => {
-	const page = parsePageParam(url.searchParams.get('page'));
-	const query = buildQueueQuery(url, page);
+	const requestedPage = parsePageParam(url.searchParams.get('page'));
+	const query = buildQueueQuery(url, requestedPage);
 
 	const [result, metricsResult] = await Promise.all([listQueueRequests(query), getQueueMetrics()]);
 
-	if (result.ok) {
-		redirectToValidPage(url, page, result.data.totalPages);
-	}
+	// O backend clampa `page` ao intervalo válido; a página efetiva vem da resposta.
+	const page = result.ok ? result.data.page : requestedPage;
 
 	return { page, result, metricsResult };
 };
