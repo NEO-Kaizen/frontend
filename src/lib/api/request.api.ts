@@ -6,7 +6,8 @@ import type {
 	ListRequestsQuery,
 	PaginatedResponse,
 	RequestSummary,
-	RequestDetail
+	RequestDetail,
+	InternalRequestDetail
 } from '$lib/types/request';
 
 const REQUESTS_PATH = '/requests';
@@ -69,4 +70,14 @@ export async function getRequestByProtocol(protocol: string): Promise<RequestDet
 
 	const encoded = encodeURIComponent(protocol);
 	return apiClient<RequestDetail>(`${REQUESTS_PATH}/${encoded}`);
+}
+
+export async function getInternalRequest(protocol: string): Promise<InternalRequestDetail> {
+	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.request) {
+		const { getInternalRequestMock } = await import('$lib/mocks/requests.mock');
+		return getInternalRequestMock(protocol);
+	}
+
+	const encoded = encodeURIComponent(protocol);
+	return apiClient<InternalRequestDetail>(`${REQUESTS_PATH}/${encoded}/internal`);
 }
