@@ -16,6 +16,8 @@
 		assigneeOptions: FilterOption[];
 		onFilterChange: (filters: { status: string; priority: string; assignee: string }) => void;
 		onClear?: () => void;
+		search?: string;
+		onClearSearch?: () => void;
 	}
 
 	let {
@@ -26,7 +28,9 @@
 		priorityOptions,
 		assigneeOptions,
 		onFilterChange,
-		onClear
+		onClear,
+		search = '',
+		onClearSearch
 	}: Props = $props();
 
 	function clearFilters() {
@@ -95,6 +99,15 @@
 			Limpar
 		</Button>
 	</div>
+
+	{#if search}
+		<div class="search-chip">
+			<span title={search}>Busca: &ldquo;{search}&rdquo;</span>
+			<button type="button" aria-label="Limpar busca" onclick={onClearSearch}>
+				<Icon iconName="close" iconSize="md" />
+			</button>
+		</div>
+	{/if}
 </div>
 
 <style>
@@ -155,10 +168,47 @@
 		outline: 1px solid var(--secondary-color);
 		outline-offset: 2px;
 	}
+	.clear-action {
+		flex-shrink: 0;
+	}
+
 	.clear-action :global(button) {
 		background-color: rgba(0, 51, 153, 0.08);
 		color: var(--primary-color);
 		border-color: transparent;
+	}
+
+	.search-chip {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-xs);
+		min-width: 0;
+		max-width: 300px;
+		flex-shrink: 1;
+		padding: var(--spacing-xs) var(--spacing-sm);
+		background-color: rgba(0, 51, 153, 0.08);
+		color: var(--primary-color);
+		border-radius: var(--radius-sm);
+		font: var(--paragrafo);
+	}
+
+	.search-chip span {
+		min-width: 0;
+		padding: 0 var(--spacing-sm);
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+	}
+
+	.search-chip button {
+		display: flex;
+		align-items: center;
+		flex-shrink: 0;
+		padding: 0;
+		border: none;
+		background: none;
+		color: inherit;
+		cursor: pointer;
 	}
 	@media (max-width: 900px) {
 		.queue-filters {

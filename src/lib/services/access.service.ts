@@ -16,6 +16,10 @@ const GUARD_RULES: Record<GuardRuleId, { profiles: 'any' | readonly UserType[] }
 	adminOnly: { profiles: ['Administrador'] }
 };
 
+export function isInternalProfile(role: UserType): boolean {
+	return INTERNAL_PROFILES.includes(role);
+}
+
 export function guard(rule: GuardRuleId, user: SessionUser | null): void {
 	const profiles = GUARD_RULES[rule].profiles;
 
@@ -31,7 +35,7 @@ export function guard(rule: GuardRuleId, user: SessionUser | null): void {
 export function getHomeRedirect(
 	user: SessionUser | null
 ): Extract<RouteId, '/(admin)/home'> | null {
-	if (user && INTERNAL_PROFILES.includes(user.role)) {
+	if (user && isInternalProfile(user.role)) {
 		return '/(admin)/home';
 	}
 	return null;

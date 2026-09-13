@@ -24,6 +24,8 @@
 	// fonte de verdade — `afterNavigate` ressincroniza em voltar/avançar e busca.
 	const params = page.url.searchParams;
 
+	const activeSearch = $derived(page.url.searchParams.get('search') ?? '');
+
 	let status = $state(params.get('status') ?? 'all');
 	let priority = $state(params.get('priority') ?? 'all');
 	let assigneeId = $state(params.get('assigneeId') ?? 'all');
@@ -170,7 +172,18 @@
 			page: null,
 			status: null,
 			priority: null,
-			assigneeId: null
+			assigneeId: null,
+			search: null
+		})}`;
+
+		// eslint-disable-next-line svelte/no-navigation-without-resolve
+		await goto(target, { keepFocus: true, noScroll: true });
+	}
+
+	async function handleClearSearch(): Promise<void> {
+		const target = `${queuePath}${buildQueueParams({
+			page: null,
+			search: null
 		})}`;
 
 		// eslint-disable-next-line svelte/no-navigation-without-resolve
@@ -207,8 +220,10 @@
 		{statusOptions}
 		{priorityOptions}
 		{assigneeOptions}
+		search={activeSearch}
 		onFilterChange={(next) => void handleFilterChange(next.status, next.priority, next.assignee)}
 		onClear={() => void handleClearFilters()}
+		onClearSearch={() => void handleClearSearch()}
 	/>
 
 	<SolicitationTable

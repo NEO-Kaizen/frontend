@@ -10,12 +10,7 @@
 	import { resolve } from '$app/paths';
 	import { logout } from '$lib/services/auth.service';
 	import { searchRequests } from '$lib/services/request.service';
-
-	interface Props {
-		onSearch?: (value: string) => void | Promise<void>;
-	}
-
-	let { onSearch }: Props = $props();
+	import { isInternalProfile } from '$lib/services/access.service';
 
 	// KNOWN ISSUE (svelte-check) — não estreitar este tipo sem entender a causa:
 	// `resolve(item.href)` (no helper `isActive` e abaixo, no markup) acusa erro
@@ -33,6 +28,7 @@
 
 	const currentUser = $derived(page.data.user);
 	const appConfig = $derived(page.data.portalConfig);
+	const queuePath = resolve('/(admin)/fila');
 
 	function isActive(item: NavButton, pathname: string): boolean {
 		if (!item.href) return false;
@@ -80,7 +76,9 @@
 		Solicitante: []
 	} satisfies Record<UserType, NavButton[]>;
 
-	const isNotSolicitante = $derived(currentUser != null && currentUser.role !== 'Solicitante');
+	const isNotSolicitante = $derived(currentUser != null && isInternalProfile(currentUser.role));
+
+	const activeSearch = $derived(page.url.searchParams.get('search') ?? '');
 
 	let isSearching = $state(false);
 
@@ -98,8 +96,13 @@
 		isSearching = true;
 
 		try {
-			if (onSearch) {
-				await onSearch(value);
+			if (isNotSolicitante) {
+				const searchParams = new URLSearchParams({ search: value });
+
+				// Plugin não aceita query string após resolve() (eslint-plugin-svelte#1327);
+				// a navegação é validada em runtime pelo SvelteKit.
+				// eslint-disable-next-line svelte/no-navigation-without-resolve
+				await goto(`${queuePath}?${searchParams.toString()}`);
 				return;
 			}
 
@@ -160,6 +163,7 @@
 					placeholder="Buscar chamados"
 					aria-label="Buscar chamados"
 					name="pesquisar-chamados"
+					value={activeSearch}
 					disabled={isSearching}
 				/>
 			</form>
