@@ -43,6 +43,7 @@
 		id={contentId}
 		role="region"
 		aria-labelledby={triggerId}
+		inert={!isOpen}
 	>
 		<div class="inner">
 			{@render children()}

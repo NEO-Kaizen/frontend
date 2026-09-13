@@ -524,183 +524,179 @@ export function getRequestByProtocolMock(protocol: string): Promise<RequestDetai
 
 export const mockInternalRequestDetails: InternalRequestDetail[] = [
 	{
-		protocol: 'MAAT-2026-000102',
-		status: 'Em triagem',
+		protocol: 'MAAT-6N2W-8VBM',
+		status: 'Concluído',
 		priority: 'Alta',
-		prioritization: { score: 16, maxScore: 25, label: 'Alta' },
-		assignee: { name: 'Ana Rodrigues', email: 'ana.rodrigues@empresa.com.br' },
+		prioritization: { score: 18, maxScore: 25, label: 'Alta' },
+		assignee: { name: 'Fernando Alves', email: 'fernando.alves@maat.com.br' },
 		correctionAlert: { count: 2, message: 'Alteração respondida pelo solicitante (2 campos)' },
 		requester: {
-			fullName: 'Carlos Eduardo da Silva',
-			corporateEmail: 'carlos.silva@empresa.com.br',
-			area: 'Tecnologia da Informação',
-			department: 'Operações Logísticas',
-			manager: 'Ana Rodrigues',
-			additionalContact: 'carlos.silva.pessoal@email.com'
+			fullName: 'Maria Oliveira',
+			corporateEmail: 'maria.oliveira@maat.com.br',
+			area: 'Operações',
+			department: 'Departamento Pessoal',
+			manager: 'Fernando Alves',
+			additionalContact: undefined
 		},
 		demand: {
-			title: 'Automatização do fluxo de aprovação de faturas',
+			title: 'Fechamento mensal de ponto',
 			requestType: 'Automação',
 			category: 'Automação',
-			processName: 'AP-REC-04 Pagamentos',
-			description:
-				'Criar fluxo automatizado que valide e encaminhe faturas para aprovação conforme valor e centro de custo.',
-			problem:
-				'Atualmente a aprovação exige assinaturas físicas de dois diretores e causa atrasos frequentes.',
-			expectedResult: 'Fluxo digital com aprovação baseada em regras e rastreabilidade completa.',
+			processName: 'Fechamento mensal de ponto',
+			description: 'Automatizar a apuração do ponto para reduzir o tempo de fechamento mensal.',
+			problem: 'O fechamento exige conferência manual de marcações e causa atrasos na folha.',
+			expectedResult: 'Apuração automática com relatório de inconsistências.',
 			justification:
-				'Atualmente, a aprovação de faturas acima de R$ 50.000 exige assinaturas físicas de dois diretores. O processo demora em média 5 dias e frequentemente causa atrasos em pagamentos de fornecedores críticos, gerando multas. Necessitamos de uma solução que automatize a coleta de aprovações via sistema baseado no valor da fatura, com notificações e trilha de auditoria.'
+				'O fechamento mensal consome dias de conferência manual e atrasa a folha de pagamento.'
 		},
 		operational: {
 			processDescription:
-				'Processo de recebimento, validação e pagamento de faturas de fornecedores nacionais e internacionais.',
+				'Coleta de marcações, conferência de inconsistências e fechamento da folha.',
 			processSteps:
-				'1. Recebimento da fatura por e-mail\n2. Validação manual do centro de custo\n3. Coleta de assinaturas físicas\n4. Lançamento no ERP\n5. Agendamento de pagamento',
-			systemsUsed: 'ERP Protheus, e-mail corporativo, planilhas Excel',
-			executionFrequency: 'Diária',
-			volumetry: '500',
-			peopleInvolved: 4,
-			averageExecutionTime: '30 minutos',
-			monthlyEffortHours: 80,
-			hasManualControls: 'Planilha de controle manual com conferência dupla antes do lançamento.',
-			mainRisks:
-				'Erro de digitação, pagamento duplicado e atraso que gera multa por descumprimento contratual.',
-			clientImpact:
-				'Fornecedores com pagamento em atraso; risco de suspensão de fornecimento crítico.',
+				'1. Extração das marcações\n2. Conferência de faltas e atrasos\n3. Ajustes manuais\n4. Fechamento',
+			systemsUsed: 'Relógio de ponto, planilhas Excel',
+			executionFrequency: 'Mensal',
+			volumetry: '300',
+			peopleInvolved: 2,
+			averageExecutionTime: '6 horas',
+			monthlyEffortHours: 12,
+			hasManualControls: 'Conferência manual das marcações antes do fechamento.',
+			mainRisks: 'Erro de apuração e atraso na folha de pagamento.',
+			clientImpact: 'Colaboradores com pagamento em atraso.',
 			operationalImpact: 'Alto',
-			desiredDeadline: '2026-10-08',
+			desiredDeadline: '2026-08-28',
 			perceivedCriticality: 'Alta'
 		},
 		complementary: {
-			hasProcessDocumentation: 'Disponível na intranet: manual AP-REC-04 v3.1.',
+			hasProcessDocumentation: 'Manual de fechamento disponível na intranet.',
 			hasSimilarSolution: false,
-			dependsOnOtherAreas: 'Depende do Financeiro e do Jurídico para validação de regras.',
+			dependsOnOtherAreas: false,
 			handlesRestrictedInfo: false,
-			additionalNotes: 'Preferência por validacao por workflow no Teams.'
+			additionalNotes: undefined
 		},
-		schedulePreferences: ['2026-10-08T15:00', '2026-10-08T17:00'],
+		schedulePreferences: ['2026-08-15T10:00', '2026-08-15T14:00'],
 		mappingDate: null,
 		meeting: null,
 		attachments: [
 			{
-				fileName: 'fluxo-atual.png',
-				mimeType: 'image/png',
-				sizeBytes: 245000,
-				downloadUrl: '/mocks/fluxo-atual.png',
+				fileName: 'exemplo-fechamento.xlsx',
+				mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+				sizeBytes: 96000,
+				downloadUrl: '/mocks/exemplo-fechamento.xlsx',
 				canDownload: true
 			},
 			{
-				fileName: 'regras-de-aprovacao.pdf',
+				fileName: 'regras-apuracao.pdf',
 				mimeType: 'application/pdf',
-				sizeBytes: 512000,
-				downloadUrl: '/mocks/regras-de-aprovacao.pdf',
+				sizeBytes: 210000,
+				downloadUrl: '/mocks/regras-apuracao.pdf',
 				canDownload: true
 			}
 		],
-		openedAt: '2026-08-10T09:00:00.000Z',
-		lastUpdate: '2026-08-12T14:20:00.000Z',
+		openedAt: '2026-08-10T09:41:20.000Z',
+		lastUpdate: '2026-08-28T16:20:00.000Z',
 		internalObservations: null
 	},
 	{
-		protocol: 'MAAT-2026-000103',
-		status: 'Aguardando triagem',
+		protocol: 'MAAT-8K3P-9X2M',
+		status: 'Em triagem',
 		priority: null,
 		prioritization: { score: null, maxScore: 25, label: null },
-		assignee: null,
+		assignee: { name: 'Fernando Alves', email: 'fernando.alves@maat.com.br' },
 		correctionAlert: null,
 		requester: {
-			fullName: 'Juliana Almeida',
-			corporateEmail: 'juliana.almeida@empresa.com.br',
-			area: 'Recursos Humanos',
-			department: undefined,
-			manager: 'Roberto Lima',
+			fullName: 'Maria Oliveira',
+			corporateEmail: 'maria.oliveira@maat.com.br',
+			area: 'Operações',
+			department: 'Departamento Pessoal',
+			manager: 'Fernando Alves',
 			additionalContact: undefined
 		},
 		demand: {
-			title: 'Padronização do processo de onboarding',
-			requestType: 'Melhoria',
-			category: 'Padronização',
-			processName: 'RH-ONB-01 Admissão',
-			description:
-				'Padronizar etapas de onboarding para garantir experiência consistente entre unidades.',
-			problem:
-				'Cada unidade executa o onboarding de forma distinta, gerando retrabalho e inconsistências.',
-			expectedResult: 'Checklist único e trilha de capacitação inicial padronizada.',
-			justification: 'Reduzir turnover nos primeiros 90 dias com integração estruturada.'
+			title: 'Automatizar conferência de diárias',
+			requestType: 'Automação',
+			category: 'Automação',
+			processName: 'Pagamento de diárias',
+			description: 'Automatizar a conferência de diárias para reduzir erros e tempo de validação.',
+			problem: 'A conferência manual de comprovantes causa retrabalho e atrasos no pagamento.',
+			expectedResult: 'Validação automática de comprovantes com trilha de auditoria.',
+			justification: 'Reduzir o tempo de conferência e os erros de pagamento de diárias.'
 		},
 		operational: {
-			processDescription: 'Admissão, integração e acompanhamento de novos colaboradores.',
-			processSteps:
-				'1. Contratação\n2. Envio de kit\n3. Treinamento inicial\n4. Acompanhamento 30/60/90 dias',
-			systemsUsed: 'Gupy, planilhas',
-			executionFrequency: 'Semanal',
-			volumetry: '20',
-			peopleInvolved: 3,
-			averageExecutionTime: '2 horas',
-			monthlyEffortHours: 40,
-			hasManualControls: false,
-			mainRisks: 'Informações desencontradas entre unidades.',
-			clientImpact: 'Experiência inicial inconsistente.',
+			processDescription: 'Recebimento de comprovantes, conferência e pagamento de diárias.',
+			processSteps: '1. Envio de comprovantes\n2. Conferência manual\n3. Aprovação\n4. Pagamento',
+			systemsUsed: 'E-mail corporativo, planilhas Excel',
+			executionFrequency: 'Diária',
+			volumetry: '120',
+			peopleInvolved: 2,
+			averageExecutionTime: '45 minutos',
+			monthlyEffortHours: 30,
+			hasManualControls: 'Conferência dupla dos comprovantes antes do pagamento.',
+			mainRisks: 'Pagamento indevido por erro de conferência.',
+			clientImpact: 'Colaboradores com reembolso em atraso.',
 			operationalImpact: 'Médio',
-			desiredDeadline: '2026-11-15',
+			desiredDeadline: '2026-10-18',
 			perceivedCriticality: 'Média'
 		},
 		complementary: undefined,
 		schedulePreferences: null,
-		mappingDate: null,
-		meeting: null,
+		mappingDate: '2026-10-15',
+		meeting: {
+			scheduledFor: '2026-10-15T10:30:00.000Z',
+			link: null
+		},
 		attachments: [],
-		openedAt: '2026-09-01T10:00:00.000Z',
-		lastUpdate: '2026-09-01T10:00:00.000Z',
+		openedAt: '2026-08-25T14:03:11.000Z',
+		lastUpdate: '2026-08-26T10:12:40.000Z',
 		internalObservations: null
 	},
 	{
-		protocol: 'MAAT-2026-000104',
-		status: 'Em triagem',
+		protocol: 'MAAT-7C4F-1NXR',
+		status: 'Pendente de informações',
 		priority: null,
 		prioritization: { score: null, maxScore: 25, label: null },
-		assignee: { name: 'Lucas Gomes', email: 'lucas.gomes@empresa.com.br' },
+		assignee: { name: 'Carlos Mendes', email: 'carlos.mendes@maat.com.br' },
 		correctionAlert: null,
 		requester: {
-			fullName: 'Bruno Martins',
-			corporateEmail: 'bruno.martins@empresa.com.br',
-			area: 'Financeiro',
-			department: 'Controladoria',
-			manager: 'Patrícia Melo',
-			additionalContact: '11988887777'
+			fullName: 'Ana Souza',
+			corporateEmail: 'ana.souza@maat.com.br',
+			area: 'Administrativo',
+			department: 'Atendimento',
+			manager: 'Carlos Mendes',
+			additionalContact: undefined
 		},
 		demand: {
-			title: 'Dashboard de acompanhamento orçamentário',
+			title: 'Atualização cadastral',
 			requestType: 'Melhoria',
-			category: 'Dashboard ou relatório',
-			processName: 'FIN-ORC-02 Orçamento',
-			description: 'Dashboard para acompanhamento de orçamento por centro de custo.',
-			problem: 'Relatórios atuais são estáticos e consolidados manualmente.',
-			expectedResult: 'Painel dinâmico com atualização diária e alertas automáticos.',
-			justification: 'Melhorar visibilidade gerencial e antecipar desvios orçamentários.'
+			category: 'Padronização',
+			processName: 'Atualização cadastral',
+			description: 'Padronizar a atualização de cadastros para evitar dados divergentes.',
+			problem: 'Cadastros desatualizados geram retrabalho no atendimento.',
+			expectedResult: 'Rotina única de atualização com validação automática.',
+			justification: 'Reduzir inconsistências cadastrais entre unidades.'
 		},
 		operational: {
-			processDescription: 'Consolidação de despesas e acompanhamento versus orçado.',
+			processDescription: 'Coleta de dados, validação e atualização dos cadastros.',
 			processSteps:
-				'1. Coleta de dados do ERP\n2. Consolidação em Excel\n3. Envio por e-mail\n4. Apresentação em reunião mensal',
-			systemsUsed: 'ERP, Excel, PowerPoint',
-			executionFrequency: 'Mensal',
-			volumetry: '50',
+				'1. Solicitação de atualização\n2. Validação de documentos\n3. Atualização no sistema',
+			systemsUsed: 'Sistema interno, planilhas',
+			executionFrequency: 'Semanal',
+			volumetry: '80',
 			peopleInvolved: 2,
-			averageExecutionTime: '4 horas',
-			monthlyEffortHours: 16,
-			hasManualControls: 'Conferência manual em planilha antes do envio.',
-			mainRisks: 'Erro manual e decisões tardias por falta de visibilidade em tempo real.',
-			clientImpact: 'Gestores sem visão tempestiva do orçado vs realizado.',
+			averageExecutionTime: '30 minutos',
+			monthlyEffortHours: 20,
+			hasManualControls: false,
+			mainRisks: 'Dados divergentes entre unidades.',
+			clientImpact: 'Atendimento com informações desatualizadas.',
 			operationalImpact: 'Médio',
-			desiredDeadline: '2026-12-01',
+			desiredDeadline: '2026-09-30',
 			perceivedCriticality: 'Média'
 		},
 		complementary: {
 			hasProcessDocumentation: false,
-			hasSimilarSolution: 'Dashboard legado em Excel, sem atualização automática.',
+			hasSimilarSolution: false,
 			dependsOnOtherAreas: false,
-			handlesRestrictedInfo: 'Dados financeiros restritos a diretoria.',
+			handlesRestrictedInfo: 'Acessos restritos à gerência.',
 			additionalNotes: undefined
 		},
 		schedulePreferences: ['2026-09-15T10:00:00.000Z'],
@@ -715,9 +711,9 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 				canDownload: false
 			}
 		],
-		openedAt: '2026-09-10T08:30:00.000Z',
-		lastUpdate: '2026-09-10T08:30:00.000Z',
-		internalObservations: 'Aguardando definição de origem de dados.'
+		openedAt: '2026-08-26T13:45:00.000Z',
+		lastUpdate: '2026-08-27T10:30:00.000Z',
+		internalObservations: 'Aguardando volume médio mensal informado pelo solicitante.'
 	}
 ];
 

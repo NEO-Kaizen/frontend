@@ -51,6 +51,7 @@
 	);
 	let priorityLabel = $derived(solicitation.prioritization.label ?? 'Prioridade a ser calculada');
 	let isPriorityCalculated = $derived(solicitation.prioritization.score !== null);
+	let maxScore = $derived(solicitation.prioritization.maxScore ?? 25);
 
 	type TabItem = {
 		id: string;
@@ -146,7 +147,7 @@
 		class="prio-card"
 		role="status"
 		aria-label={isPriorityCalculated
-			? `Prioridade ${priorityLabel} com pontuação ${displayScore} de 25`
+			? `Prioridade ${priorityLabel} com pontuação ${displayScore} de ${maxScore}`
 			: 'Prioridade a ser calculada'}
 	>
 		<span class="prio-label">
@@ -155,7 +156,7 @@
 		</span>
 		<div class="prio-score-row">
 			<span class="prio-score" class:muted={!isPriorityCalculated}>
-				{displayScore}<span class="prio-max">/25</span>
+				{displayScore}<span class="prio-max">/{maxScore}</span>
 			</span>
 			<span
 				class="prio-badge"
