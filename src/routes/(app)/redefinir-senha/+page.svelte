@@ -6,6 +6,7 @@
 	import Input from '$lib/components/Input.svelte';
 	import { changePassword, getMe } from '$lib/services/auth.service';
 	import { getPostLoginRedirect } from '$lib/services/access.service';
+	import Footer from '$lib/components/layout/Footer.svelte';
 
 	let currentPassword = $state('');
 	let newPassword = $state('');
@@ -154,12 +155,13 @@
 	</div>
 </main>
 
+<Footer />
+
 <style>
 	.password-change-page {
 		display: flex;
 		justify-content: center;
 		align-items: center;
-		min-height: calc(100vh - 120px);
 		padding: var(--spacing-lg);
 	}
 
