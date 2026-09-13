@@ -19,7 +19,7 @@
 	type FieldName = 'currentPassword' | 'newPassword' | 'confirmPassword';
 	let fieldErrors = $state<Partial<Record<FieldName, string>>>({});
 
-	const MIN_PASSWORD_LENGTH = 6;
+	const MIN_PASSWORD_LENGTH = 8;
 
 	function validate(): boolean {
 		const errors: Partial<Record<FieldName, string>> = {};
