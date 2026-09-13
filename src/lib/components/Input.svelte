@@ -16,6 +16,7 @@
 		value?: string;
 		required?: boolean;
 		disabled?: boolean;
+		readonly?: boolean;
 		error?: string;
 		name?: string;
 		id?: string;
@@ -45,6 +46,7 @@
 		value = $bindable(''),
 		required = false,
 		disabled = false,
+		readonly = false,
 		error = '',
 		name,
 		id,
@@ -93,11 +95,13 @@
 			{placeholder}
 			{required}
 			{disabled}
+			{readonly}
 			{maxlength}
 			bind:value={getValue, setValue}
 			aria-invalid={error ? true : undefined}
 			aria-describedby={error ? `${inputId}-error` : undefined}
 			class:error={Boolean(error)}
+			class:readonly
 			class:has-leading-icon={Boolean(icon && !prefix)}
 			class:has-leading-prefix={Boolean(prefix)}
 			class:has-action-icon={Boolean(actionIcon)}
@@ -251,6 +255,12 @@
 	input:disabled {
 		cursor: not-allowed;
 		opacity: 0.6;
+	}
+
+	input.readonly {
+		cursor: default;
+		background-color: var(--white-gray);
+		color: var(--rich-black);
 	}
 
 	input[type='password']::-ms-reveal {
