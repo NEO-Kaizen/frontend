@@ -404,7 +404,8 @@ function delay(ms: number): Promise<void> {
 }
 
 // Registra a solicitação criada nos fixtures em memória, fechando o loop de
-// desenvolvimento: o novo protocolo fica rastreável em /acompanhar e na busca.
+// desenvolvimento: o novo protocolo fica rastreável em /acompanhar, na busca
+// e na fila interna do administrador.
 function registerCreatedRequest(protocol: string, payload: CreateRequestPayload): void {
 	const requester = payload.requester;
 	const now = new Date().toISOString();
@@ -435,6 +436,26 @@ function registerCreatedRequest(protocol: string, payload: CreateRequestPayload)
 		lastTechnicalMessage: 'Sua solicitação foi registrada e aguarda triagem.',
 		lastUpdate: now,
 		conclusion: null
+	});
+
+	mockInternalRequestDetails.unshift({
+		protocol,
+		status: 'Solicitação enviada',
+		priority: null,
+		prioritization: { score: null, maxScore: 25, label: null },
+		assignee: null,
+		correctionAlert: null,
+		requester: payload.requester,
+		demand: payload.demand,
+		operational: payload.operational,
+		complementary: payload.complementary,
+		schedulePreferences: payload.schedulePreferences ?? null,
+		mappingDate: null,
+		meeting: null,
+		attachments: [],
+		openedAt: now,
+		lastUpdate: now,
+		internalObservations: null
 	});
 }
 

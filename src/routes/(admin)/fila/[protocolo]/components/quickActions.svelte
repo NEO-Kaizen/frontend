@@ -92,7 +92,6 @@
 						<button
 							type="button"
 							class="action-item"
-							onclick={() => console.log('Quick Action Button to do')}
 						>
 							<span class="action-icon" aria-hidden="true">
 								<Icon iconName={action.icon} iconSize="sm" />
