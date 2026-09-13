@@ -13,10 +13,14 @@ export interface QueueMetricsResponse {
 	overdueRequests: number;
 }
 
+// `'nenhum'` é o sentinela para solicitações ainda sem prioridade calculada
+// (`priority === null`), espelhando `'unassigned'` em `assigneeId`.
+export type PriorityFilter = RequestPriority | 'nenhum';
+
 export interface QueueFilterQuery {
 	search?: string;
 	status?: RequestStatus;
-	priority?: RequestPriority;
+	priority?: PriorityFilter;
 	assigneeId?: number | 'unassigned';
 }
 

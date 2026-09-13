@@ -8,6 +8,7 @@ import type { PageServerLoad } from './$types';
 const PAGE_SIZE = 5;
 const ALL_FILTER = 'all';
 const UNASSIGNED_FILTER = 'unassigned';
+const NO_PRIORITY_FILTER = 'nenhum';
 
 function buildQueueQuery(url: URL, page: number): QueueQuery {
 	const params = url.searchParams;
@@ -27,7 +28,9 @@ function buildQueueQuery(url: URL, page: number): QueueQuery {
 
 	const priority = params.get('priority');
 
-	if (priority && priority !== ALL_FILTER) {
+	if (priority === NO_PRIORITY_FILTER) {
+		query.priority = NO_PRIORITY_FILTER;
+	} else if (priority && priority !== ALL_FILTER) {
 		query.priority = priority as RequestPriority;
 	}
 

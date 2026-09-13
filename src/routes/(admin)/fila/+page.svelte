@@ -62,7 +62,8 @@
 		{ value: 'Baixa', label: 'Baixa' },
 		{ value: 'Média', label: 'Média' },
 		{ value: 'Alta', label: 'Alta' },
-		{ value: 'Crítica', label: 'Crítica' }
+		{ value: 'Crítica', label: 'Crítica' },
+		{ value: 'nenhum', label: 'Nenhuma' }
 	];
 
 	// Roster vem do envelope de GET /queue (id + nome), independente dos filtros.

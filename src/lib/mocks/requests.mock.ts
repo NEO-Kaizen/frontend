@@ -607,7 +607,9 @@ export function listQueueRequestsMock(query: QueueQuery): Promise<QueueResponse>
 		requests = requests.filter((request) => request.status === query.status);
 	}
 
-	if (query.priority) {
+	if (query.priority === 'nenhum') {
+		requests = requests.filter((request) => request.priority === null);
+	} else if (query.priority) {
 		requests = requests.filter((request) => request.priority === query.priority);
 	}
 
