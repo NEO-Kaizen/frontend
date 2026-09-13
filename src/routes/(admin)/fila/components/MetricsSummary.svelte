@@ -1,5 +1,5 @@
 <script lang="ts">
-	import IconBadge from './IconBadge.svelte';
+	import IconBadge from '$lib/components/IconBadge.svelte';
 	import type { MetricItem } from '$lib/types/metrics';
 
 	interface Props {
