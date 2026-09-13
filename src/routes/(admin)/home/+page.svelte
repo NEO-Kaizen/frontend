@@ -3,15 +3,15 @@
 	import { onMount } from 'svelte';
 	import Banner from '$lib/components/layout/Banner.svelte';
 	import SolicitationTable from '$lib/components/tables/SolicitationTable.svelte';
-	import { listRequests } from '$lib/services/request.service';
-	import type { PaginatedResponse, RequestSummary } from '$lib/types/request';
+	import { listQueue } from '$lib/api/request.api';
+	import type { QueueResponse } from '$lib/types/queue';
 	import type { Result } from '$lib/types/result';
 
 	let currentPage = $state<number>(1);
 	let pageSize = $state<number>(10);
 	let loading = $state<boolean>(true);
 	let assignedCount = $state<number>(0);
-	let tableResult = $state<Result<PaginatedResponse<RequestSummary>> | null>(null);
+	let tableResult = $state<Result<QueueResponse> | null>(null);
 
 	let user = $derived(page.data.user);
 	let userName = $derived(user?.name ?? 'Usuário');
@@ -20,30 +20,27 @@
 		loading = true;
 		currentPage = pageNumber;
 
-		const result = await listRequests({
-			page: pageNumber,
-			pageSize
-		});
-
-		if (result.ok) {
-			const allData = result.data.data;
-			assignedCount = allData.filter((req) => req.assignee === userName).length;
-
-			const unassignedData = allData.filter((req) => req.assignee === null);
+		try {
+			const data = await listQueue({
+				page: pageNumber,
+				pageSize,
+				assigneeId: 'unassigned'
+			});
 
 			tableResult = {
 				ok: true,
-				data: {
-					...result.data,
-					data: unassignedData,
-					total: unassignedData.length
+				data
+			};
+		} catch (error) {
+			tableResult = {
+				ok: false,
+				error: {
+					message: error instanceof Error ? error.message : 'Erro ao carregar solicitações da fila.'
 				}
 			};
-		} else {
-			tableResult = result;
+		} finally {
+			loading = false;
 		}
-
-		loading = false;
 	}
 
 	function handlePageChange(newPage: number) {
@@ -73,6 +70,9 @@
 			result={tableResult}
 			isFetching={loading}
 			detailRoute="/(admin)/fila/[protocolo]"
+			initialTitle="Nenhuma solicitação sem responsável"
+			initialMessage="Não há solicitações pendentes de atribuição no momento."
+			onretry={() => fetchDashboardData(currentPage)}
 			onpagechange={handlePageChange}
 		/>
 	</section>

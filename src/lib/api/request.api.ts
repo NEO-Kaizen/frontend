@@ -8,8 +8,10 @@ import type {
 	RequestSummary,
 	RequestDetail
 } from '$lib/types/request';
+import type { QueueQuery, QueueResponse } from '$lib/types/queue';
 
 const REQUESTS_PATH = '/requests';
+const QUEUE_PATH = '/queue';
 
 // POST /requests — envia o formulário (parte textual "payload") e os anexos
 // (0 a 5 partes binárias "attachments") num único multipart/form-data.
@@ -68,4 +70,20 @@ export async function getRequestByProtocol(protocol: string): Promise<RequestDet
 
 	const encoded = encodeURIComponent(protocol);
 	return apiClient<RequestDetail>(`${REQUESTS_PATH}/${encoded}`);
+}
+
+export async function listQueue(query: QueueQuery): Promise<QueueResponse> {
+	const params = new URLSearchParams();
+
+	if (query.page !== undefined) params.set('page', String(query.page));
+	if (query.pageSize !== undefined) params.set('pageSize', String(query.pageSize));
+	if (query.search) params.set('search', query.search);
+	if (query.status) params.set('status', query.status);
+	if (query.priority) params.set('priority', query.priority);
+	if (query.assigneeId !== undefined) params.set('assigneeId', String(query.assigneeId));
+
+	const qs = params.toString();
+	const path = qs ? `${QUEUE_PATH}?${qs}` : QUEUE_PATH;
+
+	return apiClient<QueueResponse>(path);
 }
