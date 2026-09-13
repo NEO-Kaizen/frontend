@@ -43,7 +43,7 @@
 	<div class="filters">
 		<FilterSelect
 			icon="filterList"
-			label="Status:"
+			label="Status"
 			ariaLabel="Filtrar por status"
 			value={status}
 			options={statusOptions}
@@ -53,7 +53,7 @@
 
 		<FilterSelect
 			icon="filterList"
-			label="Prioridade:"
+			label="Prioridade"
 			ariaLabel="Filtrar por prioridade"
 			value={priority}
 			options={priorityOptions}
@@ -63,7 +63,7 @@
 
 		<FilterSelect
 			icon="filterList"
-			label="Responsável:"
+			label="Responsável"
 			ariaLabel="Filtrar por responsável"
 			value={assignee}
 			options={assigneeOptions}
@@ -92,7 +92,7 @@
 <style>
 	.queue-filters {
 		display: flex;
-		align-items: center;
+		align-items: flex-end;
 		gap: var(--spacing-sm);
 		width: 100%;
 		padding: var(--spacing-md);

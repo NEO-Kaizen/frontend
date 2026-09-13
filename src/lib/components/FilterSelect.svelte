@@ -16,7 +16,7 @@
 		ariaLabel?: string;
 		placeholder?: string;
 		// Valor considerado "sem filtro". Quando definido e o valor atual difere,
-		// o ícone líder vira um "x" que reseta o filtro individualmente.
+		// um "x" à direita reseta o filtro individualmente.
 		clearValue?: string;
 	}
 
@@ -33,6 +33,7 @@
 
 	const uid = $props.id();
 	const listId = `${uid}-listbox`;
+	const inputId = `${uid}-input`;
 	const optionId = (index: number) => `${uid}-option-${index}`;
 
 	let open = $state(false);
@@ -170,96 +171,112 @@
 
 <svelte:window onpointerdown={handleOutside} />
 
-<div class="filter-select" bind:this={container}>
-	{#if isClearable}
-		<button type="button" class="leading-action" aria-label={clearAriaLabel} onclick={clearFilter}>
-			<Icon iconName="close" iconSize="md" />
-		</button>
-	{:else if icon}
-		<Icon iconName={icon} iconSize="md" />
-	{/if}
-
+<div class="filter-select">
 	{#if label}
-		<span class="filter-label">{label}</span>
+		<label for={inputId}>{label}</label>
 	{/if}
 
-	<input
-		type="text"
-		role="combobox"
-		aria-autocomplete="list"
-		aria-expanded={open}
-		aria-controls={listId}
-		aria-activedescendant={open && filtered[highlighted] ? optionId(highlighted) : undefined}
-		aria-label={ariaLabel ?? label}
-		{placeholder}
-		value={displayValue}
-		bind:this={inputEl}
-		onfocus={openList}
-		oninput={handleInput}
-		onkeydown={handleKeydown}
-	/>
+	<div class="control" bind:this={container}>
+		{#if icon}
+			<Icon iconName={icon} iconSize="md" />
+		{/if}
 
-	<button
-		type="button"
-		class="caret"
-		class:open
-		tabindex="-1"
-		aria-label="Abrir opções"
-		onmousedown={(event) => event.preventDefault()}
-		onclick={toggleOpen}
-	>
-		<Icon iconName="expandMore" iconSize="md" />
-	</button>
+		<input
+			id={inputId}
+			type="text"
+			role="combobox"
+			aria-autocomplete="list"
+			aria-expanded={open}
+			aria-controls={listId}
+			aria-activedescendant={open && filtered[highlighted] ? optionId(highlighted) : undefined}
+			aria-label={ariaLabel ?? label}
+			{placeholder}
+			value={displayValue}
+			bind:this={inputEl}
+			onfocus={openList}
+			oninput={handleInput}
+			onkeydown={handleKeydown}
+		/>
 
-	{#if open}
-		<ul class="options" id={listId} role="listbox" bind:this={listbox}>
-			{#if filtered.length === 0}
-				<li class="empty" role="presentation">Nenhum resultado</li>
-			{:else}
-				{#each filtered as option, index (option.value)}
-					<!-- Padrão ARIA listbox: as opções não recebem foco; a navegação por teclado fica no input combobox. -->
-					<!-- svelte-ignore a11y_click_events_have_key_events -->
-					<li
-						id={optionId(index)}
-						role="option"
-						aria-selected={option.value === value}
-						class:highlighted={index === highlighted}
-						onclick={() => {
-							selectOption(option);
-							inputEl?.blur();
-						}}
-					>
-						{option.label}
-					</li>
-				{/each}
-			{/if}
-		</ul>
-	{/if}
+		{#if isClearable}
+			<button
+				type="button"
+				class="trailing-action"
+				aria-label={clearAriaLabel}
+				onclick={clearFilter}
+			>
+				<Icon iconName="close" iconSize="md" />
+			</button>
+		{/if}
+
+		<button
+			type="button"
+			class="caret"
+			class:open
+			tabindex="-1"
+			aria-label="Abrir opções"
+			onmousedown={(event) => event.preventDefault()}
+			onclick={toggleOpen}
+		>
+			<Icon iconName="expandMore" iconSize="md" />
+		</button>
+
+		{#if open}
+			<ul class="options" id={listId} role="listbox" bind:this={listbox}>
+				{#if filtered.length === 0}
+					<li class="empty" role="presentation">Nenhum resultado</li>
+				{:else}
+					{#each filtered as option, index (option.value)}
+						<!-- Padrão ARIA listbox: as opções não recebem foco; a navegação por teclado fica no input combobox. -->
+						<!-- svelte-ignore a11y_click_events_have_key_events -->
+						<li
+							id={optionId(index)}
+							role="option"
+							aria-selected={option.value === value}
+							class:highlighted={index === highlighted}
+							onclick={() => {
+								selectOption(option);
+								inputEl?.blur();
+							}}
+						>
+							{option.label}
+						</li>
+					{/each}
+				{/if}
+			</ul>
+		{/if}
+	</div>
 </div>
 
 <style>
 	.filter-select {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-sm);
+		width: 250px;
+		min-width: 250px;
+	}
+
+	label {
+		font: var(--label);
+		color: var(--black);
+	}
+
+	.control {
 		position: relative;
 		display: flex;
 		align-items: center;
 		gap: var(--spacing-xs);
-		width: 250px;
-		min-width: 250px;
-		padding: var(--spacing-sm);
 		box-sizing: border-box;
+		padding: var(--spacing-sm);
 		border: var(--border-default);
 		border-radius: var(--radius-sm);
 		background-color: var(--white);
 	}
 
-	.filter-select :global(.material-symbols-outlined) {
+	.control :global(.material-symbols-outlined) {
 		flex-shrink: 0;
 		color: var(--primary-color);
-	}
-
-	.filter-label {
-		flex-shrink: 0;
-		font: var(--paragrafo);
 	}
 
 	input {
@@ -283,7 +300,7 @@
 		outline-offset: 2px;
 	}
 
-	.leading-action,
+	.trailing-action,
 	.caret {
 		display: inline-flex;
 		flex-shrink: 0;
@@ -293,11 +310,11 @@
 		cursor: pointer;
 	}
 
-	.leading-action {
+	.trailing-action {
 		color: var(--primary-color);
 	}
 
-	.leading-action:focus-visible,
+	.trailing-action:focus-visible,
 	.caret:focus-visible {
 		outline: 1px solid var(--secondary-color);
 		outline-offset: 2px;
