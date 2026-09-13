@@ -4,7 +4,12 @@ import {
 	getMe as getMeRequest,
 	changePassword as changePasswordRequest
 } from '$lib/api/auth.api';
-import type { ChangePasswordPayload, LoginCredentials, LoginResponse, SessionUser } from '$lib/types/auth';
+import type {
+	ChangePasswordPayload,
+	LoginCredentials,
+	LoginResponse,
+	SessionUser
+} from '$lib/types/auth';
 import { ApiError, type Result } from '$lib/types/result';
 
 export async function login(credentials: LoginCredentials): Promise<Result<LoginResponse>> {
@@ -50,7 +55,10 @@ export async function changePassword(payload: ChangePasswordPayload): Promise<Re
 		if (error instanceof ApiError) {
 			return {
 				ok: false,
-				error: { status: error.status, message: 'Não foi possível alterar a senha.' }
+				error: {
+					status: error.status,
+					message: error.message || 'Não foi possível alterar a senha.'
+				}
 			};
 		}
 		return { ok: false, error: { message: 'Não foi possível conectar ao servidor.' } };

@@ -4,8 +4,7 @@
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Input from '$lib/components/Input.svelte';
-	import { changePassword } from '$lib/services/auth.service';
-	import { getMe } from '$lib/services/auth.service';
+	import { changePassword, getMe } from '$lib/services/auth.service';
 	import { getPostLoginRedirect } from '$lib/services/access.service';
 
 	let currentPassword = $state('');
@@ -14,7 +13,6 @@
 	let showCurrentPassword = $state(false);
 	let showNewPassword = $state(false);
 	let errorMessage = $state('');
-	let successMessage = $state('');
 	let isSubmitting = $state(false);
 
 	type FieldName = 'currentPassword' | 'newPassword' | 'confirmPassword';
@@ -47,7 +45,6 @@
 
 	function clearFieldError(field: FieldName) {
 		errorMessage = '';
-		successMessage = '';
 		fieldErrors[field] = undefined;
 	}
 
@@ -57,7 +54,6 @@
 		if (isSubmitting) return;
 
 		errorMessage = '';
-		successMessage = '';
 
 		if (!validate()) return;
 
@@ -146,16 +142,12 @@
 				{#if errorMessage}
 					<p class="form-message form-message--error" role="alert">{errorMessage}</p>
 				{/if}
-
-				{#if successMessage}
-					<p class="form-message form-message--success" role="status">{successMessage}</p>
-				{/if}
 			</div>
 
 			<div class="card-footer">
 				<Button variant="primary" type="submit" size="full" loading={isSubmitting}>
 					Alterar senha
-					<Icon iconName="login" iconSize="md" />
+					<Icon iconName="lock" iconSize="md" />
 				</Button>
 			</div>
 		</form>
@@ -214,9 +206,5 @@
 
 	.form-message--error {
 		color: var(--status-red);
-	}
-
-	.form-message--success {
-		color: var(--status-green);
 	}
 </style>

@@ -1,6 +1,11 @@
 import { apiClient } from './client';
 import { MOCK_DOMAINS } from '$lib/mocks';
-import type { ChangePasswordPayload, LoginCredentials, LoginResponse, SessionUser } from '$lib/types/auth';
+import type {
+	ChangePasswordPayload,
+	LoginCredentials,
+	LoginResponse,
+	SessionUser
+} from '$lib/types/auth';
 
 const AUTH_PATH = '/auth/login';
 const LOGOUT_PATH = '/auth/logout';

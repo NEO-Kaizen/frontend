@@ -5,8 +5,7 @@
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Input from '$lib/components/Input.svelte';
-	import { login } from '$lib/services/auth.service';
-	import { getMe } from '$lib/services/auth.service';
+	import { getMe, login } from '$lib/services/auth.service';
 	import { getPostLoginRedirect } from '$lib/services/access.service';
 	import type { LoginCredentials } from '$lib/types/auth';
 

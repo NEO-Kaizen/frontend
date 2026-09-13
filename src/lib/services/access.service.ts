@@ -9,10 +9,7 @@ const CHANGE_PASSWORD_PATH = '/redefinir-senha' as const;
 const HOME_PATH = '/' as const;
 const DASHBOARD_PATH = '/(admin)/home' as const;
 
-type PostLoginRoute =
-	| typeof CHANGE_PASSWORD_PATH
-	| typeof DASHBOARD_PATH
-	| typeof HOME_PATH;
+type PostLoginRoute = typeof CHANGE_PASSWORD_PATH | typeof DASHBOARD_PATH | typeof HOME_PATH;
 
 export type GuardRuleId = 'anySession' | 'internalArea' | 'adminOnly';
 
@@ -23,6 +20,13 @@ const GUARD_RULES: Record<GuardRuleId, { profiles: 'any' | readonly UserType[] }
 	internalArea: { profiles: INTERNAL_PROFILES },
 	adminOnly: { profiles: ['Administrador'] }
 };
+
+function isAllowedReturnTo(value: string): value is PostLoginRoute {
+	if (!value.startsWith('/')) return false;
+	if (value.includes('://')) return false;
+	if (value.startsWith('//')) return false;
+	return true;
+}
 
 export function guard(rule: GuardRuleId, user: SessionUser | null): void {
 	const profiles = GUARD_RULES[rule].profiles;
@@ -57,11 +61,13 @@ export function guardPasswordChange(user: SessionUser | null, pathname: string):
 	}
 }
 
-export function getPostLoginRedirect(
-	user: SessionUser,
-): PostLoginRoute  {
+export function getPostLoginRedirect(user: SessionUser, returnTo?: string | null): PostLoginRoute {
 	if (isPasswordChangeRequired(user)) {
 		return CHANGE_PASSWORD_PATH;
+	}
+
+	if (returnTo && isAllowedReturnTo(returnTo)) {
+		return returnTo;
 	}
 
 	if (INTERNAL_PROFILES.includes(user.role)) {
