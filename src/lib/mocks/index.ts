@@ -10,5 +10,6 @@ export const MOCK_DOMAINS =
 	MOCKS_ENABLED &&
 	({
 		auth: true,
-		request: true
+		request: true,
+		prioritization: true
 	} as const);
