@@ -1,5 +1,6 @@
 import { ApiError } from '$lib/types/result';
 import type {
+	InternalRequestDetail,
 	CreateRequestPayload,
 	CreateRequestResponse,
 	ListRequestsQuery,
@@ -399,6 +400,9 @@ function delay(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Registra a solicitação criada nos fixtures em memória, fechando o loop de
+// desenvolvimento: o novo protocolo fica rastreável em /acompanhar, na busca
+// e na fila interna do administrador.
 function registerCreatedRequest(protocol: string, payload: CreateRequestPayload): void {
 	const requester = payload.requester;
 	const now = new Date().toISOString();
@@ -429,6 +433,26 @@ function registerCreatedRequest(protocol: string, payload: CreateRequestPayload)
 		lastTechnicalMessage: 'Sua solicitação foi registrada e aguarda triagem.',
 		lastUpdate: now,
 		conclusion: null
+	});
+
+	mockInternalRequestDetails.unshift({
+		protocol,
+		status: 'Solicitação enviada',
+		priority: null,
+		prioritization: { score: null, maxScore: 25, label: null },
+		assignee: null,
+		correctionAlert: null,
+		requester: payload.requester,
+		demand: payload.demand,
+		operational: payload.operational,
+		complementary: payload.complementary,
+		schedulePreferences: payload.schedulePreferences ?? null,
+		mappingDate: null,
+		meeting: null,
+		attachments: [],
+		openedAt: now,
+		lastUpdate: now,
+		internalObservations: null
 	});
 }
 
@@ -563,4 +587,210 @@ export function listQueueMock(
 		total,
 		totalPages
 	});
+}
+
+export const mockInternalRequestDetails: InternalRequestDetail[] = [
+	{
+		protocol: 'MAAT-6N2W-8VBM',
+		status: 'Concluído',
+		priority: 'Alta',
+		prioritization: { score: 18, maxScore: 25, label: 'Alta' },
+		assignee: { name: 'Fernando Alves', email: 'fernando.alves@maat.com.br' },
+		correctionAlert: { count: 2, message: 'Alteração respondida pelo solicitante (2 campos)' },
+		requester: {
+			fullName: 'Maria Oliveira',
+			corporateEmail: 'maria.oliveira@maat.com.br',
+			area: 'Operações',
+			department: 'Departamento Pessoal',
+			manager: 'Fernando Alves',
+			additionalContact: undefined
+		},
+		demand: {
+			title: 'Fechamento mensal de ponto',
+			requestType: 'Automação',
+			category: 'Automação',
+			processName: 'Fechamento mensal de ponto',
+			description: 'Automatizar a apuração do ponto para reduzir o tempo de fechamento mensal.',
+			problem: 'O fechamento exige conferência manual de marcações e causa atrasos na folha.',
+			expectedResult: 'Apuração automática com relatório de inconsistências.',
+			justification:
+				'O fechamento mensal consome dias de conferência manual e atrasa a folha de pagamento.'
+		},
+		operational: {
+			processDescription:
+				'Coleta de marcações, conferência de inconsistências e fechamento da folha.',
+			processSteps:
+				'1. Extração das marcações\n2. Conferência de faltas e atrasos\n3. Ajustes manuais\n4. Fechamento',
+			systemsUsed: 'Relógio de ponto, planilhas Excel',
+			executionFrequency: 'Mensal',
+			volumetry: '300',
+			peopleInvolved: 2,
+			averageExecutionTime: '6 horas',
+			monthlyEffortHours: 12,
+			hasManualControls: 'Conferência manual das marcações antes do fechamento.',
+			mainRisks: 'Erro de apuração e atraso na folha de pagamento.',
+			clientImpact: 'Colaboradores com pagamento em atraso.',
+			operationalImpact: 'Alto',
+			desiredDeadline: '2026-08-28',
+			perceivedCriticality: 'Alta'
+		},
+		complementary: {
+			hasProcessDocumentation: 'Manual de fechamento disponível na intranet.',
+			hasSimilarSolution: false,
+			dependsOnOtherAreas: false,
+			handlesRestrictedInfo: false,
+			additionalNotes: undefined
+		},
+		schedulePreferences: ['2026-08-15T10:00', '2026-08-15T14:00'],
+		mappingDate: null,
+		meeting: null,
+		attachments: [
+			{
+				fileName: 'exemplo-fechamento.xlsx',
+				mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+				sizeBytes: 96000,
+				downloadUrl: '/mocks/exemplo-fechamento.xlsx',
+				canDownload: true
+			},
+			{
+				fileName: 'regras-apuracao.pdf',
+				mimeType: 'application/pdf',
+				sizeBytes: 210000,
+				downloadUrl: '/mocks/regras-apuracao.pdf',
+				canDownload: true
+			}
+		],
+		openedAt: '2026-08-10T09:41:20.000Z',
+		lastUpdate: '2026-08-28T16:20:00.000Z',
+		internalObservations: null
+	},
+	{
+		protocol: 'MAAT-8K3P-9X2M',
+		status: 'Em triagem',
+		priority: null,
+		prioritization: { score: null, maxScore: 25, label: null },
+		assignee: { name: 'Fernando Alves', email: 'fernando.alves@maat.com.br' },
+		correctionAlert: null,
+		requester: {
+			fullName: 'Maria Oliveira',
+			corporateEmail: 'maria.oliveira@maat.com.br',
+			area: 'Operações',
+			department: 'Departamento Pessoal',
+			manager: 'Fernando Alves',
+			additionalContact: undefined
+		},
+		demand: {
+			title: 'Automatizar conferência de diárias',
+			requestType: 'Automação',
+			category: 'Automação',
+			processName: 'Pagamento de diárias',
+			description: 'Automatizar a conferência de diárias para reduzir erros e tempo de validação.',
+			problem: 'A conferência manual de comprovantes causa retrabalho e atrasos no pagamento.',
+			expectedResult: 'Validação automática de comprovantes com trilha de auditoria.',
+			justification: 'Reduzir o tempo de conferência e os erros de pagamento de diárias.'
+		},
+		operational: {
+			processDescription: 'Recebimento de comprovantes, conferência e pagamento de diárias.',
+			processSteps: '1. Envio de comprovantes\n2. Conferência manual\n3. Aprovação\n4. Pagamento',
+			systemsUsed: 'E-mail corporativo, planilhas Excel',
+			executionFrequency: 'Diária',
+			volumetry: '120',
+			peopleInvolved: 2,
+			averageExecutionTime: '45 minutos',
+			monthlyEffortHours: 30,
+			hasManualControls: 'Conferência dupla dos comprovantes antes do pagamento.',
+			mainRisks: 'Pagamento indevido por erro de conferência.',
+			clientImpact: 'Colaboradores com reembolso em atraso.',
+			operationalImpact: 'Médio',
+			desiredDeadline: '2026-10-18',
+			perceivedCriticality: 'Média'
+		},
+		complementary: undefined,
+		schedulePreferences: null,
+		mappingDate: '2026-10-15',
+		meeting: {
+			scheduledFor: '2026-10-15T10:30:00.000Z',
+			link: null
+		},
+		attachments: [],
+		openedAt: '2026-08-25T14:03:11.000Z',
+		lastUpdate: '2026-08-26T10:12:40.000Z',
+		internalObservations: null
+	},
+	{
+		protocol: 'MAAT-7C4F-1NXR',
+		status: 'Pendente de informações',
+		priority: null,
+		prioritization: { score: null, maxScore: 25, label: null },
+		assignee: { name: 'Carlos Mendes', email: 'carlos.mendes@maat.com.br' },
+		correctionAlert: null,
+		requester: {
+			fullName: 'Ana Souza',
+			corporateEmail: 'ana.souza@maat.com.br',
+			area: 'Administrativo',
+			department: 'Atendimento',
+			manager: 'Carlos Mendes',
+			additionalContact: undefined
+		},
+		demand: {
+			title: 'Atualização cadastral',
+			requestType: 'Melhoria',
+			category: 'Padronização',
+			processName: 'Atualização cadastral',
+			description: 'Padronizar a atualização de cadastros para evitar dados divergentes.',
+			problem: 'Cadastros desatualizados geram retrabalho no atendimento.',
+			expectedResult: 'Rotina única de atualização com validação automática.',
+			justification: 'Reduzir inconsistências cadastrais entre unidades.'
+		},
+		operational: {
+			processDescription: 'Coleta de dados, validação e atualização dos cadastros.',
+			processSteps:
+				'1. Solicitação de atualização\n2. Validação de documentos\n3. Atualização no sistema',
+			systemsUsed: 'Sistema interno, planilhas',
+			executionFrequency: 'Semanal',
+			volumetry: '80',
+			peopleInvolved: 2,
+			averageExecutionTime: '30 minutos',
+			monthlyEffortHours: 20,
+			hasManualControls: false,
+			mainRisks: 'Dados divergentes entre unidades.',
+			clientImpact: 'Atendimento com informações desatualizadas.',
+			operationalImpact: 'Médio',
+			desiredDeadline: '2026-09-30',
+			perceivedCriticality: 'Média'
+		},
+		complementary: {
+			hasProcessDocumentation: false,
+			hasSimilarSolution: false,
+			dependsOnOtherAreas: false,
+			handlesRestrictedInfo: 'Acessos restritos à gerência.',
+			additionalNotes: undefined
+		},
+		schedulePreferences: ['2026-09-15T10:00:00.000Z'],
+		mappingDate: null,
+		meeting: null,
+		attachments: [
+			{
+				fileName: 'exemplo-indisponivel.xlsx',
+				mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+				sizeBytes: 128000,
+				downloadUrl: null,
+				canDownload: false
+			}
+		],
+		openedAt: '2026-08-26T13:45:00.000Z',
+		lastUpdate: '2026-08-27T10:30:00.000Z',
+		internalObservations: 'Aguardando volume médio mensal informado pelo solicitante.'
+	}
+];
+
+export function getInternalRequestMock(protocol: string): Promise<InternalRequestDetail> {
+	const normalized = protocol.toLowerCase().trim();
+	const detail = mockInternalRequestDetails.find(
+		(d) => d.protocol.toLowerCase().trim() === normalized
+	);
+	if (!detail) {
+		return Promise.reject(new ApiError(404, 'Solicitação não encontrada.'));
+	}
+	return delay(MOCK_LATENCY_MS).then(() => structuredClone(detail));
 }

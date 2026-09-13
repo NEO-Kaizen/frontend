@@ -2,7 +2,8 @@ import { ApiError, type Result } from '$lib/types/result';
 import {
 	createRequest,
 	listRequests as listRequestsApi,
-	getRequestByProtocol as getRequestByProtocolApi
+	getRequestByProtocol as getRequestByProtocolApi,
+	getInternalRequest as getInternalRequestApi
 } from '$lib/api/request.api';
 import type {
 	CreateRequestPayload,
@@ -10,7 +11,8 @@ import type {
 	ListRequestsQuery,
 	PaginatedResponse,
 	RequestSummary,
-	RequestDetail
+	RequestDetail,
+	InternalRequestDetail
 } from '$lib/types/request';
 
 import { isProtocol, isValidEmail } from '$lib/utils/validations';
@@ -48,6 +50,19 @@ export async function listRequests(
 export async function getRequestByProtocol(protocol: string): Promise<Result<RequestDetail>> {
 	try {
 		const data = await getRequestByProtocolApi(protocol);
+		return { ok: true, data };
+	} catch (error) {
+		if (error instanceof ApiError) {
+			const message = error.status === 404 ? 'Solicitação não encontrada.' : error.message;
+			return { ok: false, error: { status: error.status, message } };
+		}
+		return { ok: false, error: { message: 'Não foi possível conectar ao servidor.' } };
+	}
+}
+
+export async function getInternalRequest(protocol: string): Promise<Result<InternalRequestDetail>> {
+	try {
+		const data = await getInternalRequestApi(protocol);
 		return { ok: true, data };
 	} catch (error) {
 		if (error instanceof ApiError) {

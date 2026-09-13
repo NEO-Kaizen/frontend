@@ -6,20 +6,18 @@ import type {
 	ListRequestsQuery,
 	PaginatedResponse,
 	RequestSummary,
-	RequestDetail
+	RequestDetail,
+	InternalRequestDetail
 } from '$lib/types/request';
 import type { QueueQuery, QueueResponse } from '$lib/types/queue';
 
 const REQUESTS_PATH = '/requests';
 const QUEUE_PATH = '/queue';
 
-// POST /requests — envia o formulário (parte textual "payload") e os anexos
-// (0 a 5 partes binárias "attachments") num único multipart/form-data.
 export async function createRequest(
 	payload: CreateRequestPayload,
 	files: Blob[] = []
 ): Promise<CreateRequestResponse> {
-	// DEV inline no ponto de chamada garante a eliminação do mock no build (DCE).
 	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.request) {
 		const { createRequestMock } = await import('$lib/mocks/requests.mock');
 		return createRequestMock(payload, files);
@@ -41,7 +39,6 @@ export async function createRequest(
 export async function listRequests(
 	query: ListRequestsQuery
 ): Promise<PaginatedResponse<RequestSummary>> {
-	// DEV inline no ponto de chamada garante a eliminação do mock no build (DCE).
 	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.request) {
 		const { listRequestsMock } = await import('$lib/mocks/requests.mock');
 		return listRequestsMock(query);
@@ -62,7 +59,6 @@ export async function listRequests(
 }
 
 export async function getRequestByProtocol(protocol: string): Promise<RequestDetail> {
-	// DEV inline no ponto de chamada garante a eliminação do mock no build (DCE).
 	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.request) {
 		const { getRequestByProtocolMock } = await import('$lib/mocks/requests.mock');
 		return getRequestByProtocolMock(protocol);
@@ -73,7 +69,6 @@ export async function getRequestByProtocol(protocol: string): Promise<RequestDet
 }
 
 export async function listQueue(query: QueueQuery): Promise<QueueResponse> {
-	// DEV inline no ponto de chamada garante a eliminação do mock no build (DCE).
 	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.request) {
 		const { listQueueMock } = await import('$lib/mocks/requests.mock');
 		return listQueueMock(query);
@@ -92,4 +87,14 @@ export async function listQueue(query: QueueQuery): Promise<QueueResponse> {
 	const path = qs ? `${QUEUE_PATH}?${qs}` : QUEUE_PATH;
 
 	return apiClient<QueueResponse>(path);
+}
+
+export async function getInternalRequest(protocol: string): Promise<InternalRequestDetail> {
+	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.request) {
+		const { getInternalRequestMock } = await import('$lib/mocks/requests.mock');
+		return getInternalRequestMock(protocol);
+	}
+
+	const encoded = encodeURIComponent(protocol);
+	return apiClient<InternalRequestDetail>(`${REQUESTS_PATH}/${encoded}/internal`);
 }
