@@ -29,6 +29,7 @@
 	const currentUser = $derived(page.data.user);
 	const appConfig = $derived(page.data.portalConfig);
 	const queuePath = resolve('/(admin)/fila');
+	const isAuthenticated = $derived(currentUser != null);
 
 	function isActive(item: NavButton, pathname: string): boolean {
 		if (!item.href) return false;
@@ -177,7 +178,7 @@
 				<span>+</span> Nova solicitação
 			</Button>
 
-			{#if isNotSolicitante}
+			{#if isAuthenticated}
 				<div class="separator_bar-column"></div>
 
 				<div class="profile_block">
@@ -194,8 +195,8 @@
 						goto(resolve('/(public)/login'));
 					}}
 				>
-					<Icon iconName="security" />
-					Acesso administrativo
+					<Icon iconName="login" />
+					Acessar
 				</Button>
 			{/if}
 		</div>
@@ -221,6 +222,21 @@
 				{/each}
 			</div>
 
+			<button
+				class="nav-item"
+				type="button"
+				disabled={isLoggingOut}
+				aria-busy={isLoggingOut}
+				onclick={handleLogout}
+			>
+				<Icon iconName="logout" />
+				Sair
+			</button>
+		</div>
+	{:else if isAuthenticated}
+		<div class="separator_bar"></div>
+
+		<div class="nav">
 			<button
 				class="nav-item"
 				type="button"

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { afterNavigate, goto, invalidateAll } from '$app/navigation';
+	import { afterNavigate, goto, invalidate } from '$app/navigation';
 	import { navigating, page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
@@ -136,6 +136,8 @@
 
 		// Plugin não aceita query string após resolve() (eslint-plugin-svelte#1327);
 		// a navegação é validada em runtime pelo SvelteKit.
+		// Sem invalidateAll: o load da lista já reroda ao mudar ?page; forçá-lo
+		// refaria também o load das métricas.
 		// eslint-disable-next-line svelte/no-navigation-without-resolve
 		void goto(target, {
 			keepFocus: true,
@@ -208,7 +210,11 @@
 		<div class="metrics-state metrics-state--error" role="alert">
 			<p>{data.metricsResult.error.message}</p>
 
-			<Button variant="outline" loading={isFetching} onclick={() => void invalidateAll()}>
+			<Button
+				variant="outline"
+				loading={isFetching}
+				onclick={() => void invalidate('app:queue-metrics')}
+			>
 				Tentar novamente
 			</Button>
 		</div>
