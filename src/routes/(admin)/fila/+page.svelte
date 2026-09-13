@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto, invalidateAll } from '$app/navigation';
+	import { afterNavigate, goto, invalidateAll } from '$app/navigation';
 	import { navigating, page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
@@ -19,16 +19,19 @@
 
 	const queuePath = resolve('/(admin)/fila');
 
-	// A URL é a fonte de verdade: filtros e paginação vivem nos search params,
-	// e cada mudança dispara nova navegação (load server-side reexecuta).
-	const filters = $derived.by(() => {
-		const params = page.url.searchParams;
+	// Filtros com estado local: o select responde na hora, sem esperar a
+	// navegação (a URL só muda após o load resolver). A URL continua sendo a
+	// fonte de verdade — `afterNavigate` ressincroniza em voltar/avançar e busca.
+	const params = page.url.searchParams;
 
-		return {
-			status: params.get('status') ?? 'all',
-			priority: params.get('priority') ?? 'all',
-			assignee: params.get('assigneeId') ?? 'all'
-		};
+	let status = $state(params.get('status') ?? 'all');
+	let priority = $state(params.get('priority') ?? 'all');
+	let assigneeId = $state(params.get('assigneeId') ?? 'all');
+
+	afterNavigate(() => {
+		status = page.url.searchParams.get('status') ?? 'all';
+		priority = page.url.searchParams.get('priority') ?? 'all';
+		assigneeId = page.url.searchParams.get('assigneeId') ?? 'all';
 	});
 
 	const statusOptions = [
@@ -138,14 +141,31 @@
 		});
 	}
 
-	async function handleFilterChange(status: string, priority: string, assigneeId: string) {
-		const target = `${queuePath}${buildQueueParams({ page: null, status, priority, assigneeId })}`;
+	async function handleFilterChange(
+		nextStatus: string,
+		nextPriority: string,
+		nextAssigneeId: string
+	) {
+		status = nextStatus;
+		priority = nextPriority;
+		assigneeId = nextAssigneeId;
+
+		const target = `${queuePath}${buildQueueParams({
+			page: null,
+			status: nextStatus,
+			priority: nextPriority,
+			assigneeId: nextAssigneeId
+		})}`;
 
 		// eslint-disable-next-line svelte/no-navigation-without-resolve
 		await goto(target, { keepFocus: true, noScroll: true });
 	}
 
 	async function handleClearFilters(): Promise<void> {
+		status = 'all';
+		priority = 'all';
+		assigneeId = 'all';
+
 		const target = `${queuePath}${buildQueueParams({
 			page: null,
 			status: null,
@@ -181,7 +201,9 @@
 	{/if}
 
 	<QueueFilters
-		{...filters}
+		{status}
+		{priority}
+		assignee={assigneeId}
 		{statusOptions}
 		{priorityOptions}
 		{assigneeOptions}

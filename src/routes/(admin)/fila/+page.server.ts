@@ -1,4 +1,4 @@
-import { getQueueMetrics, listQueueRequests } from '$lib/services/request.service';
+import { listQueueRequests } from '$lib/services/request.service';
 import { parsePageParam } from '$lib/utils/pagination';
 
 import type { QueueQuery } from '$lib/types/queue';
@@ -46,10 +46,10 @@ export const load: PageServerLoad = async ({ url }) => {
 	const requestedPage = parsePageParam(url.searchParams.get('page'));
 	const query = buildQueueQuery(url, requestedPage);
 
-	const [result, metricsResult] = await Promise.all([listQueueRequests(query), getQueueMetrics()]);
+	const result = await listQueueRequests(query);
 
 	// O backend clampa `page` ao intervalo válido; a página efetiva vem da resposta.
 	const page = result.ok ? result.data.page : requestedPage;
 
-	return { page, result, metricsResult };
+	return { page, result };
 };
