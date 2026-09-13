@@ -4,7 +4,7 @@
 	import { resolve } from '$app/paths';
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
 
-	import MetricsSummary from './components/MetricsSummary.svelte';
+	import MetricsSummary from '$lib/components/MetricsSummary.svelte';
 	import QueueFilters from '$lib/components/QueueFilters.svelte';
 	import SolicitationTable from '$lib/components/tables/SolicitationTable.svelte';
 	import Button from '$lib/components/Button.svelte';
