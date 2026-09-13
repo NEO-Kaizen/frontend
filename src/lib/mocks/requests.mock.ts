@@ -7,16 +7,29 @@ import type {
 	ListRequestsQuery,
 	PaginatedResponse,
 	RequestDetail,
-	RequestSummary
+	RequestSummary,
+	RequestStatus
 } from '$lib/types/request';
 
+// Status considerados "em andamento" para a métrica da fila: trabalho já em fluxo,
+// excluindo etapas de fila/priorização e estados terminais.
+const IN_PROGRESS_STATUSES: RequestStatus[] = [
+	'Em triagem',
+	'Aguardando mapeamento',
+	'Em análise de viabilidade',
+	'Em desenvolvimento',
+	'Em homologação'
+];
+
 export async function getQueueMetricsMock(): Promise<QueueMetricsResponse> {
-	// Total e "sem responsável" derivam dos fixtures. "Em andamento" e "atrasados"
-	// são valores ilustrativos: o contrato ainda não expõe data-limite/atraso.
+	// Total, "sem responsável" e "em andamento" derivam dos fixtures. "Atrasados"
+	// é valor ilustrativo: o contrato ainda não expõe data-limite/atraso.
 	return {
 		totalRequests: mockRequests.length,
 		unassignedRequests: mockRequests.filter((request) => request.assigneeId === null).length,
-		inProgressRequests: 7,
+		inProgressRequests: mockRequests.filter((request) =>
+			IN_PROGRESS_STATUSES.includes(request.status)
+		).length,
 		overdueRequests: 2
 	};
 }
@@ -545,6 +558,18 @@ function generateMockProtocol(): string {
 	return `MAAT-${pick()}-${pick()}`;
 }
 
+function toRequestSummary(request: MockRequest): RequestSummary {
+	return {
+		protocol: request.protocol,
+		createdAt: request.createdAt,
+		processName: request.processName,
+		priority: request.priority,
+		status: request.status,
+		assignee: request.assignee,
+		requesterName: request.requesterName
+	};
+}
+
 export function listRequestsMock(
 	query: ListRequestsQuery
 ): Promise<PaginatedResponse<RequestSummary>> {
@@ -576,7 +601,7 @@ export function listRequestsMock(
 	const total = requests.length;
 	const totalPages = Math.ceil(total / pageSize);
 	const start = (page - 1) * pageSize;
-	const data = requests.slice(start, start + pageSize);
+	const data = requests.slice(start, start + pageSize).map(toRequestSummary);
 
 	return Promise.resolve({
 		data,
@@ -630,13 +655,7 @@ export function listQueueRequestsMock(query: QueueQuery): Promise<QueueResponse>
 	const end = start + pageSize;
 
 	const data = requests.slice(start, end).map((request) => ({
-		protocol: request.protocol,
-		createdAt: request.createdAt,
-		processName: request.processName,
-		priority: request.priority,
-		status: request.status,
-		assignee: request.assignee,
-		requesterName: request.requesterName,
+		...toRequestSummary(request),
 		requesterEmail: request.corporateEmail
 	}));
 
