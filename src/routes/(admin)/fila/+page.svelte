@@ -6,6 +6,7 @@
 
 	import MetricsSummary from '$lib/components/MetricsSummary.svelte';
 	import SolicitationTable from '$lib/components/tables/SolicitationTable.svelte';
+	import Button from '$lib/components/Button.svelte';
 
 	import type { MetricItem } from '$lib/types/metrics';
 	import type { PageProps } from './$types';
@@ -84,9 +85,9 @@
 		<div class="metrics-state metrics-state--error" role="alert">
 			<p>{data.metricsResult.error.message}</p>
 
-			<button type="button" class="state-retry" onclick={() => void invalidateAll()}>
+			<Button variant="outline" loading={isFetching} onclick={() => void invalidateAll()}>
 				Tentar novamente
-			</button>
+			</Button>
 		</div>
 	{/if}
 
@@ -141,21 +142,5 @@
 
 	.metrics-state--error {
 		color: var(--status-red);
-	}
-
-	.state-retry {
-		padding: var(--spacing-xs) var(--spacing-md);
-		font: var(--paragrafo);
-		font-weight: 600;
-		color: var(--secondary-color);
-		background: none;
-		border: var(--border-default);
-		border-radius: var(--radius-sm);
-		cursor: pointer;
-		transition: var(--transition-default);
-	}
-
-	.state-retry:hover {
-		background: var(--background-color);
 	}
 </style>

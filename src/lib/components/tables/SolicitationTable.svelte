@@ -2,6 +2,7 @@
 <script lang="ts">
 	import foundImg from '$lib/assets/SolicitationIllustration.svg';
 	import Pagination from './Pagination.svelte';
+	import Button from '$lib/components/Button.svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { formatShortDate, formatShortTime } from '$lib/utils/dates';
 	import type { PaginatedResponse, RequestStatus, RequestSummary } from '$lib/types/request';
@@ -110,9 +111,7 @@
 						<td colspan="7">
 							<div class="error-state" role="alert">
 								<p>{result.error.message}</p>
-								<button type="button" class="btn-retry" onclick={() => invalidateAll()}>
-									Tentar novamente
-								</button>
+								<Button variant="outline" onclick={() => invalidateAll()}>Tentar novamente</Button>
 							</div>
 						</td>
 					</tr>
@@ -372,22 +371,6 @@
 		margin: 0;
 		font: var(--paragrafo);
 		color: var(--gray);
-	}
-
-	.btn-retry {
-		padding: var(--spacing-xs) var(--spacing-md);
-		font: var(--paragrafo);
-		font-weight: 600;
-		color: var(--secondary-color);
-		background: none;
-		border: var(--border-default);
-		border-radius: var(--radius-sm);
-		cursor: pointer;
-		transition: var(--transition-default);
-	}
-
-	.btn-retry:hover {
-		background: var(--background-color);
 	}
 
 	.table-footer {
