@@ -2,7 +2,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import type { InternalRequestDetail, RequestStatus } from '$lib/types/request';
 	import InfoSection from './solicitation-info/InfoSection.svelte';
-	import QuickActions from './quickActions.svelte';
+	import QuickActions from './QuickActions.svelte';
 
 	interface Props {
 		solicitation: InternalRequestDetail;

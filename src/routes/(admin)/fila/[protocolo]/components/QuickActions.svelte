@@ -89,10 +89,7 @@
 						class="action-row"
 						style:animation-delay={`${prefersReducedMotion ? '0ms' : `${index * 30}ms`}`}
 					>
-						<button
-							type="button"
-							class="action-item"
-						>
+						<button type="button" class="action-item">
 							<span class="action-icon" aria-hidden="true">
 								<Icon iconName={action.icon} iconSize="sm" />
 							</span>

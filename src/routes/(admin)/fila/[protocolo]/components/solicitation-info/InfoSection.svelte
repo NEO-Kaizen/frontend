@@ -1,8 +1,8 @@
 <script lang="ts">
 	import type { YesNoDetail, InternalRequestDetail } from '$lib/types/request';
 	import { formatDate, formatDateTime } from '$lib/utils/dates';
-	import Field from './field.svelte';
-	import ToggleSection from './toggleSection.svelte';
+	import Field from './Field.svelte';
+	import ToggleSection from './ToggleSection.svelte';
 
 	interface Props {
 		solicitation: InternalRequestDetail;
