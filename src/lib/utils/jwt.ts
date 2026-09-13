@@ -30,7 +30,8 @@ export function decodeJwt(token: string): SessionUser | null {
 			id: decoded.id,
 			name: decoded.name,
 			email: decoded.email,
-			role: decoded.role
+			role: decoded.role,
+			forcePasswordChange: decoded.forcePasswordChange === true
 		};
 	} catch {
 		return null;
