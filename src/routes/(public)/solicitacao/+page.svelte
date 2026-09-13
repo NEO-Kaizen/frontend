@@ -1,17 +1,10 @@
 <script lang="ts">
 	import SolicitationForm from './components/solicitation-form/SolicitationForm.svelte';
+
+	let { data } = $props();
 </script>
 
 <main class="content-container">
-	<SolicitationForm />
+	<SolicitationForm user={data.user} />
 </main>
 
-<style>
-	.placeholder {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: var(--spacing-sm);
-		padding: var(--spacing-xl) 0;
-	}
-</style>
