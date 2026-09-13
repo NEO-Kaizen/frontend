@@ -1,5 +1,6 @@
 import { ApiError } from '$lib/types/result';
 import type { PaginatedResponse } from '$lib/types/request';
+
 import type {
 	AdminUser,
 	CreateUserPayload,
@@ -10,7 +11,6 @@ import type {
 	UserStatus
 } from '$lib/types/user';
 
-// Fixtures — dados fictícios do domínio de usuários, consumidos apenas pelos mocks.
 export const mockUsers: AdminUser[] = [
 	{
 		id: 1,
@@ -110,11 +110,11 @@ export const mockUsers: AdminUser[] = [
 	}
 ];
 
-// Controle do próximo id — evita colisão com o máximo existente nos fixtures.
 let nextId = Math.max(...mockUsers.map((user) => user.id)) + 1;
 
-// Latência artificial para tornar o estado de carregamento perceptível na UI.
 const MOCK_LATENCY_MS = 400;
+
+const TEMPORARY_PASSWORD_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%&';
 
 function delay(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
@@ -125,6 +125,7 @@ export function listUsersMock(query: ListUsersQuery): Promise<PaginatedResponse<
 
 	if (query.search) {
 		const search = query.search.toLowerCase().trim();
+
 		result = result.filter(
 			(user) =>
 				user.name.toLowerCase().includes(search) || user.email.toLowerCase().includes(search)
@@ -136,17 +137,28 @@ export function listUsersMock(query: ListUsersQuery): Promise<PaginatedResponse<
 	const total = result.length;
 	const totalPages = Math.ceil(total / pageSize);
 	const start = (page - 1) * pageSize;
+
 	const data = result.slice(start, start + pageSize);
 
-	return delay(MOCK_LATENCY_MS).then(() => ({ data, page, pageSize, total, totalPages }));
+	return delay(MOCK_LATENCY_MS).then(() => ({
+		data,
+		page,
+		pageSize,
+		total,
+		totalPages
+	}));
 }
 
 export function createUserMock(payload: CreateUserPayload): Promise<CreateUserResponse> {
 	const email = payload.email.trim().toLowerCase();
 
-	if (mockUsers.some((user) => user.email === email)) {
+	const duplicatedEmail = mockUsers.some((user) => user.email.toLowerCase() === email);
+
+	if (duplicatedEmail) {
 		return Promise.reject(new ApiError(409, 'E-mail já cadastrado.'));
 	}
+
+	const temporaryPassword = generateTemporaryPassword();
 
 	const user: AdminUser = {
 		id: nextId++,
@@ -159,7 +171,10 @@ export function createUserMock(payload: CreateUserPayload): Promise<CreateUserRe
 
 	mockUsers.unshift(user);
 
-	return delay(MOCK_LATENCY_MS).then(() => ({ user }));
+	return delay(MOCK_LATENCY_MS).then(() => ({
+		user,
+		temporaryPassword
+	}));
 }
 
 export function updateUserStatusMock(
@@ -174,7 +189,11 @@ export function updateUserStatusMock(
 
 	user.status = status;
 
-	return delay(MOCK_LATENCY_MS).then(() => ({ user: { ...user } }));
+	return delay(MOCK_LATENCY_MS).then(() => ({
+		user: {
+			...user
+		}
+	}));
 }
 
 export function resetUserPasswordMock(id: number): Promise<ResetPasswordResponse> {
@@ -186,23 +205,24 @@ export function resetUserPasswordMock(id: number): Promise<ResetPasswordResponse
 
 	const temporaryPassword = generateTemporaryPassword();
 
-	return delay(MOCK_LATENCY_MS).then(() => ({ temporaryPassword }));
+	return delay(MOCK_LATENCY_MS).then(() => ({
+		temporaryPassword
+	}));
 }
 
 function findMockUser(id: number): AdminUser | undefined {
 	return mockUsers.find((user) => user.id === id);
 }
 
-const TEMPORARY_PASSWORD_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%&';
-
-// Senha temporária fictícia — em produção a geração é responsabilidade do backend.
 function generateTemporaryPassword(): string {
 	const length = 10;
+
 	let password = '';
 
-	for (let i = 0; i < length; i += 1) {
-		const index = Math.floor(Math.random() * TEMPORARY_PASSWORD_ALPHABET.length);
-		password += TEMPORARY_PASSWORD_ALPHABET[index];
+	for (let index = 0; index < length; index += 1) {
+		const alphabetIndex = Math.floor(Math.random() * TEMPORARY_PASSWORD_ALPHABET.length);
+
+		password += TEMPORARY_PASSWORD_ALPHABET[alphabetIndex];
 	}
 
 	return password;

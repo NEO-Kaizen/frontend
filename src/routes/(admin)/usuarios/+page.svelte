@@ -1,32 +1,72 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-
 	import Button from '$lib/components/Button.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import NotFoundState from '$lib/components/NotFoundState.svelte';
-
-	import { listUsers, updateUserStatus } from '$lib/services/user.service';
-	import type { AdminUser, UserAction, UserStatus } from '$lib/types/user';
-
+	import { createUser, listUsers, updateUserStatus } from '$lib/services/user.service';
+	import type { AdminUser, CreateUserData, UserAction, UserStatus } from '$lib/types/user';
 	import ConfirmActionModal from './components/ConfirmActionModal.svelte';
 	import CreateUserModal from './components/CreateUserModal.svelte';
 	import ResetPasswordModal from './components/ResetPasswordModal.svelte';
 	import UsersTable from './components/UsersTable.svelte';
-	import EditUserModal from './components/EditUserModal.svelte';
 
 	const PAGE_SIZE = 10;
 
+	/*
+	 * Somente a aba de Solicitantes está funcional
+	 * no escopo atual da task.
+	 */
 	const tabs = [
-		{ id: 'todos', label: 'Todos', disabled: true },
-		{ id: 'administradores', label: 'Administradores', disabled: true },
-		{ id: 'analistas', label: 'Analistas', disabled: true },
-		{ id: 'gestores', label: 'Gestores', disabled: true },
-		{ id: 'solicitantes', label: 'Solicitantes', disabled: false }
+		{
+			id: 'todos',
+			label: 'Todos',
+			disabled: true
+		},
+		{
+			id: 'administradores',
+			label: 'Administradores',
+			disabled: true
+		},
+		{
+			id: 'analistas',
+			label: 'Analistas',
+			disabled: true
+		},
+		{
+			id: 'gestores',
+			label: 'Gestores',
+			disabled: true
+		},
+		{
+			id: 'solicitantes',
+			label: 'Solicitantes',
+			disabled: false
+		}
 	] as const;
+
+	/*
+	 * Dados enviados pelo modal.
+	 *
+	 * O componente não gera senha.
+	 * A senha temporária deve vir do service/API/mock.
+	 */
+	type CreateUserData = {
+		name: string;
+		email: string;
+	};
+
+	type PendingAction = {
+		kind: UserAction;
+		user: AdminUser;
+	};
 
 	let activeTab = $state('solicitantes');
 
 	let users = $state<AdminUser[]>([]);
+
+	/* =========================
+	   LISTAGEM
+	========================= */
 
 	let isLoading = $state(false);
 	let loadError = $state('');
@@ -35,59 +75,37 @@
 	let currentPage = $state(1);
 	let totalPages = $state(0);
 
+	/* =========================
+	   PESQUISA
+	========================= */
+
 	let searchQuery = $state('');
 	let searchTimer: ReturnType<typeof setTimeout> | undefined;
 
+	/* =========================
+	   FEEDBACK
+	========================= */
+
 	let successMessage = $state('');
+
 	let successTimer: ReturnType<typeof setTimeout> | undefined;
 
-	let isCreateOpen = $state(false);
+	/* =========================
+	   CRIAÇÃO
+	========================= */
 
-	type PendingAction = {
-		kind: UserAction;
-		user: AdminUser;
-	};
+	let isCreateOpen = $state(false);
+	let isCreating = $state(false);
+	let createError = $state('');
+
+	/* =========================
+	   AÇÕES
+	========================= */
 
 	let pendingAction = $state<PendingAction>();
 
 	let isActing = $state(false);
 	let actionError = $state('');
-
-	let selectedUserForEdit = $state<AdminUser>();
-	let selectedUserForDetails = $state<AdminUser>();
-
-	/* =========================
-	   EDIÇÃO
-	========================= */
-
-	function handleEditUser(user: AdminUser) {
-		selectedUserForEdit = user;
-	}
-
-	function handleEditSave(data: { user: AdminUser; role: string; status: UserStatus }) {
-		users = users.map((user) =>
-			user.id === data.user.id
-				? {
-						...user,
-						role: data.role,
-						status: data.status
-					}
-				: user
-		);
-
-		selectedUserForEdit = undefined;
-
-		showSuccess(`Usuário "${data.user.name}" atualizado com sucesso.`);
-	}
-
-	function handleViewDetails(user: AdminUser) {
-		selectedUserForDetails = user;
-
-		/*
-		 * O modal de detalhes será ligado aqui
-		 * quando criarmos o componente.
-		 */
-	}
 
 	/* =========================
 	   PAGINAÇÃO
@@ -131,9 +149,7 @@
 
 		if (result.ok) {
 			users = result.data.data;
-
 			total = result.data.total;
-
 			currentPage = result.data.page;
 
 			totalPages = result.data.totalPages || Math.ceil(result.data.total / PAGE_SIZE);
@@ -172,9 +188,13 @@
 	function handlePageChange(page: number) {
 		if (page < 1) return;
 
-		if (page > totalPages) return;
+		if (page > totalPages) {
+			return;
+		}
 
-		if (page === currentPage) return;
+		if (page === currentPage) {
+			return;
+		}
 
 		loadUsers(page, searchQuery);
 	}
@@ -188,17 +208,39 @@
 	}
 
 	/* =========================
-	   CADASTRO
+	   CRIAÇÃO
 	========================= */
 
-	function handleCreated(user: AdminUser) {
-		isCreateOpen = false;
+	async function handleCreate(data: CreateUserData) {
+		isCreating = true;
+		createError = '';
+
+		const result = await createUser({
+			name: data.name.trim(),
+			email: data.email.trim(),
+			role: 'Solicitante',
+			status: 'Ativo'
+		});
+
+		isCreating = false;
+
+		if (!result.ok) {
+			createError = result.error.message;
+			throw new Error(result.error.message);
+		}
 
 		searchQuery = '';
 
-		showSuccess(`Solicitante "${user.name}" cadastrado com sucesso.`);
+		showSuccess(`Solicitante "${result.data.user.name}" cadastrado com sucesso.`);
 
-		loadUsers(1, '');
+		await loadUsers(1, '');
+
+		return result.data;
+	}
+
+	function closeCreateModal() {
+		isCreateOpen = false;
+		createError = '';
 	}
 
 	/* =========================
@@ -229,7 +271,9 @@
 	}
 
 	async function confirmStatusChange(status: UserStatus) {
-		if (!pendingAction) return;
+		if (!pendingAction) {
+			return;
+		}
 
 		isActing = true;
 		actionError = '';
@@ -254,11 +298,12 @@
 				: `Solicitante "${userName}" inativado com sucesso.`
 		);
 
-		loadUsers(currentPage, searchQuery);
+		await loadUsers(currentPage, searchQuery);
 	}
 
 	function closePendingAction() {
 		pendingAction = undefined;
+
 		actionError = '';
 	}
 </script>
@@ -280,6 +325,7 @@
 
 	<section class="stats-grid">
 		<!-- TOTAL DE USUÁRIOS -->
+
 		<div class="stat-card">
 			<div class="stat-icon icon-users">
 				<svg
@@ -308,7 +354,8 @@
 			</div>
 		</div>
 
-		<!-- ATIVOS AGORA -->
+		<!-- ATIVOS -->
+
 		<div class="stat-card">
 			<div class="stat-icon icon-active">
 				<svg
@@ -336,6 +383,7 @@
 		</div>
 
 		<!-- PENDENTES -->
+
 		<div class="stat-card">
 			<div class="stat-icon icon-pending">
 				<svg
@@ -364,7 +412,8 @@
 			</div>
 		</div>
 
-		<!-- PERFIL ADMIN -->
+		<!-- ADMIN -->
+
 		<div class="stat-card">
 			<div class="stat-icon icon-admin">
 				<svg
@@ -406,19 +455,26 @@
 
 	<section class="users-card">
 		<!-- PESQUISA + ADICIONAR -->
+
 		<div class="toolbar">
 			<div class="search-box">
 				<Input
 					icon="search"
 					type="search"
-					placeholder="Pesquisar por nome, email ou cargo..."
-					aria-label="Buscar usuários"
+					placeholder="Pesquisar por nome ou e-mail..."
+					aria-label="Buscar usuários por nome ou e-mail"
 					bind:value={searchQuery}
 					oninput={handleSearchInput}
 				/>
 			</div>
 
-			<Button variant="primary" onclick={() => (isCreateOpen = true)}>
+			<Button
+				variant="primary"
+				onclick={() => {
+					createError = '';
+					isCreateOpen = true;
+				}}
+			>
 				<svg
 					class="add-user-icon"
 					viewBox="0 0 24 24"
@@ -491,12 +547,7 @@
 			     TABELA
 			========================= -->
 
-			<UsersTable
-				{users}
-				onaction={handleAction}
-				onedit={handleEditUser}
-				onviewdetails={handleViewDetails}
-			/>
+			<UsersTable {users} onaction={handleAction} />
 
 			<!-- =========================
 			     PAGINAÇÃO
@@ -512,6 +563,7 @@
 
 				<div class="pagination" aria-label="Paginação">
 					<!-- ANTERIOR -->
+
 					<button
 						type="button"
 						class="nav-button"
@@ -523,6 +575,7 @@
 					</button>
 
 					<!-- PÁGINAS -->
+
 					{#each visiblePages as page, index (`${page}-${index}`)}
 						{#if page === '...'}
 							<span class="dots"> ... </span>
@@ -541,6 +594,7 @@
 					{/each}
 
 					<!-- PRÓXIMA -->
+
 					<button
 						type="button"
 						class="nav-button"
@@ -557,15 +611,20 @@
 </main>
 
 <!-- =========================
-     MODAL CRIAR
+     CRIAR USUÁRIO
 ========================= -->
 
 {#if isCreateOpen}
-	<CreateUserModal onclose={() => (isCreateOpen = false)} oncreated={handleCreated} />
+	<CreateUserModal
+		loading={isCreating}
+		error={createError}
+		onclose={closeCreateModal}
+		oncreate={handleCreate}
+	/>
 {/if}
 
 <!-- =========================
-     MODAL ATIVAR
+     ATIVAR
 ========================= -->
 
 {#if pendingAction?.kind === 'activate'}
@@ -581,7 +640,7 @@
 {/if}
 
 <!-- =========================
-     MODAL INATIVAR
+     INATIVAR
 ========================= -->
 
 {#if pendingAction?.kind === 'deactivate'}
@@ -597,34 +656,17 @@
 {/if}
 
 <!-- =========================
-     ALTERAR SENHA
+     REDEFINIR SENHA
 ========================= -->
 
 {#if pendingAction?.kind === 'reset' && pendingAction}
 	<ResetPasswordModal user={pendingAction.user} onclose={closePendingAction} />
 {/if}
 
-<!-- =========================
-     EDITAR USUÁRIO
-========================= -->
-
-{#if selectedUserForEdit}
-	<EditUserModal
-		user={selectedUserForEdit}
-		onclose={() => (selectedUserForEdit = undefined)}
-		onsave={handleEditSave}
-	/>
-{/if}
-
 <style>
-	/* =========================
-	   PÁGINA
-	========================= */
-
 	.users-page {
 		display: flex;
 		flex-direction: column;
-
 		gap: var(--spacing-lg);
 	}
 
@@ -635,23 +677,18 @@
 	.page-header {
 		display: flex;
 		flex-direction: column;
-
 		gap: var(--spacing-sm);
 	}
 
 	.page-header h1 {
 		margin: 0;
-
 		font: var(--h1);
-
 		color: var(--primary-color);
 	}
 
 	.page-subtitle {
 		margin: 0;
-
 		font: var(--paragrafo);
-
 		color: var(--black);
 	}
 
@@ -661,11 +698,8 @@
 
 	.stats-grid {
 		width: 100%;
-
 		display: grid;
-
 		grid-template-columns: repeat(4, minmax(0, 1fr));
-
 		gap: var(--spacing-md);
 	}
 
@@ -674,7 +708,6 @@
 
 		display: flex;
 		flex-direction: column;
-
 		justify-content: space-between;
 
 		padding: var(--spacing-md);
@@ -693,7 +726,6 @@
 		height: 34px;
 
 		display: flex;
-
 		align-items: center;
 		justify-content: center;
 
@@ -732,24 +764,37 @@
 	.stat-content {
 		display: flex;
 		flex-direction: column;
-
 		gap: 2px;
 	}
 
 	.stat-label {
 		font: var(--label);
-
 		font-size: 11px;
-
 		color: var(--black);
-
 		text-transform: uppercase;
 	}
 
 	.stat-content strong {
 		font: var(--h3);
-
 		color: var(--rich-black);
+	}
+
+	/* =========================
+	   SUCESSO
+	========================= */
+
+	.success-banner {
+		margin: 0;
+
+		padding: var(--spacing-sm) var(--spacing-md);
+
+		background-color: var(--status-green-bg);
+
+		color: var(--status-green);
+
+		border-radius: var(--radius-sm);
+
+		font: var(--label);
 	}
 
 	/* =========================
@@ -778,9 +823,7 @@
 		max-width: 100%;
 
 		border: none;
-
 		border-radius: 0;
-
 		box-shadow: none;
 	}
 
@@ -792,7 +835,6 @@
 		width: 100%;
 
 		display: flex;
-
 		align-items: center;
 		justify-content: space-between;
 
@@ -901,25 +943,7 @@
 	}
 
 	/* =========================
-	   MENSAGEM DE SUCESSO
-	========================= */
-
-	.success-banner {
-		margin: 0;
-
-		padding: var(--spacing-sm) var(--spacing-md);
-
-		background-color: var(--status-green-bg);
-
-		color: var(--status-green);
-
-		border-radius: var(--radius-sm);
-
-		font: var(--label);
-	}
-
-	/* =========================
-	   LOADING / ERRO
+	   ESTADOS
 	========================= */
 
 	.state-card {
@@ -928,7 +952,6 @@
 		min-height: 250px;
 
 		display: flex;
-
 		flex-direction: column;
 
 		align-items: center;
@@ -982,7 +1005,6 @@
 		min-height: 62px;
 
 		display: flex;
-
 		align-items: center;
 		justify-content: space-between;
 
@@ -1017,6 +1039,7 @@
 		display: flex;
 
 		align-items: center;
+
 		justify-content: flex-end;
 
 		gap: 4px;
@@ -1066,7 +1089,6 @@
 
 	.nav-button {
 		font-size: 20px;
-
 		line-height: 1;
 	}
 
@@ -1119,7 +1141,6 @@
 
 		.tab {
 			min-width: 130px;
-
 			height: 44px;
 		}
 
