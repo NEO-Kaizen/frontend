@@ -31,6 +31,15 @@
 				ok: true,
 				data
 			};
+
+			if (user?.id) {
+				const myQueueData = await listQueue({
+					page: 1,
+					pageSize: 1,
+					assigneeId: user.id
+				});
+				assignedCount = myQueueData.total;
+			}
 		} catch (error) {
 			tableResult = {
 				ok: false,
