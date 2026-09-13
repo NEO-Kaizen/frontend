@@ -1,5 +1,13 @@
 <script lang="ts">
+	import type { SolicitationMode } from '$lib/types/portal-config';
 	import SettingsCard from './SettingsCard.svelte';
+
+	interface Props {
+		mode: SolicitationMode;
+		onchange: (mode: SolicitationMode) => void;
+	}
+
+	let { mode, onchange }: Props = $props();
 </script>
 
 <SettingsCard
@@ -26,7 +34,14 @@
 		</legend>
 
 		<label class="access-option">
-			<input class="sr-only access-radio" type="radio" name="accessMode" value="public" checked />
+			<input
+				class="sr-only access-radio"
+				type="radio"
+				name="accessMode"
+				value="PUBLIC"
+				checked={mode === 'PUBLIC'}
+				onchange={() => onchange('PUBLIC')}
+			/>
 			<span class="radio-control" aria-hidden="true"></span>
 			<span class="access-option-text">
 				<span class="access-option-title">Público</span>
@@ -37,7 +52,14 @@
 		</label>
 
 		<label class="access-option">
-			<input class="sr-only access-radio" type="radio" name="accessMode" value="authenticated" />
+			<input
+				class="sr-only access-radio"
+				type="radio"
+				name="accessMode"
+				value="AUTHENTICATED"
+				checked={mode === 'AUTHENTICATED'}
+				onchange={() => onchange('AUTHENTICATED')}
+			/>
 			<span class="radio-control" aria-hidden="true"></span>
 			<span class="access-option-text">
 				<span class="access-option-title">Autenticado</span>

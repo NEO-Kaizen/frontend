@@ -2,6 +2,28 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const TEXT_PATTERN = /^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/;
 
+// Regras da identidade da plataforma (Card 2 / CONTRATO-BACKEND.md) — fonte
+// única usada pelo service (sanitize), pelo mock e pela store (anti-salvar).
+export const MAX_PLATFORM_NAME_LENGTH = 80;
+
+export const MAX_PROTOCOL_MASK_LENGTH = 40;
+
+export const PROTOCOL_MASK_PATTERN = /^[A-Za-z0-9-]+$/;
+
+export function isValidPlatformName(value: string): boolean {
+	const trimmed = value.trim();
+	return trimmed.length > 0 && trimmed.length <= MAX_PLATFORM_NAME_LENGTH;
+}
+
+export function isValidProtocolMask(value: string): boolean {
+	const trimmed = value.trim();
+	return (
+		trimmed.length > 0 &&
+		trimmed.length <= MAX_PROTOCOL_MASK_LENGTH &&
+		PROTOCOL_MASK_PATTERN.test(trimmed)
+	);
+}
+
 export function isRequired(value: string): boolean {
 	return value.trim().length > 0;
 }

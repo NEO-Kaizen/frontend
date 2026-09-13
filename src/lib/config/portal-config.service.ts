@@ -1,6 +1,12 @@
-import { fetchPortalConfig } from '$lib/config/portal-config.api';
+import { fetchPortalConfig, updatePortalConfig } from '$lib/config/portal-config.api';
 import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
-import type { PortalConfig, SolicitationMode } from '$lib/types/portal-config';
+import { ApiError, type Result } from '$lib/types/result';
+import { isValidPlatformName, isValidProtocolMask } from '$lib/utils/validations';
+import type {
+	PortalConfig,
+	SolicitationMode,
+	UpdatePortalConfigPayload
+} from '$lib/types/portal-config';
 
 // Carrega a configuração do portal com fallback. Nunca joga exceção para o
 // layout: qualquer falha de rede ou valor inválido cai no default local por
@@ -17,14 +23,29 @@ export async function loadPortalConfig(): Promise<PortalConfig> {
 
 const SOLICITATION_MODES: readonly SolicitationMode[] = ['PUBLIC', 'AUTHENTICATED'];
 
+// Persiste atualizações parciais da configuração (PATCH). Valida só a allowlist
+// antes de enviar e sanitiza a resposta do backend; nunca expõe exceção à UI.
+export async function savePortalConfig(
+	payload: UpdatePortalConfigPayload
+): Promise<Result<PortalConfig>> {
+	try {
+		const raw = await updatePortalConfig(payload);
+		return { ok: true, data: sanitizePortalConfig(raw) };
+	} catch (error) {
+		if (error instanceof ApiError) {
+			return {
+				ok: false,
+				error: {
+					status: error.status,
+					message: 'Não foi possível salvar as configurações.'
+				}
+			};
+		}
+		return { ok: false, error: { message: 'Não foi possível conectar ao servidor.' } };
+	}
+}
+
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
-
-const MAX_PLATFORM_NAME_LENGTH = 80;
-
-// Prefixo de protocolo: apenas o primeiro bloco, com caracteres seguros de
-// exibição (letras/dígitos/hífen). Sem espaços ou símbolos arbitrários.
-const PROTOCOL_MASK = /^[A-Za-z0-9-]+$/;
-const MAX_PROTOCOL_MASK_LENGTH = 40;
 
 // Validação allowlist — apenas as chaves do contrato são lidas; nenhum
 // HTML/CSS/JS vindo da API é aceito (apenas strings tipadas com formato válido).
@@ -67,9 +88,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function sanitizePlatformName(value: unknown): string {
 	const trimmed = typeof value === 'string' ? value.trim() : '';
-	return trimmed.length > 0 && trimmed.length <= MAX_PLATFORM_NAME_LENGTH
-		? trimmed
-		: DEFAULT_PORTAL_CONFIG.platformName;
+	return isValidPlatformName(trimmed) ? trimmed : DEFAULT_PORTAL_CONFIG.platformName;
 }
 
 function sanitizeSolicitationMode(value: unknown): SolicitationMode {
@@ -80,11 +99,7 @@ function sanitizeSolicitationMode(value: unknown): SolicitationMode {
 
 function sanitizeProtocolMask(value: unknown): string {
 	const trimmed = typeof value === 'string' ? value.trim() : '';
-	return trimmed.length > 0 &&
-		trimmed.length <= MAX_PROTOCOL_MASK_LENGTH &&
-		PROTOCOL_MASK.test(trimmed)
-		? trimmed
-		: DEFAULT_PORTAL_CONFIG.protocolMask;
+	return isValidProtocolMask(trimmed) ? trimmed : DEFAULT_PORTAL_CONFIG.protocolMask;
 }
 
 function sanitizeHexColor(value: unknown, fallback: string): string {

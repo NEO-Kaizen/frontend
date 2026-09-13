@@ -35,3 +35,12 @@ export interface PortalConfig {
 	theme: PortalThemeTokens;
 	assets: PortalAssets;
 }
+
+// Campos editáveis pela tela de configurações — allowlist que cresce conforme
+// novos cards entram em escopo (ver CONTRATO-BACKEND.md). O serviço só aceita
+// essas chaves no payload de atualização; o backend permanece a autoridade.
+export type EditablePortalConfigFields = 'solicitationMode' | 'platformName' | 'protocolMask';
+
+// Payload parcial de atualização (PATCH /portal-config) — apenas campos
+// da allowlist acima, enviados somente quando alterados.
+export type UpdatePortalConfigPayload = Partial<Pick<PortalConfig, EditablePortalConfigFields>>;
