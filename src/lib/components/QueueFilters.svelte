@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Button from './Button.svelte';
+	import FilterSelect from './FilterSelect.svelte';
 	import Icon from './Icon.svelte';
 
 	type FilterOption = {
@@ -40,57 +41,35 @@
 
 <div class="queue-filters">
 	<div class="filters">
-		<div class="filter-control">
-			<Icon iconName="filterList" iconSize="md" />
+		<FilterSelect
+			icon="filterList"
+			label="Status:"
+			ariaLabel="Filtrar por status"
+			value={status}
+			options={statusOptions}
+			clearValue="all"
+			onchange={(next) => onFilterChange({ status: next, priority, assignee })}
+		/>
 
-			<span class="filter-label">Status:</span>
+		<FilterSelect
+			icon="filterList"
+			label="Prioridade:"
+			ariaLabel="Filtrar por prioridade"
+			value={priority}
+			options={priorityOptions}
+			clearValue="all"
+			onchange={(next) => onFilterChange({ status, priority: next, assignee })}
+		/>
 
-			<select
-				name="status"
-				aria-label="Filtrar por status"
-				value={status}
-				onchange={(event) =>
-					onFilterChange({ status: event.currentTarget.value, priority, assignee })}
-			>
-				{#each statusOptions as option (option.value)}
-					<option value={option.value}>{option.label}</option>
-				{/each}
-			</select>
-		</div>
-
-		<div class="filter-control">
-			<Icon iconName="filterList" iconSize="md" />
-
-			<span class="filter-label">Prioridade:</span>
-
-			<select
-				name="priority"
-				aria-label="Filtrar por prioridade"
-				value={priority}
-				onchange={(event) =>
-					onFilterChange({ status, priority: event.currentTarget.value, assignee })}
-			>
-				{#each priorityOptions as option (option.value)}
-					<option value={option.value}>{option.label}</option>
-				{/each}
-			</select>
-		</div>
-
-		<div class="filter-control">
-			<span class="filter-label">Responsável:</span>
-
-			<select
-				name="assignee"
-				aria-label="Filtrar por responsável"
-				value={assignee}
-				onchange={(event) =>
-					onFilterChange({ status, priority, assignee: event.currentTarget.value })}
-			>
-				{#each assigneeOptions as option (option.value)}
-					<option value={option.value}>{option.label}</option>
-				{/each}
-			</select>
-		</div>
+		<FilterSelect
+			icon="filterList"
+			label="Responsável:"
+			ariaLabel="Filtrar por responsável"
+			value={assignee}
+			options={assigneeOptions}
+			clearValue="all"
+			onchange={(next) => onFilterChange({ status, priority, assignee: next })}
+		/>
 	</div>
 
 	<div class="clear-action">
@@ -129,53 +108,8 @@
 		gap: var(--spacing-sm);
 	}
 
-	.filter-control {
-		display: flex;
-		align-items: center;
-		gap: var(--spacing-xs);
-		width: 250px;
-		min-width: 250px;
-		padding: var(--spacing-sm);
-		box-sizing: border-box;
-		border: var(--border-default);
-		border-radius: var(--radius-sm);
-		background-color: var(--white);
-	}
-
-	.filter-control :global(.material-symbols-outlined) {
-		flex-shrink: 0;
-		color: var(--primary-color);
-	}
-
-	.filter-label {
-		flex-shrink: 0;
-		font: var(--paragrafo);
-	}
-
-	select {
-		flex: 1;
-		min-width: 0;
-		padding: 0;
-		border: 0;
-		background-color: transparent;
-		color: var(--rich-black);
-		font: var(--paragrafo);
-		outline: none;
-		cursor: pointer;
-	}
-
-	select:focus-visible {
-		outline: 1px solid var(--secondary-color);
-		outline-offset: 2px;
-	}
 	.clear-action {
 		flex-shrink: 0;
-	}
-
-	.clear-action :global(button) {
-		background-color: rgba(0, 51, 153, 0.08);
-		color: var(--primary-color);
-		border-color: transparent;
 	}
 
 	.search-chip {
@@ -219,21 +153,11 @@
 		.filters {
 			flex-wrap: wrap;
 		}
-
-		.filter-control {
-			flex: 1 1 250px;
-		}
 	}
 
 	@media (max-width: 560px) {
 		.filters {
 			flex-direction: column;
-		}
-
-		.filter-control {
-			width: 100%;
-			min-width: 0;
-			flex-basis: auto;
 		}
 	}
 </style>
