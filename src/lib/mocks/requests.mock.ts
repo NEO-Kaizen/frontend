@@ -516,7 +516,7 @@ function registerCreatedRequest(protocol: string, payload: CreateRequestPayload)
 		protocol,
 		status: 'Solicitação enviada',
 		priority: null,
-		prioritization: { score: null, maxScore: 25, label: null },
+		prioritization: { score: null, maxScore: 50, label: null },
 		assignee: null,
 		correctionAlert: null,
 		requester: payload.requester,
@@ -718,7 +718,7 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 		protocol: 'MAAT-6N2W-8VBM',
 		status: 'Concluído',
 		priority: 'Alta',
-		prioritization: { score: 18, maxScore: 25, label: 'Alta' },
+		prioritization: { score: 18, maxScore: 50, label: 'Alta' },
 		assignee: { name: 'Fernando Alves', email: 'fernando.alves@maat.com.br' },
 		correctionAlert: { count: 2, message: 'Alteração respondida pelo solicitante (2 campos)' },
 		requester: {
@@ -792,7 +792,7 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 		protocol: 'MAAT-8K3P-9X2M',
 		status: 'Em triagem',
 		priority: null,
-		prioritization: { score: null, maxScore: 25, label: null },
+		prioritization: { score: null, maxScore: 50, label: null },
 		assignee: { name: 'Fernando Alves', email: 'fernando.alves@maat.com.br' },
 		correctionAlert: null,
 		requester: {
@@ -845,7 +845,7 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 		protocol: 'MAAT-7C4F-1NXR',
 		status: 'Pendente de informações',
 		priority: null,
-		prioritization: { score: null, maxScore: 25, label: null },
+		prioritization: { score: null, maxScore: 50, label: null },
 		assignee: { name: 'Carlos Mendes', email: 'carlos.mendes@maat.com.br' },
 		correctionAlert: null,
 		requester: {
