@@ -11,6 +11,6 @@ export const MOCK_DOMAINS =
 	({
 		auth: true,
 		request: true,
-		users: true
+		users: true,
 		prioritization: true
 	} as const);

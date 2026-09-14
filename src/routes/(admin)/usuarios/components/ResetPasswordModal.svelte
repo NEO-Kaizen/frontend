@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Button from '$lib/components/Button.svelte';
+	import CopyButton from '$lib/components/CopyButton.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import { resetUserPassword } from '$lib/services/user.service';
@@ -42,6 +43,7 @@
 			</span>
 			<label for="temporary-password">Senha temporária de {user.name}</label>
 			<p id="temporary-password" class="temporary-password">{temporaryPassword}</p>
+			<CopyButton text={temporaryPassword} />
 			<p class="warning">Guarde esta senha. Ela não será exibida novamente.</p>
 		</div>
 

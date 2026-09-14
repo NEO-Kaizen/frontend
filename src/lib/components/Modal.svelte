@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import Icon from './Icon.svelte';
 	import type { Snippet } from 'svelte';
 
@@ -12,37 +13,41 @@
 
 	const uid = $props.id();
 
+	let shellElement = $state<HTMLElement | null>(null);
+	let previouslyFocused = $state<HTMLElement | null>(null);
+
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape') {
 			onclose();
 		}
 	}
 
+	onMount(() => {
+		previouslyFocused = document.activeElement as HTMLElement;
+		shellElement?.focus();
+	});
+
 	$effect(() => {
 		document.body.style.overflow = 'hidden';
 		return () => {
 			document.body.style.overflow = '';
+			previouslyFocused?.focus();
 		};
 	});
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
 
-<div
-	class="modal-overlay"
-	role="presentation"
-	tabindex="-1"
-	onclick={onclose}
-	onkeydown={handleKeydown}
->
+<div class="modal-overlay" role="presentation" tabindex="-1" onclick={onclose}>
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<div
+		bind:this={shellElement}
 		class="modal-shell"
 		role="dialog"
 		aria-modal="true"
 		tabindex="-1"
 		aria-labelledby={`modal-title-${uid}`}
 		onclick={(event) => event.stopPropagation()}
-		onkeydown={handleKeydown}
 	>
 		<header class="modal-header">
 			<h3 id={`modal-title-${uid}`}>{title}</h3>

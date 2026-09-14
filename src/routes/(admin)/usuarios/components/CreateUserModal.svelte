@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Button from '$lib/components/Button.svelte';
+	import CopyButton from '$lib/components/CopyButton.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import type { CreateUserFormData, CreateUserResponse } from '$lib/types/user';
@@ -98,6 +99,8 @@
 				<strong class="temporary-password">
 					{temporaryPassword}
 				</strong>
+
+				<CopyButton text={temporaryPassword} />
 			</div>
 
 			<div class="modal-actions">
