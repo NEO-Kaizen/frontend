@@ -51,7 +51,7 @@
 	);
 	let priorityLabel = $derived(solicitation.prioritization.label ?? 'Prioridade a ser calculada');
 	let isPriorityCalculated = $derived(solicitation.prioritization.score !== null);
-	let maxScore = $derived(solicitation.prioritization.maxScore ?? 25);
+	let maxScore = $derived(solicitation.prioritization.maxScore ?? 50);
 
 	type TabItem = {
 		id: string;
