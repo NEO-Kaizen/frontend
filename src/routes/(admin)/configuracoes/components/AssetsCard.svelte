@@ -1,8 +1,22 @@
 <script lang="ts">
-	import avatarUrl from '$lib/assets/avatar-default.svg';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import { settingsState } from '$lib/config/settings.svelte';
+	import type { AssetKey } from '$lib/types/portal-config';
+	import { ASSET_FILE_RULES } from '$lib/utils/validations';
 	import SettingsCard from './SettingsCard.svelte';
+
+	let logoInput: HTMLInputElement;
+	let avatarInput: HTMLInputElement;
+
+	function handleAssetChange(event: Event, asset: AssetKey) {
+		const input = event.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		if (file) {
+			settingsState.changeAsset(asset, file);
+		}
+		input.value = '';
+	}
 </script>
 
 <SettingsCard
@@ -18,21 +32,30 @@
 			</div>
 
 			<div class="asset-content">
-				<div class="logo-box" aria-hidden="true">
-					<span>NEO</span>
-				</div>
+				<img
+					class="asset-preview asset-preview-logo"
+					src={settingsState.draft.assets.logoUrl}
+					alt="Prévia do logo do header"
+				/>
 
 				<div class="asset-actions">
-					<Button variant="outline-neutral">
+					<Button
+						variant="outline-neutral"
+						loading={settingsState.uploadingAsset === 'logoUrl'}
+						disabled={settingsState.saving}
+						onclick={() => logoInput.click()}
+					>
 						<Icon iconName="edit" iconSize="sm" />
 						Alterar imagem
 					</Button>
 					<p class="asset-info">Formatos: PNG, SVG | Tamanho máx.: 2MB</p>
 				</div>
 
-				<div class="logo-box logo-box-current" aria-hidden="true">
-					<span>NEO</span>
-				</div>
+				<img
+					class="asset-preview asset-preview-current"
+					src={settingsState.pristine.assets.logoUrl}
+					alt="Logo do header atual"
+				/>
 			</div>
 		</div>
 
@@ -43,20 +66,53 @@
 			</div>
 
 			<div class="asset-content">
-				<img class="avatar-img" src={avatarUrl} alt="" />
+				<img
+					class="asset-preview asset-preview-avatar"
+					src={settingsState.draft.assets.avatarUrl}
+					alt="Prévia do avatar padrão"
+				/>
 
 				<div class="asset-actions">
-					<Button variant="outline-neutral">
+					<Button
+						variant="outline-neutral"
+						loading={settingsState.uploadingAsset === 'avatarUrl'}
+						disabled={settingsState.saving}
+						onclick={() => avatarInput.click()}
+					>
 						<Icon iconName="edit" iconSize="sm" />
 						Alterar imagem
 					</Button>
 					<p class="asset-info">Formatos: JPG, PNG | Tamanho máx.: 2MB</p>
 				</div>
 
-				<img class="avatar-current" src={avatarUrl} alt="" />
+				<img
+					class="asset-preview asset-preview-avatar-current"
+					src={settingsState.pristine.assets.avatarUrl}
+					alt="Avatar padrão atual"
+				/>
 			</div>
 		</div>
 	</div>
+
+	<input
+		class="sr-only"
+		bind:this={logoInput}
+		type="file"
+		accept={ASSET_FILE_RULES.logoUrl.extensions.join(',')}
+		tabindex="-1"
+		aria-label="Alterar logo do header"
+		onchange={(event) => handleAssetChange(event, 'logoUrl')}
+	/>
+
+	<input
+		class="sr-only"
+		bind:this={avatarInput}
+		type="file"
+		accept={ASSET_FILE_RULES.avatarUrl.extensions.join(',')}
+		tabindex="-1"
+		aria-label="Alterar avatar padrão"
+		onchange={(event) => handleAssetChange(event, 'avatarUrl')}
+	/>
 </SettingsCard>
 
 <style>
@@ -99,42 +155,39 @@
 		gap: var(--spacing-md);
 	}
 
-	.logo-box {
-		display: flex;
-		align-items: center;
-		justify-content: center;
+	.asset-preview {
 		flex-shrink: 0;
 		border: var(--border-default);
 		border-radius: var(--radius-sm);
+		background-color: var(--white);
 	}
 
-	.logo-box {
+	.asset-preview-logo {
 		width: 80px;
 		height: 56px;
-		font: var(--label);
-		font-size: 16px;
-		color: var(--primary-color);
+		object-fit: contain;
 	}
 
-	.logo-box-current {
-		font-size: 12px;
+	.asset-preview-avatar,
+	.asset-preview-avatar-current {
+		border-radius: 100%;
+		object-fit: cover;
 	}
 
-	.avatar-img {
+	.asset-preview-avatar {
 		width: 56px;
 		height: 56px;
-		border-radius: 100%;
-		object-fit: cover;
 	}
 
-	.avatar-current {
+	.asset-preview-current {
+		width: 56px;
+		height: 40px;
+		object-fit: contain;
+	}
+
+	.asset-preview-avatar-current {
 		width: 40px;
 		height: 40px;
-		border-radius: 100%;
-		border: var(--border-default);
-		background-color: var(--white);
-		object-fit: cover;
-		flex-shrink: 0;
 	}
 
 	.asset-actions {
