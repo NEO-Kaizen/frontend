@@ -4,18 +4,21 @@
 	import Input from '$lib/components/Input.svelte';
 	import NotFoundState from '$lib/components/NotFoundState.svelte';
 	import { createUser, listUsers, updateUserStatus } from '$lib/services/user.service';
-	import type { AdminUser, CreateUserData, UserAction, UserStatus } from '$lib/types/user';
+	import type {
+		AdminUser,
+		CreateUserFormData,
+		CreateUserResponse,
+		UserAction,
+		UserStatus
+	} from '$lib/types/user';
 	import ConfirmActionModal from './components/ConfirmActionModal.svelte';
 	import CreateUserModal from './components/CreateUserModal.svelte';
 	import ResetPasswordModal from './components/ResetPasswordModal.svelte';
 	import UsersTable from './components/UsersTable.svelte';
+	import Icon from '$lib/components/Icon.svelte';
 
 	const PAGE_SIZE = 10;
 
-	/*
-	 * Somente a aba de Solicitantes está funcional
-	 * no escopo atual da task.
-	 */
 	const tabs = [
 		{
 			id: 'todos',
@@ -44,29 +47,21 @@
 		}
 	] as const;
 
-	/*
-	 * Dados enviados pelo modal.
-	 *
-	 * O componente não gera senha.
-	 * A senha temporária deve vir do service/API/mock.
-	 */
-	type CreateUserData = {
-		name: string;
-		email: string;
-	};
-
 	type PendingAction = {
 		kind: UserAction;
 		user: AdminUser;
 	};
+	type UserStats = {
+		total: number;
+		active: number;
+		pending: number;
+		admins: number;
+	};
+
+	let stats = $state<UserStats | null>(null);
 
 	let activeTab = $state('solicitantes');
-
 	let users = $state<AdminUser[]>([]);
-
-	/* =========================
-	   LISTAGEM
-	========================= */
 
 	let isLoading = $state(false);
 	let loadError = $state('');
@@ -75,41 +70,19 @@
 	let currentPage = $state(1);
 	let totalPages = $state(0);
 
-	/* =========================
-	   PESQUISA
-	========================= */
-
 	let searchQuery = $state('');
 	let searchTimer: ReturnType<typeof setTimeout> | undefined;
 
-	/* =========================
-	   FEEDBACK
-	========================= */
-
 	let successMessage = $state('');
-
 	let successTimer: ReturnType<typeof setTimeout> | undefined;
-
-	/* =========================
-	   CRIAÇÃO
-	========================= */
 
 	let isCreateOpen = $state(false);
 	let isCreating = $state(false);
 	let createError = $state('');
 
-	/* =========================
-	   AÇÕES
-	========================= */
-
 	let pendingAction = $state<PendingAction>();
-
 	let isActing = $state(false);
 	let actionError = $state('');
-
-	/* =========================
-	   PAGINAÇÃO
-	========================= */
 
 	let startItem = $derived(total === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1);
 
@@ -131,10 +104,6 @@
 		return [1, '...', currentPage, '...', totalPages];
 	});
 
-	/* =========================
-	   CARREGAMENTO
-	========================= */
-
 	async function loadUsers(page = currentPage, search = searchQuery) {
 		isLoading = true;
 		loadError = '';
@@ -151,8 +120,7 @@
 			users = result.data.data;
 			total = result.data.total;
 			currentPage = result.data.page;
-
-			totalPages = result.data.totalPages || Math.ceil(result.data.total / PAGE_SIZE);
+			totalPages = result.data.totalPages;
 
 			return;
 		}
@@ -169,10 +137,6 @@
 		loadUsers(1, '');
 	});
 
-	/* =========================
-	   PESQUISA
-	========================= */
-
 	function handleSearchInput() {
 		clearTimeout(searchTimer);
 
@@ -181,18 +145,8 @@
 		}, 350);
 	}
 
-	/* =========================
-	   TROCA DE PÁGINA
-	========================= */
-
 	function handlePageChange(page: number) {
-		if (page < 1) return;
-
-		if (page > totalPages) {
-			return;
-		}
-
-		if (page === currentPage) {
+		if (page < 1 || page > totalPages || page === currentPage) {
 			return;
 		}
 
@@ -207,19 +161,13 @@
 		handlePageChange(currentPage + 1);
 	}
 
-	/* =========================
-	   CRIAÇÃO
-	========================= */
-
-	async function handleCreate(data: CreateUserData) {
+	async function handleCreate(data: CreateUserFormData): Promise<CreateUserResponse> {
 		isCreating = true;
 		createError = '';
 
 		const result = await createUser({
 			name: data.name.trim(),
-			email: data.email.trim(),
-			role: 'Solicitante',
-			status: 'Ativo'
+			email: data.email.trim()
 		});
 
 		isCreating = false;
@@ -231,7 +179,7 @@
 
 		searchQuery = '';
 
-		showSuccess(`Solicitante "${result.data.user.name}" cadastrado com sucesso.`);
+		showSuccess(`Solicitante "${result.data.fullName}" cadastrado com sucesso.`);
 
 		await loadUsers(1, '');
 
@@ -243,10 +191,6 @@
 		createError = '';
 	}
 
-	/* =========================
-	   MENSAGEM DE SUCESSO
-	========================= */
-
 	function showSuccess(message: string) {
 		clearTimeout(successTimer);
 
@@ -256,10 +200,6 @@
 			successMessage = '';
 		}, 4000);
 	}
-
-	/* =========================
-	   AÇÕES
-	========================= */
 
 	function handleAction(user: AdminUser, action: UserAction) {
 		actionError = '';
@@ -284,7 +224,6 @@
 
 		if (!result.ok) {
 			actionError = result.error.message;
-
 			return;
 		}
 
@@ -303,7 +242,6 @@
 
 	function closePendingAction() {
 		pendingAction = undefined;
-
 		actionError = '';
 	}
 </script>
@@ -328,29 +266,13 @@
 
 		<div class="stat-card">
 			<div class="stat-icon icon-users">
-				<svg
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					aria-hidden="true"
-				>
-					<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-
-					<circle cx="9" cy="7" r="4"></circle>
-
-					<path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
-
-					<path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-				</svg>
+				<Icon iconName="group" iconSize="md" />
 			</div>
 
 			<div class="stat-content">
 				<span class="stat-label"> TOTAL DE USUÁRIOS </span>
 
-				<strong> 1,284 </strong>
+				<strong>{stats?.total ?? '—'}</strong>
 			</div>
 		</div>
 
@@ -358,27 +280,13 @@
 
 		<div class="stat-card">
 			<div class="stat-icon icon-active">
-				<svg
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					aria-hidden="true"
-				>
-					<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-
-					<circle cx="9" cy="7" r="4"></circle>
-
-					<path d="m16 11 2 2 4-4"></path>
-				</svg>
+				<Icon iconName="userApproved" iconSize="md" />
 			</div>
 
 			<div class="stat-content">
 				<span class="stat-label"> ATIVOS AGORA </span>
 
-				<strong> 842 </strong>
+				<strong>{stats?.active ?? '—'}</strong>
 			</div>
 		</div>
 
@@ -386,29 +294,13 @@
 
 		<div class="stat-card">
 			<div class="stat-icon icon-pending">
-				<svg
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					aria-hidden="true"
-				>
-					<circle cx="12" cy="12" r="9"></circle>
-
-					<circle cx="8" cy="12" r="1"></circle>
-
-					<circle cx="12" cy="12" r="1"></circle>
-
-					<circle cx="16" cy="12" r="1"></circle>
-				</svg>
+				<Icon iconName="pending" iconSize="md" />
 			</div>
 
 			<div class="stat-content">
 				<span class="stat-label"> PENDENTES </span>
 
-				<strong> 18 </strong>
+				<strong>{stats?.pending ?? '—'}</strong>
 			</div>
 		</div>
 
@@ -416,25 +308,13 @@
 
 		<div class="stat-card">
 			<div class="stat-icon icon-admin">
-				<svg
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					aria-hidden="true"
-				>
-					<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-
-					<path d="M12 8v8"></path>
-				</svg>
+				<Icon iconName="adminPanel" iconSize="md" />
 			</div>
 
 			<div class="stat-content">
 				<span class="stat-label"> PERFIL ADMIN </span>
 
-				<strong> 42 </strong>
+				<strong>{stats?.admins ?? '—'}</strong>
 			</div>
 		</div>
 	</section>
@@ -475,25 +355,7 @@
 					isCreateOpen = true;
 				}}
 			>
-				<svg
-					class="add-user-icon"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					aria-hidden="true"
-				>
-					<path d="M15 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-
-					<circle cx="8" cy="7" r="4"></circle>
-
-					<path d="M19 8v6"></path>
-
-					<path d="M16 11h6"></path>
-				</svg>
-
+				<Icon iconName="addUser" iconSize="sm" />
 				Adicionar Usuário
 			</Button>
 		</div>
@@ -732,11 +594,6 @@
 		border-radius: var(--radius-sm);
 	}
 
-	.stat-icon svg {
-		width: 20px;
-		height: 20px;
-	}
-
 	.icon-users {
 		background-color: var(--status-blue-bg);
 
@@ -853,13 +710,6 @@
 		width: 100%;
 		max-width: none;
 		min-width: 0;
-	}
-
-	.add-user-icon {
-		width: 18px;
-		height: 18px;
-
-		flex-shrink: 0;
 	}
 
 	/* =========================

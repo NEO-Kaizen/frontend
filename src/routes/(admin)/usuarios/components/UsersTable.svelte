@@ -13,9 +13,9 @@
 
 	let { users, onaction }: Props = $props();
 
-	let openMenuId = $state<number | null>(null);
+	let openMenuId = $state<string | null>(null);
 
-	function toggleMenu(userId: number) {
+	function toggleMenu(userId: string) {
 		openMenuId = openMenuId === userId ? null : userId;
 	}
 

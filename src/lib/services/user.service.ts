@@ -10,12 +10,13 @@ import { ApiError, type Result } from '$lib/types/result';
 
 import type {
 	AdminUser,
-	CreateUserPayload,
+	CreateUserFormData,
 	CreateUserResponse,
 	ListUsersQuery,
 	ResetPasswordResponse,
 	UpdateUserStatusResponse,
-	UserStatus
+	UserStatus,
+	UserSummary
 } from '$lib/types/user';
 
 import { isRequired, isValidEmail, isValidText, PASSWORD_PATTERN } from '$lib/utils/validations';
@@ -24,11 +25,17 @@ export async function listUsers(
 	query: ListUsersQuery
 ): Promise<Result<PaginatedResponse<AdminUser>>> {
 	try {
-		const data = await listUsersApi(query);
+		const response = await listUsersApi({
+			...query,
+			profile: query.profile ?? 'solicitante'
+		});
 
 		return {
 			ok: true,
-			data
+			data: {
+				...response,
+				data: response.data.map(mapUserSummary)
+			}
 		};
 	} catch (error) {
 		if (error instanceof ApiError) {
@@ -36,7 +43,7 @@ export async function listUsers(
 				ok: false,
 				error: {
 					status: error.status,
-					message: 'Não foi possível carregar os usuários.'
+					message: error.message
 				}
 			};
 		}
@@ -50,8 +57,8 @@ export async function listUsers(
 	}
 }
 
-export async function createUser(payload: CreateUserPayload): Promise<Result<CreateUserResponse>> {
-	const validation = validateCreateUser(payload);
+export async function createUser(data: CreateUserFormData): Promise<Result<CreateUserResponse>> {
+	const validation = validateCreateUser(data);
 
 	if (validation) {
 		return {
@@ -61,24 +68,18 @@ export async function createUser(payload: CreateUserPayload): Promise<Result<Cre
 	}
 
 	try {
-		const data = await createUserApi(payload);
+		const response = await createUserApi({
+			fullName: data.name.trim(),
+			email: data.email.trim(),
+			role: 'solicitante'
+		});
 
 		return {
 			ok: true,
-			data
+			data: response
 		};
 	} catch (error) {
 		if (error instanceof ApiError) {
-			if (error.status === 409) {
-				return {
-					ok: false,
-					error: {
-						status: error.status,
-						message: 'E-mail já cadastrado.'
-					}
-				};
-			}
-
 			return {
 				ok: false,
 				error: {
@@ -98,15 +99,15 @@ export async function createUser(payload: CreateUserPayload): Promise<Result<Cre
 }
 
 export async function updateUserStatus(
-	id: number,
+	id: string,
 	status: UserStatus
 ): Promise<Result<UpdateUserStatusResponse>> {
 	try {
-		const data = await updateUserStatusApi(id, status);
+		const response = await updateUserStatusApi(id, status === 'Ativo');
 
 		return {
 			ok: true,
-			data
+			data: response
 		};
 	} catch (error) {
 		if (error instanceof ApiError) {
@@ -114,7 +115,7 @@ export async function updateUserStatus(
 				ok: false,
 				error: {
 					status: error.status,
-					message: 'Não foi possível atualizar o usuário.'
+					message: error.message
 				}
 			};
 		}
@@ -128,13 +129,13 @@ export async function updateUserStatus(
 	}
 }
 
-export async function resetUserPassword(id: number): Promise<Result<ResetPasswordResponse>> {
+export async function resetUserPassword(id: string): Promise<Result<ResetPasswordResponse>> {
 	try {
-		const data = await resetUserPasswordApi(id);
+		const response = await resetUserPasswordApi(id);
 
 		return {
 			ok: true,
-			data
+			data: response
 		};
 	} catch (error) {
 		if (error instanceof ApiError) {
@@ -142,7 +143,7 @@ export async function resetUserPassword(id: number): Promise<Result<ResetPasswor
 				ok: false,
 				error: {
 					status: error.status,
-					message: 'Não foi possível redefinir a senha.'
+					message: error.message
 				}
 			};
 		}
@@ -156,22 +157,49 @@ export async function resetUserPassword(id: number): Promise<Result<ResetPasswor
 	}
 }
 
-function validateCreateUser(payload: CreateUserPayload): { message: string } | null {
-	if (!isRequired(payload.name) || !isValidText(payload.name)) {
+function mapUserSummary(user: UserSummary): AdminUser {
+	return {
+		id: user.id,
+		name: user.fullName,
+		email: user.email,
+		role: user.profile,
+		status: user.isActive ? 'Ativo' : 'Inativo',
+		mustChangePassword: user.mustChangePassword,
+		createdAt: user.createdAt
+	};
+}
+
+function validateCreateUser(data: CreateUserFormData): { message: string } | null {
+	const name = data.name.trim();
+	const email = data.email.trim();
+
+	if (!isRequired(name) || !isValidText(name)) {
 		return {
 			message: 'Informe um nome válido.'
 		};
 	}
 
-	if (!isRequired(payload.email)) {
+	if (name.length > 150) {
+		return {
+			message: 'O nome deve ter no máximo 150 caracteres.'
+		};
+	}
+
+	if (!isRequired(email)) {
 		return {
 			message: 'Informe o e-mail.'
 		};
 	}
 
-	if (!isValidEmail(payload.email)) {
+	if (!isValidEmail(email)) {
 		return {
 			message: 'E-mail inválido.'
+		};
+	}
+
+	if (email.length > 254) {
+		return {
+			message: 'O e-mail deve ter no máximo 254 caracteres.'
 		};
 	}
 

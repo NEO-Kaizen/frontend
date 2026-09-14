@@ -1,26 +1,30 @@
 import { apiClient } from './client';
 import { MOCK_DOMAINS } from '$lib/mocks';
+
 import type { PaginatedResponse } from '$lib/types/request';
+
 import type {
-	AdminUser,
 	CreateUserPayload,
 	CreateUserResponse,
 	ListUsersQuery,
 	ResetPasswordResponse,
 	UpdateUserStatusResponse,
-	UserStatus
+	UserSummary
 } from '$lib/types/user';
 
 const USERS_PATH = '/users';
 
-export async function listUsers(query: ListUsersQuery): Promise<PaginatedResponse<AdminUser>> {
+export async function listUsers(query: ListUsersQuery): Promise<PaginatedResponse<UserSummary>> {
 	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.users) {
 		const { listUsersMock } = await import('$lib/mocks/users.mock');
-
 		return listUsersMock(query);
 	}
 
 	const params = new URLSearchParams();
+
+	if (query.profile) {
+		params.set('profile', query.profile);
+	}
 
 	if (query.search) {
 		params.set('search', query.search);
@@ -38,13 +42,12 @@ export async function listUsers(query: ListUsersQuery): Promise<PaginatedRespons
 
 	const path = queryString ? `${USERS_PATH}?${queryString}` : USERS_PATH;
 
-	return apiClient<PaginatedResponse<AdminUser>>(path);
+	return apiClient<PaginatedResponse<UserSummary>>(path);
 }
 
 export async function createUser(payload: CreateUserPayload): Promise<CreateUserResponse> {
 	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.users) {
 		const { createUserMock } = await import('$lib/mocks/users.mock');
-
 		return createUserMock(payload);
 	}
 
@@ -55,25 +58,25 @@ export async function createUser(payload: CreateUserPayload): Promise<CreateUser
 }
 
 export async function updateUserStatus(
-	id: number,
-	status: UserStatus
+	id: string,
+	isActive: boolean
 ): Promise<UpdateUserStatusResponse> {
 	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.users) {
 		const { updateUserStatusMock } = await import('$lib/mocks/users.mock');
-
-		return updateUserStatusMock(id, status);
+		return updateUserStatusMock(id, isActive);
 	}
 
-	return apiClient<UpdateUserStatusResponse>(`${USERS_PATH}/${id}`, {
+	return apiClient<UpdateUserStatusResponse>(`${USERS_PATH}/${id}/status`, {
 		method: 'PATCH',
-		body: JSON.stringify({ status })
+		body: JSON.stringify({
+			isActive
+		})
 	});
 }
 
-export async function resetUserPassword(id: number): Promise<ResetPasswordResponse> {
+export async function resetUserPassword(id: string): Promise<ResetPasswordResponse> {
 	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.users) {
 		const { resetUserPasswordMock } = await import('$lib/mocks/users.mock');
-
 		return resetUserPasswordMock(id);
 	}
 
