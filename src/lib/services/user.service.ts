@@ -57,8 +57,8 @@ export async function listUsers(
 	}
 }
 
-export async function getUserStats(): Promise<UserStats> {
-	return getUserStatsApi();
+export async function getUserStats(fetchImpl?: typeof fetch): Promise<UserStats> {
+	return getUserStatsApi(fetchImpl);
 }
 
 export async function createUser(data: CreateUserFormData): Promise<Result<CreateUserResponse>> {

@@ -9,7 +9,7 @@ export const load: PageServerLoad = async ({ fetch, locals, url }) => {
 
 	const [result, stats] = await Promise.all([
 		listUsers({ page: 1, pageSize: PAGE_SIZE }, fetch),
-		getUserStats()
+		getUserStats(fetch)
 	]);
 
 	return { result, stats, pageSize: PAGE_SIZE };
