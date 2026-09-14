@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { afterNavigate, goto, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import Icon from '$lib/components/Icon.svelte';
 	import type { InternalRequestDetail } from '$lib/types/request';
@@ -12,6 +12,8 @@
 	let { solicitation }: Props = $props();
 
 	type SpecTabId = 'informacoes' | 'triagem' | 'mapeamento' | 'historico' | 'observacoes';
+
+	const DEFAULT_TAB_ID: SpecTabId = 'informacoes';
 
 	type SpecTabDefinition = {
 		id: SpecTabId;
@@ -58,16 +60,43 @@
 		if (tab && tab.enabled) {
 			return tab.id;
 		}
-		return 'informacoes';
+		return DEFAULT_TAB_ID;
 	}
 
 	const activeTab = $derived(resolveActiveTab(page.url.searchParams.get('aba')));
 
 	const activeTabLabel = $derived(
-		SPEC_TABS.find((tab) => tab.id === activeTab)?.label ?? 'Informações'
+		SPEC_TABS.find((tab) => tab.id === activeTab)?.label ??
+			SPEC_TABS.find((tab) => tab.id === DEFAULT_TAB_ID)?.label ??
+			DEFAULT_TAB_ID
 	);
 
+	// Fallback de deep-link: ?aba= inválido ou de aba desabilitada é limpo da
+	// URL (replaceState shallow — sem rerodar loads), mantendo o conteúdo na aba
+	// padrão. O conteúdo é renderizado via fallback no SSR; aqui só o address bar
+	// é corrigido, sem flash de conteúdo.
+	afterNavigate(({ from }) => {
+		const aba = page.url.searchParams.get('aba');
+		if (aba && aba !== activeTab) {
+			const url = new URL(page.url);
+			url.searchParams.delete('aba');
+			const cleanUrl = `${url.pathname}${url.search}`;
+			if (from === null) {
+				// Primeiro mount: o router do SvelteKit ainda não está inicializado,
+				// então replaceState($app/navigation) lança. history.replaceState
+				// nativo não navega nem dispara loads — só corrige o address bar.
+				history.replaceState({}, '', cleanUrl);
+			} else {
+				// Plugin não aceita URL sem resolve() (eslint-plugin-svelte#1327);
+				// o pathname atual já contém o protocolo da rota.
+				// eslint-disable-next-line svelte/no-navigation-without-resolve
+				replaceState(cleanUrl, {});
+			}
+		}
+	});
+
 	// Botão Editar visível apenas para Administrador ou o responsável pela triagem.
+	// Regra definitiva é decidida pela issue #121 (modo de edição).
 	// TODO: comparar por `assignee.id` quando o contrato do backend fornecer o
 	// id do responsável (hoje só há email no mock/contrato).
 	const currentUser = $derived(page.data.user);
@@ -98,8 +127,10 @@
 			<button
 				type="button"
 				role="tab"
+				id={`spec-tab-${tab.id}`}
 				aria-selected={activeTab === tab.id}
 				aria-disabled={!tab.enabled ? 'true' : undefined}
+				aria-controls="spec-panel"
 				disabled={!tab.enabled}
 				class="tab-item"
 				class:active={activeTab === tab.id}
@@ -119,8 +150,10 @@
 			<button
 				type="button"
 				role="tab"
+				id="spec-tab-editar"
 				aria-selected={false}
 				aria-disabled="true"
+				aria-controls="spec-panel"
 				disabled
 				class="tab-item disabled"
 			>
@@ -131,7 +164,7 @@
 	{/if}
 </div>
 
-<div class="tab-content">
+<div id="spec-panel" class="tab-content" role="tabpanel" aria-labelledby={`spec-tab-${activeTab}`}>
 	{#if activeTab === 'informacoes'}
 		<InfoSection {solicitation} />
 	{:else}
