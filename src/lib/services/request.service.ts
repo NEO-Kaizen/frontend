@@ -35,10 +35,11 @@ const ALLOWED_MIME_TYPES = [
 ];
 
 export async function listRequests(
-	query: ListRequestsQuery
+	query: ListRequestsQuery,
+	fetchImpl?: typeof fetch
 ): Promise<Result<PaginatedResponse<RequestSummary>>> {
 	try {
-		const data = await listRequestsApi(query);
+		const data = await listRequestsApi(query, fetchImpl);
 
 		return {
 			ok: true,
@@ -64,9 +65,12 @@ export async function listRequests(
 	}
 }
 
-export async function listQueueRequests(query: QueueQuery): Promise<Result<QueueResponse>> {
+export async function listQueueRequests(
+	query: QueueQuery,
+	fetchImpl?: typeof fetch
+): Promise<Result<QueueResponse>> {
 	try {
-		const data = await listQueueRequestsApi(query);
+		const data = await listQueueRequestsApi(query, fetchImpl);
 
 		return {
 			ok: true,
@@ -92,9 +96,11 @@ export async function listQueueRequests(query: QueueQuery): Promise<Result<Queue
 	}
 }
 
-export async function getQueueMetrics(): Promise<Result<QueueMetricsResponse>> {
+export async function getQueueMetrics(
+	fetchImpl?: typeof fetch
+): Promise<Result<QueueMetricsResponse>> {
 	try {
-		const data = await getQueueMetricsApi();
+		const data = await getQueueMetricsApi(fetchImpl);
 
 		return {
 			ok: true,
@@ -120,9 +126,12 @@ export async function getQueueMetrics(): Promise<Result<QueueMetricsResponse>> {
 	}
 }
 
-export async function getRequestByProtocol(protocol: string): Promise<Result<RequestDetail>> {
+export async function getRequestByProtocol(
+	protocol: string,
+	fetchImpl?: typeof fetch
+): Promise<Result<RequestDetail>> {
 	try {
-		const data = await getRequestByProtocolApi(protocol);
+		const data = await getRequestByProtocolApi(protocol, fetchImpl);
 
 		return {
 			ok: true,
@@ -150,9 +159,12 @@ export async function getRequestByProtocol(protocol: string): Promise<Result<Req
 	}
 }
 
-export async function getInternalRequest(protocol: string): Promise<Result<InternalRequestDetail>> {
+export async function getInternalRequest(
+	protocol: string,
+	fetchImpl?: typeof fetch
+): Promise<Result<InternalRequestDetail>> {
 	try {
-		const data = await getInternalRequestApi(protocol);
+		const data = await getInternalRequestApi(protocol, fetchImpl);
 		return { ok: true, data };
 	} catch (error) {
 		if (error instanceof ApiError) {

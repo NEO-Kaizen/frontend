@@ -331,7 +331,16 @@ A pasta `features/` não precisa ser criada no início. Ela deve ser adotada som
 
 ---
 
-## 14. Regras gerais
+## 14. Dados no SSR, sessão e CORS
+
+- Dado da nossa API em rota renderizada no servidor → `+page.server.ts`/`+layout.server.ts` (server load). Load universal (`+page.ts`/`+layout.ts`) só para API externa sem credenciais.
+- Em SSR, use o `fetch` do evento de load (nunca o global) e repasse-o por `load → service → api → apiClient`.
+- O `fetch` do load encaminha o cookie do mesmo host/subdomínio; o `handleFetch` (`hooks.server.ts`) cobre domínios irmãos (só intercepta `event.fetch`).
+- Server load não aplica o modelo CORS do browser; load universal cross-origin exige `Access-Control-Allow-Origin` exato.
+
+---
+
+## 15. Regras gerais
 
 - Não realizar chamadas HTTP diretamente em componentes reutilizáveis.
 - Não colocar regras extensas dentro de páginas.
@@ -342,7 +351,7 @@ A pasta `features/` não precisa ser criada no início. Ela deve ser adotada som
 
 ---
 
-## 15. Resumo
+## 16. Resumo
 
 ```text
 Types definem os dados.

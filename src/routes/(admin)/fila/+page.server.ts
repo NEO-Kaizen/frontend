@@ -45,11 +45,11 @@ function buildQueueQuery(url: URL, page: number): QueueQuery {
 	return query;
 }
 
-export const load: PageServerLoad = async ({ url }) => {
+export const load: PageServerLoad = async ({ url, fetch }) => {
 	const requestedPage = parsePageParam(url.searchParams.get('page'));
 	const query = buildQueueQuery(url, requestedPage);
 
-	const result = await listQueueRequests(query);
+	const result = await listQueueRequests(query, fetch);
 
 	// O backend clampa `page` ao intervalo válido; a página efetiva vem da resposta.
 	const page = result.ok ? result.data.page : requestedPage;

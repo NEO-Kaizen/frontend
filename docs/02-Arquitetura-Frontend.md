@@ -454,7 +454,52 @@ A pasta `features/` não precisa ser criada no início. Ela deve ser adotada som
 
 ---
 
-## 16. Resumo
+## 16. Dados no SSR, sessão e CORS
+
+O carregamento de dados que depende da API acontece no servidor. Esta seção fixa as regras para preservar a sessão (cookie) e evitar bloqueios de CORS no SSR.
+
+### 16.1 Onde cada `load` roda
+
+- `+page.server.ts` / `+layout.server.ts` (server load): rodam sempre no servidor — lugar dos dados da nossa API.
+- `+page.ts` / `+layout.ts` (load universal): rodam no servidor durante o SSR e no browser. O SvelteKit aplica a eles o modelo CORS do browser também no servidor; por isso ficam restritos a APIs externas.
+
+Regra prática:
+
+- dado da nossa API → **server load**;
+- load universal apenas para **API externa sem credenciais**.
+
+### 16.2 Sessão (cookie) no servidor
+
+- No SSR, o `fetch` global do Node não carrega o cookie da página. O `fetch` com credencial é o fornecido ao `load` (`event.fetch`).
+- O `apiClient` (`src/lib/api/client.ts`) exige esse `fetch` explicitamente: no servidor, sem `fetchImpl`, lança erro em vez de perder a sessão silenciosamente.
+- O `fetch` do load é repassado pela cadeia `load → service → api → apiClient` (`fetchImpl` opcional; obrigatório em todo caminho de SSR).
+- O `fetch` do load encaminha cookie quando o destino é o mesmo host do app ou um subdomínio mais específico (porta não conta). Para domínios irmãos (ex.: `app.x.com` → `api.x.com`), o `handleFetch` (`src/hooks.server.ts`) injeta o cookie dinamicamente. Ele só intercepta `event.fetch`.
+
+### 16.3 CORS
+
+- Load universal cross-origin exige `Access-Control-Allow-Origin` na resposta (igual à origem do app) — mais um motivo para dado da própria API ir em server load, que não aplica essa checagem.
+- Chamadas feitas no browser (ex.: busca do `Header`) continuam sujeitas a CORS. Como o `apiClient` usa `credentials: 'include'`, o backend precisa responder `Access-Control-Allow-Origin` exato + `Access-Control-Allow-Credentials: true` (`*` não serve).
+
+### 16.4 Fluxo
+
+```text
+load (server load)
+   ↓ repassa event.fetch
+service → api → apiClient(fetchImpl)
+   ↓
+Backend (recebe o cookie da sessão)
+   ↓
+dados → page.data
+```
+
+### 16.5 Verificação
+
+- Desligar localmente o domínio de mock (`MOCK_DOMAINS.request`) e validar um hard reload na rota: o backend deve receber o cookie e o HTML do SSR deve vir com os dados.
+- `npm run check` e `npm run lint`.
+
+---
+
+## 17. Resumo
 
 ```text
 Types definem os dados.
