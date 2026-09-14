@@ -80,7 +80,7 @@
 	}
 </script>
 
-<form onsubmit={handleSubmit} novalidate>
+<form method="post" onsubmit={handleSubmit} novalidate>
 	<div class="container-banner" style:background-image={`url('${loginImageUrl}')`}>
 		<h2>Potencializando a Gestão Inteligente.</h2>
 		<span style="display: flex; align-items: center; gap: var(--spacing-sm);">
