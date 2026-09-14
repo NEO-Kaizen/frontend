@@ -113,7 +113,9 @@
 <Modal title={temporaryPassword ? 'Usuário cadastrado' : 'Adicionar usuário'} onclose={handleClose}>
 	{#if temporaryPassword}
 		<div class="success-content">
-			<p class="description">O {roleLabels[createdUserRole].toLowerCase()} foi cadastrado com sucesso.</p>
+			<p class="description">
+				O {roleLabels[createdUserRole].toLowerCase()} foi cadastrado com sucesso.
+			</p>
 
 			<div class="success-box">
 				<strong>{createdUserName}</strong>
@@ -170,12 +172,7 @@
 
 			<div class="form-row">
 				<div class="field">
-					<Select
-						label="Perfil"
-						options={roleOptions}
-						bind:value={role}
-						error={roleError}
-					/>
+					<Select label="Perfil" options={roleOptions} bind:value={role} error={roleError} />
 				</div>
 
 				<div class="field">

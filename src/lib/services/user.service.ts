@@ -22,13 +22,17 @@ import type {
 import { isRequired, isValidEmail, isValidText, PASSWORD_PATTERN } from '$lib/utils/validations';
 
 export async function listUsers(
-	query: ListUsersQuery
+	query: ListUsersQuery,
+	fetchImpl?: typeof fetch
 ): Promise<Result<PaginatedResponse<AdminUser>>> {
 	try {
-		const response = await listUsersApi({
-			...query,
-			profile: query.profile ?? 'solicitante'
-		});
+		const response = await listUsersApi(
+			{
+				...query,
+				profile: query.profile ?? 'solicitante'
+			},
+			fetchImpl
+		);
 
 		return {
 			ok: true,

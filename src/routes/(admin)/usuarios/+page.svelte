@@ -1,11 +1,12 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import Button from '$lib/components/Button.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import MetricsSummary from '$lib/components/MetricsSummary.svelte';
 	import NotFoundState from '$lib/components/NotFoundState.svelte';
 	import { createUser, listUsers, updateUserStatus } from '$lib/services/user.service';
 	import type { MetricItem } from '$lib/types/metrics';
+	import type { PaginatedResponse } from '$lib/types/request';
+	import type { Result } from '$lib/types/result';
 	import type {
 		AdminUser,
 		CreateUserFormData,
@@ -18,8 +19,9 @@
 	import ResetPasswordModal from './components/ResetPasswordModal.svelte';
 	import UsersTable from './components/UsersTable.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import type { PageProps } from './$types';
 
-	const PAGE_SIZE = 10;
+	let { data }: PageProps = $props();
 
 	const tabs = [
 		{
@@ -60,52 +62,47 @@
 		admins: number;
 	};
 
-	let stats = $state<UserStats | null>(null);
+	let stats = $state<UserStats>({ total: 0, active: 0, pending: 0, admins: 0 });
 
-	let metrics = $derived.by<MetricItem[]>(() => {
-		if (!stats) {
-			return [];
+	let metrics = $derived.by<MetricItem[]>(() => [
+		{
+			label: 'Total de Usuários',
+			value: stats.total,
+			iconName: 'group',
+			tone: 'indigo'
+		},
+		{
+			label: 'Ativos Agora',
+			value: stats.active,
+			iconName: 'userApproved',
+			tone: 'neutral'
+		},
+		{
+			label: 'Pendentes',
+			value: stats.pending,
+			iconName: 'pending',
+			tone: 'orange'
+		},
+		{
+			label: 'Perfil Admin',
+			value: stats.admins,
+			iconName: 'adminPanel',
+			tone: 'danger'
 		}
-
-		return [
-			{
-				label: 'Total de Usuários',
-				value: stats.total,
-				iconName: 'group',
-				tone: 'indigo'
-			},
-			{
-				label: 'Ativos Agora',
-				value: stats.active,
-				iconName: 'userApproved',
-				tone: 'neutral'
-			},
-			{
-				label: 'Pendentes',
-				value: stats.pending,
-				iconName: 'pending',
-				tone: 'orange'
-			},
-			{
-				label: 'Perfil Admin',
-				value: stats.admins,
-				iconName: 'adminPanel',
-				tone: 'danger'
-			}
-		];
-	});
+	]);
 
 	let activeTab = $state('solicitantes');
-	let users = $state<AdminUser[]>([]);
-
-	let isLoading = $state(false);
-	let loadError = $state('');
-
-	let total = $state(0);
-	let currentPage = $state(1);
-	let totalPages = $state(0);
-
 	let searchQuery = $state('');
+	let isLoading = $state(false);
+
+	let fetchedResult = $state<Result<PaginatedResponse<AdminUser>> | null>(null);
+	let result = $derived(fetchedResult ?? data.result);
+
+	let users = $derived<AdminUser[]>(result.ok ? result.data.data : []);
+	let loadError = $derived(result.ok ? '' : result.error.message);
+	let total = $derived(result.ok ? result.data.total : 0);
+	let currentPage = $derived(result.ok ? result.data.page : 1);
+	let totalPages = $derived(result.ok ? result.data.totalPages : 0);
 	let searchTimer: ReturnType<typeof setTimeout> | undefined;
 
 	let successMessage = $state('');
@@ -119,9 +116,9 @@
 	let isActing = $state(false);
 	let actionError = $state('');
 
-	let startItem = $derived(total === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1);
+	let startItem = $derived(total === 0 ? 0 : (currentPage - 1) * data.pageSize + 1);
 
-	let endItem = $derived(Math.min(currentPage * PAGE_SIZE, total));
+	let endItem = $derived(Math.min(currentPage * data.pageSize, total));
 
 	let visiblePages = $derived.by(() => {
 		if (totalPages <= 5) {
@@ -141,36 +138,15 @@
 
 	async function loadUsers(page = currentPage, search = searchQuery) {
 		isLoading = true;
-		loadError = '';
 
-		const result = await listUsers({
+		fetchedResult = await listUsers({
 			search: search.trim() || undefined,
 			page,
-			pageSize: PAGE_SIZE
+			pageSize: data.pageSize
 		});
 
 		isLoading = false;
-
-		if (result.ok) {
-			users = result.data.data;
-			total = result.data.total;
-			currentPage = result.data.page;
-			totalPages = result.data.totalPages;
-
-			return;
-		}
-
-		loadError = result.error.message;
-
-		users = [];
-		total = 0;
-		totalPages = 0;
-		currentPage = 1;
 	}
-
-	onMount(() => {
-		loadUsers(1, '');
-	});
 
 	function handleSearchInput() {
 		clearTimeout(searchTimer);

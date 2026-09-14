@@ -14,7 +14,10 @@ import type {
 
 const USERS_PATH = '/users';
 
-export async function listUsers(query: ListUsersQuery): Promise<PaginatedResponse<UserSummary>> {
+export async function listUsers(
+	query: ListUsersQuery,
+	fetchImpl?: typeof fetch
+): Promise<PaginatedResponse<UserSummary>> {
 	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.users) {
 		const { listUsersMock } = await import('$lib/mocks/users.mock');
 		return listUsersMock(query);
@@ -42,7 +45,7 @@ export async function listUsers(query: ListUsersQuery): Promise<PaginatedRespons
 
 	const path = queryString ? `${USERS_PATH}?${queryString}` : USERS_PATH;
 
-	return apiClient<PaginatedResponse<UserSummary>>(path);
+	return apiClient<PaginatedResponse<UserSummary>>(path, {}, fetchImpl);
 }
 
 export async function createUser(payload: CreateUserPayload): Promise<CreateUserResponse> {
