@@ -2,6 +2,7 @@
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import Button from '$lib/components/Button.svelte';
 	import StepComplementary from './StepComplementary.svelte';
 	import StepDemand from './StepDemand.svelte';
@@ -25,7 +26,6 @@
 		IdentificationData,
 		OperationalData,
 		OperationalImpact,
-		RequestCategory,
 		RequestType,
 		YesNo,
 		YesNoDetail
@@ -46,6 +46,15 @@
 	let submittedProtocol = $state('');
 	let submitError = $state('');
 	let protocolCopied = $state(false);
+
+	// Categorias ativas do PortalConfig (Card 5) alimentam o select da etapa 2.
+	// Opção usa `value` = id (string) e `label` = nome; o payload envia o id
+	// numérico, pois o contrato trata id de categoria como número.
+	let activeCategoryOptions = $derived(
+		page.data.portalConfig.categories
+			.filter((category) => category.isActive)
+			.map((category) => ({ value: String(category.id), label: category.name }))
+	);
 
 	let copyTimeout: ReturnType<typeof setTimeout> | undefined;
 
@@ -300,7 +309,7 @@
 			},
 			demand: {
 				title: demand.title.trim(),
-				category: demand.category as RequestCategory,
+				category: Number(demand.category),
 				processName: demand.processName.trim(),
 				requestType: demand.requestType as RequestType,
 				description: demand.description.trim(),
@@ -440,7 +449,11 @@
 				<StepIdentification bind:this={step1Ref} bind:data={identification} />
 			</div>
 			<div hidden={currentStep !== 2}>
-				<StepDemand bind:this={step2Ref} bind:data={demand} />
+				<StepDemand
+					bind:this={step2Ref}
+					bind:data={demand}
+					categoryOptions={activeCategoryOptions}
+				/>
 			</div>
 			<div hidden={currentStep !== 3}>
 				<StepOperational bind:this={step3Ref} bind:data={operational} />

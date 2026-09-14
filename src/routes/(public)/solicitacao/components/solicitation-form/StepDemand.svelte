@@ -4,22 +4,19 @@
 	import Select from '$lib/components/Select.svelte';
 	import Textarea from '$lib/components/Textarea.svelte';
 	import type { DemandData, StepFieldErrors } from '$lib/types/request';
-	import { CATEGORY_OPTIONS, REQUEST_TYPE_OPTIONS } from '$lib/types/request';
+	import { REQUEST_TYPE_OPTIONS } from '$lib/types/request';
 	import { isRequired } from '$lib/utils/validations';
 
 	interface Props {
 		data: DemandData;
-		categoryOptions?: { value: string; label: string }[];
+		// Opções dinâmicas vindas do PortalConfig (Card 5) — categorias ativas,
+		// com `value` = id estável da categoria e `label` = nome exibido.
+		categoryOptions: { value: string; label: string }[];
 	}
 
 	let { data = $bindable(), categoryOptions }: Props = $props();
 
 	let errors = $state<StepFieldErrors>({});
-
-	// permite suporte a novas categorias gerenciadas na página de configurações
-	let effectiveCategoryOptions = $derived(
-		categoryOptions && categoryOptions.length > 0 ? categoryOptions : CATEGORY_OPTIONS
-	);
 
 	export function validate(): boolean {
 		const e: StepFieldErrors = {};
@@ -114,7 +111,7 @@
 			<Select
 				label="Categoria"
 				placeholder="Selecione a categoria"
-				options={effectiveCategoryOptions}
+				options={categoryOptions}
 				required
 				bind:value={data.category}
 				error={errors.category}

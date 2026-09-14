@@ -38,18 +38,6 @@ export type TriageResult =
 
 export type OperationalImpact = 'Baixo' | 'Médio' | 'Alto' | 'Crítico';
 
-export type RequestCategory =
-	| 'Automação'
-	| 'Melhoria de processo'
-	| 'Indicador'
-	| 'Dashboard ou relatório'
-	| 'Análise de dados'
-	| 'Padronização'
-	| 'Revisão de processo'
-	| 'Apoio técnico'
-	| 'Estudo de viabilidade'
-	| 'Outros';
-
 export const REQUEST_STATUS_OPTIONS: RequestStatus[] = [
 	'Solicitação enviada',
 	'Aguardando triagem',
@@ -80,11 +68,13 @@ export interface RequesterBlock {
 	additionalContact?: string;
 }
 
-// Bloco 2 — dados da demanda.
+// Bloco 2 — dados da demanda. `category` é o id (número) da categoria
+// configurada no PortalConfig (Card 5); validada contra a lista ativa pelo
+// backend.
 export interface DemandBlock {
 	title: string;
 	requestType: string;
-	category: RequestCategory;
+	category: number;
 	processName: string;
 	description: string;
 	problem: string;
@@ -177,10 +167,11 @@ export type IdentificationData = {
 	additionalContact: string;
 };
 
-// Etapa 2 — dados da demanda.
+// Etapa 2 — dados da demanda. `category` guarda o id da categoria (opção
+// dinâmica vinda do PortalConfig) ou '' quando ainda não selecionada.
 export type DemandData = {
 	title: string;
-	category: RequestCategory | '';
+	category: string;
 	processName: string;
 	requestType: RequestType | '';
 	description: string;
@@ -278,19 +269,6 @@ export const STEP_FIELDS = {
 } as const;
 
 // ---- Opções de formulário (valores e rótulos para selects) ----
-
-export const CATEGORY_OPTIONS: { value: RequestCategory; label: string }[] = [
-	{ value: 'Automação', label: 'Automação' },
-	{ value: 'Melhoria de processo', label: 'Melhoria de processo' },
-	{ value: 'Indicador', label: 'Indicador' },
-	{ value: 'Dashboard ou relatório', label: 'Dashboard ou relatório' },
-	{ value: 'Análise de dados', label: 'Análise de dados' },
-	{ value: 'Padronização', label: 'Padronização' },
-	{ value: 'Revisão de processo', label: 'Revisão de processo' },
-	{ value: 'Apoio técnico', label: 'Apoio técnico' },
-	{ value: 'Estudo de viabilidade', label: 'Estudo de viabilidade' },
-	{ value: 'Outros', label: 'Outros' }
-];
 
 export const IMPACT_OPTIONS: { value: OperationalImpact; label: string }[] = [
 	{ value: 'Baixo', label: 'Baixo' },
