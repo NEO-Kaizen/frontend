@@ -56,6 +56,14 @@ Para manter o código alinhado às práticas do Svelte 5 e SvelteKit:
 
 Esses padrões podem ser revisados e ampliados conforme novas necessidades forem identificadas durante o desenvolvimento.
 
+### 4.1 Carregamento de dados (loads)
+
+- Dado da nossa API em rota renderizada no servidor → `+page.server.ts` / `+layout.server.ts` (server load).
+- Load universal (`+page.ts` / `+layout.ts`) apenas para API externa sem credenciais.
+- Em SSR, use o `fetch` do evento de load — nunca o `fetch` global — e repasse-o por `load → service → api → apiClient`.
+- Sessão por cookie: o `fetch` do load cobre mesmo host/subdomínio; o `handleFetch` cobre domínios irmãos.
+- Detalhes e o porquê em `docs/02-Arquitetura-Frontend.md` (§16).
+
 # 5. TypeScript
 
 Sempre que possível:

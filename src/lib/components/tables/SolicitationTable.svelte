@@ -1,4 +1,4 @@
-<!-- Componente global: usado em /acompanhar e reutilizável na fila admin (issue própria) -->
+<!-- Componente global: usado em /acompanhar, /fila e /home -->
 <script lang="ts">
 	import foundImg from '$lib/assets/SolicitationIllustration.svg';
 	import Pagination from './Pagination.svelte';
@@ -37,6 +37,9 @@
 		result: Result<PaginatedResponse<RequestSummary>> | null;
 		isFetching: boolean;
 		detailRoute?: DetailRoute;
+		emptyTitle?: string;
+		emptyMessage?: string;
+		onretry?: () => void;
 		onpagechange: (page: number) => void;
 	};
 
@@ -45,6 +48,9 @@
 		result = null,
 		isFetching = false,
 		detailRoute = '/(public)/acompanhar/[protocolo]',
+		emptyTitle = 'Nenhuma solicitação encontrada',
+		emptyMessage,
+		onretry,
 		onpagechange
 	}: Props = $props();
 
@@ -80,7 +86,15 @@
 			</thead>
 
 			<tbody>
-				{#if result === null}
+				{#if isFetching && results.length === 0}
+					<tr>
+						<td colspan="7">
+							<div class="loading-state" role="status" aria-live="polite">
+								<p>Carregando solicitações…</p>
+							</div>
+						</td>
+					</tr>
+				{:else if result === null}
 					<tr>
 						<td colspan="7">
 							<div class="empty-state">
@@ -98,20 +112,14 @@
 							</div>
 						</td>
 					</tr>
-				{:else if isFetching && results.length === 0}
-					<tr>
-						<td colspan="7">
-							<div class="loading-state" role="status" aria-live="polite">
-								<p>Carregando solicitações…</p>
-							</div>
-						</td>
-					</tr>
-				{:else if result && !result.ok}
+				{:else if !result.ok}
 					<tr>
 						<td colspan="7">
 							<div class="error-state" role="alert">
 								<p>{result.error.message}</p>
-								<Button variant="outline" onclick={() => invalidateAll()}>Tentar novamente</Button>
+								<Button variant="outline" onclick={() => (onretry ? onretry() : invalidateAll())}>
+									Tentar novamente
+								</Button>
 							</div>
 						</td>
 					</tr>
@@ -162,7 +170,10 @@
 					<tr>
 						<td colspan="7">
 							<div class="empty-state">
-								<h3>Nenhuma solicitação encontrada</h3>
+								<h3>{emptyTitle}</h3>
+								{#if emptyMessage}
+									<p>{emptyMessage}</p>
+								{/if}
 							</div>
 						</td>
 					</tr>

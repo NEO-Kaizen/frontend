@@ -6,16 +6,32 @@ import type {
 } from '$lib/types/prioritization';
 
 const mockCriteria: PrioritizationCriterion[] = [
-	{ id: 1, name: 'Impacto Operacional', subtitle: 'Efeito na operação' },
-	{ id: 2, name: 'Risco Operacional', subtitle: 'Risco financeiro ou compliance' },
-	{ id: 3, name: 'Urgência', subtitle: 'Necessidade temporal' },
-	{ id: 4, name: 'Volumetria', subtitle: 'Volume de transações' },
-	{ id: 5, name: 'Esforço Manual', subtitle: 'Trabalho manual envolvido' },
-	{ id: 6, name: 'Impacto no Cliente', subtitle: 'Efeito na experiência do cliente' },
-	{ id: 7, name: 'Prazo Regulatório', subtitle: 'Prazos legais ou regulatórios' },
-	{ id: 8, name: 'Áreas Impactadas', subtitle: 'Número de áreas afetadas' },
-	{ id: 9, name: 'Alinhamento Estratégico', subtitle: 'Alinhamento com as prioridades da área' },
-	{ id: 10, name: 'Complexidade Estimada', subtitle: 'Complexidade técnica envolvida' }
+	{ id: 'impacto_operacional', name: 'Impacto Operacional', subtitle: 'Efeito na operação' },
+	{
+		id: 'risco_operacional',
+		name: 'Risco Operacional',
+		subtitle: 'Risco financeiro ou compliance'
+	},
+	{ id: 'urgencia', name: 'Urgência', subtitle: 'Necessidade temporal' },
+	{ id: 'volumetria', name: 'Volumetria', subtitle: 'Volume de transações' },
+	{ id: 'esforco_manual', name: 'Esforço Manual', subtitle: 'Trabalho manual envolvido' },
+	{
+		id: 'impacto_cliente',
+		name: 'Impacto no Cliente',
+		subtitle: 'Efeito na experiência do cliente'
+	},
+	{ id: 'prazo_regulatorio', name: 'Prazo Regulatório', subtitle: 'Prazos legais ou regulatórios' },
+	{ id: 'areas_impactadas', name: 'Áreas Impactadas', subtitle: 'Número de áreas afetadas' },
+	{
+		id: 'alinhamento_estrategico',
+		name: 'Alinhamento Estratégico',
+		subtitle: 'Alinhamento com as prioridades da área'
+	},
+	{
+		id: 'complexidade_estimada',
+		name: 'Complexidade Estimada',
+		subtitle: 'Complexidade técnica envolvida'
+	}
 ];
 
 // Simulação de persistência do Backend para que a reavaliação carregue as

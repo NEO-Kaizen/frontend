@@ -26,7 +26,7 @@
 	let isSaving = $state(false);
 	let saveError = $state('');
 	let validationError = $state('');
-	let missingCriterionIds = $state<number[]>([]);
+	let missingCriterionIds = $state<string[]>([]);
 	let result = $state<PrioritizationResult | null>(null);
 	let hasSavedNotes = $state(false);
 
@@ -59,7 +59,7 @@
 
 	onMount(load);
 
-	function handleNoteChange(criterionId: number) {
+	function handleNoteChange(criterionId: string) {
 		// Um salvamento anterior perde validade quando uma nota é alterada.
 		result = null;
 

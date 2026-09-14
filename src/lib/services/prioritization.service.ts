@@ -10,14 +10,14 @@ import { MAX_NOTE, MIN_NOTE } from '$lib/types/prioritization';
 type SavePrioritizationError = {
 	status?: number;
 	message: string;
-	missingCriterionIds?: number[];
+	missingCriterionIds?: string[];
 };
 
 type SavePrioritizationResult =
 	{ ok: true; data: PrioritizationResult } | { ok: false; error: SavePrioritizationError };
 
 type ValidationResult =
-	{ ok: true } | { ok: false; error: { message: string; missingCriterionIds: number[] } };
+	{ ok: true } | { ok: false; error: { message: string; missingCriterionIds: string[] } };
 
 function validateNotes(
 	criteria: PrioritizationData['criteria'],

@@ -4,14 +4,14 @@ export const MIN_NOTE: CriterionNote = 1;
 export const MAX_NOTE: CriterionNote = 5;
 
 export interface PrioritizationCriterion {
-	id: number;
+	id: string;
 	name: string;
 	subtitle: string;
 }
 
 // Nota por critério (chave = id do critério). O backend é a validação
 // definitiva; o score final nunca é enviado pelo frontend como fonte de verdade.
-export type CriterionNotes = Partial<Record<number, CriterionNote>>;
+export type CriterionNotes = Partial<Record<string, CriterionNote>>;
 
 export type PrioritizationLevel = 'Baixa' | 'Média' | 'Alta' | 'Crítica';
 
