@@ -46,6 +46,12 @@ export function guard(rule: GuardRuleId, user: SessionUser | null, pathname?: st
 	}
 }
 
+export function redirectToLogin(url: URL, loginUrl: string): never {
+	const returnTo = url.pathname + url.search;
+	const searchParams = new URLSearchParams({ returnTo });
+	redirect(303, `${loginUrl}?${searchParams.toString()}`);
+}
+
 export function getHomeRedirect(
 	user: SessionUser | null
 ): Extract<RouteId, '/(admin)/home'> | null {
