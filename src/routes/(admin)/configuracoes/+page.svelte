@@ -1,11 +1,13 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { invalidateAll } from '$app/navigation';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import { settingsState } from '$lib/config/settings.svelte';
 	import AccessCard from './components/AccessCard.svelte';
 	import AssetsCard from './components/AssetsCard.svelte';
 	import CategoriesCard from './components/CategoriesCard.svelte';
 	import PlatformIdentityCard from './components/PlatformIdentityCard.svelte';
+	import PriorizationWeightsCard from './components/PriorizationWeightsCard.svelte';
 	import SettingsActions from './components/SettingsActions.svelte';
 	import SettingsPageHeader from './components/SettingsPageHeader.svelte';
 	import StatusCard from './components/StatusCard.svelte';
@@ -27,27 +29,32 @@
 	<SettingsPageHeader />
 
 	<div class="settings-grid">
-		<AccessCard
-			mode={settingsState.draft.solicitationMode}
-			onchange={(mode) => settingsState.setSolicitationMode(mode)}
-		/>
-		<PlatformIdentityCard
-			platformName={settingsState.draft.platformName}
-			protocolMask={settingsState.draft.protocolMask}
-			saving={settingsState.saving}
-			errors={settingsState.fieldErrors}
-			onchange={(field, value) => {
-				if (field === 'platformName') {
-					settingsState.setPlatformName(value);
-				} else {
-					settingsState.setProtocolMask(value);
-				}
-			}}
-		/>
-		<VisualIdentityCard />
-		<AssetsCard />
-		<CategoriesCard />
-		<StatusCard />
+		<div class="settings-col">
+			<AccessCard
+				mode={settingsState.draft.solicitationMode}
+				onchange={(mode) => settingsState.setSolicitationMode(mode)}
+			/>
+			<VisualIdentityCard />
+			<CategoriesCard />
+		</div>
+		<div class="settings-col">
+			<PlatformIdentityCard
+				platformName={settingsState.draft.platformName}
+				protocolMask={settingsState.draft.protocolMask}
+				saving={settingsState.saving}
+				errors={settingsState.fieldErrors}
+				onchange={(field, value) => {
+					if (field === 'platformName') {
+						settingsState.setPlatformName(value);
+					} else {
+						settingsState.setProtocolMask(value);
+					}
+				}}
+			/>
+			<AssetsCard />
+			<StatusCard />
+			<PriorizationWeightsCard />
+		</div>
 	</div>
 
 	<SettingsActions
@@ -56,7 +63,17 @@
 		invalid={settingsState.hasValidationErrors}
 		feedback={settingsState.feedback}
 		feedbackType={settingsState.feedbackType}
-		onSave={() => settingsState.save()}
+		onSave={async () => {
+			await settingsState.save();
+
+			if (settingsState.feedbackType === 'success') {
+				// Revalida os dados do layout para o header/footer refletirem a
+				// nova logo/avatar em todo o projeto; a invalidação reinicializa
+				// o state, então o feedback de sucesso é restaurado depois.
+				await invalidateAll();
+				settingsState.showSuccess();
+			}
+		}}
 		onCancel={() => settingsState.reset()}
 		onRestoreDefaults={() => (confirmRestore = true)}
 	/>
@@ -89,11 +106,50 @@
 		display: grid;
 		grid-template-columns: repeat(2, 1fr);
 		gap: var(--spacing-lg);
+		align-items: start;
+	}
+
+	.settings-col {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-lg);
 	}
 
 	@media (max-width: 900px) {
 		.settings-grid {
 			grid-template-columns: 1fr;
+		}
+
+		.settings-col {
+			display: contents;
+		}
+
+		.settings-col:nth-child(1) > :global(*:nth-child(1)) {
+			order: 1;
+		}
+
+		.settings-col:nth-child(1) > :global(*:nth-child(2)) {
+			order: 3;
+		}
+
+		.settings-col:nth-child(1) > :global(*:nth-child(3)) {
+			order: 5;
+		}
+
+		.settings-col:nth-child(2) > :global(*:nth-child(1)) {
+			order: 2;
+		}
+
+		.settings-col:nth-child(2) > :global(*:nth-child(2)) {
+			order: 4;
+		}
+
+		.settings-col:nth-child(2) > :global(*:nth-child(3)) {
+			order: 6;
+		}
+
+		.settings-col:nth-child(2) > :global(*:nth-child(4)) {
+			order: 7;
 		}
 	}
 </style>
