@@ -21,18 +21,18 @@ export interface QueueFilterQuery {
 	search?: string;
 	status?: RequestStatus;
 	priority?: PriorityFilter;
-	assigneeId?: number | 'unassigned';
+	assigneeId?: string | 'unassigned';
 }
 
 export type QueueQuery = PaginationQuery & QueueFilterQuery;
 
 export interface QueueItem extends RequestSummary {
 	requesterEmail: string;
-	assigneeId: number | null;
+	assigneeId: string | null;
 }
 
 export interface QueueAssignee {
-	id: number;
+	id: string;
 	name: string;
 }
 

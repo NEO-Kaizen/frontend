@@ -42,15 +42,15 @@ export async function getQueueMetricsMock(): Promise<QueueMetricsResponse> {
 // Fixtures — dados fictícios do domínio de solicitações, consumidos apenas pelos mocks.
 export type MockRequest = RequestSummary & {
 	corporateEmail: string;
-	assigneeId: number | null;
+	assigneeId: string | null;
 };
 
 const MOCK_ASSIGNEES = {
-	fernandoAlves: 1,
-	anaSouza: 2,
-	lucasGomes: 3,
-	gabrielSoares: 4,
-	carlosMendes: 5
+	fernandoAlves: '650e8400-e29b-41d4-a716-446655440001',
+	anaSouza: '650e8400-e29b-41d4-a716-446655440002',
+	lucasGomes: '650e8400-e29b-41d4-a716-446655440003',
+	gabrielSoares: '650e8400-e29b-41d4-a716-446655440004',
+	carlosMendes: '650e8400-e29b-41d4-a716-446655440005'
 } as const;
 
 export const mockRequests: MockRequest[] = [
@@ -619,7 +619,7 @@ export function listRequestsMock(
 
 function hasAssignee(
 	request: MockRequest
-): request is MockRequest & { assigneeId: number; assignee: string } {
+): request is MockRequest & { assigneeId: string; assignee: string } {
 	return request.assigneeId !== null && request.assignee !== null;
 }
 

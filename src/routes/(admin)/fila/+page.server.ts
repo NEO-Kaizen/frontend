@@ -9,6 +9,8 @@ const PAGE_SIZE = 5;
 const ALL_FILTER = 'all';
 const UNASSIGNED_FILTER = 'unassigned';
 const NO_PRIORITY_FILTER = 'nenhum';
+// `professional_id` é UUID no backend — numérico é rejeitado com 400.
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function buildQueueQuery(url: URL, page: number): QueueQuery {
 	const params = url.searchParams;
@@ -38,8 +40,8 @@ function buildQueueQuery(url: URL, page: number): QueueQuery {
 
 	if (assigneeId === UNASSIGNED_FILTER) {
 		query.assigneeId = UNASSIGNED_FILTER;
-	} else if (assigneeId && Number.isInteger(Number(assigneeId))) {
-		query.assigneeId = Number(assigneeId);
+	} else if (assigneeId && UUID_PATTERN.test(assigneeId)) {
+		query.assigneeId = assigneeId;
 	}
 
 	return query;
