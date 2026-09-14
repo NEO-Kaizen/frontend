@@ -71,7 +71,7 @@ export async function createUser(data: CreateUserFormData): Promise<Result<Creat
 		const response = await createUserApi({
 			fullName: data.name.trim(),
 			email: data.email.trim(),
-			role: 'solicitante'
+			role: data.role
 		});
 
 		return {

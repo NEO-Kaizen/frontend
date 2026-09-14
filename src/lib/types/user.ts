@@ -38,6 +38,7 @@ export interface ListUsersQuery {
 export interface CreateUserFormData {
 	name: string;
 	email: string;
+	role: UserProfile;
 }
 
 export interface CreateUserPayload {
@@ -50,7 +51,7 @@ export interface CreateUserResponse {
 	id: string;
 	fullName: string;
 	email: string;
-	role: Exclude<UserRole, 'Administrador'>;
+	role: UserRole;
 	isActive: true;
 	mustChangePassword: true;
 	createdAt: string;

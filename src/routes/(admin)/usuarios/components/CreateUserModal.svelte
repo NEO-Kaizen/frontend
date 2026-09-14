@@ -3,7 +3,8 @@
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import Modal from '$lib/components/Modal.svelte';
-	import type { CreateUserFormData, CreateUserResponse } from '$lib/types/user';
+	import Select from '$lib/components/Select.svelte';
+	import type { CreateUserFormData, CreateUserResponse, UserProfile } from '$lib/types/user';
 	import { isRequired, isValidEmail, isValidText } from '$lib/utils/validations';
 
 	interface Props {
@@ -15,18 +16,36 @@
 
 	let { loading = false, error = '', onclose, oncreate }: Props = $props();
 
+	const roleOptions: { value: UserProfile; label: string }[] = [
+		{ value: 'solicitante', label: 'Solicitante' },
+		{ value: 'analista', label: 'Analista' },
+		{ value: 'gestor', label: 'Gestor' },
+		{ value: 'administrador', label: 'Administrador' }
+	];
+
+	const roleLabels: Record<UserProfile, string> = {
+		solicitante: 'Solicitante',
+		analista: 'Analista',
+		gestor: 'Gestor',
+		administrador: 'Administrador'
+	};
+
 	let name = $state('');
 	let email = $state('');
+	let role = $state<UserProfile>('solicitante');
 
 	let nameError = $state('');
 	let emailError = $state('');
+	let roleError = $state('');
 
 	let temporaryPassword = $state('');
 	let createdUserName = $state('');
+	let createdUserRole = $state<UserProfile>('solicitante');
 
 	function validate(): boolean {
 		nameError = '';
 		emailError = '';
+		roleError = '';
 
 		const trimmedName = name.trim();
 		const trimmedEmail = email.trim();
@@ -47,7 +66,11 @@
 			emailError = 'O e-mail deve ter no máximo 254 caracteres.';
 		}
 
-		return !nameError && !emailError;
+		if (!isRequired(role)) {
+			roleError = 'Selecione um perfil.';
+		}
+
+		return !nameError && !emailError && !roleError;
 	}
 
 	async function handleCreate() {
@@ -58,10 +81,12 @@
 		try {
 			const result = await oncreate({
 				name: name.trim(),
-				email: email.trim()
+				email: email.trim(),
+				role
 			});
 
 			createdUserName = result.fullName;
+			createdUserRole = role;
 			temporaryPassword = result.temporaryPassword;
 		} catch {
 			return;
@@ -71,12 +96,15 @@
 	function handleClose() {
 		name = '';
 		email = '';
+		role = 'solicitante';
 
 		nameError = '';
 		emailError = '';
+		roleError = '';
 
 		temporaryPassword = '';
 		createdUserName = '';
+		createdUserRole = 'solicitante';
 
 		onclose();
 	}
@@ -85,7 +113,7 @@
 <Modal title={temporaryPassword ? 'Usuário cadastrado' : 'Adicionar usuário'} onclose={handleClose}>
 	{#if temporaryPassword}
 		<div class="success-content">
-			<p class="description">O solicitante foi cadastrado com sucesso.</p>
+			<p class="description">O {roleLabels[createdUserRole].toLowerCase()} foi cadastrado com sucesso.</p>
 
 			<div class="success-box">
 				<strong>{createdUserName}</strong>
@@ -109,7 +137,7 @@
 		</div>
 	{:else}
 		<div class="form-content">
-			<p class="description">Cadastre um novo solicitante no MAAT Flow.</p>
+			<p class="description">Cadastre um novo usuário no MAAT Flow.</p>
 
 			<div class="field">
 				<span class="field-label">Nome completo</span>
@@ -142,9 +170,12 @@
 
 			<div class="form-row">
 				<div class="field">
-					<span class="field-label">Perfil</span>
-
-					<div class="readonly-field">Solicitante</div>
+					<Select
+						label="Perfil"
+						options={roleOptions}
+						bind:value={role}
+						error={roleError}
+					/>
 				</div>
 
 				<div class="field">

@@ -2,8 +2,10 @@
 	import { onMount } from 'svelte';
 	import Button from '$lib/components/Button.svelte';
 	import Input from '$lib/components/Input.svelte';
+	import MetricsSummary from '$lib/components/MetricsSummary.svelte';
 	import NotFoundState from '$lib/components/NotFoundState.svelte';
 	import { createUser, listUsers, updateUserStatus } from '$lib/services/user.service';
+	import type { MetricItem } from '$lib/types/metrics';
 	import type {
 		AdminUser,
 		CreateUserFormData,
@@ -59,6 +61,39 @@
 	};
 
 	let stats = $state<UserStats | null>(null);
+
+	let metrics = $derived.by<MetricItem[]>(() => {
+		if (!stats) {
+			return [];
+		}
+
+		return [
+			{
+				label: 'Total de Usuários',
+				value: stats.total,
+				iconName: 'group',
+				tone: 'indigo'
+			},
+			{
+				label: 'Ativos Agora',
+				value: stats.active,
+				iconName: 'userApproved',
+				tone: 'neutral'
+			},
+			{
+				label: 'Pendentes',
+				value: stats.pending,
+				iconName: 'pending',
+				tone: 'orange'
+			},
+			{
+				label: 'Perfil Admin',
+				value: stats.admins,
+				iconName: 'adminPanel',
+				tone: 'danger'
+			}
+		];
+	});
 
 	let activeTab = $state('solicitantes');
 	let users = $state<AdminUser[]>([]);
@@ -167,7 +202,8 @@
 
 		const result = await createUser({
 			name: data.name.trim(),
-			email: data.email.trim()
+			email: data.email.trim(),
+			role: data.role
 		});
 
 		isCreating = false;
@@ -179,7 +215,7 @@
 
 		searchQuery = '';
 
-		showSuccess(`Solicitante "${result.data.fullName}" cadastrado com sucesso.`);
+		showSuccess(`"${result.data.fullName}" cadastrado com sucesso.`);
 
 		await loadUsers(1, '');
 
@@ -261,62 +297,8 @@
 	     CARDS
 	========================= -->
 
-	<section class="stats-grid">
-		<!-- TOTAL DE USUÁRIOS -->
-
-		<div class="stat-card">
-			<div class="stat-icon icon-users">
-				<Icon iconName="group" iconSize="md" />
-			</div>
-
-			<div class="stat-content">
-				<span class="stat-label"> TOTAL DE USUÁRIOS </span>
-
-				<strong>{stats?.total ?? '—'}</strong>
-			</div>
-		</div>
-
-		<!-- ATIVOS -->
-
-		<div class="stat-card">
-			<div class="stat-icon icon-active">
-				<Icon iconName="userApproved" iconSize="md" />
-			</div>
-
-			<div class="stat-content">
-				<span class="stat-label"> ATIVOS AGORA </span>
-
-				<strong>{stats?.active ?? '—'}</strong>
-			</div>
-		</div>
-
-		<!-- PENDENTES -->
-
-		<div class="stat-card">
-			<div class="stat-icon icon-pending">
-				<Icon iconName="pending" iconSize="md" />
-			</div>
-
-			<div class="stat-content">
-				<span class="stat-label"> PENDENTES </span>
-
-				<strong>{stats?.pending ?? '—'}</strong>
-			</div>
-		</div>
-
-		<!-- ADMIN -->
-
-		<div class="stat-card">
-			<div class="stat-icon icon-admin">
-				<Icon iconName="adminPanel" iconSize="md" />
-			</div>
-
-			<div class="stat-content">
-				<span class="stat-label"> PERFIL ADMIN </span>
-
-				<strong>{stats?.admins ?? '—'}</strong>
-			</div>
-		</div>
+	<section class="stats-section">
+		<MetricsSummary {metrics} />
 	</section>
 
 	<!-- =========================
@@ -558,82 +540,8 @@
 	   CARDS
 	========================= */
 
-	.stats-grid {
+	.stats-section {
 		width: 100%;
-		display: grid;
-		grid-template-columns: repeat(4, minmax(0, 1fr));
-		gap: var(--spacing-md);
-	}
-
-	.stat-card {
-		min-height: 120px;
-
-		display: flex;
-		flex-direction: column;
-		justify-content: space-between;
-
-		padding: var(--spacing-md);
-
-		background-color: var(--white);
-
-		border: var(--border-default);
-
-		border-radius: var(--radius-sm);
-
-		box-shadow: var(--regular-shadow);
-	}
-
-	.stat-icon {
-		width: 34px;
-		height: 34px;
-
-		display: flex;
-		align-items: center;
-		justify-content: center;
-
-		border-radius: var(--radius-sm);
-	}
-
-	.icon-users {
-		background-color: var(--status-blue-bg);
-
-		color: var(--primary-color);
-	}
-
-	.icon-active {
-		background-color: var(--status-green-bg);
-
-		color: var(--status-green);
-	}
-
-	.icon-pending {
-		background-color: var(--status-yellow-bg);
-
-		color: var(--status-yellow);
-	}
-
-	.icon-admin {
-		background-color: var(--status-blue-bg);
-
-		color: var(--secondary-color);
-	}
-
-	.stat-content {
-		display: flex;
-		flex-direction: column;
-		gap: 2px;
-	}
-
-	.stat-label {
-		font: var(--label);
-		font-size: 11px;
-		color: var(--black);
-		text-transform: uppercase;
-	}
-
-	.stat-content strong {
-		font: var(--h3);
-		color: var(--rich-black);
 	}
 
 	/* =========================
@@ -968,12 +876,6 @@
 	   RESPONSIVO
 	========================= */
 
-	@media (max-width: 900px) {
-		.stats-grid {
-			grid-template-columns: repeat(2, 1fr);
-		}
-	}
-
 	@media (max-width: 800px) {
 		.toolbar {
 			flex-direction: column;
@@ -1004,12 +906,6 @@
 			width: 100%;
 
 			justify-content: flex-end;
-		}
-	}
-
-	@media (max-width: 500px) {
-		.stats-grid {
-			grid-template-columns: 1fr;
 		}
 	}
 </style>
