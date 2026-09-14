@@ -35,13 +35,16 @@ export async function logout(): Promise<unknown> {
 	return apiClient<unknown>(LOGOUT_PATH, { method: 'POST' });
 }
 
-export async function getMe(): Promise<SessionUser> {
+// `fetchImpl` confirma a sessão no servidor via /auth/me; `sessionId` só é lido
+// pelo mock, para resolver a sessão de dev fora do browser. Com backend real o
+// cookie é HttpOnly e a validação ocorre exclusivamente em /auth/me.
+export async function getMe(fetchImpl?: typeof fetch, sessionId?: string): Promise<SessionUser> {
 	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.auth) {
 		const { getMeMock } = await import('$lib/mocks/auth.mock');
-		return getMeMock();
+		return getMeMock(sessionId);
 	}
 
-	return apiClient<SessionUser>(ME_PATH);
+	return apiClient<SessionUser>(ME_PATH, {}, fetchImpl);
 }
 
 export async function changePassword(payload: ChangePasswordPayload): Promise<void> {

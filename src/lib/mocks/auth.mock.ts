@@ -11,35 +11,35 @@ type MockUser = SessionUser & { password: string };
 
 const MOCK_USERS: MockUser[] = [
 	{
-		id: 1,
+		id: '1',
 		name: 'Ana Souza',
 		email: 'analista@maat.com.br',
 		role: 'Analista',
-		forcePasswordChange: false,
+		mustChangePassword: false,
 		password: 'admin'
 	},
 	{
-		id: 2,
+		id: '2',
 		name: 'Marcos Lima',
 		email: 'gestor@maat.com.br',
 		role: 'Gestor',
-		forcePasswordChange: true,
+		mustChangePassword: true,
 		password: 'admin'
 	},
 	{
-		id: 3,
+		id: '3',
 		name: 'Adriana Castro',
 		email: 'admin@maat.com.br',
 		role: 'Administrador',
-		forcePasswordChange: true,
+		mustChangePassword: true,
 		password: 'admin'
 	},
 	{
-		id: 4,
+		id: '4',
 		name: 'Carlos Mendes',
 		email: 'solicitante@maat.com.br',
 		role: 'Solicitante',
-		forcePasswordChange: true,
+		mustChangePassword: true,
 		password: 'temp123'
 	}
 ];
@@ -54,17 +54,9 @@ export function loginMock(credentials: LoginCredentials): Promise<LoginResponse>
 		return Promise.reject(new ApiError(401, 'Credenciais inválidas.'));
 	}
 
-	setMockSessionCookie(user);
+	setMockSessionCookie(user.id);
 
-	const sessionUser: SessionUser = {
-		id: user.id,
-		name: user.name,
-		email: user.email,
-		role: user.role,
-		forcePasswordChange: user.forcePasswordChange
-	};
-
-	return Promise.resolve({ user: sessionUser });
+	return Promise.resolve(toSessionUser(user));
 }
 
 export function logoutMock(): Promise<null> {
@@ -72,33 +64,24 @@ export function logoutMock(): Promise<null> {
 	return Promise.resolve(null);
 }
 
-export function getMeMock(): Promise<SessionUser> {
-	const userId = readUserIdFromCookie();
-	if (userId === null) {
-		return Promise.reject(new ApiError(401, 'Sessão expirada ou inválida.'));
-	}
+// `sessionId` é o valor do cookie repassado pelo server (hooks); no browser o
+// cookie é lido diretamente. Sem JWT nem decodificação local — o mock guarda o
+// id do usuário na própria sessão.
+export function getMeMock(sessionId?: string): Promise<SessionUser> {
+	const userId = sessionId ?? readSessionCookie();
+	const user = userId ? MOCK_USERS.find((candidate) => candidate.id === userId) : undefined;
 
-	const user = MOCK_USERS.find((candidate) => candidate.id === userId);
 	if (!user) {
 		return Promise.reject(new ApiError(401, 'Sessão expirada ou inválida.'));
 	}
 
-	return Promise.resolve({
-		id: user.id,
-		name: user.name,
-		email: user.email,
-		role: user.role,
-		forcePasswordChange: user.forcePasswordChange
-	});
+	return Promise.resolve(toSessionUser(user));
 }
 
 export function changePasswordMock(payload: ChangePasswordPayload): Promise<void> {
-	const userId = readUserIdFromCookie();
-	if (userId === null) {
-		return Promise.reject(new ApiError(401, 'Sessão expirada ou inválida.'));
-	}
+	const userId = readSessionCookie();
+	const user = userId ? MOCK_USERS.find((candidate) => candidate.id === userId) : undefined;
 
-	const user = MOCK_USERS.find((candidate) => candidate.id === userId);
 	if (!user) {
 		return Promise.reject(new ApiError(401, 'Sessão expirada ou inválida.'));
 	}
@@ -112,58 +95,39 @@ export function changePasswordMock(payload: ChangePasswordPayload): Promise<void
 	}
 
 	user.password = payload.newPassword;
-	user.forcePasswordChange = false;
+	user.mustChangePassword = false;
 
-	setMockSessionCookie(user);
+	setMockSessionCookie(user.id);
 
 	return Promise.resolve();
 }
 
-// Cookie com JWT fictício no formato que decodeJwt espera — sessão e
-// guards funcionam offline, sem o servidor de sessão conhecer o mock.
-function readUserIdFromCookie(): number | null {
-	if (!browser) return null;
-
-	const cookie = document.cookie.split('; ').find((c) => c.startsWith(`${SESSION_COOKIE_NAME}=`));
-	if (!cookie) return null;
-
-	const token = cookie.split('=')[1];
-	if (!token) return null;
-
-	try {
-		const parts = token.split('.');
-		if (parts.length < 2) return null;
-		const payload = JSON.parse(atob(parts[1]));
-		return typeof payload.id === 'number' ? payload.id : null;
-	} catch {
-		return null;
-	}
+function toSessionUser(user: MockUser): SessionUser {
+	return {
+		id: user.id,
+		name: user.name,
+		email: user.email,
+		role: user.role,
+		mustChangePassword: user.mustChangePassword
+	};
 }
 
-function setMockSessionCookie(user: MockUser): void {
+function readSessionCookie(): string | null {
+	if (!browser) return null;
+
+	const cookie = document.cookie
+		.split('; ')
+		.find((entry) => entry.startsWith(`${SESSION_COOKIE_NAME}=`));
+
+	return cookie ? cookie.slice(SESSION_COOKIE_NAME.length + 1) || null : null;
+}
+
+function setMockSessionCookie(userId: string): void {
 	if (!browser) return;
-	document.cookie = `${SESSION_COOKIE_NAME}=${buildMockToken(user)}; path=/; SameSite=Lax`;
+	document.cookie = `${SESSION_COOKIE_NAME}=${userId}; path=/; SameSite=Lax`;
 }
 
 function clearMockSessionCookie(): void {
 	if (!browser) return;
 	document.cookie = `${SESSION_COOKIE_NAME}=; path=/; max-age=0`;
-}
-
-function buildMockToken(user: MockUser): string {
-	const header = encodeBase64Url(JSON.stringify({ alg: 'none', typ: 'JWT' }));
-	const payload = encodeBase64Url(
-		JSON.stringify({
-			id: user.id,
-			name: user.name,
-			email: user.email,
-			role: user.role,
-			forcePasswordChange: user.forcePasswordChange
-		})
-	);
-	return `${header}.${payload}.mock-signature`;
-}
-
-function encodeBase64Url(value: string): string {
-	return btoa(value).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }

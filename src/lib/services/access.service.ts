@@ -62,7 +62,7 @@ export function getHomeRedirect(
 }
 
 export function isPasswordChangeRequired(user: SessionUser | null): boolean {
-	return Boolean(user?.forcePasswordChange);
+	return Boolean(user?.mustChangePassword);
 }
 
 export function isPasswordChangeRoute(pathname: string): boolean {

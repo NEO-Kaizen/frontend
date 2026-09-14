@@ -9,7 +9,7 @@ import type {
 const STORAGE_KEY = 'maat:solicitation-form:draft';
 const STORAGE_VERSION = 1;
 
-function getStorageKey(userId?: number | null): string {
+function getStorageKey(userId?: string | null): string {
 	return userId != null ? `${STORAGE_KEY}:user:${userId}` : STORAGE_KEY;
 }
 
@@ -127,13 +127,13 @@ function isValidDraft(value: unknown): value is SolicitationDraft {
 	);
 }
 
-export function saveDraft(draft: SolicitationDraft, userId?: number | null): void {
+export function saveDraft(draft: SolicitationDraft, userId?: string | null): void {
 	if (!browser) return;
 	const payload = JSON.stringify({ ...draft, version: STORAGE_VERSION });
 	localStorage.setItem(getStorageKey(userId), payload);
 }
 
-export function loadDraft(userId?: number | null): SolicitationDraft | null {
+export function loadDraft(userId?: string | null): SolicitationDraft | null {
 	if (!browser) return null;
 
 	const raw = localStorage.getItem(getStorageKey(userId));
@@ -147,7 +147,7 @@ export function loadDraft(userId?: number | null): SolicitationDraft | null {
 	}
 }
 
-export function clearDraft(userId?: number | null): void {
+export function clearDraft(userId?: string | null): void {
 	if (!browser) return;
 	localStorage.removeItem(getStorageKey(userId));
 }

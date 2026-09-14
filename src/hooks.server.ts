@@ -1,12 +1,20 @@
 import type { Handle, HandleFetch } from '@sveltejs/kit';
 import { env } from '$env/dynamic/public';
-import { decodeJwt } from '$lib/utils/jwt';
+import { getMe } from '$lib/services/auth.service';
 import { loadPortalConfig } from '$lib/config/portal-config.service';
 
 const SESSION_COOKIE_NAME = 'session_id';
 
 export const handle: Handle = async ({ event, resolve }) => {
-	event.locals.user = decodeJwt(event.cookies.get(SESSION_COOKIE_NAME) ?? '');
+	const sessionId = event.cookies.get(SESSION_COOKIE_NAME);
+
+	if (sessionId) {
+		const result = await getMe(event.fetch, sessionId);
+		event.locals.user = result.ok ? result.data : null;
+	} else {
+		event.locals.user = null;
+	}
+
 	event.locals.portalConfig = await loadPortalConfig(event.fetch);
 	return resolve(event);
 };
