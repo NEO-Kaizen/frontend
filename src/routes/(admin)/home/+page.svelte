@@ -1,31 +1,26 @@
 <script lang="ts">
-	import { page } from '$app/state';
-	import { onMount } from 'svelte';
 	import Banner from '$lib/components/layout/Banner.svelte';
 	import SolicitationTable from '$lib/components/tables/SolicitationTable.svelte';
 	import { listQueueRequests } from '$lib/services/request.service';
 	import type { QueueResponse } from '$lib/types/queue';
 	import type { Result } from '$lib/types/result';
+	import type { PageProps } from './$types';
 
-	const pageSize = 10;
+	let { data }: PageProps = $props();
 
-	let currentPage = $state<number>(1);
-	let loading = $state<boolean>(true);
-	let tableResult = $state<Result<QueueResponse> | null>(null);
+	let fetchedResult = $state<Result<QueueResponse> | null>(null);
+	let currentPage = $state(1);
+	let isFetching = $state(false);
 	let requestToken = 0;
 
-	let user = $derived(page.data.user);
-	let userName = $derived(user?.name ?? 'Usuário');
+	let result = $derived(fetchedResult ?? data.result);
+	let userName = $derived(data.user?.name ?? 'Usuário');
 	let bannerDescription = $derived.by(() => {
-		if (tableResult === null) {
-			return 'Carregando solicitações sem responsável…';
-		}
-
-		if (!tableResult.ok) {
+		if (!result.ok) {
 			return 'Não foi possível carregar o total de solicitações sem responsável.';
 		}
 
-		const total = tableResult.data.total;
+		const total = result.data.total;
 
 		return `Há ${total} ${total === 1 ? 'solicitação' : 'solicitações'} sem responsável.`;
 	});
@@ -33,12 +28,11 @@
 	async function fetchTable(pageNumber: number) {
 		const token = ++requestToken;
 
-		loading = true;
-		currentPage = pageNumber;
+		isFetching = true;
 
-		const result = await listQueueRequests({
+		const next = await listQueueRequests({
 			page: pageNumber,
-			pageSize,
+			pageSize: data.pageSize,
 			assigneeId: 'unassigned'
 		});
 
@@ -46,17 +40,10 @@
 			return;
 		}
 
-		tableResult = result;
-		loading = false;
+		fetchedResult = next;
+		currentPage = pageNumber;
+		isFetching = false;
 	}
-
-	function handlePageChange(newPage: number) {
-		void fetchTable(newPage);
-	}
-
-	onMount(() => {
-		void fetchTable(1);
-	});
 </script>
 
 <svelte:head>
@@ -71,13 +58,13 @@
 
 		<SolicitationTable
 			page={currentPage}
-			result={tableResult}
-			isFetching={loading}
+			{result}
+			{isFetching}
 			detailRoute="/(admin)/fila/[protocolo]"
 			emptyTitle="Nenhuma solicitação sem responsável"
 			emptyMessage="Não há solicitações pendentes de atribuição no momento."
-			onretry={() => fetchTable(currentPage)}
-			onpagechange={handlePageChange}
+			onretry={() => void fetchTable(currentPage)}
+			onpagechange={(nextPage) => void fetchTable(nextPage)}
 		/>
 	</section>
 </div>
