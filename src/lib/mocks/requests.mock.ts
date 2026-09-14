@@ -400,9 +400,6 @@ function delay(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// Registra a solicitação criada nos fixtures em memória, fechando o loop de
-// desenvolvimento: o novo protocolo fica rastreável em /acompanhar, na busca
-// e na fila interna do administrador.
 function registerCreatedRequest(protocol: string, payload: CreateRequestPayload): void {
 	const requester = payload.requester;
 	const now = new Date().toISOString();
@@ -539,6 +536,14 @@ export function getRequestByProtocolMock(protocol: string): Promise<RequestDetai
 	return Promise.resolve(detail);
 }
 
+const MOCK_ASSIGNEES_MAP: Record<number, string> = {
+	1: 'Fernando Alves',
+	2: 'Ana Souza',
+	3: 'Lucas Gomes',
+	4: 'Gabriel Soares',
+	5: 'Carlos Mendes'
+};
+
 export function listQueueMock(
 	query: import('$lib/types/queue').QueueQuery
 ): Promise<import('$lib/types/queue').QueueResponse> {
@@ -551,7 +556,12 @@ export function listQueueMock(
 		if (query.assigneeId === 'unassigned') {
 			requests = requests.filter((r) => r.assignee === null);
 		} else {
-			requests = requests.filter((r) => r.assignee !== null);
+			const targetName = MOCK_ASSIGNEES_MAP[query.assigneeId as number];
+			if (targetName) {
+				requests = requests.filter((r) => r.assignee === targetName);
+			} else {
+				requests = [];
+			}
 		}
 	}
 
@@ -580,12 +590,21 @@ export function listQueueMock(
 	const start = (page - 1) * pageSize;
 	const data = requests.slice(start, start + pageSize);
 
+	const assignees = [
+		{ id: 1, name: 'Fernando Alves' },
+		{ id: 2, name: 'Ana Souza' },
+		{ id: 3, name: 'Lucas Gomes' },
+		{ id: 4, name: 'Gabriel Soares' },
+		{ id: 5, name: 'Carlos Mendes' }
+	];
+
 	return Promise.resolve({
 		data,
 		page,
 		pageSize,
 		total,
-		totalPages
+		totalPages,
+		assignees
 	});
 }
 
