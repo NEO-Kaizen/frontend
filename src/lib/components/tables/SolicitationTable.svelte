@@ -37,6 +37,9 @@
 		result: Result<PaginatedResponse<RequestSummary>> | null;
 		isFetching: boolean;
 		detailRoute?: DetailRoute;
+		initialTitle?: string;
+		initialMessage?: string;
+		onretry?: () => void;
 		onpagechange: (page: number) => void;
 	};
 
@@ -45,6 +48,9 @@
 		result = null,
 		isFetching = false,
 		detailRoute = '/(public)/acompanhar/[protocolo]',
+		initialTitle = 'Nenhuma solicitação consultada',
+		initialMessage = 'Preencha um ou ambos os campos acima e clique em "Consultar Protocolo" para visualizar os resultados.',
+		onretry,
 		onpagechange
 	}: Props = $props();
 
@@ -80,25 +86,7 @@
 			</thead>
 
 			<tbody>
-				{#if result === null}
-					<tr>
-						<td colspan="7">
-							<div class="empty-state">
-								<img
-									class="empty-illustration"
-									src={foundImg}
-									alt="Nenhuma solicitação consultada"
-								/>
-
-								<h3>Nenhuma solicitação consultada</h3>
-								<p>
-									Preencha um ou ambos os campos acima e clique em "Consultar Protocolo" para
-									visualizar os resultados.
-								</p>
-							</div>
-						</td>
-					</tr>
-				{:else if isFetching && results.length === 0}
+				{#if isFetching && results.length === 0}
 					<tr>
 						<td colspan="7">
 							<div class="loading-state" role="status" aria-live="polite">
@@ -106,12 +94,25 @@
 							</div>
 						</td>
 					</tr>
-				{:else if result && !result.ok}
+				{:else if result === null}
+					<tr>
+						<td colspan="7">
+							<div class="empty-state">
+								<img class="empty-illustration" src={foundImg} alt={initialTitle} />
+
+								<h3>{initialTitle}</h3>
+								<p>{initialMessage}</p>
+							</div>
+						</td>
+					</tr>
+				{:else if !result.ok}
 					<tr>
 						<td colspan="7">
 							<div class="error-state" role="alert">
 								<p>{result.error.message}</p>
-								<Button variant="outline" onclick={() => invalidateAll()}>Tentar novamente</Button>
+								<Button variant="outline" onclick={() => (onretry ? onretry() : invalidateAll())}>
+									Tentar novamente
+								</Button>
 							</div>
 						</td>
 					</tr>

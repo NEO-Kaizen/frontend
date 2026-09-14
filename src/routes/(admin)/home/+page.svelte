@@ -3,7 +3,7 @@
 	import { onMount } from 'svelte';
 	import Banner from '$lib/components/layout/Banner.svelte';
 	import SolicitationTable from '$lib/components/tables/SolicitationTable.svelte';
-	import { listQueue } from '$lib/api/request.api';
+	import { listQueueRequests } from '$lib/services/request.service';
 	import type { QueueResponse } from '$lib/types/queue';
 	import type { Result } from '$lib/types/result';
 
@@ -20,36 +20,22 @@
 		loading = true;
 		currentPage = pageNumber;
 
-		try {
-			const data = await listQueue({
-				page: pageNumber,
-				pageSize,
-				assigneeId: 'unassigned'
-			});
+		tableResult = await listQueueRequests({
+			page: pageNumber,
+			pageSize,
+			assigneeId: 'unassigned'
+		});
 
-			tableResult = {
-				ok: true,
-				data
-			};
-		} catch (error) {
-			tableResult = {
-				ok: false,
-				error: {
-					message: error instanceof Error ? error.message : 'Erro ao carregar solicitações da fila.'
-				}
-			};
-		} finally {
-			loading = false;
-		}
+		loading = false;
 
 		if (user?.id) {
 			try {
-				const myQueueData = await listQueue({
+				const myQueueResult = await listQueueRequests({
 					page: 1,
 					pageSize: 1,
 					assigneeId: user.id
 				});
-				assignedCount = myQueueData.total;
+				assignedCount = myQueueResult.ok ? myQueueResult.data.total : 0;
 			} catch {
 				assignedCount = 0;
 			}
