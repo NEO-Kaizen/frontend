@@ -2,6 +2,7 @@
 <script lang="ts">
 	import foundImg from '$lib/assets/SolicitationIllustration.svg';
 	import Pagination from './Pagination.svelte';
+	import Button from '$lib/components/Button.svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { formatShortDate, formatShortTime } from '$lib/utils/dates';
 	import type { PaginatedResponse, RequestStatus, RequestSummary } from '$lib/types/request';
@@ -36,9 +37,6 @@
 		result: Result<PaginatedResponse<RequestSummary>> | null;
 		isFetching: boolean;
 		detailRoute?: DetailRoute;
-		initialTitle?: string;
-		initialMessage?: string;
-		onretry?: () => void;
 		onpagechange: (page: number) => void;
 	};
 
@@ -47,29 +45,23 @@
 		result = null,
 		isFetching = false,
 		detailRoute = '/(public)/acompanhar/[protocolo]',
-		initialTitle = 'Nenhuma solicitação consultada',
-		initialMessage = 'Preencha um ou ambos os campos acima e clique em "Consultar Protocolo" para visualizar os resultados.',
-		onretry,
 		onpagechange
 	}: Props = $props();
 
 	const results = $derived(result?.ok ? result.data.data : []);
 	const totalPages = $derived(result?.ok ? result.data.totalPages : 0);
 	const totalItems = $derived(result?.ok ? result.data.total : 0);
+	// Clampa a página pedida ao intervalo real, protegendo o rodapé de valores
+	// como "Exibindo 491–14" quando a URL traz uma página fora do range.
+	const currentPage = $derived(Math.min(Math.max(page, 1), Math.max(totalPages, 1)));
 	const firstVisibleItem = $derived(
-		result?.ok && result.data.total > 0 ? (result.data.page - 1) * result.data.pageSize + 1 : 0
+		result?.ok && results.length > 0 ? (currentPage - 1) * result.data.pageSize + 1 : 0
 	);
 	const lastVisibleItem = $derived(
-		result?.ok ? Math.min(result.data.page * result.data.pageSize, result.data.total) : 0
+		result?.ok && results.length > 0
+			? Math.min(currentPage * result.data.pageSize, result.data.total)
+			: 0
 	);
-
-	function handleRetry() {
-		if (onretry) {
-			onretry();
-		} else {
-			invalidateAll();
-		}
-	}
 </script>
 
 <div class="table-container">
@@ -88,22 +80,29 @@
 			</thead>
 
 			<tbody>
-				{#if isFetching}
+				{#if result === null}
+					<tr>
+						<td colspan="7">
+							<div class="empty-state">
+								<img
+									class="empty-illustration"
+									src={foundImg}
+									alt="Nenhuma solicitação consultada"
+								/>
+
+								<h3>Nenhuma solicitação consultada</h3>
+								<p>
+									Preencha um ou ambos os campos acima e clique em "Consultar Protocolo" para
+									visualizar os resultados.
+								</p>
+							</div>
+						</td>
+					</tr>
+				{:else if isFetching}
 					<tr>
 						<td colspan="7">
 							<div class="loading-state" role="status" aria-live="polite">
 								<p>Carregando solicitações…</p>
-							</div>
-						</td>
-					</tr>
-				{:else if result === null}
-					<tr>
-						<td colspan="7">
-							<div class="empty-state">
-								<img class="empty-illustration" src={foundImg} alt={initialTitle} />
-
-								<h3>{initialTitle}</h3>
-								<p>{initialMessage}</p>
 							</div>
 						</td>
 					</tr>
@@ -112,9 +111,7 @@
 						<td colspan="7">
 							<div class="error-state" role="alert">
 								<p>{result.error.message}</p>
-								<button type="button" class="btn-retry" onclick={handleRetry}>
-									Tentar novamente
-								</button>
+								<Button variant="outline" onclick={() => invalidateAll()}>Tentar novamente</Button>
 							</div>
 						</td>
 					</tr>
@@ -177,7 +174,7 @@
 		<span class="pagination-info">
 			Exibindo {firstVisibleItem}–{lastVisibleItem} de {totalItems} entradas
 		</span>
-		<Pagination currentPage={page} {totalPages} {onpagechange} />
+		<Pagination {currentPage} {totalPages} {onpagechange} />
 	</div>
 </div>
 
@@ -374,22 +371,6 @@
 		margin: 0;
 		font: var(--paragrafo);
 		color: var(--gray);
-	}
-
-	.btn-retry {
-		padding: var(--spacing-xs) var(--spacing-md);
-		font: var(--paragrafo);
-		font-weight: 600;
-		color: var(--secondary-color);
-		background: none;
-		border: var(--border-default);
-		border-radius: var(--radius-sm);
-		cursor: pointer;
-		transition: var(--transition-default);
-	}
-
-	.btn-retry:hover {
-		background: var(--background-color);
 	}
 
 	.table-footer {

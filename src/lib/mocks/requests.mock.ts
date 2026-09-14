@@ -1,4 +1,5 @@
 import { ApiError } from '$lib/types/result';
+import type { QueueMetricsResponse, QueueQuery, QueueResponse } from '$lib/types/queue';
 import type {
 	InternalRequestDetail,
 	CreateRequestPayload,
@@ -6,12 +7,46 @@ import type {
 	ListRequestsQuery,
 	PaginatedResponse,
 	RequestDetail,
-	RequestSummary
+	RequestSummary,
+	RequestStatus
 } from '$lib/types/request';
 
+// Status considerados "em andamento" para a métrica da fila: trabalho já em fluxo,
+// excluindo etapas de fila/priorização e estados terminais.
+const IN_PROGRESS_STATUSES: RequestStatus[] = [
+	'Em triagem',
+	'Aguardando mapeamento',
+	'Em análise de viabilidade',
+	'Em desenvolvimento',
+	'Em homologação'
+];
+
+export async function getQueueMetricsMock(): Promise<QueueMetricsResponse> {
+	// Total, "sem responsável" e "em andamento" derivam dos fixtures. "Atrasados"
+	// é valor ilustrativo: o contrato ainda não expõe data-limite/atraso.
+	return {
+		totalRequests: mockRequests.length,
+		unassignedRequests: mockRequests.filter((request) => request.assigneeId === null).length,
+		inProgressRequests: mockRequests.filter((request) =>
+			IN_PROGRESS_STATUSES.includes(request.status)
+		).length,
+		overdueRequests: 2
+	};
+}
+
+// Fixtures — dados fictícios do domínio de solicitações, consumidos apenas pelos mocks.
 export type MockRequest = RequestSummary & {
 	corporateEmail: string;
+	assigneeId: number | null;
 };
+
+const MOCK_ASSIGNEES = {
+	fernandoAlves: 1,
+	anaSouza: 2,
+	lucasGomes: 3,
+	gabrielSoares: 4,
+	carlosMendes: 5
+} as const;
 
 export const mockRequests: MockRequest[] = [
 	{
@@ -21,6 +56,7 @@ export const mockRequests: MockRequest[] = [
 		processName: 'Pagamento de diárias',
 		priority: null,
 		status: 'Em triagem',
+		assigneeId: null,
 		assignee: null,
 		requesterName: 'Maria Oliveira'
 	},
@@ -31,6 +67,7 @@ export const mockRequests: MockRequest[] = [
 		processName: 'Fechamento mensal de ponto',
 		priority: 'Alta',
 		status: 'Concluído',
+		assigneeId: MOCK_ASSIGNEES.fernandoAlves,
 		assignee: 'Fernando Alves',
 		requesterName: 'Maria Oliveira'
 	},
@@ -41,6 +78,7 @@ export const mockRequests: MockRequest[] = [
 		processName: 'Controle de férias',
 		priority: 'Média',
 		status: 'Em desenvolvimento',
+		assigneeId: MOCK_ASSIGNEES.anaSouza,
 		assignee: 'Ana Souza',
 		requesterName: 'Maria Oliveira'
 	},
@@ -51,6 +89,7 @@ export const mockRequests: MockRequest[] = [
 		processName: 'Automatização de relatórios',
 		priority: 'Alta',
 		status: 'Aguardando mapeamento',
+		assigneeId: MOCK_ASSIGNEES.lucasGomes,
 		assignee: 'Lucas Gomes',
 		requesterName: 'João Santos'
 	},
@@ -61,6 +100,7 @@ export const mockRequests: MockRequest[] = [
 		processName: 'Integração de sistemas',
 		priority: 'Crítica',
 		status: 'Em análise de viabilidade',
+		assigneeId: MOCK_ASSIGNEES.gabrielSoares,
 		assignee: 'Gabriel Soares',
 		requesterName: 'João Santos'
 	},
@@ -71,6 +111,7 @@ export const mockRequests: MockRequest[] = [
 		processName: 'Acesso ao sistema interno',
 		priority: 'Baixa',
 		status: 'Solicitação enviada',
+		assigneeId: null,
 		assignee: null,
 		requesterName: 'Ana Souza'
 	},
@@ -81,8 +122,31 @@ export const mockRequests: MockRequest[] = [
 		processName: 'Atualização cadastral',
 		priority: null,
 		status: 'Pendente de informações',
+		assigneeId: MOCK_ASSIGNEES.carlosMendes,
 		assignee: 'Carlos Mendes',
 		requesterName: 'Ana Souza'
+	},
+	{
+		protocol: 'MAAT-5M2R-7TQA',
+		corporateEmail: 'ana.souza@maat.com.br',
+		createdAt: '2026-09-03T10:20:00.000Z',
+		processName: 'Revisão do fluxo de aprovações',
+		priority: 'Alta',
+		status: 'Em desenvolvimento',
+		assigneeId: MOCK_ASSIGNEES.anaSouza,
+		assignee: 'Ana Souza',
+		requesterName: 'Ana Souza'
+	},
+	{
+		protocol: 'MAAT-3V8K-6JPN',
+		corporateEmail: 'pedro.rocha@maat.com.br',
+		createdAt: '2026-09-04T13:10:00.000Z',
+		processName: 'Automação de conferência documental',
+		priority: 'Média',
+		status: 'Priorizado',
+		assigneeId: MOCK_ASSIGNEES.anaSouza,
+		assignee: 'Ana Souza',
+		requesterName: 'Pedro Rocha'
 	},
 	{
 		protocol: 'MAAT-3J8L-6PQM',
@@ -91,6 +155,7 @@ export const mockRequests: MockRequest[] = [
 		processName: 'Revisão de processo',
 		priority: 'Média',
 		status: 'Priorizado',
+		assigneeId: MOCK_ASSIGNEES.lucasGomes,
 		assignee: 'Lucas Gomes',
 		requesterName: 'Carlos Mendes'
 	},
@@ -101,6 +166,7 @@ export const mockRequests: MockRequest[] = [
 		processName: 'Novo fluxo de atendimento',
 		priority: 'Alta',
 		status: 'Em homologação',
+		assigneeId: MOCK_ASSIGNEES.gabrielSoares,
 		assignee: 'Gabriel Soares',
 		requesterName: 'Fernanda Lima'
 	},
@@ -111,6 +177,7 @@ export const mockRequests: MockRequest[] = [
 		processName: 'Dashboard de indicadores',
 		priority: 'Média',
 		status: 'Backlog',
+		assigneeId: null,
 		assignee: null,
 		requesterName: 'Rafael Costa'
 	},
@@ -121,6 +188,7 @@ export const mockRequests: MockRequest[] = [
 		processName: 'Melhoria no processo de atendimento',
 		priority: 'Alta',
 		status: 'Elegível',
+		assigneeId: MOCK_ASSIGNEES.anaSouza,
 		assignee: 'Ana Souza',
 		requesterName: 'Juliana Alves'
 	},
@@ -131,6 +199,7 @@ export const mockRequests: MockRequest[] = [
 		processName: 'Solicitação de cancelamento',
 		priority: 'Baixa',
 		status: 'Cancelado',
+		assigneeId: MOCK_ASSIGNEES.lucasGomes,
 		assignee: 'Lucas Gomes',
 		requesterName: 'Bruno Martins'
 	}
@@ -365,6 +434,7 @@ export const mockRequestDetails: RequestDetail[] = [
 	}
 ];
 
+// Limites espelhados do contrato — o mock simula a validação do backend.
 const MAX_FILES = 5;
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 const ALLOWED_MIME_TYPES = [
@@ -375,6 +445,7 @@ const ALLOWED_MIME_TYPES = [
 	'image/jpeg'
 ];
 
+// Latência artificial para tornar o estado de carregamento perceptível na UI.
 const MOCK_LATENCY_MS = 500;
 
 export function createRequestMock(
@@ -400,6 +471,9 @@ function delay(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Registra a solicitação criada nos fixtures em memória, fechando o loop de
+// desenvolvimento: o novo protocolo fica rastreável em /acompanhar, na busca
+// e na fila interna do administrador.
 function registerCreatedRequest(protocol: string, payload: CreateRequestPayload): void {
 	const requester = payload.requester;
 	const now = new Date().toISOString();
@@ -411,6 +485,7 @@ function registerCreatedRequest(protocol: string, payload: CreateRequestPayload)
 		processName: payload.demand.processName,
 		priority: null,
 		status: 'Solicitação enviada',
+		assigneeId: null,
 		assignee: null,
 		requesterName: requester.fullName
 	});
@@ -473,6 +548,7 @@ function validateAttachments(files: Blob[]): string | null {
 
 const PROTOCOL_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
+// Protocolo fictício no formato do contrato (geração FPE/Feistel é do backend).
 function generateMockProtocol(): string {
 	const pick = () =>
 		Array.from(
@@ -480,6 +556,18 @@ function generateMockProtocol(): string {
 			() => PROTOCOL_ALPHABET[Math.floor(Math.random() * PROTOCOL_ALPHABET.length)]
 		).join('');
 	return `MAAT-${pick()}-${pick()}`;
+}
+
+function toRequestSummary(request: MockRequest): RequestSummary {
+	return {
+		protocol: request.protocol,
+		createdAt: request.createdAt,
+		processName: request.processName,
+		priority: request.priority,
+		status: request.status,
+		assignee: request.assignee,
+		requesterName: request.requesterName
+	};
 }
 
 export function listRequestsMock(
@@ -513,7 +601,63 @@ export function listRequestsMock(
 	const total = requests.length;
 	const totalPages = Math.ceil(total / pageSize);
 	const start = (page - 1) * pageSize;
-	const data = requests.slice(start, start + pageSize);
+	const data = requests.slice(start, start + pageSize).map(toRequestSummary);
+
+	return Promise.resolve({
+		data,
+		page,
+		pageSize,
+		total,
+		totalPages
+	});
+}
+
+export function listQueueRequestsMock(query: QueueQuery): Promise<QueueResponse> {
+	let requests = [...mockRequests];
+
+	if (query.search) {
+		const normalizedSearch = query.search.trim().toLowerCase();
+
+		requests = requests.filter((request) => {
+			return (
+				request.protocol.toLowerCase().includes(normalizedSearch) ||
+				request.processName.toLowerCase().includes(normalizedSearch) ||
+				request.requesterName.toLowerCase().includes(normalizedSearch) ||
+				request.corporateEmail.toLowerCase().includes(normalizedSearch)
+			);
+		});
+	}
+
+	if (query.status) {
+		requests = requests.filter((request) => request.status === query.status);
+	}
+
+	if (query.priority) {
+		requests = requests.filter((request) => request.priority === query.priority);
+	}
+
+	if (query.assigneeId !== undefined) {
+		requests = requests.filter((request) => {
+			if (query.assigneeId === 'unassigned') {
+				return request.assigneeId === null;
+			}
+
+			return request.assigneeId === query.assigneeId;
+		});
+	}
+
+	const page = query.page ?? 1;
+	const pageSize = query.pageSize ?? 10;
+	const total = requests.length;
+	const totalPages = Math.ceil(total / pageSize);
+
+	const start = (page - 1) * pageSize;
+	const end = start + pageSize;
+
+	const data = requests.slice(start, end).map((request) => ({
+		...toRequestSummary(request),
+		requesterEmail: request.corporateEmail
+	}));
 
 	return Promise.resolve({
 		data,
@@ -534,78 +678,6 @@ export function getRequestByProtocolMock(protocol: string): Promise<RequestDetai
 	}
 
 	return Promise.resolve(detail);
-}
-
-const MOCK_ASSIGNEES_MAP: Record<number, string> = {
-	1: 'Fernando Alves',
-	2: 'Ana Souza',
-	3: 'Lucas Gomes',
-	4: 'Gabriel Soares',
-	5: 'Carlos Mendes'
-};
-
-export function listQueueMock(
-	query: import('$lib/types/queue').QueueQuery
-): Promise<import('$lib/types/queue').QueueResponse> {
-	let requests = mockRequests.map((r) => ({
-		...r,
-		requesterEmail: r.corporateEmail
-	}));
-
-	if (query.assigneeId !== undefined) {
-		if (query.assigneeId === 'unassigned') {
-			requests = requests.filter((r) => r.assignee === null);
-		} else {
-			const targetName = MOCK_ASSIGNEES_MAP[query.assigneeId as number];
-			if (targetName) {
-				requests = requests.filter((r) => r.assignee === targetName);
-			} else {
-				requests = [];
-			}
-		}
-	}
-
-	if (query.status) {
-		requests = requests.filter((r) => r.status === query.status);
-	}
-
-	if (query.priority) {
-		requests = requests.filter((r) => r.priority === query.priority);
-	}
-
-	if (query.search) {
-		const search = query.search.toLowerCase().trim();
-		requests = requests.filter(
-			(r) =>
-				r.processName.toLowerCase().includes(search) ||
-				r.requesterName.toLowerCase().includes(search) ||
-				r.protocol.toLowerCase().includes(search)
-		);
-	}
-
-	const page = query.page ?? 1;
-	const pageSize = query.pageSize ?? 10;
-	const total = requests.length;
-	const totalPages = Math.ceil(total / pageSize);
-	const start = (page - 1) * pageSize;
-	const data = requests.slice(start, start + pageSize);
-
-	const assignees = [
-		{ id: 1, name: 'Fernando Alves' },
-		{ id: 2, name: 'Ana Souza' },
-		{ id: 3, name: 'Lucas Gomes' },
-		{ id: 4, name: 'Gabriel Soares' },
-		{ id: 5, name: 'Carlos Mendes' }
-	];
-
-	return Promise.resolve({
-		data,
-		page,
-		pageSize,
-		total,
-		totalPages,
-		assignees
-	});
 }
 
 export const mockInternalRequestDetails: InternalRequestDetail[] = [

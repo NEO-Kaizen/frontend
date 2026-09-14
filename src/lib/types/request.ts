@@ -351,12 +351,15 @@ export const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 // ---- Endpoints GET (contrato firmado; páginas futuras) ----
 
-export interface ListRequestsQuery {
-	email?: string;
-	search?: string;
-	status?: RequestStatus;
+export interface PaginationQuery {
 	page?: number;
 	pageSize?: number;
+}
+
+export interface ListRequestsQuery extends PaginationQuery {
+	email: string;
+	search?: string;
+	status?: RequestStatus;
 }
 
 export interface PaginatedResponse<T> {
