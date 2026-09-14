@@ -57,6 +57,8 @@ export const iconDictionary = {
 	delete: 'delete',
 	dragIndicator: 'drag_indicator',
 	calendarMonth: 'calendar_month',
+	lightMode: 'light_mode',
+	darkMode: 'dark_mode',
 	content_copy: 'content_copy'
 } as const;
 
