@@ -1,10 +1,35 @@
-import { fetchPortalConfig, updatePortalConfig } from '$lib/config/portal-config.api';
+import {
+	fetchPortalConfig,
+	updatePortalConfig,
+	uploadAssetApi
+} from '$lib/config/portal-config.api';
 import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
 import { ApiError, type Result } from '$lib/types/result';
-import { isValidPlatformName, isValidProtocolMask } from '$lib/utils/validations';
+import {
+	isValidAssetFile,
+	isValidAssetUrl,
+	isValidCategoryName,
+	isValidCategoryDescription,
+	isValidStatusName,
+	isValidPlatformName,
+	isValidProtocolMask,
+	areCategoryNamesUnique,
+	hasActiveCategory,
+	areStatusNamesUnique,
+	MAX_CATEGORIES,
+	MAX_STATUSES,
+	ASSET_FILE_RULES
+} from '$lib/utils/validations';
+import { ASSET_KEYS, STATUS_TONES, STATUS_VISIBILITIES } from '$lib/types/portal-config';
 import type {
+	AssetKey,
+	PortalCategory,
 	PortalConfig,
+	PortalAssetsPatch,
+	PortalStatus,
 	SolicitationMode,
+	StatusTone,
+	StatusVisibility,
 	UpdatePortalConfigPayload
 } from '$lib/types/portal-config';
 
@@ -23,13 +48,14 @@ export async function loadPortalConfig(): Promise<PortalConfig> {
 
 const SOLICITATION_MODES: readonly SolicitationMode[] = ['PUBLIC', 'AUTHENTICATED'];
 
-// Persiste atualizações parciais da configuração (PATCH). Valida só a allowlist
-// antes de enviar e sanitiza a resposta do backend; nunca expõe exceção à UI.
+// Persiste atualizações parciais da configuração (PATCH). Sanitiza o payload
+// para a allowlist do contrato antes de enviar e sanitiza a resposta do
+// backend; nunca expõe exceção à UI.
 export async function savePortalConfig(
 	payload: UpdatePortalConfigPayload
 ): Promise<Result<PortalConfig>> {
 	try {
-		const raw = await updatePortalConfig(payload);
+		const raw = await updatePortalConfig(sanitizeUpdatePayload(payload));
 		return { ok: true, data: sanitizePortalConfig(raw) };
 	} catch (error) {
 		if (error instanceof ApiError) {
@@ -43,6 +69,78 @@ export async function savePortalConfig(
 		}
 		return { ok: false, error: { message: 'Não foi possível conectar ao servidor.' } };
 	}
+}
+
+// Upload de um asset (Card 4). Valida localmente tipo e tamanho (espelho das
+// regras do contrato) antes de qualquer chamada de rede; retorna a URL do
+// asset pronto para ser salva no PATCH. Nunca expõe exceção à UI.
+export async function uploadAsset(asset: AssetKey, file: File): Promise<Result<string>> {
+	const rule = ASSET_FILE_RULES[asset];
+
+	if (file.size > rule.maxBytes) {
+		return { ok: false, error: { message: 'Arquivo excede o tamanho máximo permitido.' } };
+	}
+
+	if (!isValidAssetFile(asset, file)) {
+		return { ok: false, error: { message: 'Tipo de arquivo não permitido para este asset.' } };
+	}
+
+	try {
+		const url = await uploadAssetApi(asset, file);
+		return { ok: true, data: url };
+	} catch (error) {
+		if (error instanceof ApiError) {
+			return {
+				ok: false,
+				error: { status: error.status, message: 'Não foi possível enviar o arquivo.' }
+			};
+		}
+		return { ok: false, error: { message: 'Não foi possível conectar ao servidor.' } };
+	}
+}
+
+// Mantém apenas as chaves da allowlist do contrato, valores dos campos simples
+// e assets parciais validados (URL relativa ou http(s)). Campos desconhecidos
+// ou inválidos são descartados — o backend contínua sendo a autoridade.
+function sanitizeUpdatePayload(payload: UpdatePortalConfigPayload): UpdatePortalConfigPayload {
+	const sanitized: UpdatePortalConfigPayload = {};
+
+	if (payload.solicitationMode !== undefined) {
+		sanitized.solicitationMode = payload.solicitationMode;
+	}
+	if (payload.platformName !== undefined) {
+		sanitized.platformName = payload.platformName;
+	}
+	if (payload.protocolMask !== undefined) {
+		sanitized.protocolMask = payload.protocolMask;
+	}
+
+	if (payload.assets !== undefined) {
+		const assets: PortalAssetsPatch = {};
+		for (const key of ASSET_KEYS) {
+			const value = payload.assets[key];
+			if (typeof value === 'string' && isValidAssetUrl(value)) {
+				assets[key] = value.trim();
+			}
+		}
+		sanitized.assets = assets;
+	}
+
+	if (payload.categories !== undefined) {
+		const categories = sanitizeCategories(payload.categories);
+		if (categories.length > 0) {
+			sanitized.categories = categories;
+		}
+	}
+
+	if (payload.statuses !== undefined) {
+		const statuses = sanitizeStatuses(payload.statuses);
+		if (statuses.length > 0) {
+			sanitized.statuses = statuses;
+		}
+	}
+
+	return sanitized;
 }
 
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
@@ -78,7 +176,9 @@ function sanitizePortalConfig(raw: unknown): PortalConfig {
 				assets.loginImageUrl,
 				DEFAULT_PORTAL_CONFIG.assets.loginImageUrl
 			)
-		}
+		},
+		categories: sanitizeCategories(source.categories),
+		statuses: sanitizeStatuses(source.statuses)
 	};
 }
 
@@ -110,15 +210,107 @@ function sanitizeAssetUrl(value: unknown, fallback: string): string {
 	if (typeof value !== 'string') return fallback;
 
 	const url = value.trim();
-	if (!url) return fallback;
+	return isValidAssetUrl(url) ? url : fallback;
+}
 
-	// Caminho relativo do próprio app (assets empacotados) é aceito direto.
-	if (url.startsWith('/')) return url;
+// Categorias vindas da API ou do payload — itens estruturalmente válidos com
+// nome/descrição dentro dos limites e nomes únicos. Descarta cada item inválido
+// em vez de derrubar a lista toda; se nada restar ou não houver ao menos uma
+// ativa, cai nas categorias padrão.
+function sanitizeCategories(value: unknown): PortalCategory[] {
+	if (!Array.isArray(value)) return structuredClone(DEFAULT_PORTAL_CONFIG.categories);
 
-	try {
-		const parsed = new URL(url);
-		return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? url : fallback;
-	} catch {
-		return fallback;
+	const categories: PortalCategory[] = [];
+	for (const item of value) {
+		if (!isRecord(item)) continue;
+
+		const name = typeof item.name === 'string' ? item.name.trim() : '';
+		const description = typeof item.description === 'string' ? item.description.trim() : '';
+		const isActive = item.isActive === true;
+
+		if (
+			typeof item.id === 'number' &&
+			Number.isInteger(item.id) &&
+			item.id > 0 &&
+			isValidCategoryName(name) &&
+			isValidCategoryDescription(description)
+		) {
+			categories.push({
+				id: item.id,
+				name,
+				description,
+				isActive
+			});
+		}
 	}
+
+	if (categories.length === 0) return structuredClone(DEFAULT_PORTAL_CONFIG.categories);
+
+	if (categories.length > MAX_CATEGORIES) {
+		return structuredClone(DEFAULT_PORTAL_CONFIG.categories);
+	}
+
+	if (!areCategoryNamesUnique(categories) || !hasActiveCategory(categories)) {
+		return structuredClone(DEFAULT_PORTAL_CONFIG.categories);
+	}
+
+	return categories;
+}
+
+// Status do ciclo de vida vindos da API ou do payload — itens estruturalmente
+// válidos (id inteiro positivo, nome nos limites, visibility/tone na allowlist,
+// closesRequest booleano). Descarta cada item inválido em vez de derrubar a
+// lista toda; se nada restar, exceder o limite ou repetir nomes, cai nos
+// status padrão.
+function sanitizeStatuses(value: unknown): PortalStatus[] {
+	if (!Array.isArray(value)) return structuredClone(DEFAULT_PORTAL_CONFIG.statuses);
+
+	const statuses: PortalStatus[] = [];
+	for (const item of value) {
+		if (!isRecord(item)) continue;
+
+		const name = typeof item.name === 'string' ? item.name.trim() : '';
+		const visibility = sanitizeStatusVisibility(item.visibility);
+		const tone = sanitizeStatusTone(item.tone);
+		const closesRequest = item.closesRequest === true;
+
+		if (
+			typeof item.id === 'number' &&
+			Number.isInteger(item.id) &&
+			item.id > 0 &&
+			isValidStatusName(name)
+		) {
+			statuses.push({
+				id: item.id,
+				name,
+				visibility,
+				closesRequest,
+				tone
+			});
+		}
+	}
+
+	if (statuses.length === 0) return structuredClone(DEFAULT_PORTAL_CONFIG.statuses);
+
+	if (statuses.length > MAX_STATUSES) {
+		return structuredClone(DEFAULT_PORTAL_CONFIG.statuses);
+	}
+
+	if (!areStatusNamesUnique(statuses)) {
+		return structuredClone(DEFAULT_PORTAL_CONFIG.statuses);
+	}
+
+	return statuses;
+}
+
+function sanitizeStatusVisibility(value: unknown): StatusVisibility {
+	return typeof value === 'string' && STATUS_VISIBILITIES.includes(value as StatusVisibility)
+		? (value as StatusVisibility)
+		: DEFAULT_PORTAL_CONFIG.statuses[0].visibility;
+}
+
+function sanitizeStatusTone(value: unknown): StatusTone {
+	return typeof value === 'string' && STATUS_TONES.includes(value as StatusTone)
+		? (value as StatusTone)
+		: DEFAULT_PORTAL_CONFIG.statuses[0].tone;
 }
