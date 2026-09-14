@@ -15,6 +15,8 @@ import type {
 const REQUESTS_PATH = '/requests';
 const QUEUE_PATH = '/queue';
 
+// POST /requests — envia o formulário (parte textual "payload") e os anexos
+// (0 a 5 partes binárias "attachments") num único multipart/form-data.
 export async function createRequest(
 	payload: CreateRequestPayload,
 	files: Blob[] = []
@@ -49,7 +51,7 @@ export async function listRequests(
 
 	const params = new URLSearchParams();
 
-	if (query.email) params.set('email', query.email);
+	params.set('email', query.email);
 	if (query.search) params.set('search', query.search);
 	if (query.status) params.set('status', query.status);
 	if (query.page !== undefined) params.set('page', String(query.page));

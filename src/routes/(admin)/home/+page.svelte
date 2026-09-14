@@ -7,47 +7,55 @@
 	import type { QueueResponse } from '$lib/types/queue';
 	import type { Result } from '$lib/types/result';
 
+	const pageSize = 10;
+
 	let currentPage = $state<number>(1);
-	let pageSize = $state<number>(10);
 	let loading = $state<boolean>(true);
-	let assignedCount = $state<number>(0);
 	let tableResult = $state<Result<QueueResponse> | null>(null);
+	let requestToken = 0;
 
 	let user = $derived(page.data.user);
 	let userName = $derived(user?.name ?? 'Usuário');
+	let bannerDescription = $derived.by(() => {
+		if (tableResult === null) {
+			return 'Carregando solicitações sem responsável…';
+		}
 
-	async function fetchDashboardData(pageNumber = 1) {
+		if (!tableResult.ok) {
+			return 'Não foi possível carregar o total de solicitações sem responsável.';
+		}
+
+		const total = tableResult.data.total;
+
+		return `Há ${total} ${total === 1 ? 'solicitação' : 'solicitações'} sem responsável.`;
+	});
+
+	async function fetchTable(pageNumber: number) {
+		const token = ++requestToken;
+
 		loading = true;
 		currentPage = pageNumber;
 
-		tableResult = await listQueueRequests({
+		const result = await listQueueRequests({
 			page: pageNumber,
 			pageSize,
 			assigneeId: 'unassigned'
 		});
 
-		loading = false;
-
-		if (user?.id) {
-			try {
-				const myQueueResult = await listQueueRequests({
-					page: 1,
-					pageSize: 1,
-					assigneeId: user.id
-				});
-				assignedCount = myQueueResult.ok ? myQueueResult.data.total : 0;
-			} catch {
-				assignedCount = 0;
-			}
+		if (token !== requestToken) {
+			return;
 		}
+
+		tableResult = result;
+		loading = false;
 	}
 
 	function handlePageChange(newPage: number) {
-		fetchDashboardData(newPage);
+		void fetchTable(newPage);
 	}
 
 	onMount(() => {
-		fetchDashboardData(1);
+		void fetchTable(1);
 	});
 </script>
 
@@ -56,10 +64,7 @@
 </svelte:head>
 
 <div class="content-container dashboard">
-	<Banner
-		titulo={`Bem-vindo de volta, ${userName}`}
-		descricao={`Você possui ${assignedCount} solicitações das quais você está como responsável.`}
-	/>
+	<Banner titulo={`Bem-vindo de volta, ${userName}`} descricao={bannerDescription} />
 
 	<section class="table-section">
 		<h2>Solicitações sem responsável</h2>
@@ -69,9 +74,9 @@
 			result={tableResult}
 			isFetching={loading}
 			detailRoute="/(admin)/fila/[protocolo]"
-			initialTitle="Nenhuma solicitação sem responsável"
-			initialMessage="Não há solicitações pendentes de atribuição no momento."
-			onretry={() => fetchDashboardData(currentPage)}
+			emptyTitle="Nenhuma solicitação sem responsável"
+			emptyMessage="Não há solicitações pendentes de atribuição no momento."
+			onretry={() => fetchTable(currentPage)}
 			onpagechange={handlePageChange}
 		/>
 	</section>

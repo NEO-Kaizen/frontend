@@ -1,4 +1,4 @@
-<!-- Componente global: usado em /acompanhar e reutilizável na fila admin (issue própria) -->
+<!-- Componente global: usado em /acompanhar, /fila e /home -->
 <script lang="ts">
 	import foundImg from '$lib/assets/SolicitationIllustration.svg';
 	import Pagination from './Pagination.svelte';
@@ -37,8 +37,8 @@
 		result: Result<PaginatedResponse<RequestSummary>> | null;
 		isFetching: boolean;
 		detailRoute?: DetailRoute;
-		initialTitle?: string;
-		initialMessage?: string;
+		emptyTitle?: string;
+		emptyMessage?: string;
 		onretry?: () => void;
 		onpagechange: (page: number) => void;
 	};
@@ -48,8 +48,8 @@
 		result = null,
 		isFetching = false,
 		detailRoute = '/(public)/acompanhar/[protocolo]',
-		initialTitle = 'Nenhuma solicitação consultada',
-		initialMessage = 'Preencha um ou ambos os campos acima e clique em "Consultar Protocolo" para visualizar os resultados.',
+		emptyTitle = 'Nenhuma solicitação encontrada',
+		emptyMessage,
 		onretry,
 		onpagechange
 	}: Props = $props();
@@ -98,10 +98,17 @@
 					<tr>
 						<td colspan="7">
 							<div class="empty-state">
-								<img class="empty-illustration" src={foundImg} alt={initialTitle} />
+								<img
+									class="empty-illustration"
+									src={foundImg}
+									alt="Nenhuma solicitação consultada"
+								/>
 
-								<h3>{initialTitle}</h3>
-								<p>{initialMessage}</p>
+								<h3>Nenhuma solicitação consultada</h3>
+								<p>
+									Preencha um ou ambos os campos acima e clique em "Consultar Protocolo" para
+									visualizar os resultados.
+								</p>
 							</div>
 						</td>
 					</tr>
@@ -163,7 +170,10 @@
 					<tr>
 						<td colspan="7">
 							<div class="empty-state">
-								<h3>Nenhuma solicitação encontrada</h3>
+								<h3>{emptyTitle}</h3>
+								{#if emptyMessage}
+									<p>{emptyMessage}</p>
+								{/if}
 							</div>
 						</td>
 					</tr>
