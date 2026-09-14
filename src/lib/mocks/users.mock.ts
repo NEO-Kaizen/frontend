@@ -9,6 +9,7 @@ import type {
 	UpdateUserStatusResponse,
 	UserProfile,
 	UserRole,
+	UserStats,
 	UserSummary
 } from '$lib/types/user';
 
@@ -91,7 +92,7 @@ export const mockUsers: UserSummary[] = [
 		email: 'lucas.ferreira@maat.com.br',
 		profile: 'Solicitante',
 		isActive: true,
-		mustChangePassword: false,
+		mustChangePassword: true,
 		createdAt: '2026-08-23T15:05:00.000Z'
 	},
 	{
@@ -118,8 +119,71 @@ export const mockUsers: UserSummary[] = [
 		email: 'camila.duarte@maat.com.br',
 		profile: 'Solicitante',
 		isActive: true,
-		mustChangePassword: false,
+		mustChangePassword: true,
 		createdAt: '2026-08-30T14:15:00.000Z'
+	},
+	{
+		id: '13',
+		fullName: 'Ana Beatriz Souza',
+		email: 'ana.souza@maat.com.br',
+		profile: 'Analista',
+		isActive: true,
+		mustChangePassword: false,
+		createdAt: '2026-07-05T09:00:00.000Z'
+	},
+	{
+		id: '14',
+		fullName: 'Marcelo Tavares',
+		email: 'marcelo.tavares@maat.com.br',
+		profile: 'Analista',
+		isActive: true,
+		mustChangePassword: true,
+		createdAt: '2026-08-18T11:30:00.000Z'
+	},
+	{
+		id: '15',
+		fullName: 'Renata Campos',
+		email: 'renata.campos@maat.com.br',
+		profile: 'Analista',
+		isActive: false,
+		mustChangePassword: false,
+		createdAt: '2026-08-27T16:20:00.000Z'
+	},
+	{
+		id: '16',
+		fullName: 'Paulo Henrique Dias',
+		email: 'paulo.dias@maat.com.br',
+		profile: 'Gestor',
+		isActive: true,
+		mustChangePassword: false,
+		createdAt: '2026-06-12T08:45:00.000Z'
+	},
+	{
+		id: '17',
+		fullName: 'Simone Ribeiro',
+		email: 'simone.ribeiro@maat.com.br',
+		profile: 'Gestor',
+		isActive: true,
+		mustChangePassword: true,
+		createdAt: '2026-08-21T14:05:00.000Z'
+	},
+	{
+		id: '18',
+		fullName: 'Administrador Teste',
+		email: 'administrador.teste@maat.com.br',
+		profile: 'Administrador',
+		isActive: true,
+		mustChangePassword: false,
+		createdAt: '2026-06-01T10:00:00.000Z'
+	},
+	{
+		id: '19',
+		fullName: 'Helena Prado',
+		email: 'helena.prado@maat.com.br',
+		profile: 'Administrador',
+		isActive: true,
+		mustChangePassword: false,
+		createdAt: '2026-07-19T13:40:00.000Z'
 	}
 ];
 
@@ -173,6 +237,15 @@ export function listUsersMock(query: ListUsersQuery): Promise<PaginatedResponse<
 		total,
 		totalPages
 	}));
+}
+
+export function getUserStatsMock(): UserStats {
+	return {
+		total: mockUsers.length,
+		active: mockUsers.filter((user) => user.isActive).length,
+		pending: mockUsers.filter((user) => user.mustChangePassword).length,
+		admins: mockUsers.filter((user) => user.profile === 'Administrador').length
+	};
 }
 
 export function createUserMock(payload: CreateUserPayload): Promise<CreateUserResponse> {
@@ -231,6 +304,10 @@ export function updateUserStatusMock(
 		return Promise.reject(new ApiError(404, 'Usuário não encontrado'));
 	}
 
+	if (user.profile === 'Administrador') {
+		return Promise.reject(new ApiError(403, 'Não é possível gerenciar contas de Administradores'));
+	}
+
 	user.isActive = isActive;
 
 	return delay(MOCK_LATENCY_MS).then(() => ({
@@ -244,6 +321,10 @@ export function resetUserPasswordMock(id: string): Promise<ResetPasswordResponse
 
 	if (!user) {
 		return Promise.reject(new ApiError(404, 'Usuário não encontrado'));
+	}
+
+	if (user.profile === 'Administrador') {
+		return Promise.reject(new ApiError(403, 'Não é possível gerenciar contas de Administradores'));
 	}
 
 	user.mustChangePassword = true;

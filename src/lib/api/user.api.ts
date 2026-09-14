@@ -9,6 +9,7 @@ import type {
 	ListUsersQuery,
 	ResetPasswordResponse,
 	UpdateUserStatusResponse,
+	UserStats,
 	UserSummary
 } from '$lib/types/user';
 
@@ -46,6 +47,15 @@ export async function listUsers(
 	const path = queryString ? `${USERS_PATH}?${queryString}` : USERS_PATH;
 
 	return apiClient<PaginatedResponse<UserSummary>>(path, {}, fetchImpl);
+}
+
+export async function getUserStats(): Promise<UserStats> {
+	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.users) {
+		const { getUserStatsMock } = await import('$lib/mocks/users.mock');
+		return getUserStatsMock();
+	}
+
+	return { total: 0, active: 0, pending: 0, admins: 0 };
 }
 
 export async function createUser(payload: CreateUserPayload): Promise<CreateUserResponse> {

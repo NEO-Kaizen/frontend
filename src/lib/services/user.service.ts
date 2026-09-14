@@ -1,5 +1,6 @@
 import {
 	createUser as createUserApi,
+	getUserStats as getUserStatsApi,
 	listUsers as listUsersApi,
 	resetUserPassword as resetUserPasswordApi,
 	updateUserStatus as updateUserStatusApi
@@ -15,6 +16,7 @@ import type {
 	ListUsersQuery,
 	ResetPasswordResponse,
 	UpdateUserStatusResponse,
+	UserStats,
 	UserStatus,
 	UserSummary
 } from '$lib/types/user';
@@ -26,13 +28,7 @@ export async function listUsers(
 	fetchImpl?: typeof fetch
 ): Promise<Result<PaginatedResponse<AdminUser>>> {
 	try {
-		const response = await listUsersApi(
-			{
-				...query,
-				profile: query.profile ?? 'solicitante'
-			},
-			fetchImpl
-		);
+		const response = await listUsersApi(query, fetchImpl);
 
 		return {
 			ok: true,
@@ -59,6 +55,10 @@ export async function listUsers(
 			}
 		};
 	}
+}
+
+export async function getUserStats(): Promise<UserStats> {
+	return getUserStatsApi();
 }
 
 export async function createUser(data: CreateUserFormData): Promise<Result<CreateUserResponse>> {
