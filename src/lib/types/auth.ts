@@ -6,11 +6,11 @@ export interface LoginCredentials {
 }
 
 export interface SessionUser {
-	id: number;
+	id: string;
 	name: string;
 	email: string;
 	role: UserType;
-	forcePasswordChange: boolean;
+	mustChangePassword: boolean;
 }
 
 export interface ChangePasswordPayload {
@@ -19,6 +19,5 @@ export interface ChangePasswordPayload {
 	confirmNewPassword: string;
 }
 
-export interface LoginResponse {
-	user: SessionUser;
-}
+// Login e /auth/me devolvem o mesmo DTO flat (id string, mustChangePassword).
+export type LoginResponse = SessionUser;
