@@ -22,6 +22,7 @@ export const iconDictionary = {
 	queueSummary: 'article',
 	queueChart: 'analytics',
 	addCircle: 'add_circle',
+	addUser: 'person_add',
 	close: 'close',
 	sort: 'sort',
 	expandMore: 'arrow_drop_down',
