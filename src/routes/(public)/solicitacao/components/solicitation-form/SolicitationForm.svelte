@@ -143,7 +143,7 @@
 		currentStep = draft.currentStep;
 		completedSteps = new Set(draft.completedSteps);
 		visitedSteps = new Set(draft.visitedSteps);
-		identification = hasSession
+		identification = shouldLockIdentity
 			? { ...draft.identification, ...getSessionIdentity() }
 			: draft.identification;
 		demand = draft.demand;
