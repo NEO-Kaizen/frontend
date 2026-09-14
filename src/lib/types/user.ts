@@ -28,6 +28,13 @@ export interface UserSummary {
 	createdAt: string;
 }
 
+export interface UserStats {
+	total: number;
+	active: number;
+	pending: number;
+	admins: number;
+}
+
 export interface ListUsersQuery {
 	profile?: UserProfile;
 	search?: string;

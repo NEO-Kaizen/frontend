@@ -28,6 +28,14 @@
 
 <div class="table-wrapper">
 	<table>
+		<colgroup>
+			<col class="col-name" />
+			<col class="col-email" />
+			<col class="col-role" />
+			<col class="col-status" />
+			<col class="col-actions" />
+		</colgroup>
+
 		<thead>
 			<tr>
 				<th> Nome </th>
@@ -90,63 +98,67 @@
 					</td>
 
 					<td>
-						<div class="actions">
-							<div class="menu-wrapper">
-								<button
-									type="button"
-									class="icon-button"
-									aria-label={`Mais opções para ${user.name}`}
-									aria-expanded={openMenuId === user.id}
-									onclick={() => toggleMenu(user.id)}
-								>
-									<span class="dots-icon" aria-hidden="true"> ••• </span>
-								</button>
+						{#if user.role === 'Administrador'}
+							<span class="no-actions" aria-hidden="true"> — </span>
+						{:else}
+							<div class="actions">
+								<div class="menu-wrapper">
+									<button
+										type="button"
+										class="icon-button"
+										aria-label={`Mais opções para ${user.name}`}
+										aria-expanded={openMenuId === user.id}
+										onclick={() => toggleMenu(user.id)}
+									>
+										<span class="dots-icon" aria-hidden="true"> ••• </span>
+									</button>
 
-								{#if openMenuId === user.id}
-									<div class="user-action-menu">
-										<button
-											type="button"
-											class="menu-item"
-											onclick={() => handleAction(user, 'reset')}
-										>
-											<span class="menu-icon">
-												<Icon iconName="lock" iconSize="sm" />
-											</span>
-
-											<span> Alterar senha </span>
-										</button>
-
-										<div class="menu-divider"></div>
-
-										{#if user.status === 'Ativo'}
+									{#if openMenuId === user.id}
+										<div class="user-action-menu">
 											<button
 												type="button"
-												class="menu-item danger"
-												onclick={() => handleAction(user, 'deactivate')}
+												class="menu-item"
+												onclick={() => handleAction(user, 'reset')}
 											>
 												<span class="menu-icon">
-													<Icon iconName="block" iconSize="sm" />
+													<Icon iconName="lock" iconSize="sm" />
 												</span>
 
-												<span> Desativar usuário </span>
+												<span> Alterar senha </span>
 											</button>
-										{:else}
-											<button
-												type="button"
-												class="menu-item success"
-												onclick={() => handleAction(user, 'activate')}
-											>
-												<span class="menu-icon">
-													<Icon iconName="userApproved" iconSize="sm" />
-												</span>
 
-												<span> Ativar usuário </span>
-											</button>
-										{/if}
-									</div>
-								{/if}
+											<div class="menu-divider"></div>
+
+											{#if user.status === 'Ativo'}
+												<button
+													type="button"
+													class="menu-item danger"
+													onclick={() => handleAction(user, 'deactivate')}
+												>
+													<span class="menu-icon">
+														<Icon iconName="block" iconSize="sm" />
+													</span>
+
+													<span> Desativar usuário </span>
+												</button>
+											{:else}
+												<button
+													type="button"
+													class="menu-item success"
+													onclick={() => handleAction(user, 'activate')}
+												>
+													<span class="menu-icon">
+														<Icon iconName="userApproved" iconSize="sm" />
+													</span>
+
+													<span> Ativar usuário </span>
+												</button>
+											{/if}
+										</div>
+									{/if}
+								</div>
 							</div>
-						</div>
+						{/if}
 					</td>
 				</tr>
 			{/each}
@@ -169,7 +181,29 @@
 
 		min-width: 760px;
 
+		table-layout: fixed;
+
 		border-collapse: collapse;
+	}
+
+	.col-name {
+		width: 30%;
+	}
+
+	.col-email {
+		width: 32%;
+	}
+
+	.col-role {
+		width: 15%;
+	}
+
+	.col-status {
+		width: 12%;
+	}
+
+	.col-actions {
+		width: 11%;
 	}
 
 	th {
@@ -212,7 +246,7 @@
 
 		gap: var(--spacing-md);
 
-		min-width: 220px;
+		min-width: 0;
 	}
 
 	.avatar {
@@ -239,12 +273,20 @@
 		flex-direction: column;
 
 		gap: 2px;
+
+		min-width: 0;
 	}
 
 	.user-info strong {
+		overflow: hidden;
+
 		color: var(--black);
 
 		font: var(--label);
+
+		white-space: nowrap;
+
+		text-overflow: ellipsis;
 	}
 
 	.user-info span {
@@ -254,13 +296,23 @@
 	}
 
 	.email {
+		display: block;
+
+		overflow: hidden;
+
 		color: var(--black);
 
 		white-space: nowrap;
+
+		text-overflow: ellipsis;
 	}
 
 	.role-badge {
 		display: inline-flex;
+
+		max-width: 100%;
+
+		overflow: hidden;
 
 		padding: 4px var(--spacing-sm);
 
@@ -273,6 +325,10 @@
 		font: var(--label);
 
 		font-size: 12px;
+
+		white-space: nowrap;
+
+		text-overflow: ellipsis;
 	}
 
 	.status {
@@ -284,6 +340,8 @@
 		font: var(--label);
 
 		font-size: 12px;
+
+		white-space: nowrap;
 	}
 
 	.status-dot {
@@ -304,8 +362,6 @@
 	}
 
 	.actions-header {
-		width: 70px;
-
 		text-align: center;
 	}
 
@@ -313,6 +369,15 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
+	}
+
+	.no-actions {
+		display: flex;
+
+		align-items: center;
+		justify-content: center;
+
+		color: var(--gray);
 	}
 
 	.menu-wrapper {
