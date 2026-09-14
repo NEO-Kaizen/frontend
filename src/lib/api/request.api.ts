@@ -53,7 +53,6 @@ export async function listRequests(
 	const params = new URLSearchParams();
 
 	params.set('email', query.email);
-
 	if (query.search) params.set('search', query.search);
 	if (query.status) params.set('status', query.status);
 	if (query.page !== undefined) params.set('page', String(query.page));
