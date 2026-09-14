@@ -351,12 +351,15 @@ export const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 // ---- Endpoints GET (contrato firmado; páginas futuras) ----
 
-export interface ListRequestsQuery {
+export interface PaginationQuery {
+	page?: number;
+	pageSize?: number;
+}
+
+export interface ListRequestsQuery extends PaginationQuery {
 	email: string;
 	search?: string;
 	status?: RequestStatus;
-	page?: number;
-	pageSize?: number;
 }
 
 export interface PaginatedResponse<T> {
@@ -394,4 +397,44 @@ export interface RequestDetail {
 		result: TriageResult;
 		justification: string;
 	} | null;
+}
+
+// ---- DTO interno (superconjunto) ----
+// Service: getInternalRequest(protocol: string): Promise<Result<InternalRequestDetail>>
+
+export interface InternalAttachment {
+	fileName: string;
+	mimeType: string;
+	sizeBytes: number;
+	downloadUrl: string | null;
+	canDownload: boolean;
+}
+
+export interface PrioritizationResult {
+	score: number | null;
+	maxScore: 25;
+	label: RequestPriority | null;
+}
+
+export interface InternalRequestDetail {
+	protocol: string;
+	status: RequestStatus;
+	priority: RequestPriority | null;
+	prioritization: PrioritizationResult;
+	assignee: { name: string | null; email?: string | null } | null;
+	correctionAlert?: { count: number; message: string } | null;
+
+	// blocos da solicitação
+	requester: RequesterBlock;
+	demand: DemandBlock;
+	operational: OperationalBlock;
+	complementary?: ComplementaryBlock;
+	schedulePreferences: SchedulePreferences | null;
+	mappingDate: string | null;
+	meeting: { scheduledFor: string; link: string | null } | null;
+
+	attachments: InternalAttachment[];
+	openedAt: string;
+	lastUpdate: string;
+	internalObservations?: string | null;
 }

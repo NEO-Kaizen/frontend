@@ -2,7 +2,8 @@
 	import Icon from './Icon.svelte';
 	import type { IconName, IconSize } from '$lib/types/icons';
 
-	export type IconBadgeVariant = 'indigo' | 'green' | 'orange' | 'blue' | 'override';
+	export type IconBadgeVariant =
+		'indigo' | 'green' | 'orange' | 'blue' | 'neutral' | 'danger' | 'override';
 	export type IconBadgeSize = 'sm' | 'lg';
 
 	interface BaseProps {
@@ -87,5 +88,15 @@
 	.icon-badge.blue {
 		background-color: rgba(219, 234, 254, 1);
 		color: rgba(29, 78, 216, 1);
+	}
+
+	.icon-badge.neutral {
+		background-color: #e5e7eb;
+		color: #4b5563;
+	}
+
+	.icon-badge.danger {
+		background-color: #fee2e2;
+		color: #b91c1c;
 	}
 </style>

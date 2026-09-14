@@ -9,6 +9,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { logout } from '$lib/services/auth.service';
+	import { clearDraft } from '$lib/services/solicitation-draft.service';
 	import { searchRequests } from '$lib/services/request.service';
 
 	// KNOWN ISSUE (svelte-check) — não estreitar este tipo sem entender a causa:
@@ -27,6 +28,7 @@
 
 	const currentUser = $derived(page.data.user);
 	const appConfig = $derived(page.data.portalConfig);
+	const isAuthenticated = $derived(currentUser != null);
 
 	function isActive(item: NavButton, pathname: string): boolean {
 		if (!item.href) return false;
@@ -127,6 +129,7 @@
 		isLoggingOut = true;
 
 		try {
+			clearDraft(currentUser?.id ?? null);
 			await logout();
 			await goto(resolve('/(public)/login'), { invalidateAll: true });
 		} finally {
@@ -162,7 +165,7 @@
 				<span>+</span> Nova solicitação
 			</Button>
 
-			{#if isNotSolicitante}
+			{#if isAuthenticated}
 				<div class="separator_bar-column"></div>
 
 				<div class="profile_block">
@@ -179,8 +182,8 @@
 						goto(resolve('/(public)/login'));
 					}}
 				>
-					<Icon iconName="security" />
-					Acesso administrativo
+					<Icon iconName="login" />
+					Acessar
 				</Button>
 			{/if}
 		</div>
@@ -206,6 +209,21 @@
 				{/each}
 			</div>
 
+			<button
+				class="nav-item"
+				type="button"
+				disabled={isLoggingOut}
+				aria-busy={isLoggingOut}
+				onclick={handleLogout}
+			>
+				<Icon iconName="logout" />
+				Sair
+			</button>
+		</div>
+	{:else if isAuthenticated}
+		<div class="separator_bar"></div>
+
+		<div class="nav">
 			<button
 				class="nav-item"
 				type="button"

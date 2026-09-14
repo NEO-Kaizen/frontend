@@ -16,6 +16,8 @@
 		saveDraft,
 		type SolicitationDraft
 	} from '$lib/services/solicitation-draft.service';
+	import type { SessionUser } from '$lib/types/auth';
+	import type { SolicitationMode } from '$lib/types/portal-config';
 	import type {
 		ComplementaryData,
 		CreateRequestPayload,
@@ -30,6 +32,16 @@
 		YesNo,
 		YesNoDetail
 	} from '$lib/types/request';
+
+	interface Props {
+		user?: SessionUser | null;
+		solicitationMode: SolicitationMode;
+	}
+
+	let { user = null, solicitationMode }: Props = $props();
+
+	const hasSession = $derived(Boolean(user));
+	const shouldLockIdentity = $derived(solicitationMode === 'AUTHENTICATED' && hasSession);
 
 	const steps = [
 		{ id: 1, label: 'Identificação' },
@@ -60,9 +72,14 @@
 		}
 	}
 
+	function getSessionIdentity(): Pick<IdentificationData, 'fullName' | 'corporateEmail'> {
+		return hasSession
+			? { fullName: user?.name ?? '', corporateEmail: user?.email ?? '' }
+			: { fullName: '', corporateEmail: '' };
+	}
+
 	let identification = $state<IdentificationData>({
-		fullName: '',
-		corporateEmail: '',
+		...getSessionIdentity(),
 		area: '',
 		department: '',
 		manager: '',
@@ -119,17 +136,23 @@
 	let step3Ref = $state<StepRef>();
 	let step4Ref = $state<StepRef>();
 
+	function hydrateFromDraft(): void {
+		const draft = loadDraft(user?.id ?? null);
+		if (!draft) return;
+
+		currentStep = draft.currentStep;
+		completedSteps = new Set(draft.completedSteps);
+		visitedSteps = new Set(draft.visitedSteps);
+		identification = shouldLockIdentity
+			? { ...draft.identification, ...getSessionIdentity() }
+			: draft.identification;
+		demand = draft.demand;
+		operational = draft.operational;
+		complementary = draft.complementary;
+	}
+
 	if (browser) {
-		const draft = loadDraft();
-		if (draft) {
-			currentStep = draft.currentStep;
-			completedSteps = new Set(draft.completedSteps);
-			visitedSteps = new Set(draft.visitedSteps);
-			identification = draft.identification;
-			demand = draft.demand;
-			operational = draft.operational;
-			complementary = draft.complementary;
-		}
+		hydrateFromDraft();
 	}
 
 	let draft = $derived<SolicitationDraft>({
@@ -154,7 +177,7 @@
 	});
 
 	$effect(() => {
-		saveDraft(draft);
+		saveDraft(draft, user?.id ?? null);
 	});
 
 	function validateCurrentStep(): boolean {
@@ -191,7 +214,7 @@
 	}
 
 	function resetForm() {
-		clearDraft();
+		clearDraft(user?.id ?? null);
 		currentStep = 1;
 		completedSteps = new Set();
 		visitedSteps = new Set([1]);
@@ -202,8 +225,8 @@
 		protocolCopied = false;
 		clearTimeout(copyTimeout);
 		identification = {
-			fullName: '',
-			corporateEmail: '',
+			fullName: hasSession ? (user?.name ?? '') : '',
+			corporateEmail: hasSession ? (user?.email ?? '') : '',
 			area: '',
 			department: '',
 			manager: '',
@@ -289,10 +312,16 @@
 			handlesRestrictedInfo !== undefined ||
 			additionalNotes !== undefined;
 
+		const requesterIdentity = shouldLockIdentity
+			? { fullName: user?.name ?? '', corporateEmail: user?.email ?? '' }
+			: {
+					fullName: identification.fullName.trim(),
+					corporateEmail: identification.corporateEmail.trim()
+				};
+
 		return {
 			requester: {
-				fullName: identification.fullName.trim(),
-				corporateEmail: identification.corporateEmail.trim(),
+				...requesterIdentity,
 				area: identification.area,
 				department: identification.department.trim() || undefined,
 				manager: identification.manager.trim(),
@@ -381,7 +410,7 @@
 		if (result.ok) {
 			submittedProtocol = result.data.protocol;
 			submitted = true;
-			clearDraft();
+			clearDraft(user?.id ?? null);
 		} else {
 			submitError = result.error.message;
 		}
@@ -437,7 +466,11 @@
 			</div>
 		{:else}
 			<div hidden={currentStep !== 1}>
-				<StepIdentification bind:this={step1Ref} bind:data={identification} />
+				<StepIdentification
+					bind:this={step1Ref}
+					bind:data={identification}
+					lockedFields={shouldLockIdentity ? ['fullName', 'corporateEmail'] : []}
+				/>
 			</div>
 			<div hidden={currentStep !== 2}>
 				<StepDemand bind:this={step2Ref} bind:data={demand} />
