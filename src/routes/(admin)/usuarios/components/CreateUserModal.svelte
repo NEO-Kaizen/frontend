@@ -19,8 +19,7 @@
 	const roleOptions: { value: UserProfile; label: string }[] = [
 		{ value: 'solicitante', label: 'Solicitante' },
 		{ value: 'analista', label: 'Analista' },
-		{ value: 'gestor', label: 'Gestor' },
-		{ value: 'administrador', label: 'Administrador' }
+		{ value: 'gestor', label: 'Gestor' }
 	];
 
 	const roleLabels: Record<UserProfile, string> = {
