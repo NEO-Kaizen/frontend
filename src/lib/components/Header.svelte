@@ -9,6 +9,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { logout } from '$lib/services/auth.service';
+	import { clearDraft } from '$lib/services/solicitation-draft.service';
 	import { searchRequests } from '$lib/services/request.service';
 
 	// KNOWN ISSUE (svelte-check) — não estreitar este tipo sem entender a causa:
@@ -128,6 +129,7 @@
 		isLoggingOut = true;
 
 		try {
+			clearDraft(currentUser?.id ?? null);
 			await logout();
 			await goto(resolve('/(public)/login'), { invalidateAll: true });
 		} finally {
