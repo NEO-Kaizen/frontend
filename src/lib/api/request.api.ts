@@ -74,7 +74,7 @@ export async function listQueueRequests(query: QueueQuery): Promise<QueueRespons
 
 	if (query.search) params.set('search', query.search);
 	if (query.status) params.set('status', query.status);
-	if (query.priority) params.set('priority', query.priority);
+	if (query.priority !== undefined) params.set('priority', query.priority);
 
 	if (query.assigneeId !== undefined) {
 		params.set('assigneeId', String(query.assigneeId));

@@ -64,7 +64,7 @@
 	);
 </script>
 
-<div class="table-container">
+<div class="table-container" class:is-loading={isFetching} aria-busy={isFetching}>
 	<div class="table-scroll">
 		<table>
 			<thead>
@@ -98,7 +98,7 @@
 							</div>
 						</td>
 					</tr>
-				{:else if isFetching}
+				{:else if isFetching && results.length === 0}
 					<tr>
 						<td colspan="7">
 							<div class="loading-state" role="status" aria-live="polite">
@@ -171,9 +171,14 @@
 		</table>
 	</div>
 	<div class="table-footer">
-		<span class="pagination-info">
-			Exibindo {firstVisibleItem}–{lastVisibleItem} de {totalItems} entradas
-		</span>
+		<div class="footer-info">
+			{#if isFetching}
+				<span class="table-loading" role="status" aria-live="polite">Atualizando…</span>
+			{/if}
+			<span class="pagination-info">
+				Exibindo {firstVisibleItem}–{lastVisibleItem} de {totalItems} entradas
+			</span>
+		</div>
 		<Pagination {currentPage} {totalPages} {onpagechange} />
 	</div>
 </div>
@@ -371,6 +376,26 @@
 		margin: 0;
 		font: var(--paragrafo);
 		color: var(--gray);
+	}
+
+	.table-container.is-loading tbody {
+		opacity: 0.55;
+		transition: opacity 120ms ease;
+	}
+
+	.table-container.is-loading {
+		cursor: progress;
+	}
+
+	.footer-info {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-sm);
+	}
+
+	.table-loading {
+		font: var(--label);
+		color: var(--secondary-color);
 	}
 
 	.table-footer {

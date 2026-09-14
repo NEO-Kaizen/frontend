@@ -21,6 +21,10 @@ const GUARD_RULES: Record<GuardRuleId, { profiles: 'any' | readonly UserType[] }
 	adminOnly: { profiles: ['Administrador'] }
 };
 
+export function isInternalProfile(role: UserType): boolean {
+	return INTERNAL_PROFILES.includes(role);
+}
+
 export function isAllowedReturnTo(value: string): value is PostLoginRoute {
 	if (!value.startsWith('/')) return false;
 	if (value.includes('://')) return false;
@@ -51,7 +55,7 @@ export function redirectToLogin(url: URL, loginUrl: string): never {
 export function getHomeRedirect(
 	user: SessionUser | null
 ): Extract<RouteId, '/(admin)/home'> | null {
-	if (user && INTERNAL_PROFILES.includes(user.role)) {
+	if (user && isInternalProfile(user.role)) {
 		return '/(admin)/home';
 	}
 	return null;

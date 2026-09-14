@@ -124,9 +124,7 @@ export function changePasswordMock(payload: ChangePasswordPayload): Promise<void
 function readUserIdFromCookie(): number | null {
 	if (!browser) return null;
 
-	const cookie = document.cookie
-		.split('; ')
-		.find((c) => c.startsWith(`${SESSION_COOKIE_NAME}=`));
+	const cookie = document.cookie.split('; ').find((c) => c.startsWith(`${SESSION_COOKIE_NAME}=`));
 	if (!cookie) return null;
 
 	const token = cookie.split('=')[1];
