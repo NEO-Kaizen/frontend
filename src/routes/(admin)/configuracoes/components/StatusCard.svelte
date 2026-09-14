@@ -1,25 +1,87 @@
 <script lang="ts">
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import { settingsState } from '$lib/config/settings.svelte';
+	import {
+		STATUS_TONES,
+		type PortalStatus,
+		type StatusTone,
+		type StatusVisibility
+	} from '$lib/types/portal-config';
+	import { MAX_STATUSES, MAX_STATUS_NAME_LENGTH } from '$lib/utils/validations';
 	import SettingsCard from './SettingsCard.svelte';
 
-	type StatusTone = 'open' | 'analysis' | 'in-progress' | 'awaiting' | 'done' | 'cancelled';
-
-	interface Status {
+	// Status em edição (valores locais do formulário); `null` = nenhum.
+	let editing = $state<{
+		id: number;
 		name: string;
-		visibility: 'Público' | 'Interno';
-		closes: 'Sim' | 'Não';
+		visibility: StatusVisibility;
+		closesRequest: boolean;
 		tone: StatusTone;
+	} | null>(null);
+
+	const VISIBILITY_OPTIONS: { value: StatusVisibility; label: string }[] = [
+		{ value: 'PUBLIC', label: 'Público' },
+		{ value: 'INTERNAL', label: 'Interno' }
+	];
+
+	const TONE_LABELS: Record<StatusTone, string> = {
+		open: 'Azul',
+		analysis: 'Laranja',
+		'in-progress': 'Ciano',
+		awaiting: 'Amarelo',
+		done: 'Verde',
+		cancelled: 'Vermelho'
+	};
+
+	function handleAdd() {
+		settingsState.addStatus();
+		const statuses = settingsState.draft.statuses;
+		const added = statuses[statuses.length - 1];
+		editing = added
+			? {
+					id: added.id,
+					name: added.name,
+					visibility: added.visibility,
+					closesRequest: added.closesRequest,
+					tone: added.tone
+				}
+			: null;
 	}
 
-	const statuses: Status[] = [
-		{ name: 'Em aberto', visibility: 'Público', closes: 'Não', tone: 'open' },
-		{ name: 'Em análise', visibility: 'Público', closes: 'Não', tone: 'analysis' },
-		{ name: 'Em andamento', visibility: 'Público', closes: 'Não', tone: 'in-progress' },
-		{ name: 'Aguardando cliente', visibility: 'Público', closes: 'Não', tone: 'awaiting' },
-		{ name: 'Concluído', visibility: 'Público', closes: 'Sim', tone: 'done' },
-		{ name: 'Cancelado', visibility: 'Interno', closes: 'Sim', tone: 'cancelled' }
-	];
+	function handleEdit(status: PortalStatus) {
+		editing = {
+			id: status.id,
+			name: status.name,
+			visibility: status.visibility,
+			closesRequest: status.closesRequest,
+			tone: status.tone
+		};
+	}
+
+	function handleSaveEdit() {
+		if (!editing) return;
+		settingsState.updateStatus(editing.id, {
+			name: editing.name,
+			visibility: editing.visibility,
+			closesRequest: editing.closesRequest,
+			tone: editing.tone
+		});
+		editing = null;
+	}
+
+	function handleCancelEdit(status: PortalStatus) {
+		// Cancelar um status recém-adicionado (ainda sem nome) remove a linha.
+		if (status.name.trim() === '') {
+			settingsState.removeStatus(status.id);
+		}
+		editing = null;
+	}
+
+	// Só permite remover a última linha de status restante.
+	function canRemoveStatus(): boolean {
+		return settingsState.draft.statuses.length > 1;
+	}
 </script>
 
 <SettingsCard
@@ -28,14 +90,19 @@
 	description="Configure os status do ciclo de vida das solicitações."
 >
 	{#snippet headerAction()}
-		<Button variant="secondary">
+		<Button
+			variant="secondary"
+			disabled={settingsState.saving || settingsState.draft.statuses.length >= MAX_STATUSES}
+			onclick={handleAdd}
+		>
 			<Icon iconName="addCircle" iconSize="sm" />
-			<span class="status-add-label">
-				<span>Adicionar</span>
-				<span>status</span>
-			</span>
+			<span>Adicionar status</span>
 		</Button>
 	{/snippet}
+
+	{#if settingsState.statusesError}
+		<p class="status-error" role="alert">{settingsState.statusesError}</p>
+	{/if}
 
 	<div class="status-table">
 		<table>
@@ -49,29 +116,109 @@
 				</tr>
 			</thead>
 			<tbody>
-				{#each statuses as status (status.name)}
+				{#each settingsState.draft.statuses as status (status.id)}
 					<tr class="tone-{status.tone}">
 						<td class="col-name">
 							<span class="status-dot" aria-hidden="true"></span>
-							{status.name}
+							{#if editing && editing.id === status.id}
+								<input
+									class="edit-input"
+									type="text"
+									maxlength={MAX_STATUS_NAME_LENGTH}
+									aria-label="Nome do status"
+									bind:value={editing.name}
+								/>
+							{:else}
+								{status.name}
+							{/if}
 						</td>
 						<td class="col-visibility">
-							<span class="visibility-badge">{status.visibility}</span>
+							{#if editing && editing.id === status.id}
+								<select
+									class="edit-select"
+									aria-label="Visibilidade do status"
+									bind:value={editing.visibility}
+								>
+									{#each VISIBILITY_OPTIONS as option (option.value)}
+										<option value={option.value}>{option.label}</option>
+									{/each}
+								</select>
+							{:else}
+								<span class="visibility-badge">
+									{status.visibility === 'PUBLIC' ? 'Público' : 'Interno'}
+								</span>
+							{/if}
 						</td>
-						<td class="col-closes">{status.closes}</td>
+						<td class="col-closes">
+							{#if editing && editing.id === status.id}
+								<select
+									class="edit-select"
+									aria-label="Encerramento do status"
+									bind:value={editing.closesRequest}
+								>
+									<option value={false}>Não</option>
+									<option value={true}>Sim</option>
+								</select>
+							{:else}
+								{status.closesRequest ? 'Sim' : 'Não'}
+							{/if}
+						</td>
 						<td class="col-tone">
-							<span class="tone-badge">
-								<span class="tone-dot" aria-hidden="true"></span>
-								{status.name}
-							</span>
+							{#if editing && editing.id === status.id}
+								<select
+									class="edit-select"
+									aria-label="Tom visual do status"
+									bind:value={editing.tone}
+								>
+									{#each STATUS_TONES as tone (tone)}
+										<option value={tone}>{TONE_LABELS[tone]}</option>
+									{/each}
+								</select>
+							{:else}
+								<span class="tone-badge">
+									<span class="tone-dot" aria-hidden="true"></span>
+									{TONE_LABELS[status.tone]}
+								</span>
+							{/if}
 						</td>
 						<td class="col-actions">
-							<span class="action-icon" aria-hidden="true">
-								<Icon iconName="edit" iconSize="sm" />
-							</span>
-							<span class="action-icon" aria-hidden="true">
-								<Icon iconName="delete" iconSize="sm" />
-							</span>
+							{#if editing && editing.id === status.id}
+								<button
+									class="icon-btn"
+									type="button"
+									aria-label="Salvar status"
+									onclick={handleSaveEdit}
+								>
+									<Icon iconName="check" iconSize="sm" />
+								</button>
+								<button
+									class="icon-btn"
+									type="button"
+									aria-label="Cancelar edição"
+									onclick={() => handleCancelEdit(status)}
+								>
+									<Icon iconName="close" iconSize="sm" />
+								</button>
+							{:else}
+								<button
+									class="icon-btn"
+									type="button"
+									aria-label="Editar status"
+									disabled={settingsState.saving}
+									onclick={() => handleEdit(status)}
+								>
+									<Icon iconName="edit" iconSize="sm" />
+								</button>
+								<button
+									class="icon-btn"
+									type="button"
+									aria-label="Remover status"
+									disabled={settingsState.saving || !canRemoveStatus()}
+									onclick={() => settingsState.removeStatus(status.id)}
+								>
+									<Icon iconName="delete" iconSize="sm" />
+								</button>
+							{/if}
 						</td>
 					</tr>
 				{/each}
@@ -81,6 +228,12 @@
 </SettingsCard>
 
 <style>
+	.status-error {
+		margin: 0;
+		font-size: 13px;
+		color: var(--status-red);
+	}
+
 	.status-table {
 		width: 100%;
 		background: var(--white);
@@ -119,22 +272,22 @@
 	}
 
 	.col-name {
-		width: 29%;
+		width: 32%;
 	}
 
 	.col-visibility {
-		width: 15%;
+		width: 16%;
 	}
 
 	td.col-closes {
-		width: 19%;
+		width: 18%;
 		color: var(--secondary-color);
 		font-size: 13px;
 		text-align: center;
 	}
 
 	.col-tone {
-		width: 26%;
+		width: 15%;
 	}
 
 	td.col-tone {
@@ -142,19 +295,20 @@
 	}
 
 	.col-actions {
-		width: 11%;
-		text-align: center;
+		width: 19%;
+		text-align: end;
 		white-space: nowrap;
 	}
 
 	.status-dot {
-		display: inline-block;
+		display: inline-flex;
 		width: 8px;
 		height: 8px;
 		border-radius: 50%;
 		background-color: var(--tone-family);
 		margin-right: var(--spacing-sm);
 		vertical-align: middle;
+		flex-shrink: 0;
 	}
 
 	.visibility-badge {
@@ -188,15 +342,48 @@
 		flex-shrink: 0;
 	}
 
-	.action-icon {
-		display: inline-flex;
-		align-items: center;
-		vertical-align: middle;
-		color: var(--gray);
+	.edit-input {
+		width: 100%;
+		box-sizing: border-box;
+		padding: 4px 8px;
+		border: var(--border-default);
+		border-radius: var(--radius-sm);
+		font-size: 14px;
+		color: var(--rich-black);
 	}
 
-	.action-icon + .action-icon {
+	.edit-select {
+		width: 100%;
+		box-sizing: border-box;
+		padding: 4px 8px;
+		border: var(--border-default);
+		border-radius: var(--radius-sm);
+		font-size: 13px;
+		color: var(--rich-black);
+		background-color: var(--white);
+	}
+
+	.icon-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
 		margin-left: var(--spacing-sm);
+		padding: 4px;
+		border: none;
+		border-radius: var(--radius-sm);
+		background-color: transparent;
+		color: var(--gray);
+		cursor: pointer;
+	}
+
+	.icon-btn:hover:not(:disabled) {
+		background-color: var(--background-color);
+		color: var(--secondary-color);
+	}
+
+	.icon-btn:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
 	}
 
 	.tone-open {
@@ -233,14 +420,6 @@
 		--tone-family: #e11d48;
 		--tone-bg: #e11d4810;
 		--tone-border: #e11d4840;
-	}
-
-	.status-add-label {
-		display: inline-flex;
-		flex-direction: column;
-		align-items: center;
-		text-align: center;
-		line-height: 1.3;
 	}
 
 	:global(.settings-card-action button) {
