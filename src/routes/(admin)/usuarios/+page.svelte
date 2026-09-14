@@ -3,7 +3,12 @@
 	import Input from '$lib/components/Input.svelte';
 	import MetricsSummary from '$lib/components/MetricsSummary.svelte';
 	import NotFoundState from '$lib/components/NotFoundState.svelte';
-	import { createUser, listUsers, updateUserStatus } from '$lib/services/user.service';
+	import {
+		createUser,
+		getUserStats,
+		listUsers,
+		updateUserStatus
+	} from '$lib/services/user.service';
 	import type { MetricItem } from '$lib/types/metrics';
 	import type { PaginatedResponse } from '$lib/types/request';
 	import type { Result } from '$lib/types/result';
@@ -12,6 +17,8 @@
 		CreateUserFormData,
 		CreateUserResponse,
 		UserAction,
+		UserProfile,
+		UserStats,
 		UserStatus
 	} from '$lib/types/user';
 	import ConfirmActionModal from './components/ConfirmActionModal.svelte';
@@ -24,45 +31,20 @@
 	let { data }: PageProps = $props();
 
 	const tabs = [
-		{
-			id: 'todos',
-			label: 'Todos',
-			disabled: true
-		},
-		{
-			id: 'administradores',
-			label: 'Administradores',
-			disabled: true
-		},
-		{
-			id: 'analistas',
-			label: 'Analistas',
-			disabled: true
-		},
-		{
-			id: 'gestores',
-			label: 'Gestores',
-			disabled: true
-		},
-		{
-			id: 'solicitantes',
-			label: 'Solicitantes',
-			disabled: false
-		}
-	] as const;
+		{ id: 'todos', label: 'Todos', profile: undefined },
+		{ id: 'administradores', label: 'Administradores', profile: 'administrador' },
+		{ id: 'analistas', label: 'Analistas', profile: 'analista' },
+		{ id: 'gestores', label: 'Gestores', profile: 'gestor' },
+		{ id: 'solicitantes', label: 'Solicitantes', profile: 'solicitante' }
+	] satisfies readonly { id: string; label: string; profile?: UserProfile }[];
 
 	type PendingAction = {
 		kind: UserAction;
 		user: AdminUser;
 	};
-	type UserStats = {
-		total: number;
-		active: number;
-		pending: number;
-		admins: number;
-	};
 
-	let stats = $state<UserStats>({ total: 0, active: 0, pending: 0, admins: 0 });
+	let statsOverride = $state<UserStats | null>(null);
+	let stats = $derived(statsOverride ?? data.stats);
 
 	let metrics = $derived.by<MetricItem[]>(() => [
 		{
@@ -91,9 +73,11 @@
 		}
 	]);
 
-	let activeTab = $state('solicitantes');
+	let activeTab = $state('todos');
+	let activeTabProfile = $derived(tabs.find((tab) => tab.id === activeTab)?.profile);
 	let searchQuery = $state('');
 	let isLoading = $state(false);
+	let isRefreshing = $state(false);
 
 	let fetchedResult = $state<Result<PaginatedResponse<AdminUser>> | null>(null);
 	let result = $derived(fetchedResult ?? data.result);
@@ -136,16 +120,58 @@
 		return [1, '...', currentPage, '...', totalPages];
 	});
 
-	async function loadUsers(page = currentPage, search = searchQuery) {
-		isLoading = true;
+	async function loadUsers(
+		page = currentPage,
+		search = searchQuery,
+		mode: 'refresh' | 'replace' = 'refresh'
+	) {
+		const canRefreshInPlace = result.ok && users.length > 0;
+
+		if (mode === 'replace' || !canRefreshInPlace) {
+			isLoading = true;
+		} else {
+			isRefreshing = true;
+		}
 
 		fetchedResult = await listUsers({
+			profile: activeTabProfile,
 			search: search.trim() || undefined,
 			page,
 			pageSize: data.pageSize
 		});
 
 		isLoading = false;
+		isRefreshing = false;
+	}
+
+	function applyUserUpdate(id: string, changes: Partial<AdminUser>) {
+		const current = result;
+
+		if (!current.ok) {
+			return;
+		}
+
+		fetchedResult = {
+			ok: true,
+			data: {
+				...current.data,
+				data: current.data.data.map((user) => (user.id === id ? { ...user, ...changes } : user))
+			}
+		};
+	}
+
+	async function refreshStats() {
+		statsOverride = await getUserStats();
+	}
+
+	function handleTabChange(tabId: string) {
+		if (tabId === activeTab) {
+			return;
+		}
+
+		activeTab = tabId;
+
+		loadUsers(1, searchQuery, 'replace');
 	}
 
 	function handleSearchInput() {
@@ -194,6 +220,7 @@
 		showSuccess(`"${result.data.fullName}" cadastrado com sucesso.`);
 
 		await loadUsers(1, '');
+		await refreshStats();
 
 		return result.data;
 	}
@@ -240,16 +267,20 @@
 		}
 
 		const userName = pendingAction.user.name;
+		const userId = pendingAction.user.id;
+		const userRole = pendingAction.user.role;
 
 		pendingAction = undefined;
 
+		applyUserUpdate(userId, { status });
+
 		showSuccess(
 			status === 'Ativo'
-				? `Solicitante "${userName}" ativado com sucesso.`
-				: `Solicitante "${userName}" inativado com sucesso.`
+				? `${userRole} "${userName}" ativado com sucesso.`
+				: `${userRole} "${userName}" inativado com sucesso.`
 		);
 
-		await loadUsers(currentPage, searchQuery);
+		await refreshStats();
 	}
 
 	function closePendingAction() {
@@ -327,11 +358,12 @@
 				<button
 					type="button"
 					role="tab"
+					id={`users-tab-${tab.id}`}
 					aria-selected={activeTab === tab.id}
-					disabled={tab.disabled}
+					aria-controls="users-panel"
 					class="tab"
 					class:active={activeTab === tab.id}
-					class:inactive={tab.disabled}
+					onclick={() => handleTabChange(tab.id)}
 				>
 					{tab.label}
 				</button>
@@ -342,91 +374,100 @@
 		     CONTEÚDO
 		========================= -->
 
-		{#if isLoading}
-			<div class="state-card" role="status">
-				<span class="spinner" aria-hidden="true"></span>
+		<div
+			id="users-panel"
+			class="tab-panel"
+			class:refreshing={isRefreshing}
+			role="tabpanel"
+			aria-busy={isRefreshing}
+			aria-labelledby={`users-tab-${activeTab}`}
+		>
+			{#if isLoading}
+				<div class="state-card" role="status">
+					<span class="spinner" aria-hidden="true"></span>
 
-				<p>Carregando usuários...</p>
-			</div>
-		{:else if loadError}
-			<div class="state-card error" role="alert">
-				<p>
-					{loadError}
-				</p>
+					<p>Carregando usuários...</p>
+				</div>
+			{:else if loadError}
+				<div class="state-card error" role="alert">
+					<p>
+						{loadError}
+					</p>
 
-				<Button variant="outline" onclick={() => loadUsers()}>Tentar novamente</Button>
-			</div>
-		{:else if users.length === 0}
-			<NotFoundState
-				title="Nenhum usuário encontrado"
-				message="Não encontramos usuários para esta busca."
-				hint="Ajuste a pesquisa ou cadastre um novo solicitante."
-			/>
-		{:else}
-			<!-- =========================
+					<Button variant="outline" onclick={() => loadUsers()}>Tentar novamente</Button>
+				</div>
+			{:else if users.length === 0}
+				<NotFoundState
+					title="Nenhum usuário encontrado"
+					message="Não encontramos usuários para esta busca."
+					hint="Ajuste a pesquisa ou cadastre um novo usuário."
+				/>
+			{:else}
+				<!-- =========================
 			     TABELA
 			========================= -->
 
-			<UsersTable {users} onaction={handleAction} />
+				<UsersTable {users} onaction={handleAction} />
 
-			<!-- =========================
+				<!-- =========================
 			     PAGINAÇÃO
 			========================= -->
 
-			<div class="table-footer">
-				<p class="count">
-					Exibindo
-					{startItem}-{endItem}
-					de {total}
-					usuário{total === 1 ? '' : 's'}
-				</p>
+				<div class="table-footer">
+					<p class="count">
+						Exibindo
+						{startItem}-{endItem}
+						de {total}
+						usuário{total === 1 ? '' : 's'}
+					</p>
 
-				<div class="pagination" aria-label="Paginação">
-					<!-- ANTERIOR -->
+					<div class="pagination" aria-label="Paginação">
+						<!-- ANTERIOR -->
 
-					<button
-						type="button"
-						class="nav-button"
-						disabled={currentPage === 1}
-						onclick={previousPage}
-						aria-label="Página anterior"
-					>
-						‹
-					</button>
+						<button
+							type="button"
+							class="nav-button"
+							disabled={currentPage === 1}
+							onclick={previousPage}
+							aria-label="Página anterior"
+						>
+							‹
+						</button>
 
-					<!-- PÁGINAS -->
+						<!-- PÁGINAS -->
 
-					{#each visiblePages as page, index (`${page}-${index}`)}
-						{#if page === '...'}
-							<span class="dots"> ... </span>
-						{:else}
-							<button
-								type="button"
-								class="page-button"
-								class:active={currentPage === page}
-								onclick={() => handlePageChange(page as number)}
-								aria-label={`Página ${page}`}
-								aria-current={currentPage === page ? 'page' : undefined}
-							>
-								{page}
-							</button>
-						{/if}
-					{/each}
+						{#each visiblePages as page, index (`${page}-${index}`)}
+							{#if page === '...'}
+								<span class="dots"> ... </span>
+							{:else}
+								<button
+									type="button"
+									class="page-button"
+									class:active={currentPage === page}
+									onclick={() => handlePageChange(page as number)}
+									aria-label={`Página ${page}`}
+									aria-current={currentPage === page ? 'page' : undefined}
+								>
+									{page}
+								</button>
+							{/if}
+						{/each}
 
-					<!-- PRÓXIMA -->
+						<!-- PRÓXIMA -->
 
-					<button
-						type="button"
-						class="nav-button"
-						disabled={currentPage === totalPages || totalPages === 0}
-						onclick={nextPage}
-						aria-label="Próxima página"
-					>
-						›
-					</button>
+						<button
+							type="button"
+							class="nav-button"
+							disabled={currentPage === totalPages || totalPages === 0}
+							onclick={nextPage}
+							aria-label="Próxima página"
+						>
+							›
+						</button>
+					</div>
 				</div>
-			</div>
-		{/if}
+			{/if}
+		</div>
 	</section>
 </main>
 
@@ -664,16 +705,27 @@
 		background-color: var(--secondary-color);
 	}
 
-	.tab.inactive {
-		opacity: 0.5;
-
-		cursor: not-allowed;
-	}
-
 	.tab:focus-visible {
 		outline: 1px solid var(--secondary-color);
 
 		outline-offset: -1px;
+	}
+
+	.tab-panel {
+		width: 100%;
+
+		display: flex;
+		flex-direction: column;
+
+		min-height: 0;
+
+		transition: opacity 0.15s ease;
+	}
+
+	.tab-panel.refreshing {
+		opacity: 0.55;
+
+		pointer-events: none;
 	}
 
 	/* =========================
