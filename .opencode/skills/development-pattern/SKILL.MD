@@ -241,7 +241,15 @@ Remova sempre que possível:
 
 ---
 
-# 13. Resumo
+# 13. Carregamento de dados (loads)
+
+- Dado da nossa API em rota renderizada no servidor → `+page.server.ts`/`+layout.server.ts` (server load); load universal (`+page.ts`/`+layout.ts`) só para API externa sem credenciais.
+- Em SSR, use o `fetch` do evento de load (nunca o global) e repasse-o por `load → service → api → apiClient`.
+- Sessão por cookie: o `fetch` do load cobre mesmo host/subdomínio; o `handleFetch` cobre domínios irmãos.
+
+---
+
+# 14. Resumo
 
 Todo código desenvolvido deve seguir os princípios abaixo:
 
