@@ -83,7 +83,7 @@
 			errorMessage = meResult.error.message;
 			return;
 		}
-		
+
 		const redirectPath = getPostLoginRedirect(meResult.data, returnTo);
 		await goto(resolve(redirectPath), { invalidateAll: true });
 	}

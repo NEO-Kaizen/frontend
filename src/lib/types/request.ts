@@ -412,7 +412,7 @@ export interface InternalAttachment {
 
 export interface PrioritizationResult {
 	score: number | null;
-	maxScore: 25;
+	maxScore: 50;
 	label: RequestPriority | null;
 }
 
