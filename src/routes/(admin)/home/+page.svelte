@@ -112,7 +112,7 @@
 
 	.table-section h2 {
 		font: var(--h3);
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 		margin: 0;
 	}
 </style>

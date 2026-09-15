@@ -176,7 +176,7 @@
 	}
 	.container-banner h2,
 	.container-banner p {
-		color: var(--on-primary);
+		color: var(--on-dark);
 	}
 	.container-form {
 		width: 50%;

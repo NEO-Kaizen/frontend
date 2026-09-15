@@ -484,7 +484,7 @@
 	td {
 		padding: var(--spacing-sm) var(--spacing-sm);
 		border-bottom: var(--border-default);
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 		font-size: 14px;
 		vertical-align: middle;
 	}
@@ -528,7 +528,7 @@
 		padding: var(--spacing-sm) var(--spacing-md);
 		border-radius: var(--radius-sm);
 		background-color: var(--rich-black);
-		color: var(--on-primary);
+		color: var(--on-dark);
 		font: var(--paragrafo);
 		font-size: 13px;
 		line-height: 1.4;
@@ -600,7 +600,7 @@
 		border: var(--border-default);
 		border-radius: var(--radius-sm);
 		font-size: 14px;
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 	}
 
 	.edit-input.invalid {

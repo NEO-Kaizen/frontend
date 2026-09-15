@@ -231,7 +231,7 @@
 	td {
 		padding: var(--spacing-lg);
 		border-bottom: var(--border-default);
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 		vertical-align: middle;
 	}
 

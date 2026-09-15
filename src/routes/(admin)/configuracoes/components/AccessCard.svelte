@@ -218,7 +218,7 @@
 
 	.access-option-title {
 		font: var(--label);
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 	}
 
 	.access-option-description {

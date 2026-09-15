@@ -318,7 +318,7 @@
 
 	.asset-label {
 		font: var(--label);
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 	}
 
 	.asset-flag {

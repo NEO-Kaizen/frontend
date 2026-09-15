@@ -89,7 +89,7 @@
 	h2 {
 		margin: 0;
 		font: var(--h4);
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 	}
 
 	p {

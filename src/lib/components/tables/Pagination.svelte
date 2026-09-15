@@ -99,7 +99,7 @@
 		height: 28px;
 		border: none;
 		background: transparent;
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 		cursor: pointer;
 	}
 
@@ -127,7 +127,7 @@
 		border: none;
 		border-radius: 4px;
 		background: transparent;
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 		font: var(--label);
 		font-size: 13px;
 		font-weight: 600;

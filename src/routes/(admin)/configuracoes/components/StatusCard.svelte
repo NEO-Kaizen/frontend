@@ -414,7 +414,7 @@
 		padding: var(--spacing-sm) var(--spacing-sm);
 		text-align: left;
 		background: var(--background-color);
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 		font: var(--label);
 		font-size: 12px;
 		white-space: nowrap;
@@ -424,7 +424,7 @@
 	td {
 		padding: var(--spacing-sm) var(--spacing-sm);
 		border-bottom: var(--border-default);
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 		font-size: 14px;
 		vertical-align: middle;
 	}
@@ -489,7 +489,7 @@
 		padding: 2px var(--spacing-sm);
 		border-radius: var(--radius-sm);
 		background-color: var(--white-gray);
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 		font-size: 12px;
 		white-space: nowrap;
 	}
@@ -522,7 +522,7 @@
 		border: var(--border-default);
 		border-radius: var(--radius-sm);
 		font-size: 14px;
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 	}
 
 	.edit-input.invalid {
@@ -536,7 +536,7 @@
 		border: var(--border-default);
 		border-radius: var(--radius-sm);
 		font-size: 13px;
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 		background-color: var(--white);
 	}
 

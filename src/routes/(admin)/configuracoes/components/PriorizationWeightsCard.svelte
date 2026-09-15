@@ -209,7 +209,7 @@
 	.criteria-cell {
 		font: var(--paragrafo);
 		font-size: 14px;
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 	}
 
 	.weight-cell {
@@ -315,6 +315,6 @@
 		text-align: center;
 		font: var(--label);
 		font-size: 13px;
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 	}
 </style>
