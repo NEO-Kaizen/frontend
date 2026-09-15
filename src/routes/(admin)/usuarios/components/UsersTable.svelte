@@ -261,9 +261,9 @@
 
 		border-radius: 50%;
 
-		background-color: var(--status-blue-bg);
+		background-color: var(--status-info-bg);
 
-		color: var(--primary-color);
+		color: var(--status-info-text);
 
 		font: var(--label);
 	}

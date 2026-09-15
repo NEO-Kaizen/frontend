@@ -108,13 +108,13 @@
 
 	.card.primary {
 		background: linear-gradient(180deg, #002068 0%, #003399 100%);
-		color: var(--on-primary);
+		color: var(--on-dark);
 	}
 
 	.card.secondary {
 		background-color: var(--white);
 		border: 1px solid var(--border-color, #e0e0e0);
-		color: var(--text-color, #1a1a1a);
+		color: var(--text-color-primary);
 	}
 
 	.card-content {
@@ -132,15 +132,15 @@
 
 	.primary h3,
 	.primary .description {
-		color: var(--on-primary);
+		color: var(--on-dark);
 	}
 
 	.secondary h3 {
-		color: var(--text-color, #1a1a1a);
+		color: var(--text-color-primary);
 	}
 
 	.secondary .description {
-		color: var(--text-secondary, #666666);
+		color: var(--text-color-secondary);
 	}
 
 	.description {

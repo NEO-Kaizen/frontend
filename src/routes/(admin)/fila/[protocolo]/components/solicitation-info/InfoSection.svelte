@@ -658,8 +658,8 @@
 		align-items: center;
 		gap: 12px;
 		padding: 10px 12px;
-		background: var(--white);
-		border: 1px solid var(--white-gray);
+		background: var(--surface);
+		border: 1px solid var(--border-color);
 		border-radius: var(--radius-sm);
 		flex: 0 0 auto;
 		width: auto;
