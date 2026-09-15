@@ -342,7 +342,7 @@
 	.nav-item:not(.inactive):focus-visible,
 	.nav-item.active {
 		background-color: var(--primary-color);
-		color: var(--white);
+		color: var(--on-primary);
 	}
 	.nav-item:disabled {
 		cursor: not-allowed;

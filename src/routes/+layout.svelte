@@ -1,5 +1,13 @@
 <script lang="ts">
+	import { themeStyleVars } from '$lib/utils/theme';
+
 	let { data, children } = $props();
+
+	// As duas paletas (light/dark) entram como custom properties no wrapper; o
+	// CSS estático escolhe qual vale conforme o atributo data-theme no elemento
+	// raiz. Como o Svelte 5 não interpola expressões dentro do bloco de estilos,
+	// o tema é aplicado via atributo `style`.
+	const themeVars = $derived(themeStyleVars(data.portalConfig.theme));
 </script>
 
 <svelte:head>
@@ -7,13 +15,7 @@
 	<title>{data.portalConfig.platformName}</title>
 </svelte:head>
 
-<!-- Tokens do tema aplicados via wrapper (Svelte 5 não interpola `{expr}` em <style>). -->
-<div
-	class="app-root"
-	style:--primary-color={data.portalConfig.theme.light.primary}
-	style:--secondary-color={data.portalConfig.theme.light.secondary}
-	style:--background-color={data.portalConfig.theme.light.background}
->
+<div class="app-root" style={themeVars}>
 	{@render children()}
 </div>
 

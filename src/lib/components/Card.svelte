@@ -125,7 +125,7 @@
 
 	.card.primary {
 		background: linear-gradient(180deg, #002068 0%, #003399 100%);
-		color: var(--white);
+		color: var(--on-primary);
 	}
 
 	.card.secondary {
@@ -149,7 +149,7 @@
 
 	.primary h3,
 	.primary .description {
-		color: var(--white);
+		color: var(--on-primary);
 	}
 
 	.secondary h3 {
@@ -186,7 +186,7 @@
 
 	.card-link.secondary {
 		background-color: var(--primary-color, #002068);
-		color: var(--white);
+		color: var(--on-primary);
 	}
 
 	.card-link:hover {

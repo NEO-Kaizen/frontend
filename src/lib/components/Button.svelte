@@ -67,13 +67,13 @@
 
 	.primary {
 		background-color: var(--primary-color);
-		color: var(--white);
+		color: var(--on-primary);
 		border: 1px solid var(--primary-color);
 	}
 
 	.secondary {
 		background-color: var(--secondary-color);
-		color: var(--white);
+		color: var(--on-primary);
 	}
 
 	.outline {

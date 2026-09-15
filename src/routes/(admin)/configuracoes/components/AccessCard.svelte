@@ -108,7 +108,7 @@
 		border: none;
 		border-radius: 50%;
 		background-color: var(--secondary-color);
-		color: var(--white);
+		color: var(--on-primary);
 		font: var(--label);
 		font-size: 12px;
 		line-height: 1;
@@ -130,7 +130,7 @@
 		padding: var(--spacing-sm) var(--spacing-md);
 		border-radius: var(--radius-sm);
 		background-color: var(--rich-black);
-		color: var(--white);
+		color: var(--on-primary);
 		font: var(--paragrafo);
 		font-size: 13px;
 		line-height: 1.4;

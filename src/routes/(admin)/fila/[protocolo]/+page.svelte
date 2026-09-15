@@ -82,7 +82,7 @@
 		justify-content: center;
 		padding: 8px 16px;
 		background: var(--primary-color);
-		color: var(--white);
+		color: var(--on-primary);
 		border: none;
 		border-radius: var(--radius-sm);
 		font: var(--button);
