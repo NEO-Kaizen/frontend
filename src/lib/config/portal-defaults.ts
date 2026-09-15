@@ -1,4 +1,9 @@
-import type { PortalCategory, PortalConfig, PortalStatus } from '$lib/types/portal-config';
+import type {
+	PortalCategory,
+	PortalConfig,
+	PortalStatus,
+	PrioritizationWeights
+} from '$lib/types/portal-config';
 import logoUrl from '$lib/assets/MAAT-logo.svg';
 import avatarUrl from '$lib/assets/avatar-default.svg';
 import faviconUrl from '$lib/assets/favicon.svg';
@@ -119,6 +124,36 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 	}
 ];
 
+// Rótulos em português dos critérios de priorização (Card 7) — ordem fixa de
+// exibição, espelhando o card do Figma.
+export const PRIORITIZATION_CRITERIA_LABELS = {
+	operationalImpact: 'Impacto Operacional',
+	operationalRisk: 'Risco Operacional',
+	urgency: 'Urgência',
+	volumetry: 'Volumetria',
+	manualEffort: 'Esforço Manual',
+	clientImpact: 'Impacto no Cliente',
+	regulatoryDeadline: 'Prazo Regulatório',
+	affectedAreas: 'Áreas Impactadas',
+	strategicAlignment: 'Alinhamento Estratégico',
+	estimatedComplexity: 'Complexidade Estimada'
+} satisfies Record<keyof PrioritizationWeights, string>;
+
+// Pesos padrão de priorização (Card 7) — todos em 1.0 (neutro). Servem de
+// fallback do service e de seed do mock. Dados fictícios.
+export const DEFAULT_PRIORITIZATION_WEIGHTS: PrioritizationWeights = {
+	operationalImpact: 1.0,
+	operationalRisk: 1.0,
+	urgency: 1.0,
+	volumetry: 1.0,
+	manualEffort: 1.0,
+	clientImpact: 1.0,
+	regulatoryDeadline: 1.0,
+	affectedAreas: 1.0,
+	strategicAlignment: 1.0,
+	estimatedComplexity: 1.0
+};
+
 // Defaults locais do portal — espelham os valores atuais do design system
 // (global.css `:root`) e os assets estáticos existentes. Único dono dos
 // defaults; consumido pelo service (fallback) e pelo estado de cliente.
@@ -138,5 +173,6 @@ export const DEFAULT_PORTAL_CONFIG: PortalConfig = {
 		loginImageUrl
 	},
 	categories: structuredClone(DEFAULT_CATEGORIES),
-	statuses: structuredClone(DEFAULT_STATUSES)
+	statuses: structuredClone(DEFAULT_STATUSES),
+	prioritizationWeights: { ...DEFAULT_PRIORITIZATION_WEIGHTS }
 };

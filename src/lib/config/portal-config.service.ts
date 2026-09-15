@@ -3,7 +3,7 @@ import {
 	updatePortalConfig,
 	uploadAssetApi
 } from '$lib/config/portal-config.api';
-import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
+import { DEFAULT_PORTAL_CONFIG, DEFAULT_PRIORITIZATION_WEIGHTS } from '$lib/config/portal-defaults';
 import { ApiError, type Result } from '$lib/types/result';
 import {
 	isValidAssetFile,
@@ -13,6 +13,7 @@ import {
 	isValidStatusName,
 	isValidPlatformName,
 	isValidProtocolMask,
+	isValidPrioritizationWeight,
 	areCategoryNamesUnique,
 	hasActiveCategory,
 	areStatusNamesUnique,
@@ -20,13 +21,19 @@ import {
 	MAX_STATUSES,
 	ASSET_FILE_RULES
 } from '$lib/utils/validations';
-import { ASSET_KEYS, STATUS_TONES, STATUS_VISIBILITIES } from '$lib/types/portal-config';
+import {
+	ASSET_KEYS,
+	PRIORITIZATION_CRITERIA,
+	STATUS_TONES,
+	STATUS_VISIBILITIES
+} from '$lib/types/portal-config';
 import type {
 	AssetKey,
 	PortalCategory,
 	PortalConfig,
 	PortalAssetsPatch,
 	PortalStatus,
+	PrioritizationWeights,
 	SolicitationMode,
 	StatusTone,
 	StatusVisibility,
@@ -140,6 +147,10 @@ function sanitizeUpdatePayload(payload: UpdatePortalConfigPayload): UpdatePortal
 		}
 	}
 
+	if (payload.prioritizationWeights !== undefined) {
+		sanitized.prioritizationWeights = sanitizePrioritizationWeights(payload.prioritizationWeights);
+	}
+
 	return sanitized;
 }
 
@@ -178,7 +189,8 @@ function sanitizePortalConfig(raw: unknown): PortalConfig {
 			)
 		},
 		categories: sanitizeCategories(source.categories),
-		statuses: sanitizeStatuses(source.statuses)
+		statuses: sanitizeStatuses(source.statuses),
+		prioritizationWeights: sanitizePrioritizationWeights(source.prioritizationWeights)
 	};
 }
 
@@ -313,4 +325,20 @@ function sanitizeStatusTone(value: unknown): StatusTone {
 	return typeof value === 'string' && STATUS_TONES.includes(value as StatusTone)
 		? (value as StatusTone)
 		: DEFAULT_PORTAL_CONFIG.statuses[0].tone;
+}
+
+// Pesos de priorização vindos da API ou do payload — apenas as chaves da
+// allowlist (PRIORITIZATION_CRITERIA) são lidas; cada peso precisa estar em
+// 1.0..5.0 (passo 0.5). Chave ausente ou valor inválido cai em 1.0 (neutro).
+function sanitizePrioritizationWeights(value: unknown): PrioritizationWeights {
+	const source = isRecord(value) ? value : {};
+	const weights = {} as PrioritizationWeights;
+
+	for (const criterion of PRIORITIZATION_CRITERIA) {
+		weights[criterion] = isValidPrioritizationWeight(source[criterion])
+			? (source[criterion] as number)
+			: DEFAULT_PRIORITIZATION_WEIGHTS[criterion];
+	}
+
+	return weights;
 }

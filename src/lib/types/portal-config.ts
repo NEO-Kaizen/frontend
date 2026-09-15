@@ -81,6 +81,29 @@ export interface PortalStatus {
 	tone: StatusTone;
 }
 
+// Critérios fixos de priorização (Card 7) — allowlist das chaves aceitas.
+// Diferente de categorias/status, os critérios não são gerenciáveis: apenas
+// os pesos mudam, então o estado é um objeto com chaves estáveis.
+export const PRIORITIZATION_CRITERIA = [
+	'operationalImpact',
+	'operationalRisk',
+	'urgency',
+	'volumetry',
+	'manualEffort',
+	'clientImpact',
+	'regulatoryDeadline',
+	'affectedAreas',
+	'strategicAlignment',
+	'estimatedComplexity'
+] as const;
+
+export type PrioritizationCriterion = (typeof PRIORITIZATION_CRITERIA)[number];
+
+// Pesos de priorização (Card 7) — objeto completo com todas as chaves da
+// allowlist; cada peso é um número entre 1.0 e 5.0 (passo 0.5). O cálculo da
+// prioridade em si é escopo do backend (os pesos são entrada da fórmula).
+export type PrioritizationWeights = Record<PrioritizationCriterion, number>;
+
 export interface PortalConfig {
 	platformName: string;
 	// Consumo funcional na issue #88.
@@ -97,23 +120,40 @@ export interface PortalConfig {
 	// Status do ciclo de vida das solicitações (Card 6). Mesma semântica das
 	// categorias: lista atômica, ordem de exibição = ordem do array.
 	statuses: PortalStatus[];
+	// Pesos de priorização dos critérios (Card 7). Objeto completo, sempre com
+	// todas as chaves da allowlist (PRIORITIZATION_CRITERIA).
+	prioritizationWeights: PrioritizationWeights;
 }
 
 // Campos editáveis pela tela de configurações — allowlist que cresce conforme
 // novos cards entram em escopo (ver CONTRATO-BACKEND.md). O serviço só aceita
 // essas chaves no payload de atualização; o backend permanece a autoridade.
 export type EditablePortalConfigFields =
-	'solicitationMode' | 'platformName' | 'protocolMask' | 'assets' | 'categories' | 'statuses';
+	| 'solicitationMode'
+	| 'platformName'
+	| 'protocolMask'
+	| 'assets'
+	| 'categories'
+	| 'statuses'
+	| 'prioritizationWeights';
 
 // Payload parcial de atualização (PATCH /portal-config) — apenas campos
 // da allowlist acima, enviados somente quando alterados. `assets` aceita
 // um objeto parcial (só as chaves de assets modificadas); `categories` e
 // `statuses` são as listas completas (atômicas — a ordem dos itens importa
-// e o backend retorna o estado consolidado).
+// e o backend retorna o estado consolidado); `prioritizationWeights` é o
+// objeto completo de pesos (atômico — todas as chaves presentes).
 export type UpdatePortalConfigPayload = Partial<
-	Pick<PortalConfig, Exclude<EditablePortalConfigFields, 'assets' | 'categories' | 'statuses'>>
+	Pick<
+		PortalConfig,
+		Exclude<
+			EditablePortalConfigFields,
+			'assets' | 'categories' | 'statuses' | 'prioritizationWeights'
+		>
+	>
 > & {
 	assets?: PortalAssetsPatch;
 	categories?: PortalCategory[];
 	statuses?: PortalStatus[];
+	prioritizationWeights?: PrioritizationWeights;
 };
