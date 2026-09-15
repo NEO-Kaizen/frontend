@@ -26,7 +26,6 @@ export function paletteStyleVars(prefix: 'light' | 'dark', tokens: ThemeTokens):
 		const toneTokens = tokens.statuses[tone];
 		vars.push(`--${prefix}-status-${tone}:${toneTokens.color}`);
 		vars.push(`--${prefix}-status-${tone}-bg:${toneTokens.background}`);
-		vars.push(`--${prefix}-status-${tone}-text:${toneTokens.text}`);
 	}
 
 	return vars.join(';');

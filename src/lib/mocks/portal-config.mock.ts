@@ -142,7 +142,7 @@ function validateUpdatePayload(payload: UpdatePortalConfigPayload): void {
 }
 
 // O tema é atômico: as duas paletas completas (light/dark), cada uma com todos
-// os papéis em hex válido e os quatro tons de status com color/background/text.
+// os papéis em hex válido e os quatro tons de status com color/background.
 function validateThemePatch(theme: PortalTheme): void {
 	if (typeof theme !== 'object' || theme === null) {
 		throw new ApiError(400, 'O tema deve ser um objeto com as paletas "light" e "dark".');
@@ -180,7 +180,7 @@ function validateStatusToneTokens(
 			throw new ApiError(400, `Tom de status inválido em "theme.${palette}.statuses.${tone}".`);
 		}
 
-		for (const key of ['color', 'background', 'text'] as const) {
+		for (const key of ['color', 'background'] as const) {
 			if (!isValidHexColor(token[key])) {
 				throw new ApiError(
 					400,

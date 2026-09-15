@@ -54,13 +54,13 @@ export const STATUS_TONES = ['error', 'success', 'info', 'warning'] as const;
 
 export type StatusTone = (typeof STATUS_TONES)[number];
 
-// Conjunto de cores de um tom de status: acento (`color`), fundo (`background`)
-// e texto (`text`) do badge. A borda é derivada de `color` via `color-mix` e
-// não é armazenada (decisão do plano de configurações).
+// Cores de um tom de status (modelo monocromático): acento (`color`) e fundo
+// (`background`) do badge. O rótulo e o ponto usam o acento; a borda é derivada
+// de `color` via `color-mix` e não é armazenada (decisão do plano de
+// configurações).
 export interface StatusToneTokens {
 	color: string;
 	background: string;
-	text: string;
 }
 
 // Chaves de papel de uma paleta — allowlist usada pelo service e pelo mock para
@@ -91,6 +91,9 @@ export interface PortalTheme {
 	light: ThemeTokens;
 	dark: ThemeTokens;
 }
+
+// Paleta de tema em edição/uso — chave de `PortalTheme`.
+export type ThemePalette = keyof PortalTheme;
 
 // Status do ciclo de vida da solicitação (Card 6) — lista gerenciada no
 // PortalConfig. `id` é a chave estável (número inteiro positivo, gerado pelo

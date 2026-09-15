@@ -4,9 +4,11 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const TEXT_PATTERN = /^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/;
 
-// Cor hexadecimal no formato #RRGGBB — allowlist usada pelo service (sanitize
-// do tema) e pelo mock (validação do PATCH). Não aceita alpha, nome ou função.
-const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
+// Cor hexadecimal no formato #RRGGBB ou #RRGGBBAA — allowlist usada pelo
+// service (sanitize do tema) e pelo mock (validação do PATCH). O alpha opcional
+// cobre os fundos translúcidos dos status (ex.: `#ef444410`, ~10% do acento).
+// Não aceita nome ou função.
+const HEX_COLOR_PATTERN = /^#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
 
 export function isValidHexColor(value: unknown): value is string {
 	return typeof value === 'string' && HEX_COLOR_PATTERN.test(value);

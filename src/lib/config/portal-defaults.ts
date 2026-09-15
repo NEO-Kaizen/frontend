@@ -157,22 +157,23 @@ export const DEFAULT_PRIORITIZATION_WEIGHTS: PrioritizationWeights = {
 	estimatedComplexity: 1.0
 };
 
-// Tons de status da paleta clara — acento, fundo (~10%) e texto do badge.
-// Espelham os tokens atuais do design system (global.css). Dados fictícios.
+// Tons de status da paleta clara — acento e fundo (~10%) do badge; o rótulo
+// usa o próprio acento (modelo monocromático). Espelham os tokens atuais do
+// design system (global.css). Dados fictícios.
 const LIGHT_STATUS_TONES: Record<StatusTone, StatusToneTokens> = {
-	error: { color: '#ef4444', background: '#ef444410', text: '#ef4444' },
-	success: { color: '#10b981', background: '#10b98110', text: '#10b981' },
-	info: { color: '#0058be', background: '#0058be10', text: '#0058be' },
-	warning: { color: '#956006', background: '#f59e0b10', text: '#956006' }
+	error: { color: '#ef4444', background: '#ef444410' },
+	success: { color: '#10b981', background: '#10b98110' },
+	info: { color: '#0058be', background: '#0058be10' },
+	warning: { color: '#956006', background: '#f59e0b10' }
 };
 
 // Tons de status da paleta escura — acentos vivos sobre containers escuros,
 // conforme docs/Dark-Mode-NEO-Kaizen-Documentacao-1.md.
 const DARK_STATUS_TONES: Record<StatusTone, StatusToneTokens> = {
-	error: { color: '#f87171', background: '#4c0f0a', text: '#f87171' },
-	success: { color: '#4ade80', background: '#0f2e1d', text: '#4ade80' },
-	info: { color: '#5b9bff', background: '#1b2942', text: '#5b9bff' },
-	warning: { color: '#fbbf24', background: '#4a2e0f', text: '#fbbf24' }
+	error: { color: '#f87171', background: '#4c0f0a' },
+	success: { color: '#4ade80', background: '#0f2e1d' },
+	info: { color: '#5b9bff', background: '#1b2942' },
+	warning: { color: '#fbbf24', background: '#4a2e0f' }
 };
 
 // Paletas padrão do portal — light preserva os valores atuais do design system;

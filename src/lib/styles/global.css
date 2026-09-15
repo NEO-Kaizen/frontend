@@ -41,16 +41,12 @@
 	/* Cores de status (nomes semânticos); os nomes antigos ficam como alias */
 	--status-error: #ef4444;
 	--status-error-bg: #ef444410;
-	--status-error-text: #ef4444;
 	--status-success: #10b981;
 	--status-success-bg: #10b98110;
-	--status-success-text: #10b981;
 	--status-info: #0058be;
 	--status-info-bg: #0058be10;
-	--status-info-text: #0058be;
 	--status-warning: #956006;
 	--status-warning-bg: #f59e0b10;
-	--status-warning-text: #956006;
 
 	--status-red: var(--status-error);
 	--status-red-bg: var(--status-error-bg);
@@ -109,16 +105,12 @@
 
 	--status-error: var(--light-status-error, #ef4444);
 	--status-error-bg: var(--light-status-error-bg, #ef444410);
-	--status-error-text: var(--light-status-error-text, #ef4444);
 	--status-success: var(--light-status-success, #10b981);
 	--status-success-bg: var(--light-status-success-bg, #10b98110);
-	--status-success-text: var(--light-status-success-text, #10b981);
 	--status-info: var(--light-status-info, #0058be);
 	--status-info-bg: var(--light-status-info-bg, #0058be10);
-	--status-info-text: var(--light-status-info-text, #0058be);
 	--status-warning: var(--light-status-warning, #956006);
 	--status-warning-bg: var(--light-status-warning-bg, #f59e0b10);
-	--status-warning-text: var(--light-status-warning-text, #956006);
 
 	--status-red: var(--status-error);
 	--status-red-bg: var(--status-error-bg);
@@ -149,16 +141,12 @@
 
 	--status-error: var(--dark-status-error, #f87171);
 	--status-error-bg: var(--dark-status-error-bg, #4c0f0a);
-	--status-error-text: var(--dark-status-error-text, #f87171);
 	--status-success: var(--dark-status-success, #4ade80);
 	--status-success-bg: var(--dark-status-success-bg, #0f2e1d);
-	--status-success-text: var(--dark-status-success-text, #4ade80);
 	--status-info: var(--dark-status-info, #5b9bff);
 	--status-info-bg: var(--dark-status-info-bg, #1b2942);
-	--status-info-text: var(--dark-status-info-text, #5b9bff);
 	--status-warning: var(--dark-status-warning, #fbbf24);
 	--status-warning-bg: var(--dark-status-warning-bg, #4a2e0f);
-	--status-warning-text: var(--dark-status-warning-text, #fbbf24);
 
 	--status-red: var(--status-error);
 	--status-red-bg: var(--status-error-bg);

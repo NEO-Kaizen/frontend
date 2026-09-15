@@ -10,8 +10,12 @@ import type {
 	PortalAssetsPatch,
 	PortalStatus,
 	PrioritizationCriterion,
+	StatusTone,
+	ThemePalette,
+	ThemeTokenKey,
 	UpdatePortalConfigPayload
 } from '$lib/types/portal-config';
+import { suggestStatusBackground } from '$lib/utils/contrast';
 import {
 	isValidPlatformName,
 	isValidProtocolMask,
@@ -174,6 +178,59 @@ export class SettingsState {
 	// Atualiza um campo escalar do draft — substitui os setters espelhados.
 	setField<K extends ScalarConfigField>(field: K, value: PortalConfig[K]): void {
 		this.draft = { ...this.draft, [field]: value };
+		this.clearFeedback();
+	}
+
+	// ---- Tema / identidade visual (Card 3) ----
+
+	// Atualiza um papel da paleta em edição. O tema é atômico no save, então
+	// qualquer mudança marca `dirty` via `hasChanged(draft.theme, pristine.theme)`.
+	setThemeToken(palette: ThemePalette, key: ThemeTokenKey, value: string): void {
+		this.draft = {
+			...this.draft,
+			theme: {
+				...this.draft.theme,
+				[palette]: { ...this.draft.theme[palette], [key]: value }
+			}
+		};
+		this.clearFeedback();
+	}
+
+	// Atualiza o fundo de um tom de status. O rótulo e o ponto usam o acento
+	// (`color`), então não há uma terceira cor a manter.
+	setStatusToneBackground(palette: ThemePalette, tone: StatusTone, value: string): void {
+		this.draft = {
+			...this.draft,
+			theme: {
+				...this.draft.theme,
+				[palette]: {
+					...this.draft.theme[palette],
+					statuses: {
+						...this.draft.theme[palette].statuses,
+						[tone]: { ...this.draft.theme[palette].statuses[tone], background: value }
+					}
+				}
+			}
+		};
+		this.clearFeedback();
+	}
+
+	// Muda o acento de um tom e recalcula o fundo (~10% do acento) — modelo
+	// monocromático, sem cor de texto separada.
+	updateStatusToneColor(palette: ThemePalette, tone: StatusTone, color: string): void {
+		this.draft = {
+			...this.draft,
+			theme: {
+				...this.draft.theme,
+				[palette]: {
+					...this.draft.theme[palette],
+					statuses: {
+						...this.draft.theme[palette].statuses,
+						[tone]: { color, background: suggestStatusBackground(color) }
+					}
+				}
+			}
+		};
 		this.clearFeedback();
 	}
 
