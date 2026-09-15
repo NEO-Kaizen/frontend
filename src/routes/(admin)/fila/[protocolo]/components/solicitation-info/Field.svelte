@@ -1,52 +1,57 @@
 <script lang="ts">
-	import EditInput from './EditInput.svelte';
-	import EditSelect from './EditSelect.svelte';
-	import EditTextarea from './EditTextarea.svelte';
+	import FilterSelect from '$lib/components/FilterSelect.svelte';
+	import Input from '$lib/components/Input.svelte';
+	import Textarea from '$lib/components/Textarea.svelte';
 
-	export type EditableFieldKind = 'text' | 'number' | 'date' | 'select' | 'textarea';
-
-	interface Props {
+	interface FieldBase {
 		label: string;
 		value?: string | number | null;
 		fallback?: string;
-		multiline?: boolean;
 		isEditMode?: boolean;
 		editable?: boolean;
-		kind?: EditableFieldKind;
 		editValue?: string;
-		options?: { value: string; label: string }[];
 		error?: string;
 		dirty?: boolean;
 		disabled?: boolean;
-		allowEmpty?: boolean;
-		maxlength?: number;
-		min?: string;
-		step?: string;
-		rows?: number;
 		onEditInput?: (value: string) => void;
 		onEditBlur?: () => void;
 	}
+
+	interface TextFieldProps extends FieldBase {
+		kind?: 'text' | 'number' | 'date';
+		maxlength?: number;
+		min?: string;
+		step?: string;
+	}
+
+	interface SelectFieldProps extends FieldBase {
+		kind: 'select';
+		options?: { value: string; label: string }[];
+		allowEmpty?: boolean;
+	}
+
+	interface TextareaFieldProps extends FieldBase {
+		kind: 'textarea';
+		multiline?: boolean;
+		rows?: number;
+		maxlength?: number;
+	}
+
+	type Props = TextFieldProps | SelectFieldProps | TextareaFieldProps;
 
 	let {
 		label,
 		value,
 		fallback = '---',
-		multiline = false,
 		isEditMode = false,
 		editable = true,
-		kind = 'text',
 		editValue = '',
-		options = [],
 		error = '',
 		dirty = false,
 		disabled = false,
-		allowEmpty = false,
-		maxlength,
-		min,
-		step,
-		rows = 4,
 		onEditInput,
-		onEditBlur
+		onEditBlur,
+		...variant
 	}: Props = $props();
 
 	let display = $derived(
@@ -55,11 +60,10 @@
 
 	let isFallback = $derived(display === fallback);
 	let editing = $derived(isEditMode && editable);
-	let fieldVariant: 'editing' | 'dirty' | 'invalid' = $derived(
-		error ? 'invalid' : dirty ? 'dirty' : 'editing'
-	);
+	let isDirty = $derived(dirty && !error);
+	let isMultiline = $derived(variant.kind === 'textarea' && variant.multiline === true);
 	let inputType: 'text' | 'number' | 'date' = $derived(
-		kind === 'number' ? 'number' : kind === 'date' ? 'date' : 'text'
+		variant.kind === 'number' ? 'number' : variant.kind === 'date' ? 'date' : 'text'
 	);
 
 	function getEditValue(): string {
@@ -69,50 +73,58 @@
 	function setEditValue(next: string): void {
 		onEditInput?.(next);
 	}
+
+	function handleFocusOut(event: FocusEvent): void {
+		const related = event.relatedTarget as Node | null;
+		const editor = event.currentTarget as HTMLElement;
+
+		if (related && editor.contains(related)) {
+			return;
+		}
+
+		onEditBlur?.();
+	}
 </script>
 
 {#if editing}
-	<div class="field-editor">
-		{#if kind === 'textarea'}
-			<EditTextarea
+	<div class="field-editor" onfocusout={handleFocusOut}>
+		{#if variant.kind === 'textarea'}
+			<Textarea
 				{label}
 				bind:value={getEditValue, setEditValue}
 				{disabled}
-				{maxlength}
-				{rows}
+				maxlength={variant.maxlength}
+				rows={variant.rows ?? 4}
 				{error}
-				{fieldVariant}
-				onblur={onEditBlur}
+				dirty={isDirty}
 			/>
-		{:else if kind === 'select'}
-			<EditSelect
+		{:else if variant.kind === 'select'}
+			<FilterSelect
 				{label}
 				value={editValue}
-				{options}
+				options={variant.options ?? []}
 				{disabled}
 				{error}
-				{fieldVariant}
-				clearValue={allowEmpty ? '' : undefined}
+				dirty={isDirty}
+				clearValue={variant.allowEmpty ? '' : undefined}
 				onchange={(next) => setEditValue(next)}
-				onblur={onEditBlur}
 			/>
 		{:else}
-			<EditInput
+			<Input
 				{label}
 				type={inputType}
 				bind:value={getEditValue, setEditValue}
 				{disabled}
-				{maxlength}
-				{min}
-				{step}
+				maxlength={variant.maxlength}
+				min={variant.min}
+				step={variant.step}
 				{error}
-				{fieldVariant}
-				onblur={onEditBlur}
+				dirty={isDirty}
 			/>
 		{/if}
 	</div>
 {:else}
-	<div class="field" class:multiline>
+	<div class="field" class:multiline={isMultiline}>
 		<span class="field-label">{label}</span>
 		<span class="field-value" class:is-fallback={isFallback}>{display}</span>
 	</div>
