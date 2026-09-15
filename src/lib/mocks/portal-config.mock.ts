@@ -9,6 +9,7 @@ import {
 	isValidPlatformName,
 	isValidProtocolMask,
 	isValidPrioritizationWeight,
+	isValidHexColor,
 	areCategoryNamesUnique,
 	hasActiveCategory,
 	areStatusNamesUnique,
@@ -21,13 +22,18 @@ import {
 	PRIORITIZATION_CRITERIA,
 	STATUS_TONES,
 	STATUS_VISIBILITIES,
+	THEME_TOKEN_KEYS,
 	type AssetKey,
 	type PortalCategory,
 	type PortalConfig,
 	type PortalAssetsPatch,
 	type PortalStatus,
+	type PortalTheme,
 	type PrioritizationWeights,
 	type SolicitationMode,
+	type StatusTone,
+	type StatusToneTokens,
+	type ThemeTokens,
 	type UpdatePortalConfigPayload
 } from '$lib/types/portal-config';
 
@@ -43,6 +49,7 @@ const ALLOWED_UPDATE_FIELDS: readonly (keyof UpdatePortalConfigPayload)[] = [
 	'solicitationMode',
 	'platformName',
 	'protocolMask',
+	'theme',
 	'assets',
 	'categories',
 	'statuses',
@@ -113,6 +120,10 @@ function validateUpdatePayload(payload: UpdatePortalConfigPayload): void {
 		);
 	}
 
+	if (payload.theme !== undefined) {
+		validateThemePatch(payload.theme);
+	}
+
 	if (payload.assets !== undefined) {
 		validateAssetsPatch(payload.assets);
 	}
@@ -127,6 +138,56 @@ function validateUpdatePayload(payload: UpdatePortalConfigPayload): void {
 
 	if (payload.prioritizationWeights !== undefined) {
 		validatePrioritizationWeights(payload.prioritizationWeights);
+	}
+}
+
+// O tema é atômico: as duas paletas completas (light/dark), cada uma com todos
+// os papéis em hex válido e os quatro tons de status com color/background/text.
+function validateThemePatch(theme: PortalTheme): void {
+	if (typeof theme !== 'object' || theme === null) {
+		throw new ApiError(400, 'O tema deve ser um objeto com as paletas "light" e "dark".');
+	}
+
+	validateThemeTokens(theme.light, 'light');
+	validateThemeTokens(theme.dark, 'dark');
+}
+
+function validateThemeTokens(tokens: ThemeTokens, palette: 'light' | 'dark'): void {
+	if (typeof tokens !== 'object' || tokens === null) {
+		throw new ApiError(400, `A paleta "${palette}" do tema deve ser um objeto.`);
+	}
+
+	for (const key of THEME_TOKEN_KEYS) {
+		if (!isValidHexColor(tokens[key])) {
+			throw new ApiError(400, `Cor inválida em "theme.${palette}.${key}" (esperado #RRGGBB).`);
+		}
+	}
+
+	validateStatusToneTokens(tokens.statuses, palette);
+}
+
+function validateStatusToneTokens(
+	statuses: Record<StatusTone, StatusToneTokens>,
+	palette: 'light' | 'dark'
+): void {
+	if (typeof statuses !== 'object' || statuses === null) {
+		throw new ApiError(400, `Os tons de status da paleta "${palette}" devem ser um objeto.`);
+	}
+
+	for (const tone of STATUS_TONES) {
+		const token = statuses[tone];
+		if (typeof token !== 'object' || token === null) {
+			throw new ApiError(400, `Tom de status inválido em "theme.${palette}.statuses.${tone}".`);
+		}
+
+		for (const key of ['color', 'background', 'text'] as const) {
+			if (!isValidHexColor(token[key])) {
+				throw new ApiError(
+					400,
+					`Cor inválida em "theme.${palette}.statuses.${tone}.${key}" (esperado #RRGGBB).`
+				);
+			}
+		}
 	}
 }
 

@@ -74,6 +74,7 @@ export class SettingsState {
 			this.draft.protocolMask.trim() !== this.pristine.protocolMask.trim() ||
 			this.draft.solicitationMode !== this.pristine.solicitationMode ||
 			ASSET_KEYS.some((key) => this.draft.assets[key] !== this.pristine.assets[key]) ||
+			hasChanged(this.draft.theme, this.pristine.theme) ||
 			hasChanged(this.draft.categories, this.pristine.categories) ||
 			hasChanged(this.draft.statuses, this.pristine.statuses) ||
 			hasChanged(this.draft.prioritizationWeights, this.pristine.prioritizationWeights)
@@ -358,6 +359,11 @@ export class SettingsState {
 			}
 			if (Object.keys(assetsPatch).length > 0) {
 				payload.assets = assetsPatch;
+			}
+
+			// O tema é atômico: qualquer diferença envia as duas paletas completas.
+			if (hasChanged(this.draft.theme, this.pristine.theme)) {
+				payload.theme = $state.snapshot(this.draft.theme);
 			}
 
 			// Categorias são atômicas: qualquer diferença envia a lista completa.

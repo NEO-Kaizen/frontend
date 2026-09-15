@@ -10,9 +10,9 @@
 <!-- Tokens do tema aplicados via wrapper (Svelte 5 não interpola `{expr}` em <style>). -->
 <div
 	class="app-root"
-	style:--primary-color={data.portalConfig.theme.primaryColor}
-	style:--secondary-color={data.portalConfig.theme.secondaryColor}
-	style:--background-color={data.portalConfig.theme.backgroundColor}
+	style:--primary-color={data.portalConfig.theme.light.primary}
+	style:--secondary-color={data.portalConfig.theme.light.secondary}
+	style:--background-color={data.portalConfig.theme.light.background}
 >
 	{@render children()}
 </div>

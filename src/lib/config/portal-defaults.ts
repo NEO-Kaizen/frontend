@@ -2,7 +2,10 @@ import type {
 	PortalCategory,
 	PortalConfig,
 	PortalStatus,
-	PrioritizationWeights
+	PortalTheme,
+	PrioritizationWeights,
+	StatusTone,
+	StatusToneTokens
 } from '$lib/types/portal-config';
 import logoUrl from '$lib/assets/MAAT-logo.svg';
 import avatarUrl from '$lib/assets/avatar-default.svg';
@@ -154,6 +157,54 @@ export const DEFAULT_PRIORITIZATION_WEIGHTS: PrioritizationWeights = {
 	estimatedComplexity: 1.0
 };
 
+// Tons de status da paleta clara — acento, fundo (~10%) e texto do badge.
+// Espelham os tokens atuais do design system (global.css). Dados fictícios.
+const LIGHT_STATUS_TONES: Record<StatusTone, StatusToneTokens> = {
+	error: { color: '#ef4444', background: '#ef444410', text: '#ef4444' },
+	success: { color: '#10b981', background: '#10b98110', text: '#10b981' },
+	info: { color: '#0058be', background: '#0058be10', text: '#0058be' },
+	warning: { color: '#956006', background: '#f59e0b10', text: '#956006' }
+};
+
+// Tons de status da paleta escura — acentos vivos sobre containers escuros,
+// conforme docs/Dark-Mode-NEO-Kaizen-Documentacao-1.md.
+const DARK_STATUS_TONES: Record<StatusTone, StatusToneTokens> = {
+	error: { color: '#f87171', background: '#4c0f0a', text: '#f87171' },
+	success: { color: '#4ade80', background: '#0f2e1d', text: '#4ade80' },
+	info: { color: '#5b9bff', background: '#1b2942', text: '#5b9bff' },
+	warning: { color: '#fbbf24', background: '#4a2e0f', text: '#fbbf24' }
+};
+
+// Paletas padrão do portal — light preserva os valores atuais do design system;
+// dark segue a documentação oficial de Dark Mode. Único dono dos defaults das
+// paletas; consumido pelo service (fallback) e pelo estado de cliente.
+export const DEFAULT_THEME: PortalTheme = {
+	light: {
+		background: '#f0f4f8',
+		surface: '#fafafa',
+		border: '#e5e7eb',
+		textPrimary: '#3c3e47',
+		textSecondary: '#757682',
+		richBlack: '#0f1a2a',
+		primary: '#00236f',
+		secondary: '#0058be',
+		tint: '#d6e7fb',
+		statuses: LIGHT_STATUS_TONES
+	},
+	dark: {
+		background: '#0b0f1a',
+		surface: '#141b2e',
+		border: '#2a3346',
+		textPrimary: '#e5e7eb',
+		textSecondary: '#9aa3b2',
+		richBlack: '#0f1a2a',
+		primary: '#4c7dff',
+		secondary: '#5b9bff',
+		tint: '#1b2942',
+		statuses: DARK_STATUS_TONES
+	}
+};
+
 // Defaults locais do portal — espelham os valores atuais do design system
 // (global.css `:root`) e os assets estáticos existentes. Único dono dos
 // defaults; consumido pelo service (fallback) e pelo estado de cliente.
@@ -161,11 +212,7 @@ export const DEFAULT_PORTAL_CONFIG: PortalConfig = {
 	platformName: 'MAAT',
 	solicitationMode: 'PUBLIC',
 	protocolMask: 'MAAT',
-	theme: {
-		primaryColor: '#00236f',
-		secondaryColor: '#0058be',
-		backgroundColor: '#f0f4f8'
-	},
+	theme: structuredClone(DEFAULT_THEME),
 	assets: {
 		logoUrl,
 		avatarUrl,

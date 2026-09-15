@@ -14,6 +14,7 @@ import {
 	isValidPlatformName,
 	isValidProtocolMask,
 	isValidPrioritizationWeight,
+	isValidHexColor,
 	areCategoryNamesUnique,
 	hasActiveCategory,
 	areStatusNamesUnique,
@@ -33,10 +34,13 @@ import type {
 	PortalConfig,
 	PortalAssetsPatch,
 	PortalStatus,
+	PortalTheme,
 	PrioritizationWeights,
 	SolicitationMode,
 	StatusTone,
+	StatusToneTokens,
 	StatusVisibility,
+	ThemeTokens,
 	UpdatePortalConfigPayload
 } from '$lib/types/portal-config';
 
@@ -121,6 +125,9 @@ function sanitizeUpdatePayload(payload: UpdatePortalConfigPayload): UpdatePortal
 	if (payload.protocolMask !== undefined) {
 		sanitized.protocolMask = payload.protocolMask;
 	}
+	if (payload.theme !== undefined) {
+		sanitized.theme = sanitizeTheme(payload.theme);
+	}
 
 	if (payload.assets !== undefined) {
 		const assets: PortalAssetsPatch = {};
@@ -154,31 +161,18 @@ function sanitizeUpdatePayload(payload: UpdatePortalConfigPayload): UpdatePortal
 	return sanitized;
 }
 
-const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
-
 // Validação allowlist — apenas as chaves do contrato são lidas; nenhum
 // HTML/CSS/JS vindo da API é aceito (apenas strings tipadas com formato válido).
 function sanitizePortalConfig(raw: unknown): PortalConfig {
 	const source = isRecord(raw) ? raw : {};
 
-	const theme = isRecord(source.theme) ? source.theme : {};
 	const assets = isRecord(source.assets) ? source.assets : {};
 
 	return {
 		platformName: sanitizePlatformName(source.platformName),
 		solicitationMode: sanitizeSolicitationMode(source.solicitationMode),
 		protocolMask: sanitizeProtocolMask(source.protocolMask),
-		theme: {
-			primaryColor: sanitizeHexColor(theme.primaryColor, DEFAULT_PORTAL_CONFIG.theme.primaryColor),
-			secondaryColor: sanitizeHexColor(
-				theme.secondaryColor,
-				DEFAULT_PORTAL_CONFIG.theme.secondaryColor
-			),
-			backgroundColor: sanitizeHexColor(
-				theme.backgroundColor,
-				DEFAULT_PORTAL_CONFIG.theme.backgroundColor
-			)
-		},
+		theme: sanitizeTheme(source.theme),
 		assets: {
 			logoUrl: sanitizeAssetUrl(assets.logoUrl, DEFAULT_PORTAL_CONFIG.assets.logoUrl),
 			avatarUrl: sanitizeAssetUrl(assets.avatarUrl, DEFAULT_PORTAL_CONFIG.assets.avatarUrl),
@@ -215,7 +209,58 @@ function sanitizeProtocolMask(value: unknown): string {
 }
 
 function sanitizeHexColor(value: unknown, fallback: string): string {
-	return typeof value === 'string' && HEX_COLOR.test(value) ? value : fallback;
+	return isValidHexColor(value) ? value.toLowerCase() : fallback;
+}
+
+// Tema vindo da API ou do payload — valida cada papel das duas paletas com
+// fallback por token. A API não fornece tema hoje: `theme` ausente cai nos
+// defaults locais e cada chave inválida cai no default daquela chave.
+function sanitizeTheme(raw: unknown): PortalTheme {
+	const source = isRecord(raw) ? raw : {};
+	const fallback = DEFAULT_PORTAL_CONFIG.theme;
+
+	return {
+		light: sanitizeThemeTokens(source.light, fallback.light),
+		dark: sanitizeThemeTokens(source.dark, fallback.dark)
+	};
+}
+
+function sanitizeThemeTokens(raw: unknown, fallback: ThemeTokens): ThemeTokens {
+	const source = isRecord(raw) ? raw : {};
+
+	return {
+		background: sanitizeHexColor(source.background, fallback.background),
+		surface: sanitizeHexColor(source.surface, fallback.surface),
+		border: sanitizeHexColor(source.border, fallback.border),
+		textPrimary: sanitizeHexColor(source.textPrimary, fallback.textPrimary),
+		textSecondary: sanitizeHexColor(source.textSecondary, fallback.textSecondary),
+		richBlack: sanitizeHexColor(source.richBlack, fallback.richBlack),
+		primary: sanitizeHexColor(source.primary, fallback.primary),
+		secondary: sanitizeHexColor(source.secondary, fallback.secondary),
+		tint: sanitizeHexColor(source.tint, fallback.tint),
+		statuses: sanitizeStatusToneTokens(source.statuses, fallback.statuses)
+	};
+}
+
+function sanitizeStatusToneTokens(
+	raw: unknown,
+	fallback: Record<StatusTone, StatusToneTokens>
+): Record<StatusTone, StatusToneTokens> {
+	const source = isRecord(raw) ? raw : {};
+	const result = {} as Record<StatusTone, StatusToneTokens>;
+
+	for (const tone of STATUS_TONES) {
+		const toneSource = isRecord(source[tone]) ? source[tone] : {};
+		const toneFallback = fallback[tone];
+
+		result[tone] = {
+			color: sanitizeHexColor(toneSource.color, toneFallback.color),
+			background: sanitizeHexColor(toneSource.background, toneFallback.background),
+			text: sanitizeHexColor(toneSource.text, toneFallback.text)
+		};
+	}
+
+	return result;
 }
 
 function sanitizeAssetUrl(value: unknown, fallback: string): string {

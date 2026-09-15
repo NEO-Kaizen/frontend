@@ -6,14 +6,6 @@
 // o solicitante autenticado vê identidade pré-preenchida/bloqueada.
 export type SolicitationMode = 'PUBLIC' | 'AUTHENTICATED';
 
-// Tokens visuais permitidos — apenas chaves allowlist. A aplicação completa
-// do tema (cores em páginas, flash minimizado) é escopo da issue #89.
-export interface PortalThemeTokens {
-	primaryColor: string;
-	secondaryColor: string;
-	backgroundColor: string;
-}
-
 // Assets do portal. Valores vindos da API passam por validação de URL segura
 // (relativo do próprio app ou http/https); qualquer valor inválido cai no
 // default local por campo (fallback).
@@ -62,6 +54,44 @@ export const STATUS_TONES = ['error', 'success', 'info', 'warning'] as const;
 
 export type StatusTone = (typeof STATUS_TONES)[number];
 
+// Conjunto de cores de um tom de status: acento (`color`), fundo (`background`)
+// e texto (`text`) do badge. A borda é derivada de `color` via `color-mix` e
+// não é armazenada (decisão do plano de configurações).
+export interface StatusToneTokens {
+	color: string;
+	background: string;
+	text: string;
+}
+
+// Chaves de papel de uma paleta — allowlist usada pelo service e pelo mock para
+// sanitizar/validar. `statuses` fica de fora (validado por tom).
+export const THEME_TOKEN_KEYS = [
+	'background',
+	'surface',
+	'border',
+	'textPrimary',
+	'textSecondary',
+	'richBlack',
+	'primary',
+	'secondary',
+	'tint'
+] as const;
+
+export type ThemeTokenKey = (typeof THEME_TOKEN_KEYS)[number];
+
+// Paleta de tema (uma por modo). O admin configura cada papel; a UI consome via
+// custom properties CSS. `statuses` guarda as cores de cada tom do ciclo de vida.
+export interface ThemeTokens extends Record<ThemeTokenKey, string> {
+	statuses: Record<StatusTone, StatusToneTokens>;
+}
+
+// Paletas do portal — claro e escuro. O usuário escolhe qual usar (preferência
+// local no cliente); o admin configura as cores das duas.
+export interface PortalTheme {
+	light: ThemeTokens;
+	dark: ThemeTokens;
+}
+
 // Status do ciclo de vida da solicitação (Card 6) — lista gerenciada no
 // PortalConfig. `id` é a chave estável (número inteiro positivo, gerado pelo
 // cliente em novos status e aceito pela API); `closesRequest` indica se o
@@ -105,7 +135,7 @@ export interface PortalConfig {
 	// (ex.: "MAAT" de "MAAT-8K3P-9X2M"). A estrutura "XXXX-XXXX" é derivada;
 	// somente o bloco inicial é configurável.
 	protocolMask: string;
-	theme: PortalThemeTokens;
+	theme: PortalTheme;
 	assets: PortalAssets;
 	// Categorias que alimentam o select do formulário de solicitação (Card 5).
 	// A API é a autoridade; o frontend espelha a lista completa no estado.
@@ -125,17 +155,19 @@ export type EditablePortalConfigFields =
 	| 'solicitationMode'
 	| 'platformName'
 	| 'protocolMask'
+	| 'theme'
 	| 'assets'
 	| 'categories'
 	| 'statuses'
 	| 'prioritizationWeights';
 
 // Payload parcial de atualização (PATCH /portal-config) — apenas campos
-// da allowlist acima, enviados somente quando alterados. `assets` aceita
-// um objeto parcial (só as chaves de assets modificadas); `categories` e
-// `statuses` são as listas completas (atômicas — a ordem dos itens importa
-// e o backend retorna o estado consolidado); `prioritizationWeights` é o
-// objeto completo de pesos (atômico — todas as chaves presentes).
+// da allowlist acima, enviados somente quando alterados. `theme` é atômico
+// (as duas paletas completas — claro e escuro); `assets` aceita um objeto
+// parcial (só as chaves de assets modificadas); `categories` e `statuses` são
+// as listas completas (atômicas — a ordem dos itens importa e o backend
+// retorna o estado consolidado); `prioritizationWeights` é o objeto completo
+// de pesos (atômico — todas as chaves presentes).
 export type UpdatePortalConfigPayload = Partial<
 	Pick<
 		PortalConfig,

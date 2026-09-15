@@ -4,6 +4,14 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const TEXT_PATTERN = /^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/;
 
+// Cor hexadecimal no formato #RRGGBB — allowlist usada pelo service (sanitize
+// do tema) e pelo mock (validação do PATCH). Não aceita alpha, nome ou função.
+const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
+
+export function isValidHexColor(value: unknown): value is string {
+	return typeof value === 'string' && HEX_COLOR_PATTERN.test(value);
+}
+
 // Regras da identidade da plataforma (Card 2 / CONTRATO-BACKEND.md) — fonte
 // única usada pelo service (sanitize), pelo mock e pela store (anti-salvar).
 export const MAX_PLATFORM_NAME_LENGTH = 80;
