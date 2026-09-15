@@ -184,9 +184,16 @@ function validateStatusToneTokens(
 			if (!isValidHexColor(token[key])) {
 				throw new ApiError(
 					400,
-					`Cor inválida em "theme.${palette}.statuses.${tone}.${key}" (esperado #RRGGBB).`
+					`Cor inválida em "theme.${palette}.statuses.${tone}.${key}" (esperado #RRGGBB ou #RRGGBBAA).`
 				);
 			}
+		}
+
+		if (typeof token.backgroundLocked !== 'boolean') {
+			throw new ApiError(
+				400,
+				`"theme.${palette}.statuses.${tone}.backgroundLocked" deve ser booleano.`
+			);
 		}
 	}
 }

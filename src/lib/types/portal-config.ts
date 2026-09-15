@@ -57,10 +57,12 @@ export type StatusTone = (typeof STATUS_TONES)[number];
 // Cores de um tom de status (modelo monocromático): acento (`color`) e fundo
 // (`background`) do badge. O rótulo e o ponto usam o acento; a borda é derivada
 // de `color` via `color-mix` e não é armazenada (decisão do plano de
-// configurações).
+// configurações). `backgroundLocked` trava o fundo em modo manual: enquanto
+// `true`, mudar o acento não recalcula o fundo.
 export interface StatusToneTokens {
 	color: string;
 	background: string;
+	backgroundLocked: boolean;
 }
 
 // Chaves de papel de uma paleta — allowlist usada pelo service e pelo mock para

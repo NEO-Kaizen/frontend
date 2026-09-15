@@ -35,6 +35,7 @@ export const iconDictionary = {
 	edit: 'edit',
 	more: 'more_vert',
 	lock: 'lock',
+	lockOpen: 'lock_open',
 	visibility: 'visibility',
 	visibilityOff: 'visibility_off',
 	arrowForward: 'arrow_forward',

@@ -255,7 +255,8 @@ function sanitizeStatusToneTokens(
 
 		result[tone] = {
 			color: sanitizeHexColor(toneSource.color, toneFallback.color),
-			background: sanitizeHexColor(toneSource.background, toneFallback.background)
+			background: sanitizeHexColor(toneSource.background, toneFallback.background),
+			backgroundLocked: toneSource.backgroundLocked === true
 		};
 	}
 

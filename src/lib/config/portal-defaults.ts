@@ -161,19 +161,19 @@ export const DEFAULT_PRIORITIZATION_WEIGHTS: PrioritizationWeights = {
 // usa o próprio acento (modelo monocromático). Espelham os tokens atuais do
 // design system (global.css). Dados fictícios.
 const LIGHT_STATUS_TONES: Record<StatusTone, StatusToneTokens> = {
-	error: { color: '#ef4444', background: '#ef444410' },
-	success: { color: '#10b981', background: '#10b98110' },
-	info: { color: '#0058be', background: '#0058be10' },
-	warning: { color: '#956006', background: '#f59e0b10' }
+	error: { color: '#ef4444', background: '#ef444410', backgroundLocked: true },
+	success: { color: '#10b981', background: '#10b98110', backgroundLocked: true },
+	info: { color: '#0058be', background: '#0058be10', backgroundLocked: true },
+	warning: { color: '#956006', background: '#f59e0b10', backgroundLocked: true }
 };
 
 // Tons de status da paleta escura — acentos vivos sobre containers escuros,
 // conforme docs/Dark-Mode-NEO-Kaizen-Documentacao-1.md.
 const DARK_STATUS_TONES: Record<StatusTone, StatusToneTokens> = {
-	error: { color: '#f87171', background: '#4c0f0a' },
-	success: { color: '#4ade80', background: '#0f2e1d' },
-	info: { color: '#5b9bff', background: '#1b2942' },
-	warning: { color: '#fbbf24', background: '#4a2e0f' }
+	error: { color: '#f87171', background: '#4c0f0a', backgroundLocked: true },
+	success: { color: '#4ade80', background: '#0f2e1d', backgroundLocked: true },
+	info: { color: '#5b9bff', background: '#1b2942', backgroundLocked: true },
+	warning: { color: '#fbbf24', background: '#4a2e0f', backgroundLocked: true }
 };
 
 // Paletas padrão do portal — light preserva os valores atuais do design system;

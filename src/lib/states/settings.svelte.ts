@@ -197,7 +197,8 @@ export class SettingsState {
 	}
 
 	// Atualiza o fundo de um tom de status. O rótulo e o ponto usam o acento
-	// (`color`), então não há uma terceira cor a manter.
+	// (`color`), então não há uma terceira cor a manter. Editar o fundo trava o
+	// modo automático (`backgroundLocked = true`): o acento não o sobrescreve.
 	setStatusToneBackground(palette: ThemePalette, tone: StatusTone, value: string): void {
 		this.draft = {
 			...this.draft,
@@ -207,7 +208,11 @@ export class SettingsState {
 					...this.draft.theme[palette],
 					statuses: {
 						...this.draft.theme[palette].statuses,
-						[tone]: { ...this.draft.theme[palette].statuses[tone], background: value }
+						[tone]: {
+							...this.draft.theme[palette].statuses[tone],
+							background: value,
+							backgroundLocked: true
+						}
 					}
 				}
 			}
@@ -215,9 +220,12 @@ export class SettingsState {
 		this.clearFeedback();
 	}
 
-	// Muda o acento de um tom e recalcula o fundo (~10% do acento) — modelo
-	// monocromático, sem cor de texto separada.
-	updateStatusToneColor(palette: ThemePalette, tone: StatusTone, color: string): void {
+	// Trava/destrava o fundo do tom. Destravar é pedir a sugestão: recalcula o
+	// fundo na hora a partir do acento atual (e passa a acompanhá-lo). Travar
+	// preserva o valor manual.
+	setStatusToneBackgroundLocked(palette: ThemePalette, tone: StatusTone, locked: boolean): void {
+		const current = this.draft.theme[palette].statuses[tone];
+
 		this.draft = {
 			...this.draft,
 			theme: {
@@ -226,7 +234,41 @@ export class SettingsState {
 					...this.draft.theme[palette],
 					statuses: {
 						...this.draft.theme[palette].statuses,
-						[tone]: { color, background: suggestStatusBackground(color) }
+						[tone]: {
+							...current,
+							backgroundLocked: locked,
+							background: locked
+								? current.background
+								: suggestStatusBackground(current.color, palette)
+						}
+					}
+				}
+			}
+		};
+		this.clearFeedback();
+	}
+
+	// Muda o acento de um tom. Em modo automático (`backgroundLocked` falso),
+	// recalcula o fundo a partir do acento (ciente da paleta); travado, preserva
+	// o fundo manual.
+	updateStatusToneColor(palette: ThemePalette, tone: StatusTone, color: string): void {
+		const current = this.draft.theme[palette].statuses[tone];
+
+		this.draft = {
+			...this.draft,
+			theme: {
+				...this.draft.theme,
+				[palette]: {
+					...this.draft.theme[palette],
+					statuses: {
+						...this.draft.theme[palette].statuses,
+						[tone]: {
+							...current,
+							color,
+							background: current.backgroundLocked
+								? current.background
+								: suggestStatusBackground(color, palette)
+						}
 					}
 				}
 			}

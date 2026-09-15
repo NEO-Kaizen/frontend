@@ -6,9 +6,11 @@
 		label: string;
 		value: string;
 		onchange: (value: string) => void;
+		// Exibe o slider de opacidade (alpha) — usado só onde a cor aceita alpha.
+		allowAlpha?: boolean;
 	}
 
-	let { label, value, onchange }: Props = $props();
+	let { label, value, onchange, allowAlpha = false }: Props = $props();
 
 	// O `<input type="color">` só é criado após o mount: a hidratação do Svelte
 	// remove o atributo `value` desses inputs (tratamento de reset de formulário)
@@ -30,6 +32,11 @@
 	// preservado ao trocar a cor de base.
 	const rgbValue = $derived(/^#[0-9a-fA-F]{6}/.test(value) ? value.slice(0, 7) : '#000000');
 
+	// Alpha em % lido do `#RRGGBBAA` (6 dígitos = opaco).
+	const alphaPercent = $derived(
+		value.length === 9 ? Math.round((parseInt(value.slice(7, 9), 16) / 255) * 100) : 100
+	);
+
 	function handleTextInput(event: Event) {
 		const next = (event.currentTarget as HTMLInputElement).value;
 
@@ -47,6 +54,13 @@
 		const alpha = value.length === 9 ? value.slice(7) : '';
 		edited = null;
 		onchange(`${rgb}${alpha}`);
+	}
+
+	function handleAlphaInput(event: Event) {
+		const percent = Number((event.currentTarget as HTMLInputElement).value);
+		const alpha = Math.round((percent / 100) * 255);
+		edited = null;
+		onchange(alpha >= 255 ? rgbValue : `${rgbValue}${alpha.toString(16).padStart(2, '0')}`);
 	}
 </script>
 
@@ -79,6 +93,21 @@
 			oninput={handleTextInput}
 		/>
 	</span>
+	{#if allowAlpha}
+		<span class="color-field-alpha">
+			<input
+				class="color-field-alpha-range"
+				type="range"
+				min="0"
+				max="100"
+				step="1"
+				value={alphaPercent}
+				aria-label={`Opacidade de ${label}`}
+				oninput={handleAlphaInput}
+			/>
+			<span class="color-field-alpha-value">{alphaPercent}%</span>
+		</span>
+	{/if}
 </label>
 
 <style>
@@ -133,5 +162,25 @@
 
 	.color-field.invalid .color-field-hex {
 		border-color: var(--status-error);
+	}
+
+	.color-field-alpha {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-sm);
+	}
+
+	.color-field-alpha-range {
+		width: 100%;
+		min-width: 0;
+		accent-color: var(--primary-color);
+		cursor: pointer;
+	}
+
+	.color-field-alpha-value {
+		font-size: 12px;
+		color: var(--text-color-secondary);
+		min-width: 34px;
+		text-align: end;
 	}
 </style>

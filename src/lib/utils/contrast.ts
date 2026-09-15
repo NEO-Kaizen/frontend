@@ -95,10 +95,77 @@ export function meetsMinimum(ratio: number, minimum: number): boolean {
 	return ratio + 1e-9 >= minimum;
 }
 
-// Sugestão de fundo do status: ~10% do acento (alpha 0x1a) preservando o RGB.
+// Luminosidade-alvo do fundo de status no dark — sólido escuro derivado do
+// acento, na linha dos containers do design system (`#4c0f0a`, `#0f2e1d`...).
+const DARK_STATUS_BACKGROUND_LIGHTNESS = 0.18;
+
+// Converte canais 0..255 para HSL (h em graus, s/l em 0..1).
+function rgbToHsl(r: number, g: number, b: number): { h: number; s: number; l: number } {
+	const rn = r / 255;
+	const gn = g / 255;
+	const bn = b / 255;
+	const max = Math.max(rn, gn, bn);
+	const min = Math.min(rn, gn, bn);
+	const l = (max + min) / 2;
+
+	if (max === min) {
+		return { h: 0, s: 0, l };
+	}
+
+	const d = max - min;
+	const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+
+	let h: number;
+	if (max === rn) {
+		h = ((gn - bn) / d + (gn < bn ? 6 : 0)) * 60;
+	} else if (max === gn) {
+		h = ((bn - rn) / d + 2) * 60;
+	} else {
+		h = ((rn - gn) / d + 4) * 60;
+	}
+
+	return { h, s, l };
+}
+
+// Componentes RGB normalizados (0..1) da matiz, conforme o setor de 60°.
+function hueToRgb(h: number, c: number, x: number): [number, number, number] {
+	if (h < 60) return [c, x, 0];
+	if (h < 120) return [x, c, 0];
+	if (h < 180) return [0, c, x];
+	if (h < 240) return [0, x, c];
+	if (h < 300) return [x, 0, c];
+	return [c, 0, x];
+}
+
+// HSL (h em graus, s/l em 0..1) de volta para #RRGGBB.
+function hslToHex(h: number, s: number, l: number): string {
+	const c = (1 - Math.abs(2 * l - 1)) * s;
+	const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+	const m = l - c / 2;
+	const [r, g, b] = hueToRgb(h, c, x);
+
+	return `#${toHexChannel((r + m) * 255)}${toHexChannel((g + m) * 255)}${toHexChannel((b + m) * 255)}`;
+}
+
+// Escurece a cor até a luminosidade-alvo preservando matiz e saturação; nunca
+// clareia (usa o menor entre L atual e o alvo).
+export function darkenToLightness(color: string, targetLightness: number): string {
+	const { r, g, b } = parseHexColor(color);
+	const { h, s, l } = rgbToHsl(r, g, b);
+	return hslToHex(h, s, Math.min(l, targetLightness));
+}
+
+// Sugestão do fundo de status a partir do acento, ciente da paleta:
+// - light: o acento translúcido (~10%, alpha 0x1a);
+// - dark: um sólido escuro (o acento escurecido), alinhado aos containers dark.
 // Valor puramente sugestivo — o admin pode editar livremente.
-export function suggestStatusBackground(accent: string): string {
+export function suggestStatusBackground(accent: string, palette: 'light' | 'dark'): string {
 	const match = /^#([0-9a-fA-F]{6})/.exec(accent.trim());
 	const rgb = match ? `#${match[1].toLowerCase()}` : '#000000';
+
+	if (palette === 'dark') {
+		return darkenToLightness(rgb, DARK_STATUS_BACKGROUND_LIGHTNESS);
+	}
+
 	return `${rgb}1a`;
 }

@@ -181,10 +181,39 @@
 						<ColorField
 							label="Fundo"
 							value={advisory.tokens.background}
+							allowAlpha
 							onchange={(value) =>
 								settingsState.setStatusToneBackground(editingPalette, advisory.tone, value)}
 						/>
 					</div>
+
+					<button
+						class="tone-lock"
+						class:locked={advisory.tokens.backgroundLocked}
+						type="button"
+						aria-pressed={advisory.tokens.backgroundLocked}
+						aria-label={`${
+							advisory.tokens.backgroundLocked
+								? 'Destravar o fundo (voltar ao automático)'
+								: 'Travar o fundo (modo manual)'
+						} do tom ${TONE_LABELS[advisory.tone]}. O fundo está ${
+							advisory.tokens.backgroundLocked
+								? 'travado: mudar o acento não altera o fundo'
+								: 'automático: o fundo acompanha o acento'
+						}.`}
+						title={advisory.tokens.backgroundLocked
+							? 'Fundo travado: mudar o acento não altera o fundo. Clique para destravar e recalcular a sugestão a partir do acento.'
+							: 'Fundo automático: acompanha o acento. Clique para travar e fixar o valor manual.'}
+						onclick={() =>
+							settingsState.setStatusToneBackgroundLocked(
+								editingPalette,
+								advisory.tone,
+								!advisory.tokens.backgroundLocked
+							)}
+					>
+						<Icon iconName={advisory.tokens.backgroundLocked ? 'lock' : 'lockOpen'} iconSize="sm" />
+						{advisory.tokens.backgroundLocked ? 'Fundo travado' : 'Fundo automático'}
+					</button>
 				</div>
 			{/each}
 		</div>
@@ -306,6 +335,26 @@
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 		gap: var(--spacing-md);
 		max-width: 420px;
+	}
+
+	.tone-lock {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		align-self: flex-start;
+		padding: 4px var(--spacing-sm);
+		border: var(--border-default);
+		border-radius: var(--radius-sm);
+		background-color: var(--white);
+		color: var(--text-color-secondary);
+		font: var(--label);
+		font-size: 12px;
+		cursor: pointer;
+	}
+
+	.tone-lock.locked {
+		border-color: var(--primary-color);
+		color: var(--primary-color);
 	}
 
 	@media (max-width: 640px) {
