@@ -5,16 +5,16 @@ import type { AssetKey, PortalConfig, UpdatePortalConfigPayload } from '$lib/typ
 const PORTAL_CONFIG_PATH = '/portal-config';
 const ASSETS_PATH = '/assets';
 
-// Leitura da configuração pública do portal. Endpoint real definido pelo
-// contrato (CONTRATO-BACKEND.md); em dev o mock retorna o estado em memória
-// fechando o loop com o PATCH (dados fictícios, nunca reais).
-export async function fetchPortalConfig(): Promise<PortalConfig> {
+// Leitura da configuração pública do portal. O endpoint real é definido pela
+// issue #90; em dev o mock retorna o estado em memória, fechando o loop com o
+// PATCH (dados fictícios, nunca reais).
+export async function fetchPortalConfig(fetchImpl?: typeof fetch): Promise<PortalConfig> {
 	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.portalConfig) {
 		const { fetchPortalConfigMock } = await import('$lib/mocks/portal-config.mock');
 		return fetchPortalConfigMock();
 	}
 
-	return apiClient<PortalConfig>(PORTAL_CONFIG_PATH);
+	return apiClient<PortalConfig>(PORTAL_CONFIG_PATH, {}, fetchImpl);
 }
 
 // Atualização parcial (PATCH) da configuração — área administrativa. Envia

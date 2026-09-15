@@ -1,7 +1,8 @@
-<!-- Componente global: usado em /acompanhar e reutilizável na fila admin (issue própria) -->
+<!-- Componente global: usado em /acompanhar, /fila e /home -->
 <script lang="ts">
 	import foundImg from '$lib/assets/SolicitationIllustration.svg';
 	import Pagination from './Pagination.svelte';
+	import Button from '$lib/components/Button.svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { formatShortDate, formatShortTime } from '$lib/utils/dates';
 	import type { PaginatedResponse, RequestStatus, RequestSummary } from '$lib/types/request';
@@ -36,6 +37,9 @@
 		result: Result<PaginatedResponse<RequestSummary>> | null;
 		isFetching: boolean;
 		detailRoute?: DetailRoute;
+		emptyTitle?: string;
+		emptyMessage?: string;
+		onretry?: () => void;
 		onpagechange: (page: number) => void;
 	};
 
@@ -44,21 +48,29 @@
 		result = null,
 		isFetching = false,
 		detailRoute = '/(public)/acompanhar/[protocolo]',
+		emptyTitle = 'Nenhuma solicitação encontrada',
+		emptyMessage,
+		onretry,
 		onpagechange
 	}: Props = $props();
 
 	const results = $derived(result?.ok ? result.data.data : []);
 	const totalPages = $derived(result?.ok ? result.data.totalPages : 0);
 	const totalItems = $derived(result?.ok ? result.data.total : 0);
+	// Clampa a página pedida ao intervalo real, protegendo o rodapé de valores
+	// como "Exibindo 491–14" quando a URL traz uma página fora do range.
+	const currentPage = $derived(Math.min(Math.max(page, 1), Math.max(totalPages, 1)));
 	const firstVisibleItem = $derived(
-		result?.ok && result.data.total > 0 ? (result.data.page - 1) * result.data.pageSize + 1 : 0
+		result?.ok && results.length > 0 ? (currentPage - 1) * result.data.pageSize + 1 : 0
 	);
 	const lastVisibleItem = $derived(
-		result?.ok ? Math.min(result.data.page * result.data.pageSize, result.data.total) : 0
+		result?.ok && results.length > 0
+			? Math.min(currentPage * result.data.pageSize, result.data.total)
+			: 0
 	);
 </script>
 
-<div class="table-container">
+<div class="table-container" class:is-loading={isFetching} aria-busy={isFetching}>
 	<div class="table-scroll">
 		<table>
 			<thead>
@@ -74,7 +86,15 @@
 			</thead>
 
 			<tbody>
-				{#if result === null}
+				{#if isFetching && results.length === 0}
+					<tr>
+						<td colspan="7">
+							<div class="loading-state" role="status" aria-live="polite">
+								<p>Carregando solicitações…</p>
+							</div>
+						</td>
+					</tr>
+				{:else if result === null}
 					<tr>
 						<td colspan="7">
 							<div class="empty-state">
@@ -92,22 +112,14 @@
 							</div>
 						</td>
 					</tr>
-				{:else if isFetching}
-					<tr>
-						<td colspan="7">
-							<div class="loading-state" role="status" aria-live="polite">
-								<p>Carregando solicitações…</p>
-							</div>
-						</td>
-					</tr>
-				{:else if result && !result.ok}
+				{:else if !result.ok}
 					<tr>
 						<td colspan="7">
 							<div class="error-state" role="alert">
 								<p>{result.error.message}</p>
-								<button type="button" class="btn-retry" onclick={() => invalidateAll()}>
+								<Button variant="outline" onclick={() => (onretry ? onretry() : invalidateAll())}>
 									Tentar novamente
-								</button>
+								</Button>
 							</div>
 						</td>
 					</tr>
@@ -158,7 +170,10 @@
 					<tr>
 						<td colspan="7">
 							<div class="empty-state">
-								<h3>Nenhuma solicitação encontrada</h3>
+								<h3>{emptyTitle}</h3>
+								{#if emptyMessage}
+									<p>{emptyMessage}</p>
+								{/if}
 							</div>
 						</td>
 					</tr>
@@ -167,10 +182,15 @@
 		</table>
 	</div>
 	<div class="table-footer">
-		<span class="pagination-info">
-			Exibindo {firstVisibleItem}–{lastVisibleItem} de {totalItems} entradas
-		</span>
-		<Pagination currentPage={page} {totalPages} {onpagechange} />
+		<div class="footer-info">
+			{#if isFetching}
+				<span class="table-loading" role="status" aria-live="polite">Atualizando…</span>
+			{/if}
+			<span class="pagination-info">
+				Exibindo {firstVisibleItem}–{lastVisibleItem} de {totalItems} entradas
+			</span>
+		</div>
+		<Pagination {currentPage} {totalPages} {onpagechange} />
 	</div>
 </div>
 
@@ -369,20 +389,24 @@
 		color: var(--gray);
 	}
 
-	.btn-retry {
-		padding: var(--spacing-xs) var(--spacing-md);
-		font: var(--paragrafo);
-		font-weight: 600;
-		color: var(--secondary-color);
-		background: none;
-		border: var(--border-default);
-		border-radius: var(--radius-sm);
-		cursor: pointer;
-		transition: var(--transition-default);
+	.table-container.is-loading tbody {
+		opacity: 0.55;
+		transition: opacity 120ms ease;
 	}
 
-	.btn-retry:hover {
-		background: var(--background-color);
+	.table-container.is-loading {
+		cursor: progress;
+	}
+
+	.footer-info {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-sm);
+	}
+
+	.table-loading {
+		font: var(--label);
+		color: var(--secondary-color);
 	}
 
 	.table-footer {

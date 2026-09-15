@@ -9,7 +9,9 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { logout } from '$lib/services/auth.service';
+	import { clearDraft } from '$lib/services/solicitation-draft.service';
 	import { searchRequests } from '$lib/services/request.service';
+	import { isInternalProfile } from '$lib/services/access.service';
 
 	// KNOWN ISSUE (svelte-check) — não estreitar este tipo sem entender a causa:
 	// `resolve(item.href)` (no helper `isActive` e abaixo, no markup) acusa erro
@@ -27,6 +29,8 @@
 
 	const currentUser = $derived(page.data.user);
 	const appConfig = $derived(page.data.portalConfig);
+	const queuePath = resolve('/(admin)/fila');
+	const isAuthenticated = $derived(currentUser != null);
 
 	function isActive(item: NavButton, pathname: string): boolean {
 		if (!item.href) return false;
@@ -79,7 +83,9 @@
 		Solicitante: []
 	} satisfies Record<UserType, NavButton[]>;
 
-	const isNotSolicitante = $derived(currentUser != null && currentUser.role !== 'Solicitante');
+	const isNotSolicitante = $derived(currentUser != null && isInternalProfile(currentUser.role));
+
+	const activeSearch = $derived(page.url.searchParams.get('search') ?? '');
 
 	let isSearching = $state(false);
 
@@ -97,6 +103,16 @@
 		isSearching = true;
 
 		try {
+			if (isNotSolicitante) {
+				const searchParams = new URLSearchParams({ search: value });
+
+				// Plugin não aceita query string após resolve() (eslint-plugin-svelte#1327);
+				// a navegação é validada em runtime pelo SvelteKit.
+				// eslint-disable-next-line svelte/no-navigation-without-resolve
+				await goto(`${queuePath}?${searchParams.toString()}`);
+				return;
+			}
+
 			const result = await searchRequests(value, appConfig.protocolMask);
 
 			if (!result.ok) {
@@ -132,6 +148,7 @@
 		isLoggingOut = true;
 
 		try {
+			clearDraft(currentUser?.id ?? null);
 			await logout();
 			await goto(resolve('/(public)/login'), { invalidateAll: true });
 		} finally {
@@ -154,6 +171,7 @@
 					placeholder="Buscar chamados"
 					aria-label="Buscar chamados"
 					name="pesquisar-chamados"
+					value={activeSearch}
 					disabled={isSearching}
 				/>
 			</form>
@@ -167,7 +185,7 @@
 				<span>+</span> Nova solicitação
 			</Button>
 
-			{#if isNotSolicitante}
+			{#if isAuthenticated}
 				<div class="separator_bar-column"></div>
 
 				<div class="profile_block">
@@ -184,8 +202,8 @@
 						goto(resolve('/(public)/login'));
 					}}
 				>
-					<Icon iconName="security" />
-					Acesso administrativo
+					<Icon iconName="login" />
+					Acessar
 				</Button>
 			{/if}
 		</div>
@@ -211,6 +229,21 @@
 				{/each}
 			</div>
 
+			<button
+				class="nav-item"
+				type="button"
+				disabled={isLoggingOut}
+				aria-busy={isLoggingOut}
+				onclick={handleLogout}
+			>
+				<Icon iconName="logout" />
+				Sair
+			</button>
+		</div>
+	{:else if isAuthenticated}
+		<div class="separator_bar"></div>
+
+		<div class="nav">
 			<button
 				class="nav-item"
 				type="button"

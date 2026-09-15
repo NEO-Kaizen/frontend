@@ -1,17 +1,23 @@
-import { ApiError, type Result } from '$lib/types/result';
 import {
 	createRequest,
-	listRequests as listRequestsApi,
-	getRequestByProtocol as getRequestByProtocolApi
+	getQueueMetrics as getQueueMetricsApi,
+	getRequestByProtocol as getRequestByProtocolApi,
+	getInternalRequest as getInternalRequestApi,
+	listQueueRequests as listQueueRequestsApi,
+	listRequests as listRequestsApi
 } from '$lib/api/request.api';
+
+import type { QueueMetricsResponse, QueueQuery, QueueResponse } from '$lib/types/queue';
 import type {
 	CreateRequestPayload,
 	CreateRequestResponse,
 	ListRequestsQuery,
 	PaginatedResponse,
+	RequestDetail,
 	RequestSummary,
-	RequestDetail
+	InternalRequestDetail
 } from '$lib/types/request';
+import { ApiError, type Result } from '$lib/types/result';
 
 import { isProtocol, isValidEmail } from '$lib/utils/validations';
 
@@ -29,25 +35,136 @@ const ALLOWED_MIME_TYPES = [
 ];
 
 export async function listRequests(
-	query: ListRequestsQuery
+	query: ListRequestsQuery,
+	fetchImpl?: typeof fetch
 ): Promise<Result<PaginatedResponse<RequestSummary>>> {
 	try {
-		const data = await listRequestsApi(query);
-		return { ok: true, data };
+		const data = await listRequestsApi(query, fetchImpl);
+
+		return {
+			ok: true,
+			data
+		};
 	} catch (error) {
 		if (error instanceof ApiError) {
 			return {
 				ok: false,
-				error: { status: error.status, message: 'Não foi possível carregar as solicitações.' }
+				error: {
+					status: error.status,
+					message: 'Não foi possível carregar as solicitações.'
+				}
 			};
 		}
-		return { ok: false, error: { message: 'Não foi possível conectar ao servidor.' } };
+
+		return {
+			ok: false,
+			error: {
+				message: 'Não foi possível conectar ao servidor.'
+			}
+		};
 	}
 }
 
-export async function getRequestByProtocol(protocol: string): Promise<Result<RequestDetail>> {
+export async function listQueueRequests(
+	query: QueueQuery,
+	fetchImpl?: typeof fetch
+): Promise<Result<QueueResponse>> {
 	try {
-		const data = await getRequestByProtocolApi(protocol);
+		const data = await listQueueRequestsApi(query, fetchImpl);
+
+		return {
+			ok: true,
+			data
+		};
+	} catch (error) {
+		if (error instanceof ApiError) {
+			return {
+				ok: false,
+				error: {
+					status: error.status,
+					message: 'Não foi possível carregar a fila centralizada.'
+				}
+			};
+		}
+
+		return {
+			ok: false,
+			error: {
+				message: 'Não foi possível conectar ao servidor.'
+			}
+		};
+	}
+}
+
+export async function getQueueMetrics(
+	fetchImpl?: typeof fetch
+): Promise<Result<QueueMetricsResponse>> {
+	try {
+		const data = await getQueueMetricsApi(fetchImpl);
+
+		return {
+			ok: true,
+			data
+		};
+	} catch (error) {
+		if (error instanceof ApiError) {
+			return {
+				ok: false,
+				error: {
+					status: error.status,
+					message: 'Não foi possível carregar as métricas da fila.'
+				}
+			};
+		}
+
+		return {
+			ok: false,
+			error: {
+				message: 'Não foi possível conectar ao servidor.'
+			}
+		};
+	}
+}
+
+export async function getRequestByProtocol(
+	protocol: string,
+	fetchImpl?: typeof fetch
+): Promise<Result<RequestDetail>> {
+	try {
+		const data = await getRequestByProtocolApi(protocol, fetchImpl);
+
+		return {
+			ok: true,
+			data
+		};
+	} catch (error) {
+		if (error instanceof ApiError) {
+			const message = error.status === 404 ? 'Solicitação não encontrada.' : error.message;
+
+			return {
+				ok: false,
+				error: {
+					status: error.status,
+					message
+				}
+			};
+		}
+
+		return {
+			ok: false,
+			error: {
+				message: 'Não foi possível conectar ao servidor.'
+			}
+		};
+	}
+}
+
+export async function getInternalRequest(
+	protocol: string,
+	fetchImpl?: typeof fetch
+): Promise<Result<InternalRequestDetail>> {
+	try {
+		const data = await getInternalRequestApi(protocol, fetchImpl);
 		return { ok: true, data };
 	} catch (error) {
 		if (error instanceof ApiError) {
@@ -105,30 +222,55 @@ export async function submitDemand(
 	files: File[] = []
 ): Promise<Result<CreateRequestResponse>> {
 	const validation = validateFiles(files);
+
 	if (validation) {
-		return { ok: false, error: validation };
+		return {
+			ok: false,
+			error: validation
+		};
 	}
 
 	try {
 		const data = await createRequest(payload, files);
-		return { ok: true, data };
+
+		return {
+			ok: true,
+			data
+		};
 	} catch (error) {
 		if (error instanceof ApiError) {
-			return { ok: false, error: { status: error.status, message: error.message } };
+			return {
+				ok: false,
+				error: {
+					status: error.status,
+					message: error.message
+				}
+			};
 		}
-		return { ok: false, error: { message: 'Não foi possível conectar ao servidor.' } };
+
+		return {
+			ok: false,
+			error: {
+				message: 'Não foi possível conectar ao servidor.'
+			}
+		};
 	}
 }
 
 function validateFiles(files: File[]): { message: string } | null {
 	if (files.length > MAX_FILES) {
-		return { message: `Envie no máximo ${MAX_FILES} anexos.` };
+		return {
+			message: `Envie no máximo ${MAX_FILES} anexos.`
+		};
 	}
 
 	for (const file of files) {
 		if (file.size > MAX_FILE_SIZE_BYTES) {
-			return { message: `O arquivo "${file.name}" excede 10MB.` };
+			return {
+				message: `O arquivo "${file.name}" excede 10MB.`
+			};
 		}
+
 		if (!ALLOWED_MIME_TYPES.includes(file.type)) {
 			return {
 				message: `Formato não permitido: "${file.name}". Use PDF, DOCX, XLSX, PNG ou JPG.`

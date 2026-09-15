@@ -8,23 +8,26 @@
 	interface Props {
 		data: IdentificationData;
 		departmentOptions?: { value: string; label: string }[];
+		lockedFields?: (keyof IdentificationData)[];
 	}
 
-	let { data = $bindable(), departmentOptions }: Props = $props();
+	let { data = $bindable(), departmentOptions, lockedFields = [] }: Props = $props();
 
 	let errors = $state<StepFieldErrors>({});
 
 	export function validate(): boolean {
 		const e: StepFieldErrors = {};
 
-		if (!isValidText(data.fullName) || !isRequired(data.fullName)) {
+		if (!isLocked('fullName') && (!isValidText(data.fullName) || !isRequired(data.fullName))) {
 			e.fullName = 'Campo obrigatório, apenas texto.';
 		}
 
-		if (!isRequired(data.corporateEmail)) {
-			e.corporateEmail = 'Campo obrigatório.';
-		} else if (!isValidEmail(data.corporateEmail)) {
-			e.corporateEmail = 'E-mail inválido.';
+		if (!isLocked('corporateEmail')) {
+			if (!isRequired(data.corporateEmail)) {
+				e.corporateEmail = 'Campo obrigatório.';
+			} else if (!isValidEmail(data.corporateEmail)) {
+				e.corporateEmail = 'E-mail inválido.';
+			}
 		}
 
 		if (!isValidText(data.area) || !isRequired(data.area)) {
@@ -60,8 +63,12 @@
 		errors = {};
 	}
 
-	function clearError(field: string): void {
+	function clearError(field: keyof StepFieldErrors): void {
 		delete errors[field];
+	}
+
+	function isLocked(field: keyof IdentificationData): boolean {
+		return lockedFields.includes(field);
 	}
 </script>
 
@@ -80,6 +87,7 @@
 			required
 			bind:value={data.fullName}
 			error={errors.fullName}
+			readonly={isLocked('fullName')}
 			oninput={() => clearError('fullName')}
 		/>
 
@@ -90,6 +98,7 @@
 			required
 			bind:value={data.corporateEmail}
 			error={errors.corporateEmail}
+			readonly={isLocked('corporateEmail')}
 			oninput={() => clearError('corporateEmail')}
 		/>
 

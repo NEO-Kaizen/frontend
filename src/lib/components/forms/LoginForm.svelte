@@ -5,11 +5,13 @@
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Input from '$lib/components/Input.svelte';
-	import { login } from '$lib/services/auth.service';
+	import { getMe, login } from '$lib/services/auth.service';
+	import { getPostLoginRedirect } from '$lib/services/access.service';
 	import type { LoginCredentials } from '$lib/types/auth';
 
 	const platformName = $derived(page.data.portalConfig.platformName);
 	const loginImageUrl = $derived(page.data.portalConfig.assets.loginImageUrl);
+	const returnTo = $derived(page.url.searchParams.get('returnTo'));
 
 	let email = $state('');
 	let password = $state('');
@@ -58,18 +60,27 @@
 		const credentials: LoginCredentials = { email: email.trim(), password };
 		const result = await login(credentials);
 
-		isSubmitting = false;
-
-		if (result.ok) {
-			// A home decide o destino por perfil (redirect server-side em (public)/+page.server.ts)
-			await goto(resolve('/'), { invalidateAll: true });
+		if (!result.ok) {
+			isSubmitting = false;
+			errorMessage = result.error.message;
 			return;
 		}
-		errorMessage = result.error.message;
+
+		const meResult = await getMe();
+
+		isSubmitting = false;
+
+		if (!meResult.ok) {
+			errorMessage = meResult.error.message;
+			return;
+		}
+
+		const redirectPath = getPostLoginRedirect(meResult.data, returnTo);
+		await goto(resolve(redirectPath), { invalidateAll: true });
 	}
 </script>
 
-<form onsubmit={handleSubmit} novalidate>
+<form method="post" onsubmit={handleSubmit} novalidate>
 	<div class="container-banner" style:background-image={`url('${loginImageUrl}')`}>
 		<h2>Potencializando a Gestão Inteligente.</h2>
 		<span style="display: flex; align-items: center; gap: var(--spacing-sm);">

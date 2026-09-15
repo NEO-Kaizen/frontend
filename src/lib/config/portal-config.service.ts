@@ -43,9 +43,9 @@ import type {
 // Carrega a configuração do portal com fallback. Nunca joga exceção para o
 // layout: qualquer falha de rede ou valor inválido cai no default local por
 // campo — a aplicação permanece utilizável (critério #89/#96).
-export async function loadPortalConfig(): Promise<PortalConfig> {
+export async function loadPortalConfig(fetchImpl?: typeof fetch): Promise<PortalConfig> {
 	try {
-		const raw = await fetchPortalConfig();
+		const raw = await fetchPortalConfig(fetchImpl);
 		return sanitizePortalConfig(raw);
 	} catch (error) {
 		console.warn('[portal-config] Falha ao carregar configuração; usando defaults.', error);
