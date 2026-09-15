@@ -164,7 +164,8 @@ const LIGHT_STATUS_TONES: Record<StatusTone, StatusToneTokens> = {
 	error: { color: '#ef4444', background: '#ef444410', backgroundLocked: true },
 	success: { color: '#10b981', background: '#10b98110', backgroundLocked: true },
 	info: { color: '#0058be', background: '#0058be10', backgroundLocked: true },
-	warning: { color: '#956006', background: '#f59e0b10', backgroundLocked: true }
+	warning: { color: '#956006', background: '#f59e0b10', backgroundLocked: true },
+	neutral: { color: '#4b5563', background: '#e5e7eb', backgroundLocked: true }
 };
 
 // Tons de status da paleta escura — acentos vivos sobre containers escuros,
@@ -173,7 +174,8 @@ const DARK_STATUS_TONES: Record<StatusTone, StatusToneTokens> = {
 	error: { color: '#f87171', background: '#4c0f0a', backgroundLocked: true },
 	success: { color: '#4ade80', background: '#0f2e1d', backgroundLocked: true },
 	info: { color: '#5b9bff', background: '#1b2942', backgroundLocked: true },
-	warning: { color: '#fbbf24', background: '#4a2e0f', backgroundLocked: true }
+	warning: { color: '#fbbf24', background: '#4a2e0f', backgroundLocked: true },
+	neutral: { color: '#9aa3b2', background: '#2a3346', backgroundLocked: true }
 };
 
 // Paletas padrão do portal — light preserva os valores atuais do design system;

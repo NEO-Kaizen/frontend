@@ -44,6 +44,14 @@
 					color: 'var(--status-red)',
 					border: 'var(--status-red)'
 				};
+			case 'Solicitação enviada':
+			case 'Backlog':
+			case 'Direcionado para outra área':
+				return {
+					bg: 'var(--status-neutral-bg)',
+					color: 'var(--status-neutral)',
+					border: 'var(--status-neutral)'
+				};
 			default:
 				return {
 					bg: 'var(--status-blue-bg)',

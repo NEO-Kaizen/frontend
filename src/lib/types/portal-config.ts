@@ -50,7 +50,7 @@ export const STATUS_VISIBILITIES: readonly StatusVisibility[] = ['PUBLIC', 'INTE
 
 // Tons visuais permitidos para um status — allowlist semântica (nome da cor,
 // não da etapa) que a UI mapeia para os tokens de cor do tema.
-export const STATUS_TONES = ['error', 'success', 'info', 'warning'] as const;
+export const STATUS_TONES = ['error', 'success', 'info', 'warning', 'neutral'] as const;
 
 export type StatusTone = (typeof STATUS_TONES)[number];
 

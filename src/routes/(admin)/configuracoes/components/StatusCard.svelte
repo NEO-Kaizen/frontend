@@ -31,7 +31,8 @@
 		error: 'Erro',
 		success: 'Sucesso',
 		info: 'Informação',
-		warning: 'Alerta'
+		warning: 'Alerta',
+		neutral: 'Neutro'
 	};
 
 	function handleAdd() {
@@ -421,6 +422,12 @@
 		--tone-family: var(--status-warning);
 		--tone-bg: var(--status-warning-bg);
 		--tone-border: color-mix(in srgb, var(--status-warning) 30%, transparent);
+	}
+
+	.tone-neutral {
+		--tone-family: var(--status-neutral);
+		--tone-bg: var(--status-neutral-bg);
+		--tone-border: color-mix(in srgb, var(--status-neutral) 30%, transparent);
 	}
 
 	:global(.settings-card-action button) {

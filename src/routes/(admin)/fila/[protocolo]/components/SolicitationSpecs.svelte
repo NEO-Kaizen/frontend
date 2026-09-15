@@ -34,6 +34,14 @@
 					color: 'var(--status-red)',
 					border: 'var(--status-red)'
 				};
+			case 'Solicitação enviada':
+			case 'Backlog':
+			case 'Direcionado para outra área':
+				return {
+					bg: 'var(--status-neutral-bg)',
+					color: 'var(--status-neutral)',
+					border: 'var(--status-neutral)'
+				};
 			default:
 				return {
 					bg: 'var(--status-blue-bg)',
@@ -55,8 +63,13 @@
 		label: string | null,
 		hasScore: boolean
 	): { bg: string; color: string; border: string } {
+		// Sem pontuação/label: neutro (antes: `#f3f4f6` hardcoded).
 		if (!hasScore || !label) {
-			return { bg: '#f3f4f6', color: 'var(--gray)', border: 'var(--white-gray)' };
+			return {
+				bg: 'var(--status-neutral-bg)',
+				color: 'var(--status-neutral)',
+				border: 'var(--status-neutral)'
+			};
 		}
 		switch (label) {
 			case 'Crítica':
@@ -78,10 +91,11 @@
 					border: 'var(--status-blue)'
 				};
 			default:
+				// Baixa: neutro (antes: verde).
 				return {
-					bg: 'var(--status-green-bg)',
-					color: 'var(--status-green)',
-					border: 'var(--status-green)'
+					bg: 'var(--status-neutral-bg)',
+					color: 'var(--status-neutral)',
+					border: 'var(--status-neutral)'
 				};
 		}
 	}

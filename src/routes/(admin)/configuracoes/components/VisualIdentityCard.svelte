@@ -59,7 +59,8 @@
 		error: 'Erro',
 		success: 'Sucesso',
 		info: 'Informação',
-		warning: 'Alerta'
+		warning: 'Alerta',
+		neutral: 'Neutro'
 	};
 
 	const LEVEL_LABELS: Record<ContrastLevel, string> = {
