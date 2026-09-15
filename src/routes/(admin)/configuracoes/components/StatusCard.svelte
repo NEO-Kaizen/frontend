@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import { settingsState } from '$lib/config/settings.svelte';
+	import { getSettingsState } from '$lib/states/settings.svelte';
 	import {
 		STATUS_TONES,
 		type PortalStatus,
@@ -10,6 +10,8 @@
 	} from '$lib/types/portal-config';
 	import { MAX_STATUSES, MAX_STATUS_NAME_LENGTH } from '$lib/utils/validations';
 	import SettingsCard from './SettingsCard.svelte';
+
+	const settingsState = getSettingsState();
 
 	// Status em edição (valores locais do formulário); `null` = nenhum.
 	let editing = $state<{
@@ -26,12 +28,10 @@
 	];
 
 	const TONE_LABELS: Record<StatusTone, string> = {
-		open: 'Azul',
-		analysis: 'Laranja',
-		'in-progress': 'Ciano',
-		awaiting: 'Amarelo',
-		done: 'Verde',
-		cancelled: 'Vermelho'
+		error: 'Erro',
+		success: 'Sucesso',
+		info: 'Informação',
+		warning: 'Alerta'
 	};
 
 	function handleAdd() {
@@ -399,40 +399,28 @@
 		cursor: not-allowed;
 	}
 
-	.tone-open {
-		--tone-family: #0058be;
-		--tone-bg: #0058be10;
-		--tone-border: #0058be40;
+	.tone-error {
+		--tone-family: var(--status-error);
+		--tone-bg: var(--status-error-bg);
+		--tone-border: color-mix(in srgb, var(--status-error) 30%, transparent);
 	}
 
-	.tone-analysis {
-		--tone-family: #f97316;
-		--tone-bg: #f9731610;
-		--tone-border: #f9731640;
+	.tone-success {
+		--tone-family: var(--status-success);
+		--tone-bg: var(--status-success-bg);
+		--tone-border: color-mix(in srgb, var(--status-success) 30%, transparent);
 	}
 
-	.tone-in-progress {
-		--tone-family: #06b6d4;
-		--tone-bg: #06b6d410;
-		--tone-border: #06b6d440;
+	.tone-info {
+		--tone-family: var(--status-info);
+		--tone-bg: var(--status-info-bg);
+		--tone-border: color-mix(in srgb, var(--status-info) 30%, transparent);
 	}
 
-	.tone-awaiting {
-		--tone-family: #f59e0b;
-		--tone-bg: #f59e0b10;
-		--tone-border: #f59e0b40;
-	}
-
-	.tone-done {
-		--tone-family: #10b981;
-		--tone-bg: #10b98110;
-		--tone-border: #10b98140;
-	}
-
-	.tone-cancelled {
-		--tone-family: #e11d48;
-		--tone-bg: #e11d4810;
-		--tone-border: #e11d4840;
+	.tone-warning {
+		--tone-family: var(--status-warning);
+		--tone-bg: var(--status-warning-bg);
+		--tone-border: color-mix(in srgb, var(--status-warning) 30%, transparent);
 	}
 
 	:global(.settings-card-action button) {

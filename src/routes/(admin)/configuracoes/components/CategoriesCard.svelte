@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import { settingsState } from '$lib/config/settings.svelte';
+	import { getSettingsState } from '$lib/states/settings.svelte';
 	import type { PortalCategory } from '$lib/types/portal-config';
 	import {
 		MAX_CATEGORIES,
@@ -9,6 +9,8 @@
 		MAX_CATEGORY_NAME_LENGTH
 	} from '$lib/utils/validations';
 	import SettingsCard from './SettingsCard.svelte';
+
+	const settingsState = getSettingsState();
 
 	// Categoria em edição (nome/descrição locais do input); `null` = nenhuma.
 	let editing = $state<{ id: number; name: string; description: string } | null>(null);
@@ -186,8 +188,11 @@
 										aria-label="Descrição da categoria"
 										bind:value={editing.description}
 									/>
+								{:else if category.description}
+									<span class="description-text">{category.description}</span>
+									<span class="description-tooltip" aria-hidden="true">{category.description}</span>
 								{:else}
-									{category.description || '—'}
+									—
 								{/if}
 							</td>
 							<td class="col-status">
@@ -266,7 +271,24 @@
 		background: var(--white);
 		border: var(--border-default);
 		border-radius: var(--radius-sm);
-		overflow: hidden;
+	}
+
+	/* O tooltip da descrição precisa escapar do corte do texto; os cantos
+	   arredondados são reaplicados nas células de extremidade. */
+	thead tr:first-child th:first-child {
+		border-top-left-radius: var(--radius-sm);
+	}
+
+	thead tr:first-child th:last-child {
+		border-top-right-radius: var(--radius-sm);
+	}
+
+	tbody tr:last-child td:first-child {
+		border-bottom-left-radius: var(--radius-sm);
+	}
+
+	tbody tr:last-child td:last-child {
+		border-bottom-right-radius: var(--radius-sm);
 	}
 
 	table {
@@ -307,12 +329,46 @@
 	}
 
 	.col-description {
+		position: relative;
 		width: 34%;
 		max-width: 0;
+		overflow: visible;
+		text-align: center;
+	}
+
+	.description-text {
+		display: block;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
-		text-align: center;
+		cursor: help;
+	}
+
+	.description-tooltip {
+		position: absolute;
+		top: calc(100% + 6px);
+		left: 50%;
+		transform: translate(-50%, -4px);
+		z-index: 20;
+		width: max-content;
+		max-width: 280px;
+		padding: var(--spacing-sm) var(--spacing-md);
+		border-radius: var(--radius-sm);
+		background-color: var(--rich-black);
+		color: var(--white);
+		font: var(--paragrafo);
+		font-size: 13px;
+		line-height: 1.4;
+		text-align: left;
+		white-space: normal;
+		opacity: 0;
+		pointer-events: none;
+		transition: var(--transition-default);
+	}
+
+	.description-text:hover + .description-tooltip {
+		opacity: 1;
+		transform: translate(-50%, 0);
 	}
 
 	.col-status {

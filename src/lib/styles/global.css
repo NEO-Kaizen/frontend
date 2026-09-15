@@ -25,14 +25,29 @@
 	--white-gray: #e5e7eb;
 	--rich-black: #0f1a2a;
 
-	--status-red: #ef4444;
-	--status-red-bg: #ef444410;
-	--status-green: #10b981;
-	--status-green-bg: #10b98110;
-	--status-blue: #0058be;
-	--status-blue-bg: #0058be10;
-	--status-yellow: #956006;
-	--status-yellow-bg: #f59e0b10;
+	/* Aliases semânticos — nomes estáveis usados pela UI e pelo card de tokens */
+	--border-color: var(--white-gray);
+	--text-color-primary: var(--black);
+	--text-color-secondary: var(--gray);
+
+	/* Cores de status (nomes semânticos); os nomes antigos ficam como alias */
+	--status-error: #ef4444;
+	--status-error-bg: #ef444410;
+	--status-success: #10b981;
+	--status-success-bg: #10b98110;
+	--status-info: #0058be;
+	--status-info-bg: #0058be10;
+	--status-warning: #956006;
+	--status-warning-bg: #f59e0b10;
+
+	--status-red: var(--status-error);
+	--status-red-bg: var(--status-error-bg);
+	--status-green: var(--status-success);
+	--status-green-bg: var(--status-success-bg);
+	--status-blue: var(--status-info);
+	--status-blue-bg: var(--status-info-bg);
+	--status-yellow: var(--status-warning);
+	--status-yellow-bg: var(--status-warning-bg);
 
 	--gradient: linear-gradient(143deg, #002068 0%, #039 100%);
 
@@ -46,6 +61,7 @@
 	--border-default: 1px solid var(--white-gray);
 
 	/* Espaçamento */
+	--spacing-xs: 4px;
 	--spacing-sm: 8px;
 	--spacing-md: 16px;
 	--spacing-lg: 24px;

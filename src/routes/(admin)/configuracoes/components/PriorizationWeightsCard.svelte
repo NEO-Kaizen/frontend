@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { settingsState } from '$lib/config/settings.svelte';
+	import { getSettingsState } from '$lib/states/settings.svelte';
 	import { PRIORITIZATION_CRITERIA_LABELS } from '$lib/config/portal-defaults';
 	import {
 		PRIORITIZATION_WEIGHT_MIN,
@@ -8,6 +8,8 @@
 	} from '$lib/utils/validations';
 	import { PRIORITIZATION_CRITERIA, type PrioritizationCriterion } from '$lib/types/portal-config';
 	import SettingsCard from './SettingsCard.svelte';
+
+	const settingsState = getSettingsState();
 
 	function adjustWeight(criterion: PrioritizationCriterion, direction: number) {
 		const current = settingsState.draft.prioritizationWeights[criterion];

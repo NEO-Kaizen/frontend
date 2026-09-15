@@ -2,7 +2,7 @@
 	import { page } from '$app/state';
 	import { invalidateAll } from '$app/navigation';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
-	import { settingsState } from '$lib/config/settings.svelte';
+	import { provideSettingsState } from '$lib/states/settings.svelte';
 	import AccessCard from './components/AccessCard.svelte';
 	import AssetsCard from './components/AssetsCard.svelte';
 	import CategoriesCard from './components/CategoriesCard.svelte';
@@ -13,12 +13,9 @@
 	import StatusCard from './components/StatusCard.svelte';
 	import VisualIdentityCard from './components/VisualIdentityCard.svelte';
 
-	let confirmRestore = $state(false);
+	const settingsState = provideSettingsState(page.data.portalConfig);
 
-	$effect(() => {
-		const config = page.data.portalConfig;
-		settingsState.init(config);
-	});
+	let confirmRestore = $state(false);
 </script>
 
 <svelte:head>
@@ -32,7 +29,7 @@
 		<div class="settings-col">
 			<AccessCard
 				mode={settingsState.draft.solicitationMode}
-				onchange={(mode) => settingsState.setSolicitationMode(mode)}
+				onchange={(mode) => settingsState.setField('solicitationMode', mode)}
 			/>
 			<VisualIdentityCard />
 			<CategoriesCard />
@@ -43,13 +40,7 @@
 				protocolMask={settingsState.draft.protocolMask}
 				saving={settingsState.saving}
 				errors={settingsState.fieldErrors}
-				onchange={(field, value) => {
-					if (field === 'platformName') {
-						settingsState.setPlatformName(value);
-					} else {
-						settingsState.setProtocolMask(value);
-					}
-				}}
+				onchange={(field, value) => settingsState.setField(field, value)}
 			/>
 			<AssetsCard />
 			<StatusCard />
@@ -62,16 +53,14 @@
 		saving={settingsState.saving}
 		invalid={settingsState.hasValidationErrors}
 		feedback={settingsState.feedback}
-		feedbackType={settingsState.feedbackType}
 		onSave={async () => {
 			await settingsState.save();
 
-			if (settingsState.feedbackType === 'success') {
+			if (settingsState.feedback?.type === 'success') {
 				// Revalida os dados do layout para o header/footer refletirem a
-				// nova logo/avatar em todo o projeto; a invalidação reinicializa
-				// o state, então o feedback de sucesso é restaurado depois.
+				// nova logo/avatar em todo o projeto. O state de configurações já
+				// foi sincronizado pelo próprio save(), então não é reinicializado.
 				await invalidateAll();
-				settingsState.showSuccess();
 			}
 		}}
 		onCancel={() => settingsState.reset()}

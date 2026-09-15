@@ -27,26 +27,31 @@
 			light: true
 		},
 		{
-			name: 'Cor de texto 1',
+			name: 'Cor de texto principal',
 			variable: '--text-color-primary',
-			lightHex: '#0F1A2A',
+			lightHex: '#3C3E47',
 			darkHex: '#000000'
 		},
 		{
-			name: 'Cor de texto 2',
+			name: 'Cor de texto secundário',
 			variable: '--text-color-secondary',
 			lightHex: '#757682',
 			darkHex: '#000000'
 		},
-		{ name: 'Cor de status', variable: '--status-error', lightHex: '#EF4444', darkHex: '#000000' },
+		{ name: 'Cor de erro', variable: '--status-error', lightHex: '#EF4444', darkHex: '#000000' },
 		{
-			name: 'Cor de status',
+			name: 'Cor de sucesso',
 			variable: '--status-success',
 			lightHex: '#10B981',
 			darkHex: '#000000'
 		},
-		{ name: 'Cor de status', variable: '--status-info', lightHex: '#0058BE', darkHex: '#000000' },
-		{ name: 'Cor de status', variable: '--status-warning', lightHex: '#EB9607', darkHex: '#000000' }
+		{
+			name: 'Cor de informação',
+			variable: '--status-info',
+			lightHex: '#0058BE',
+			darkHex: '#000000'
+		},
+		{ name: 'Cor de alerta', variable: '--status-warning', lightHex: '#956006', darkHex: '#000000' }
 	];
 </script>
 

@@ -1,3 +1,4 @@
+import { getContext, setContext } from 'svelte';
 import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
 import { savePortalConfig, uploadAsset } from '$lib/config/portal-config.service';
 import type { Result } from '$lib/types/result';
@@ -9,7 +10,6 @@ import type {
 	PortalAssetsPatch,
 	PortalStatus,
 	PrioritizationCriterion,
-	SolicitationMode,
 	UpdatePortalConfigPayload
 } from '$lib/types/portal-config';
 import {
@@ -28,6 +28,37 @@ import {
 
 const SAVE_SUCCESS_MESSAGE = 'Configurações salvas com sucesso.';
 
+// Chave do contexto que expõe o estado de edição de configurações para a
+// página e seus cards. O estado é criado uma vez por página (ver
+// `provideSettingsState`) em vez de ser um singleton de módulo global.
+const SETTINGS_CONTEXT_KEY = Symbol('settings-state');
+
+// Feedback unificado: `message` e `type` sempre caminham juntos, evitando o
+// estado inválido de ter mensagem sem tipo (ou vice-versa).
+export interface SettingsFeedback {
+	type: 'success' | 'error';
+	message: string;
+}
+
+// Campos escalares editáveis — usados pelo `setField` tipado.
+export type ScalarConfigField = 'solicitationMode' | 'platformName' | 'protocolMask';
+
+function hasChanged(a: unknown, b: unknown): boolean {
+	return JSON.stringify(a) !== JSON.stringify(b);
+}
+
+function nextId(items: { id: number }[]): number {
+	return items.length > 0 ? Math.max(...items.map((item) => item.id)) + 1 : 1;
+}
+
+function replaceById<T extends { id: number }>(items: T[], id: number, patch: Partial<T>): T[] {
+	return items.map((item) => (item.id === id ? { ...item, ...patch } : item));
+}
+
+function removeById<T extends { id: number }>(items: T[], id: number): T[] {
+	return items.filter((item) => item.id !== id);
+}
+
 // `pristine` espelha o que está salvo no servidor; `draft` carrega os valores
 // em edição na UI — assim dá para saber se houve mudança e reverter o rascunho.
 export class SettingsState {
@@ -36,18 +67,16 @@ export class SettingsState {
 	saving: boolean = $state(false);
 	// Asset atualmente em upload (Card 4) — drive o loading dos botões.
 	uploadingAsset: AssetKey | null = $state(null);
-	feedback: string | null = $state(null);
-	feedbackType: 'success' | 'error' | null = $state(null);
+	feedback: SettingsFeedback | null = $state(null);
 
 	dirty: boolean = $derived(
-		this.draft.platformName !== this.pristine.platformName ||
-			this.draft.protocolMask !== this.pristine.protocolMask ||
+		this.draft.platformName.trim() !== this.pristine.platformName.trim() ||
+			this.draft.protocolMask.trim() !== this.pristine.protocolMask.trim() ||
 			this.draft.solicitationMode !== this.pristine.solicitationMode ||
 			ASSET_KEYS.some((key) => this.draft.assets[key] !== this.pristine.assets[key]) ||
-			JSON.stringify(this.draft.categories) !== JSON.stringify(this.pristine.categories) ||
-			JSON.stringify(this.draft.statuses) !== JSON.stringify(this.pristine.statuses) ||
-			JSON.stringify(this.draft.prioritizationWeights) !==
-				JSON.stringify(this.pristine.prioritizationWeights)
+			hasChanged(this.draft.categories, this.pristine.categories) ||
+			hasChanged(this.draft.statuses, this.pristine.statuses) ||
+			hasChanged(this.draft.prioritizationWeights, this.pristine.prioritizationWeights)
 	);
 
 	// Valida apenas os campos editáveis — o rádio de modo de acesso não tem
@@ -134,26 +163,17 @@ export class SettingsState {
 		this.pristine = structuredClone(config);
 		this.draft = structuredClone(config);
 		this.saving = false;
-		this.feedback = null;
-		this.feedbackType = null;
+		this.clearFeedback();
 	}
 
-	setSolicitationMode(mode: SolicitationMode): void {
-		this.draft = { ...this.draft, solicitationMode: mode };
+	clearFeedback(): void {
 		this.feedback = null;
-		this.feedbackType = null;
 	}
 
-	setPlatformName(value: string): void {
-		this.draft = { ...this.draft, platformName: value };
-		this.feedback = null;
-		this.feedbackType = null;
-	}
-
-	setProtocolMask(value: string): void {
-		this.draft = { ...this.draft, protocolMask: value };
-		this.feedback = null;
-		this.feedbackType = null;
+	// Atualiza um campo escalar do draft — substitui os setters espelhados.
+	setField<K extends ScalarConfigField>(field: K, value: PortalConfig[K]): void {
+		this.draft = { ...this.draft, [field]: value };
+		this.clearFeedback();
 	}
 
 	// ---- Categorias da demanda (Card 5) ----
@@ -163,23 +183,19 @@ export class SettingsState {
 	// números inteiros gerados localmente (maior id atual + 1), aceitos pela
 	// API em categorias novas (contrato 3.2.2).
 	addCategory(): void {
-		const ids = this.draft.categories.map((category) => category.id);
-		const nextId = ids.length > 0 ? Math.max(...ids) + 1 : 1;
-
 		this.draft = {
 			...this.draft,
 			categories: [
 				...this.draft.categories,
 				{
-					id: nextId,
+					id: nextId(this.draft.categories),
 					name: '',
 					description: '',
 					isActive: true
 				}
 			]
 		};
-		this.feedback = null;
-		this.feedbackType = null;
+		this.clearFeedback();
 	}
 
 	updateCategory(
@@ -188,12 +204,9 @@ export class SettingsState {
 	): void {
 		this.draft = {
 			...this.draft,
-			categories: this.draft.categories.map((category) =>
-				category.id === id ? { ...category, ...patch } : category
-			)
+			categories: replaceById<PortalCategory>(this.draft.categories, id, patch)
 		};
-		this.feedback = null;
-		this.feedbackType = null;
+		this.clearFeedback();
 	}
 
 	toggleCategory(id: number): void {
@@ -203,12 +216,8 @@ export class SettingsState {
 	}
 
 	removeCategory(id: number): void {
-		this.draft = {
-			...this.draft,
-			categories: this.draft.categories.filter((category) => category.id !== id)
-		};
-		this.feedback = null;
-		this.feedbackType = null;
+		this.draft = { ...this.draft, categories: removeById(this.draft.categories, id) };
+		this.clearFeedback();
 	}
 
 	// Move uma categoria para a posição da categoria alvo (reordenação por
@@ -224,8 +233,7 @@ export class SettingsState {
 		reordered.splice(toIndex, 0, moved);
 
 		this.draft = { ...this.draft, categories: reordered };
-		this.feedback = null;
-		this.feedbackType = null;
+		this.clearFeedback();
 	}
 
 	// ---- Status do ciclo de vida (Card 6) ----
@@ -234,24 +242,20 @@ export class SettingsState {
 	// erro de validação derivado (statusesError) e exibido inline pelo card.
 	// Novos ids são números inteiros gerados localmente (maior id atual + 1).
 	addStatus(): void {
-		const ids = this.draft.statuses.map((status) => status.id);
-		const nextId = ids.length > 0 ? Math.max(...ids) + 1 : 1;
-
 		this.draft = {
 			...this.draft,
 			statuses: [
 				...this.draft.statuses,
 				{
-					id: nextId,
+					id: nextId(this.draft.statuses),
 					name: '',
 					visibility: 'PUBLIC',
 					closesRequest: false,
-					tone: 'open'
+					tone: 'info'
 				}
 			]
 		};
-		this.feedback = null;
-		this.feedbackType = null;
+		this.clearFeedback();
 	}
 
 	updateStatus(
@@ -260,21 +264,14 @@ export class SettingsState {
 	): void {
 		this.draft = {
 			...this.draft,
-			statuses: this.draft.statuses.map((status) =>
-				status.id === id ? { ...status, ...patch } : status
-			)
+			statuses: replaceById<PortalStatus>(this.draft.statuses, id, patch)
 		};
-		this.feedback = null;
-		this.feedbackType = null;
+		this.clearFeedback();
 	}
 
 	removeStatus(id: number): void {
-		this.draft = {
-			...this.draft,
-			statuses: this.draft.statuses.filter((status) => status.id !== id)
-		};
-		this.feedback = null;
-		this.feedbackType = null;
+		this.draft = { ...this.draft, statuses: removeById(this.draft.statuses, id) };
+		this.clearFeedback();
 	}
 
 	// ---- Pesos da priorização (Card 7) ----
@@ -289,8 +286,7 @@ export class SettingsState {
 				[criterion]: value
 			}
 		};
-		this.feedback = null;
-		this.feedbackType = null;
+		this.clearFeedback();
 	}
 
 	// Faz upload imediato do asset selecionado (Card 4) e atualiza o draft com
@@ -298,8 +294,7 @@ export class SettingsState {
 	// card exibir inline (não vai para o feedback global do rodapé).
 	async changeAsset(asset: AssetKey, file: File): Promise<Result<string>> {
 		this.uploadingAsset = asset;
-		this.feedback = null;
-		this.feedbackType = null;
+		this.clearFeedback();
 
 		try {
 			const result = await uploadAsset(asset, file);
@@ -317,32 +312,28 @@ export class SettingsState {
 		}
 	}
 
+	// `$state.snapshot` produz um clone plano — `structuredClone` direto sobre
+	// um proxy de `$state` lançaria `DataCloneError`.
 	reset(): void {
-		this.draft = structuredClone(this.pristine);
-		this.feedback = null;
-		this.feedbackType = null;
-	}
-
-	showSuccess(): void {
-		this.feedbackType = 'success';
-		this.feedback = SAVE_SUCCESS_MESSAGE;
+		this.draft = structuredClone($state.snapshot(this.pristine));
+		this.clearFeedback();
 	}
 
 	restoreDefaults(): void {
 		this.draft = structuredClone(DEFAULT_PORTAL_CONFIG);
-		this.feedback = null;
-		this.feedbackType = null;
+		this.clearFeedback();
 	}
 
 	async save(): Promise<void> {
 		try {
 			this.saving = true;
-			this.feedback = null;
-			this.feedbackType = null;
+			this.clearFeedback();
 
 			if (this.hasValidationErrors) {
-				this.feedbackType = 'error';
-				this.feedback = 'Corrija os campos destacados antes de salvar.';
+				this.feedback = {
+					type: 'error',
+					message: 'Corrija os campos destacados antes de salvar.'
+				};
 				return;
 			}
 
@@ -352,10 +343,10 @@ export class SettingsState {
 			if (this.draft.solicitationMode !== this.pristine.solicitationMode) {
 				payload.solicitationMode = this.draft.solicitationMode;
 			}
-			if (this.draft.platformName.trim() !== this.pristine.platformName) {
+			if (this.draft.platformName.trim() !== this.pristine.platformName.trim()) {
 				payload.platformName = this.draft.platformName.trim();
 			}
-			if (this.draft.protocolMask.trim() !== this.pristine.protocolMask) {
+			if (this.draft.protocolMask.trim() !== this.pristine.protocolMask.trim()) {
 				payload.protocolMask = this.draft.protocolMask.trim();
 			}
 
@@ -370,21 +361,18 @@ export class SettingsState {
 			}
 
 			// Categorias são atômicas: qualquer diferença envia a lista completa.
-			if (JSON.stringify(this.draft.categories) !== JSON.stringify(this.pristine.categories)) {
-				payload.categories = structuredClone(this.draft.categories);
+			if (hasChanged(this.draft.categories, this.pristine.categories)) {
+				payload.categories = $state.snapshot(this.draft.categories);
 			}
 
 			// Status são atômicos: qualquer diferença envia a lista completa.
-			if (JSON.stringify(this.draft.statuses) !== JSON.stringify(this.pristine.statuses)) {
-				payload.statuses = structuredClone(this.draft.statuses);
+			if (hasChanged(this.draft.statuses, this.pristine.statuses)) {
+				payload.statuses = $state.snapshot(this.draft.statuses);
 			}
 
 			// Pesos de priorização são atômicos: qualquer diferença envia o
 			// objeto completo (todas as chaves da allowlist).
-			if (
-				JSON.stringify(this.draft.prioritizationWeights) !==
-				JSON.stringify(this.pristine.prioritizationWeights)
-			) {
+			if (hasChanged(this.draft.prioritizationWeights, this.pristine.prioritizationWeights)) {
 				payload.prioritizationWeights = { ...this.draft.prioritizationWeights };
 			}
 
@@ -393,11 +381,9 @@ export class SettingsState {
 			if (result.ok) {
 				this.pristine = structuredClone(result.data);
 				this.draft = structuredClone(result.data);
-				this.feedbackType = 'success';
-				this.feedback = SAVE_SUCCESS_MESSAGE;
+				this.feedback = { type: 'success', message: SAVE_SUCCESS_MESSAGE };
 			} else {
-				this.feedbackType = 'error';
-				this.feedback = result.error.message;
+				this.feedback = { type: 'error', message: result.error.message };
 			}
 		} finally {
 			this.saving = false;
@@ -405,4 +391,21 @@ export class SettingsState {
 	}
 }
 
-export const settingsState = new SettingsState();
+// Cria o estado uma vez por página e o disponibiliza via contexto — o estado é
+// local à rota de Configurações, não um singleton global (docs/02 §3 e §15).
+export function provideSettingsState(config: PortalConfig): SettingsState {
+	const settingsState = new SettingsState();
+	settingsState.init(config);
+	setContext(SETTINGS_CONTEXT_KEY, settingsState);
+	return settingsState;
+}
+
+export function getSettingsState(): SettingsState {
+	const settingsState = getContext<SettingsState | undefined>(SETTINGS_CONTEXT_KEY);
+
+	if (!settingsState) {
+		throw new Error('SettingsState não encontrado no contexto da página de configurações.');
+	}
+
+	return settingsState;
+}

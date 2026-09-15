@@ -1,10 +1,12 @@
 <script lang="ts">
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import { settingsState } from '$lib/config/settings.svelte';
+	import { getSettingsState } from '$lib/states/settings.svelte';
 	import type { AssetKey } from '$lib/types/portal-config';
 	import { ASSET_FILE_RULES } from '$lib/utils/validations';
 	import SettingsCard from './SettingsCard.svelte';
+
+	const settingsState = getSettingsState();
 
 	let logoInput: HTMLInputElement;
 	let avatarInput: HTMLInputElement;

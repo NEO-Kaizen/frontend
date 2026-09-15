@@ -56,16 +56,9 @@ export type StatusVisibility = 'PUBLIC' | 'INTERNAL';
 
 export const STATUS_VISIBILITIES: readonly StatusVisibility[] = ['PUBLIC', 'INTERNAL'];
 
-// Tons visuais permitidos para um status — allowlist que a UI mapeia para
-// cores (badge/dot). Aplicação completa do tema é escopo da issue #89.
-export const STATUS_TONES = [
-	'open',
-	'analysis',
-	'in-progress',
-	'awaiting',
-	'done',
-	'cancelled'
-] as const;
+// Tons visuais permitidos para um status — allowlist semântica (nome da cor,
+// não da etapa) que a UI mapeia para os tokens de cor do tema.
+export const STATUS_TONES = ['error', 'success', 'info', 'warning'] as const;
 
 export type StatusTone = (typeof STATUS_TONES)[number];
 

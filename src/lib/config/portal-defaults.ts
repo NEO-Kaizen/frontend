@@ -85,42 +85,42 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 		name: 'Em aberto',
 		visibility: 'PUBLIC',
 		closesRequest: false,
-		tone: 'open'
+		tone: 'info'
 	},
 	{
 		id: 2,
 		name: 'Em análise',
 		visibility: 'PUBLIC',
 		closesRequest: false,
-		tone: 'analysis'
+		tone: 'warning'
 	},
 	{
 		id: 3,
 		name: 'Em andamento',
 		visibility: 'PUBLIC',
 		closesRequest: false,
-		tone: 'in-progress'
+		tone: 'info'
 	},
 	{
 		id: 4,
 		name: 'Aguardando cliente',
 		visibility: 'PUBLIC',
 		closesRequest: false,
-		tone: 'awaiting'
+		tone: 'warning'
 	},
 	{
 		id: 5,
 		name: 'Concluído',
 		visibility: 'PUBLIC',
 		closesRequest: true,
-		tone: 'done'
+		tone: 'success'
 	},
 	{
 		id: 6,
 		name: 'Cancelado',
 		visibility: 'INTERNAL',
 		closesRequest: true,
-		tone: 'cancelled'
+		tone: 'error'
 	}
 ];
 

@@ -1,40 +1,31 @@
 <script lang="ts">
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import type { SettingsFeedback } from '$lib/states/settings.svelte';
 
 	interface Props {
 		dirty: boolean;
 		saving: boolean;
 		invalid: boolean;
-		feedback: string | null;
-		feedbackType: 'success' | 'error' | null;
+		feedback: SettingsFeedback | null;
 		onSave: () => void;
 		onCancel: () => void;
 		onRestoreDefaults: () => void;
 	}
 
-	let {
-		dirty,
-		saving,
-		invalid,
-		feedback,
-		feedbackType,
-		onSave,
-		onCancel,
-		onRestoreDefaults
-	}: Props = $props();
+	let { dirty, saving, invalid, feedback, onSave, onCancel, onRestoreDefaults }: Props = $props();
 </script>
 
 <div class="settings-actions">
 	{#if feedback}
 		<p
 			class="settings-feedback"
-			class:success={feedbackType === 'success'}
-			class:error={feedbackType === 'error'}
+			class:success={feedback.type === 'success'}
+			class:error={feedback.type === 'error'}
 			role="status"
 			aria-live="polite"
 		>
-			{feedback}
+			{feedback.message}
 		</p>
 	{/if}
 
