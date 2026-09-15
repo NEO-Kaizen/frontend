@@ -77,12 +77,10 @@
 
 	// Botão Editar visível apenas para Administrador ou o responsável pela triagem.
 	// Regra definitiva é decidida pela issue #121 (modo de edição).
-	// TODO: comparar por `assignee.id` quando o contrato do backend fornecer o
-	// id do responsável (hoje só há email no mock/contrato).
 	const currentUser = $derived(page.data.user);
 	const canEdit = $derived(
 		currentUser?.role === 'Administrador' ||
-			Boolean(currentUser && solicitation.assignee?.email === currentUser.email)
+			Boolean(currentUser && solicitation.assignee?.id === currentUser.id)
 	);
 
 	function handleTabSelect(tab: SpecTabDefinition) {
