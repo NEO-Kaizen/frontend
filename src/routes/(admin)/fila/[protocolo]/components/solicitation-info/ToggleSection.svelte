@@ -119,6 +119,7 @@
 		overflow: hidden;
 		min-height: 0;
 		padding: 0px 20px;
+		padding-bottom: 10px;
 	}
 
 	@media (max-width: 640px) {
