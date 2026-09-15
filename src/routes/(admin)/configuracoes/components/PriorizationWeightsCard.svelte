@@ -1,23 +1,25 @@
 <script lang="ts">
+	import { settingsState } from '$lib/config/settings.svelte';
+	import { PRIORITIZATION_CRITERIA_LABELS } from '$lib/config/portal-defaults';
+	import {
+		PRIORITIZATION_WEIGHT_MIN,
+		PRIORITIZATION_WEIGHT_MAX,
+		PRIORITIZATION_WEIGHT_STEP
+	} from '$lib/utils/validations';
+	import { PRIORITIZATION_CRITERIA, type PrioritizationCriterion } from '$lib/types/portal-config';
 	import SettingsCard from './SettingsCard.svelte';
 
-	interface Criterion {
-		name: string;
-		weight: number;
+	function adjustWeight(criterion: PrioritizationCriterion, direction: number) {
+		const current = settingsState.draft.prioritizationWeights[criterion];
+		const next = Number((current + direction * PRIORITIZATION_WEIGHT_STEP).toFixed(1));
+		if (next < PRIORITIZATION_WEIGHT_MIN || next > PRIORITIZATION_WEIGHT_MAX) return;
+		settingsState.setPrioritizationWeight(criterion, next);
 	}
 
-	const criteria: Criterion[] = [
-		{ name: 'Impacto Operacional', weight: 1.0 },
-		{ name: 'Risco Operacional', weight: 1.0 },
-		{ name: 'Urgência', weight: 1.0 },
-		{ name: 'Volumetria', weight: 1.0 },
-		{ name: 'Esforço Manual', weight: 1.0 },
-		{ name: 'Impacto no Cliente', weight: 1.0 },
-		{ name: 'Prazo Regulatório', weight: 1.0 },
-		{ name: 'Áreas Impactadas', weight: 1.0 },
-		{ name: 'Alinhamento Estratégico', weight: 1.0 },
-		{ name: 'Complexidade Estimada', weight: 1.0 }
-	];
+	function handleSliderInput(event: Event, criterion: PrioritizationCriterion) {
+		const target = event.currentTarget as HTMLInputElement;
+		settingsState.setPrioritizationWeight(criterion, Number(target.value));
+	}
 </script>
 
 <SettingsCard
@@ -25,6 +27,10 @@
 	title="7. Pesos da priorização"
 	description="Defina a influência de cada critério no cálculo da prioridade."
 >
+	{#if settingsState.prioritizationWeightsError}
+		<p class="weights-error" role="alert">{settingsState.prioritizationWeightsError}</p>
+	{/if}
+
 	<div class="weights-content">
 		<table class="weights-table">
 			<thead>
@@ -34,20 +40,50 @@
 				</tr>
 			</thead>
 			<tbody>
-				{#each criteria as criterion (criterion.name)}
+				{#each PRIORITIZATION_CRITERIA as criterion (criterion)}
 					<tr>
-						<td class="criteria-cell">{criterion.name}</td>
+						<td class="criteria-cell">{PRIORITIZATION_CRITERIA_LABELS[criterion]}</td>
 						<td class="weight-cell">
 							<div class="weight-control">
-								<div class="slider" aria-hidden="true">
-									<div class="slider-track">
-										<span class="slider-thumb"></span>
-									</div>
+								<div class="slider">
+									<input
+										class="weight-slider"
+										type="range"
+										min={PRIORITIZATION_WEIGHT_MIN}
+										max={PRIORITIZATION_WEIGHT_MAX}
+										step={PRIORITIZATION_WEIGHT_STEP}
+										value={settingsState.draft.prioritizationWeights[criterion]}
+										aria-label={`Peso de ${PRIORITIZATION_CRITERIA_LABELS[criterion]}`}
+										disabled={settingsState.saving}
+										oninput={(event) => handleSliderInput(event, criterion)}
+									/>
 								</div>
 								<div class="stepper">
-									<span class="stepper-button" aria-hidden="true">−</span>
-									<span class="stepper-value">{criterion.weight.toFixed(1)}</span>
-									<span class="stepper-button" aria-hidden="true">+</span>
+									<button
+										class="stepper-button"
+										type="button"
+										aria-label={`Diminuir peso de ${PRIORITIZATION_CRITERIA_LABELS[criterion]}`}
+										disabled={settingsState.saving ||
+											settingsState.draft.prioritizationWeights[criterion] <=
+												PRIORITIZATION_WEIGHT_MIN}
+										onclick={() => adjustWeight(criterion, -1)}
+									>
+										−
+									</button>
+									<span class="stepper-value">
+										{settingsState.draft.prioritizationWeights[criterion].toFixed(1)}
+									</span>
+									<button
+										class="stepper-button"
+										type="button"
+										aria-label={`Aumentar peso de ${PRIORITIZATION_CRITERIA_LABELS[criterion]}`}
+										disabled={settingsState.saving ||
+											settingsState.draft.prioritizationWeights[criterion] >=
+												PRIORITIZATION_WEIGHT_MAX}
+										onclick={() => adjustWeight(criterion, 1)}
+									>
+										+
+									</button>
 								</div>
 							</div>
 						</td>
@@ -59,6 +95,12 @@
 </SettingsCard>
 
 <style>
+	.weights-error {
+		margin: 0;
+		font-size: 13px;
+		color: var(--status-red);
+	}
+
 	.weights-content {
 		display: flex;
 		flex-direction: column;
@@ -89,12 +131,12 @@
 	}
 
 	.criteria-col {
-		width: 70%;
+		width: 50%;
 		text-align: left;
 	}
 
 	.weight-col {
-		width: 30%;
+		width: 50%;
 		text-align: right;
 	}
 
@@ -125,27 +167,54 @@
 	.slider {
 		display: flex;
 		align-items: center;
-		position: relative;
-		width: 64px;
+		width: 96px;
 		height: 18px;
 	}
 
-	.slider-track {
+	.weight-slider {
+		-webkit-appearance: none;
+		appearance: none;
 		width: 100%;
+		height: 18px;
+		margin: 0;
+		padding: 0;
+		background: transparent;
+		cursor: pointer;
+	}
+
+	.weight-slider:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.weight-slider::-webkit-slider-runnable-track {
 		height: 4px;
 		border-radius: 999px;
 		background-color: var(--white-gray);
 	}
 
-	.slider-thumb {
-		position: absolute;
-		top: 50%;
-		left: 20%;
-		width: 10px;
+	.weight-slider::-webkit-slider-thumb {
+		-webkit-appearance: none;
+		appearance: none;
+		width: 16px;
 		height: 10px;
-		border-radius: 50%;
+		margin-top: -3px;
+		border-radius: 4px;
 		background-color: var(--primary-color);
-		transform: translate(-50%, -50%);
+	}
+
+	.weight-slider::-moz-range-track {
+		height: 4px;
+		border-radius: 999px;
+		background-color: var(--white-gray);
+	}
+
+	.weight-slider::-moz-range-thumb {
+		width: 16px;
+		height: 10px;
+		border: none;
+		border-radius: 4px;
+		background-color: var(--primary-color);
 	}
 
 	.stepper {
@@ -164,11 +233,23 @@
 		justify-content: center;
 		width: 26px;
 		height: 100%;
+		padding: 0;
+		border: none;
+		background-color: transparent;
 		color: var(--gray);
 		font-size: 16px;
 		line-height: 1;
-		user-select: none;
+		cursor: pointer;
 		flex-shrink: 0;
+	}
+
+	.stepper-button:hover:not(:disabled) {
+		color: var(--secondary-color);
+	}
+
+	.stepper-button:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
 	}
 
 	.stepper-value {

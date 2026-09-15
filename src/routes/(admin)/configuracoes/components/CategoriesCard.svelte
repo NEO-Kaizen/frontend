@@ -55,6 +55,41 @@
 		if (!category.isActive) return true;
 		return categories.filter((item) => item.isActive).length > 1;
 	}
+
+	// Categoria arrastada para reordenação (Card 5); `null` = nenhuma.
+	let draggingId = $state<number | null>(null);
+	let dropTargetId = $state<number | null>(null);
+
+	function handleDragStart(event: DragEvent, id: number): void {
+		draggingId = id;
+		if (event.dataTransfer) {
+			event.dataTransfer.effectAllowed = 'move';
+			event.dataTransfer.setData('text/plain', String(id));
+		}
+	}
+
+	function handleDragEnd(): void {
+		draggingId = null;
+		dropTargetId = null;
+	}
+
+	function handleDrop(target: PortalCategory): void {
+		if (draggingId !== null) {
+			settingsState.reorderCategory(draggingId, target.id);
+		}
+		handleDragEnd();
+	}
+
+	// Fallback de teclado para a reordenação (acessibilidade): setas movem a
+	// categoria para a posição do vizinho, na direção indicada.
+	function handleMoveByKeyboard(id: number, delta: -1 | 1): void {
+		const categories = settingsState.draft.categories;
+		const index = categories.findIndex((category) => category.id === id);
+		const neighbor = categories[index + delta];
+		if (neighbor) {
+			settingsState.reorderCategory(id, neighbor.id);
+		}
+	}
 </script>
 
 <SettingsCard
@@ -88,22 +123,59 @@
 				</thead>
 				<tbody>
 					{#each settingsState.draft.categories as category (category.id)}
-						<tr>
+						<tr
+							class:is-drag-source={draggingId === category.id}
+							class:is-drag-target={dropTargetId === category.id}
+							ondragover={(event) => {
+								if (draggingId === null) return;
+								event.preventDefault();
+								if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+								dropTargetId = category.id;
+							}}
+							ondragleave={() => {
+								if (dropTargetId === category.id) dropTargetId = null;
+							}}
+							ondrop={(event) => {
+								event.preventDefault();
+								handleDrop(category);
+							}}
+						>
 							<td class="col-name">
-								<span class="drag-handle" aria-hidden="true" title="Reordenação em breve">
-									<Icon iconName="dragIndicator" iconSize="sm" />
+								<span class="name-field">
+									<span
+										class="drag-handle"
+										role="button"
+										tabindex="0"
+										title="Arraste para reordenar (ou use as setas para cima/baixo)"
+										aria-label="Reordenar categoria"
+										draggable={!settingsState.saving && !(editing && editing.id === category.id)}
+										ondragstart={(event) => handleDragStart(event, category.id)}
+										ondragend={handleDragEnd}
+										onkeydown={(event) => {
+											if (editing && editing.id === category.id) return;
+											if (event.key === 'ArrowUp') {
+												event.preventDefault();
+												handleMoveByKeyboard(category.id, -1);
+											} else if (event.key === 'ArrowDown') {
+												event.preventDefault();
+												handleMoveByKeyboard(category.id, 1);
+											}
+										}}
+									>
+										<Icon iconName="dragIndicator" iconSize="sm" />
+									</span>
+									{#if editing && editing.id === category.id}
+										<input
+											class="edit-input"
+											type="text"
+											maxlength={MAX_CATEGORY_NAME_LENGTH}
+											aria-label="Nome da categoria"
+											bind:value={editing.name}
+										/>
+									{:else}
+										{category.name}
+									{/if}
 								</span>
-								{#if editing && editing.id === category.id}
-									<input
-										class="edit-input"
-										type="text"
-										maxlength={MAX_CATEGORY_NAME_LENGTH}
-										aria-label="Nome da categoria"
-										bind:value={editing.name}
-									/>
-								{:else}
-									{category.name}
-								{/if}
 							</td>
 							<td class="col-description">
 								{#if editing && editing.id === category.id}
@@ -253,6 +325,17 @@
 		white-space: nowrap;
 	}
 
+	.name-field {
+		display: flex;
+		align-items: center;
+		min-width: 0;
+	}
+
+	.name-field .edit-input {
+		flex: 1;
+		min-width: 0;
+	}
+
 	.drag-handle {
 		display: inline-flex;
 		align-items: center;
@@ -260,6 +343,25 @@
 		vertical-align: middle;
 		color: var(--gray);
 		cursor: grab;
+		flex-shrink: 0;
+	}
+
+	.drag-handle:active {
+		cursor: grabbing;
+	}
+
+	.drag-handle:focus-visible {
+		outline: 2px solid var(--secondary-color);
+		outline-offset: 2px;
+		border-radius: var(--radius-sm);
+	}
+
+	.is-drag-source {
+		opacity: 0.4;
+	}
+
+	.is-drag-target td {
+		box-shadow: inset 0 2px 0 0 var(--secondary-color);
 	}
 
 	.edit-input {

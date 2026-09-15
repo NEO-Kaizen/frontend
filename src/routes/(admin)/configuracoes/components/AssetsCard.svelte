@@ -9,11 +9,14 @@
 	let logoInput: HTMLInputElement;
 	let avatarInput: HTMLInputElement;
 
-	function handleAssetChange(event: Event, asset: AssetKey) {
+	let assetErrors = $state<Partial<Record<AssetKey, string>>>({});
+
+	async function handleAssetChange(event: Event, asset: AssetKey) {
 		const input = event.currentTarget as HTMLInputElement;
 		const file = input.files?.[0];
 		if (file) {
-			settingsState.changeAsset(asset, file);
+			const result = await settingsState.changeAsset(asset, file);
+			assetErrors = { ...assetErrors, [asset]: result.ok ? '' : result.error.message };
 		}
 		input.value = '';
 	}
@@ -49,6 +52,11 @@
 						Alterar imagem
 					</Button>
 					<p class="asset-info">Formatos: PNG, SVG | Tamanho máx.: 2MB</p>
+					{#if assetErrors.logoUrl}
+						<p class="asset-error" role="alert">
+							{assetErrors.logoUrl}
+						</p>
+					{/if}
 				</div>
 
 				<img
@@ -83,6 +91,11 @@
 						Alterar imagem
 					</Button>
 					<p class="asset-info">Formatos: JPG, PNG | Tamanho máx.: 2MB</p>
+					{#if assetErrors.avatarUrl}
+						<p class="asset-error" role="alert">
+							{assetErrors.avatarUrl}
+						</p>
+					{/if}
 				</div>
 
 				<img
@@ -204,6 +217,12 @@
 		font: var(--paragrafo);
 		font-size: 12px;
 		color: var(--gray);
+	}
+
+	.asset-error {
+		margin: 0;
+		color: var(--status-red);
+		font: var(--label);
 	}
 
 	:global(.asset-actions button) {

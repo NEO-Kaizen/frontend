@@ -119,18 +119,20 @@
 				{#each settingsState.draft.statuses as status (status.id)}
 					<tr class="tone-{status.tone}">
 						<td class="col-name">
-							<span class="status-dot" aria-hidden="true"></span>
-							{#if editing && editing.id === status.id}
-								<input
-									class="edit-input"
-									type="text"
-									maxlength={MAX_STATUS_NAME_LENGTH}
-									aria-label="Nome do status"
-									bind:value={editing.name}
-								/>
-							{:else}
-								{status.name}
-							{/if}
+							<span class="name-field">
+								<span class="status-dot" aria-hidden="true"></span>
+								{#if editing && editing.id === status.id}
+									<input
+										class="edit-input"
+										type="text"
+										maxlength={MAX_STATUS_NAME_LENGTH}
+										aria-label="Nome do status"
+										bind:value={editing.name}
+									/>
+								{:else}
+									{status.name}
+								{/if}
+							</span>
 						</td>
 						<td class="col-visibility">
 							{#if editing && editing.id === status.id}
@@ -298,6 +300,17 @@
 		width: 19%;
 		text-align: end;
 		white-space: nowrap;
+	}
+
+	.name-field {
+		display: flex;
+		align-items: center;
+		min-width: 0;
+	}
+
+	.name-field .edit-input {
+		flex: 1;
+		min-width: 0;
 	}
 
 	.status-dot {
