@@ -1,16 +1,14 @@
 <script lang="ts">
 	import Icon from '$lib/components/Icon.svelte';
 	import type { InternalRequestDetail, RequestStatus } from '$lib/types/request';
-	import InfoSection from './solicitation-info/InfoSection.svelte';
 	import QuickActions from './QuickActions.svelte';
+	import SpecTabs from './SpecTabs.svelte';
 
 	interface Props {
 		solicitation: InternalRequestDetail;
 	}
 
 	let { solicitation }: Props = $props();
-
-	let activeTab = $state('informacoes');
 
 	function getStatusTheme(status: RequestStatus): { bg: string; color: string; border: string } {
 		switch (status) {
@@ -52,31 +50,6 @@
 	let priorityLabel = $derived(solicitation.prioritization.label ?? 'Prioridade a ser calculada');
 	let isPriorityCalculated = $derived(solicitation.prioritization.score !== null);
 	let maxScore = $derived(solicitation.prioritization.maxScore ?? 50);
-
-	type TabItem = {
-		id: string;
-		label: string;
-		icon: 'description' | 'edit' | 'filter' | 'calendarCheck' | 'history' | 'info';
-		badge?: number;
-		disabled?: boolean;
-	};
-
-	const leftTabs: TabItem[] = [
-		{ id: 'informacoes', label: 'Informações', icon: 'description' },
-		{ id: 'triagem', label: 'Triagem', icon: 'filter', disabled: true },
-		{ id: 'mapeamento', label: 'Mapeamento', icon: 'calendarCheck', badge: 1, disabled: true },
-		{ id: 'historico', label: 'Histórico de Conversa', icon: 'history', badge: 1, disabled: true },
-		{ id: 'observacoes', label: 'Observações Internas', icon: 'info', disabled: true }
-	];
-
-	const rightTab: TabItem = { id: 'editar', label: 'Editar', icon: 'edit', disabled: true };
-
-	function handleTabClick(tab: TabItem) {
-		if (tab.disabled) {
-			return;
-		}
-		activeTab = tab.id;
-	}
 
 	function priorityBadgeTheme(
 		label: string | null,
@@ -170,61 +143,11 @@
 	</div>
 {/snippet}
 
-{#snippet specTabsSnippet()}
-	<div class="tabs-bar" role="tablist" aria-label="Abas da solicitação">
-		<div class="tabs-left">
-			{#each leftTabs as tab (tab.id)}
-				<button
-					type="button"
-					role="tab"
-					aria-selected={activeTab === tab.id}
-					aria-disabled={tab.disabled ? 'true' : undefined}
-					disabled={tab.disabled && tab.id !== 'informacoes' ? true : undefined}
-					class="tab-item"
-					class:active={activeTab === tab.id}
-					class:disabled={tab.disabled}
-					onclick={() => handleTabClick(tab)}
-				>
-					<Icon iconName={tab.icon} iconSize="sm" />
-					<span>{tab.label}</span>
-					{#if tab.badge}
-						<span class="tab-badge" aria-label={`${tab.badge} notificação`}>{tab.badge}</span>
-					{/if}
-				</button>
-			{/each}
-		</div>
-		<div class="tabs-right">
-			<button
-				type="button"
-				role="tab"
-				aria-selected={activeTab === rightTab.id}
-				aria-disabled={rightTab.disabled ? 'true' : undefined}
-				disabled={rightTab.disabled ? true : undefined}
-				class="tab-item"
-				class:active={activeTab === rightTab.id}
-				class:disabled={rightTab.disabled}
-				onclick={() => handleTabClick(rightTab)}
-			>
-				<Icon iconName={rightTab.icon} iconSize="sm" />
-				<span>{rightTab.label}</span>
-			</button>
-		</div>
-	</div>
-{/snippet}
-
 <div class="solicitation-specs-page">
 	{@render headerSnippet()}
 
 	<section class="details-card" aria-label="Detalhes da solicitação">
-		{@render specTabsSnippet()}
-
-		<div class="tab-content">
-			{#if activeTab === 'informacoes'}
-				<InfoSection {solicitation} />
-			{:else}
-				<p class="placeholder">Conteúdo de {activeTab} — implementação futura</p>
-			{/if}
-		</div>
+		<SpecTabs {solicitation} />
 
 		<QuickActions />
 	</section>
@@ -384,112 +307,6 @@
 		word-break: break-word;
 	}
 
-	.tabs-bar {
-		display: flex;
-		align-items: center;
-		gap: 4px;
-		flex-wrap: wrap;
-		border-bottom: 1px solid var(--white-gray);
-		padding-bottom: 12px;
-		margin-bottom: 4px;
-	}
-
-	.tabs-left {
-		display: flex;
-		align-items: center;
-		gap: 4px;
-		flex-wrap: wrap;
-	}
-
-	.tabs-right {
-		display: flex;
-		align-items: center;
-		gap: 4px;
-		margin-left: auto;
-	}
-
-	.tab-item {
-		display: inline-flex;
-		align-items: center;
-		gap: 6px;
-		padding: 8px 14px;
-		border-radius: var(--radius-sm);
-		border: 1px solid transparent;
-		background: transparent;
-		color: var(--secondary-color);
-		font-family: var(--font-inter);
-		font-size: 13px;
-		font-weight: 600;
-		cursor: pointer;
-		white-space: nowrap;
-		transition:
-			background 150ms ease,
-			color 150ms ease;
-		position: relative;
-	}
-
-	.tab-item:hover {
-		background: var(--background-color);
-	}
-
-	.tab-item:focus-visible {
-		outline: 2px solid var(--secondary-color);
-		outline-offset: 2px;
-	}
-
-	.tab-item.active {
-		background: var(--primary-color);
-		color: var(--white);
-		border-color: var(--primary-color);
-	}
-
-	.tab-item.disabled {
-		opacity: 0.7;
-		cursor: not-allowed;
-	}
-
-	.tab-item.disabled:hover {
-		background: transparent;
-	}
-
-	.tab-item.active.disabled {
-		opacity: 1;
-	}
-
-	.tab-badge {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		min-width: 18px;
-		height: 18px;
-		padding: 0 5px;
-		border-radius: 999px;
-		background: var(--secondary-color);
-		color: var(--white);
-		font-size: 11px;
-		font-weight: 700;
-		line-height: 1;
-	}
-
-	.tab-item.active .tab-badge {
-		background: var(--white);
-		color: var(--primary-color);
-	}
-
-	.tab-content {
-		display: flex;
-		flex-direction: column;
-		min-height: 200px;
-	}
-
-	.placeholder {
-		font-family: var(--font-inter);
-		font-size: 14px;
-		color: var(--gray);
-		padding: var(--spacing-md) 0;
-		margin: 0;
-	}
-
 	@media (max-width: 768px) {
 		.header-row {
 			flex-direction: column;
@@ -502,25 +319,11 @@
 		.details-card {
 			padding: var(--spacing-md);
 		}
-
-		.tabs-right {
-			margin-left: 0;
-			margin-top: 4px;
-		}
 	}
 
 	@media (max-width: 640px) {
 		.solicitation-title {
 			font-size: 18px;
-		}
-
-		.tabs-bar {
-			gap: 6px;
-		}
-
-		.tab-item {
-			padding: 6px 10px;
-			font-size: 12px;
 		}
 	}
 </style>
