@@ -245,12 +245,15 @@
 				{:else}
 					{#each filtered as option, index (option.value)}
 						<!-- Padrão ARIA listbox: as opções não recebem foco; a navegação por teclado fica no input combobox. -->
+						<!-- mousedown com preventDefault mantém o foco no input: se o foco saísse no mousedown,
+						     o estilo :focus-within cairia e deslocaria a lista antes do mouseup, engolindo o clique. -->
 						<!-- svelte-ignore a11y_click_events_have_key_events -->
 						<li
 							id={optionId(index)}
 							role="option"
 							aria-selected={option.value === value}
 							class:highlighted={index === highlighted}
+							onmousedown={(event) => event.preventDefault()}
 							onclick={() => {
 								selectOption(option);
 								inputEl?.blur();
