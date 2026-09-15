@@ -13,7 +13,8 @@ import type {
 	PaginatedResponse,
 	RequestDetail,
 	RequestSummary,
-	RequestStatus
+	RequestStatus,
+	UpdateInternalRequestPayload
 } from '$lib/types/request';
 
 // Status considerados "em andamento" para a métrica da fila: trabalho já em fluxo,
@@ -719,7 +720,11 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 		status: 'Concluído',
 		priority: 'Alta',
 		prioritization: { score: 18, maxScore: 50, label: 'Alta' },
-		assignee: { name: 'Fernando Alves', email: 'fernando.alves@maat.com.br' },
+		assignee: {
+			id: MOCK_ASSIGNEES.fernandoAlves,
+			name: 'Fernando Alves',
+			email: 'fernando.alves@maat.com.br'
+		},
 		correctionAlert: { count: 2, message: 'Alteração respondida pelo solicitante (2 campos)' },
 		requester: {
 			fullName: 'Maria Oliveira',
@@ -755,7 +760,7 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 			mainRisks: 'Erro de apuração e atraso na folha de pagamento.',
 			clientImpact: 'Colaboradores com pagamento em atraso.',
 			operationalImpact: 'Alto',
-			desiredDeadline: '2026-08-28',
+			desiredDeadline: '2026-11-28',
 			perceivedCriticality: 'Alta'
 		},
 		complementary: {
@@ -793,7 +798,11 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 		status: 'Em triagem',
 		priority: null,
 		prioritization: { score: null, maxScore: 50, label: null },
-		assignee: { name: 'Fernando Alves', email: 'fernando.alves@maat.com.br' },
+		assignee: {
+			id: MOCK_ASSIGNEES.fernandoAlves,
+			name: 'Fernando Alves',
+			email: 'fernando.alves@maat.com.br'
+		},
 		correctionAlert: null,
 		requester: {
 			fullName: 'Maria Oliveira',
@@ -846,7 +855,11 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 		status: 'Pendente de informações',
 		priority: null,
 		prioritization: { score: null, maxScore: 50, label: null },
-		assignee: { name: 'Carlos Mendes', email: 'carlos.mendes@maat.com.br' },
+		assignee: {
+			id: MOCK_ASSIGNEES.carlosMendes,
+			name: 'Carlos Mendes',
+			email: 'carlos.mendes@maat.com.br'
+		},
 		correctionAlert: null,
 		requester: {
 			fullName: 'Ana Souza',
@@ -916,5 +929,24 @@ export function getInternalRequestMock(protocol: string): Promise<InternalReques
 	if (!detail) {
 		return Promise.reject(new ApiError(404, 'Solicitação não encontrada.'));
 	}
+	return delay(MOCK_LATENCY_MS).then(() => structuredClone(detail));
+}
+
+export function updateInternalRequestMock(
+	protocol: string,
+	payload: UpdateInternalRequestPayload
+): Promise<InternalRequestDetail> {
+	const normalized = protocol.toLowerCase().trim();
+	const detail = mockInternalRequestDetails.find(
+		(d) => d.protocol.toLowerCase().trim() === normalized
+	);
+	if (!detail) {
+		return Promise.reject(new ApiError(404, 'Solicitação não encontrada.'));
+	}
+	detail.requester = structuredClone(payload.requester);
+	detail.demand = structuredClone(payload.demand);
+	detail.operational = structuredClone(payload.operational);
+	detail.complementary = payload.complementary ? structuredClone(payload.complementary) : undefined;
+	detail.lastUpdate = new Date().toISOString();
 	return delay(MOCK_LATENCY_MS).then(() => structuredClone(detail));
 }

@@ -118,7 +118,7 @@
 	.inner {
 		overflow: hidden;
 		min-height: 0;
-		padding-left: 24px;
+		padding: 0px 20px;
 	}
 
 	@media (max-width: 640px) {
