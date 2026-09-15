@@ -2,7 +2,11 @@
 	import { onMount } from 'svelte';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import { loadPrioritization, submitPrioritization } from '$lib/services/prioritization.service';
+	import Textarea from '$lib/components/Textarea.svelte';
+	import {
+		loadPrioritizationCriteria,
+		submitPrioritization
+	} from '$lib/services/prioritization.service';
 	import {
 		MAX_NOTE,
 		type CriterionNote,
@@ -13,9 +17,15 @@
 
 	interface Props {
 		protocol: string;
+		// Notas já existentes da última avaliação (reavaliação); vêm do
+		// /requests/:protocol/internal via prop do componente pai.
+		initialNotes?: CriterionNotes;
+		// Renderização sem cartão próprio (ex.: dentro de aba ou modal).
+		embedded?: boolean;
+		onsave?: (result: PrioritizationResult, notes: CriterionNotes) => void;
 	}
 
-	let { protocol }: Props = $props();
+	let { protocol, initialNotes = {}, embedded = false, onsave }: Props = $props();
 
 	const notesOptions: readonly CriterionNote[] = [1, 2, 3, 4, 5];
 
@@ -28,28 +38,26 @@
 	let validationError = $state('');
 	let missingCriterionIds = $state<string[]>([]);
 	let result = $state<PrioritizationResult | null>(null);
-	let hasSavedNotes = $state(false);
+	let justification = $state('');
 
 	const filledCount = $derived(
 		criteria.filter((criterion) => notes[criterion.id] !== undefined).length
 	);
 	const maxScore = $derived(criteria.length * MAX_NOTE);
 	const criterionErrors = $derived(new Set(missingCriterionIds));
+	const hasSavedNotes = $derived(Object.keys(notes).length > 0);
 
-	async function load() {
+	async function loadCriteria() {
 		isLoading = true;
 		loadError = '';
-		validationError = '';
-		missingCriterionIds = [];
-		result = null;
-		hasSavedNotes = false;
 
-		const loaded = await loadPrioritization(protocol);
+		const loaded = await loadPrioritizationCriteria();
 
 		if (loaded.ok) {
-			criteria = loaded.data.criteria;
-			notes = loaded.data.notes;
-			hasSavedNotes = Object.keys(notes).length > 0;
+			criteria = loaded.data;
+			// Snapshot do valor inicial da prop: apenas na montagem. A reavaliação
+			// carrega as notas já salvas (vindas do /requests/:protocol/internal).
+			notes = { ...initialNotes };
 		} else {
 			loadError = loaded.error.message;
 		}
@@ -57,7 +65,7 @@
 		isLoading = false;
 	}
 
-	onMount(load);
+	onMount(loadCriteria);
 
 	function handleNoteChange(criterionId: string) {
 		// Um salvamento anterior perde validade quando uma nota é alterada.
@@ -84,10 +92,14 @@
 		isSaving = true;
 
 		try {
-			const submission = await submitPrioritization(protocol, criteria, notes);
+			const submission = await submitPrioritization(protocol, criteria, notes, justification);
 
 			if (submission.ok) {
 				result = submission.data;
+				// A justificativa é a nota de auditoria desta avaliação — recomeça
+				// vazia na próxima (o backend só devolve as notas, não o texto).
+				justification = '';
+				onsave?.(submission.data, notes);
 			} else if (submission.error.missingCriterionIds?.length) {
 				missingCriterionIds = submission.error.missingCriterionIds;
 				validationError = submission.error.message;
@@ -100,7 +112,7 @@
 	}
 </script>
 
-<section class="prioritization-calculator" aria-labelledby="prioritization-title">
+<section class="prioritization-calculator" class:embedded aria-labelledby="prioritization-title">
 	<h2 id="prioritization-title" class="title">
 		<span class="title-text">
 			<Icon iconName="calculate" iconSize="sm" />
@@ -114,7 +126,7 @@
 	{:else if loadError}
 		<div class="state-message error" role="alert">
 			<p>{loadError}</p>
-			<Button variant="outline" onclick={load}>Tentar novamente</Button>
+			<Button variant="outline" onclick={loadCriteria}>Tentar novamente</Button>
 		</div>
 	{:else if criteria.length === 0}
 		<div class="state-message">Nenhum critério de priorização disponível.</div>
@@ -138,7 +150,6 @@
 					<fieldset class="criterion" class:has-error={criterionErrors.has(criterion.id)}>
 						<legend class="criterion-legend">
 							<span class="criterion-name">{criterion.name}</span>
-							<span class="criterion-subtitle">{criterion.subtitle}</span>
 						</legend>
 
 						<div
@@ -175,6 +186,17 @@
 				{/each}
 			</div>
 
+			<div class="justification-field">
+				<Textarea
+					label="Justificativa (opcional)"
+					placeholder="Registrada no histórico da avaliação"
+					rows={3}
+					maxlength={500}
+					disabled={isSaving}
+					bind:value={justification}
+				/>
+			</div>
+
 			<div class="footer">
 				<div class="score-summary" aria-live="polite">
 					<span class="score-total">
@@ -207,6 +229,16 @@
 		box-shadow: var(--regular-shadow);
 		padding: var(--spacing-lg);
 		margin-top: var(--spacing-lg);
+	}
+
+	/* Dentro de aba/modal o cartão externo já fornece o container. */
+	.prioritization-calculator.embedded {
+		width: 100%;
+		margin-top: 0;
+		border: none;
+		box-shadow: none;
+		padding: 0;
+		background: transparent;
 	}
 
 	.title {
@@ -303,11 +335,6 @@
 		color: var(--black);
 	}
 
-	.criterion-subtitle {
-		font-size: 13px;
-		color: var(--gray);
-	}
-
 	.notes-group {
 		display: flex;
 		gap: var(--spacing-sm);
@@ -367,6 +394,10 @@
 		justify-content: space-between;
 		flex-wrap: wrap;
 		gap: var(--spacing-md);
+		margin-top: var(--spacing-lg);
+	}
+
+	.justification-field {
 		margin-top: var(--spacing-lg);
 	}
 
