@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { invalidateAll, goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { tick } from 'svelte';
+	import { onDestroy, tick } from 'svelte';
 	import { fly } from 'svelte/transition';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
@@ -87,6 +87,7 @@
 
 	function handleTabSelect(tab: SpecTabDefinition) {
 		if (!tab.enabled) return;
+		clearSaveSuccess();
 
 		const url = new URL(page.url);
 		url.searchParams.set('aba', tab.id);
@@ -119,6 +120,19 @@
 	let editButton = $state<HTMLButtonElement | null>(null);
 	let detailsCard = $state<HTMLElement | null>(null);
 
+	const SAVE_SUCCESS_TIMEOUT_MS = 4000;
+	let saveSuccessTimer: ReturnType<typeof setTimeout> | undefined;
+
+	function clearSaveSuccess(): void {
+		if (saveSuccessTimer !== undefined) {
+			clearTimeout(saveSuccessTimer);
+			saveSuccessTimer = undefined;
+		}
+		saveSuccess = null;
+	}
+
+	onDestroy(clearSaveSuccess);
+
 	const prefersReducedMotion =
 		typeof window !== 'undefined' &&
 		typeof window.matchMedia === 'function' &&
@@ -148,7 +162,7 @@
 		draft = toEditableDraft(solicitation);
 		errors = {};
 		saveError = null;
-		saveSuccess = null;
+		clearSaveSuccess();
 		isEditMode = true;
 		ensureInfoTab();
 		tick().then(() => focusFirstEditable(null));
@@ -211,7 +225,7 @@
 		}
 		isSaving = true;
 		saveError = null;
-		saveSuccess = null;
+		clearSaveSuccess();
 		const result = await updateInternalRequest(
 			solicitation.protocol,
 			toUpdatePayload(draft, solicitation)
@@ -221,7 +235,12 @@
 			isEditMode = false;
 			draft = null;
 			errors = {};
+			clearSaveSuccess();
 			saveSuccess = 'Alterações salvas com sucesso.';
+			saveSuccessTimer = setTimeout(() => {
+				saveSuccess = null;
+				saveSuccessTimer = undefined;
+			}, SAVE_SUCCESS_TIMEOUT_MS);
 			onSaveSuccess?.(result.data);
 			await invalidateAll();
 			tick().then(() => editButton?.focus());
