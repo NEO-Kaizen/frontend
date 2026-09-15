@@ -11,6 +11,7 @@
 		loading?: boolean;
 		disabled?: boolean;
 		type?: ButtonType;
+		class?: string;
 		onclick?: (event: MouseEvent) => void;
 		children: Snippet;
 	}
@@ -21,6 +22,7 @@
 		loading = false,
 		disabled = false,
 		type = 'button',
+		class: className = '',
 		onclick,
 		children
 	}: Props = $props();
@@ -31,6 +33,7 @@
 <button
 	{type}
 	{onclick}
+	class={className}
 	disabled={isDisabled}
 	aria-busy={loading}
 	class:primary={variant === 'primary'}

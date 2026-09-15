@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Button from '$lib/components/Button.svelte';
+	import Icon from '$lib/components/Icon.svelte';
 	import SettingsCard from './SettingsCard.svelte';
 
 	interface ColorToken {
@@ -57,9 +59,19 @@
 		<table class="token-table">
 			<thead>
 				<tr>
-					<th scope="col" class="col-token">Token</th>
-					<th scope="col" class="col-theme">Claro</th>
-					<th scope="col" class="col-theme">Escuro</th>
+					<th scope="col" class="col-token"></th>
+					<th scope="col" class="col-theme">
+						<Button variant="secondary" class="theme-button">
+							<Icon iconName="lightMode" iconSize="sm" />
+							Claro
+						</Button>
+					</th>
+					<th scope="col" class="col-theme col-theme-dark">
+						<Button variant="outline-neutral" class="theme-button theme-button-dark">
+							<Icon iconName="darkMode" iconSize="sm" />
+							Escuro
+						</Button>
+					</th>
 				</tr>
 			</thead>
 			<tbody>
@@ -132,7 +144,27 @@
 	}
 
 	.col-theme {
-		width: 150px;
+		width: 140px;
+		text-align: center;
+	}
+
+	.token-table th.col-theme-dark {
+		padding-left: 20px;
+	}
+
+	:global(.theme-button) {
+		width: 100px;
+		height: 28px;
+		padding: 0;
+	}
+
+	:global(.theme-button-dark) {
+		border-color: var(--rich-black);
+		color: var(--rich-black);
+	}
+
+	.theme-cell {
+		text-align: center;
 	}
 
 	.token-table thead th {
