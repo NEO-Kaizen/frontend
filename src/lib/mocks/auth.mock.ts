@@ -11,7 +11,9 @@ type MockUser = SessionUser & { password: string };
 
 const MOCK_USERS: MockUser[] = [
 	{
-		id: '1',
+		// Id do analista = professionalId do domínio de fila (requests.mock):
+		// a Home do Analista filtra /queue por assigneeId = SessionUser.id.
+		id: '650e8400-e29b-41d4-a716-446655440002',
 		name: 'Ana Souza',
 		email: 'analista@maat.com.br',
 		role: 'Analista',
@@ -31,7 +33,7 @@ const MOCK_USERS: MockUser[] = [
 		name: 'Adriana Castro',
 		email: 'admin@maat.com.br',
 		role: 'Administrador',
-		mustChangePassword: true,
+		mustChangePassword: false,
 		password: 'admin'
 	},
 	{
