@@ -12,7 +12,6 @@
 
 	let isSuccess = $derived(toast.type === 'success');
 
-	// Seleção de ícones corretos baseados no dicionário src/lib/types/icons.ts
 	let iconName: IconName = $derived(isSuccess ? 'check' : 'info');
 </script>
 
@@ -39,31 +38,30 @@
 		justify-content: space-between;
 		gap: 12px;
 		padding: 12px 16px;
-		border-radius: 8px;
-		box-shadow:
-			0 10px 15px -3px rgba(0, 0, 0, 0.1),
-			0 4px 6px -4px rgba(0, 0, 0, 0.1);
+		border-radius: var(--radius-sm);
+		box-shadow: var(--regular-shadow);
 		pointer-events: auto;
-		transition: all 0.3s ease;
-		color: #ffffff;
+		transition: var(--transition-default);
+		color: var(--white);
 	}
 
 	.toast-item.success {
-		background-color: #059669;
+		background-color: var(--status-green);
 	}
 
 	.toast-item.error {
-		background-color: #dc2626;
+		background-color: var(--status-red);
 	}
 
 	.toast-content {
 		display: flex;
 		align-items: center;
-		gap: 8px;
+		gap: var(--spacing-sm);
 	}
 
 	.toast-message {
-		font-size: 0.875rem;
+		font: var(--paragrafo);
+		color: var(--white);
 		font-weight: 500;
 	}
 
@@ -85,7 +83,7 @@
 	}
 
 	.toast-close-btn:focus-visible {
-		outline: 2px solid white;
+		outline: 2px solid var(--white);
 		outline-offset: 2px;
 	}
 </style>
