@@ -12,6 +12,8 @@
 	import { clearDraft } from '$lib/services/solicitation-draft.service';
 	import { searchRequests } from '$lib/services/request.service';
 	import { isInternalProfile } from '$lib/services/access.service';
+	import { onMount } from 'svelte';
+	import { getThemeMode, toggleTheme } from '$lib/states/theme.svelte';
 
 	// KNOWN ISSUE (svelte-check) — não estreitar este tipo sem entender a causa:
 	// `resolve(item.href)` (no helper `isActive` e abaixo, no markup) acusa erro
@@ -31,6 +33,14 @@
 	const appConfig = $derived(page.data.portalConfig);
 	const queuePath = resolve('/(admin)/fila');
 	const isAuthenticated = $derived(currentUser != null);
+
+	// `isMounted` evita divergência de hidratação: no SSR o modo é sempre o
+	// claro; no cliente o valor real vem do localStorage/sistema.
+	let isMounted = $state(false);
+	onMount(() => {
+		isMounted = true;
+	});
+	const isDarkTheme = $derived(isMounted && getThemeMode() === 'dark');
 
 	function isActive(item: NavButton, pathname: string): boolean {
 		if (!item.href) return false;
@@ -86,6 +96,10 @@
 	const isNotSolicitante = $derived(currentUser != null && isInternalProfile(currentUser.role));
 
 	const activeSearch = $derived(page.url.searchParams.get('search') ?? '');
+
+	// Na tela de configurações o editor de tema controla a pré-visualização
+	// localmente; o toggle global fica oculto para não competir com ele.
+	const isSettingsPage = $derived(page.url.pathname.startsWith(resolve('/(admin)/configuracoes')));
 
 	let isSearching = $state(false);
 
@@ -184,6 +198,18 @@
 			>
 				<span>+</span> Nova solicitação
 			</Button>
+
+			{#if !isSettingsPage}
+				<button
+					class="theme-toggle"
+					type="button"
+					aria-label={isDarkTheme ? 'Ativar tema claro' : 'Ativar tema escuro'}
+					title={isDarkTheme ? 'Ativar tema claro' : 'Ativar tema escuro'}
+					onclick={toggleTheme}
+				>
+					<Icon iconName={isDarkTheme ? 'lightMode' : 'darkMode'} />
+				</button>
+			{/if}
 
 			{#if isAuthenticated}
 				<div class="separator_bar-column"></div>
@@ -287,6 +313,25 @@
 	}
 	.search-container {
 		width: 300px;
+	}
+
+	.theme-toggle {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 40px;
+		height: 40px;
+		border: var(--border-default);
+		border-radius: 100%;
+		background-color: transparent;
+		color: var(--primary-color);
+		cursor: pointer;
+		transition: var(--transition-default);
+	}
+
+	.theme-toggle:hover,
+	.theme-toggle:focus-visible {
+		background-color: var(--tint);
 	}
 
 	.profile_block {
