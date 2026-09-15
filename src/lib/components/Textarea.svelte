@@ -83,6 +83,7 @@
 	}
 
 	textarea {
+		display: block;
 		width: 100%;
 		box-sizing: border-box;
 		padding: var(--spacing-sm);
@@ -140,6 +141,10 @@
 	}
 
 	.error-message {
+		position: absolute;
+		top: 100%;
+		left: 0;
+		width: 100%;
 		margin: 0;
 		margin-top: 4px;
 		color: var(--status-red);
