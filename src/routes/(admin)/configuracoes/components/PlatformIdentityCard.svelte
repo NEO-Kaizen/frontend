@@ -1,6 +1,7 @@
 <script lang="ts">
 	import SettingsCard from './SettingsCard.svelte';
 	import Input from '$lib/components/Input.svelte';
+	import { MAX_PROTOCOL_MASK_LENGTH } from '$lib/utils/validations';
 
 	type IdentityField = 'platformName' | 'protocolMask';
 
@@ -13,6 +14,13 @@
 	}
 
 	let { platformName, protocolMask, saving, errors, onchange }: Props = $props();
+
+	function buildProtocolExample(mask: string) {
+		const clean = mask.trim().toUpperCase();
+		return clean ? `${clean}-8K3P-9X2M` : '';
+	}
+
+	const protocolExample = $derived(buildProtocolExample(protocolMask));
 
 	function getPlatformName() {
 		return platformName;
@@ -27,7 +35,7 @@
 	}
 
 	function setProtocolMask(value: string) {
-		onchange('protocolMask', value);
+		onchange('protocolMask', value.replace(/[^A-Za-z0-9]/g, '').slice(0, MAX_PROTOCOL_MASK_LENGTH));
 	}
 </script>
 
@@ -47,8 +55,9 @@
 		/>
 		<Input
 			label="Máscara de protocolo"
-			maxlength={40}
+			maxlength={10}
 			placeholder="Ex.: MAAT"
+			hint={protocolExample ? `Exemplo: ${protocolExample}` : undefined}
 			bind:value={getProtocolMask, setProtocolMask}
 			error={errors.protocolMask}
 			disabled={saving}

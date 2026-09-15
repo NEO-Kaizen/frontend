@@ -8,9 +8,9 @@ const TEXT_PATTERN = /^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/;
 // única usada pelo service (sanitize), pelo mock e pela store (anti-salvar).
 export const MAX_PLATFORM_NAME_LENGTH = 80;
 
-export const MAX_PROTOCOL_MASK_LENGTH = 40;
+export const MAX_PROTOCOL_MASK_LENGTH = 10;
 
-export const PROTOCOL_MASK_PATTERN = /^[A-Za-z0-9-]+$/;
+export const PROTOCOL_MASK_PATTERN = /^[A-Za-z0-9]+$/;
 
 // Regras de upload de assets (Card 4 / CONTRATO-BACKEND.md) — espelho das
 // regras propostas para o endpoint POST /assets. Fonte única compartilhada
@@ -119,6 +119,37 @@ export function areStatusNamesUnique(statuses: readonly PortalStatus[]): boolean
 		seen.add(normalized);
 	}
 	return true;
+}
+
+// ---- Pesos da priorização (Card 7 / CONTRATO-BACKEND.md) ----
+
+export const PRIORITIZATION_WEIGHT_MIN = 1;
+
+export const PRIORITIZATION_WEIGHT_MAX = 5;
+
+export const PRIORITIZATION_WEIGHT_STEP = 0.5;
+
+// Valores aceitos para um peso (1.0 a 5.0, passo 0.5).
+export const ALLOWED_PRIORITIZATION_WEIGHTS: readonly number[] = (() => {
+	const values: number[] = [];
+	for (
+		let value = PRIORITIZATION_WEIGHT_MIN;
+		value <= PRIORITIZATION_WEIGHT_MAX + 1e-9;
+		value += PRIORITIZATION_WEIGHT_STEP
+	) {
+		values.push(Number(value.toFixed(1)));
+	}
+	return values;
+})();
+
+export function isValidPrioritizationWeight(value: unknown): value is number {
+	return (
+		typeof value === 'number' &&
+		Number.isFinite(value) &&
+		value >= PRIORITIZATION_WEIGHT_MIN &&
+		value <= PRIORITIZATION_WEIGHT_MAX &&
+		Number.isInteger((value - PRIORITIZATION_WEIGHT_MIN) / PRIORITIZATION_WEIGHT_STEP)
+	);
 }
 
 export function isValidPlatformName(value: string): boolean {

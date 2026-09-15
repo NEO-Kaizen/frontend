@@ -8,6 +8,7 @@ import {
 	isValidStatusName,
 	isValidPlatformName,
 	isValidProtocolMask,
+	isValidPrioritizationWeight,
 	areCategoryNamesUnique,
 	hasActiveCategory,
 	areStatusNamesUnique,
@@ -17,6 +18,7 @@ import {
 } from '$lib/utils/validations';
 import {
 	ASSET_KEYS,
+	PRIORITIZATION_CRITERIA,
 	STATUS_TONES,
 	STATUS_VISIBILITIES,
 	type AssetKey,
@@ -24,6 +26,7 @@ import {
 	type PortalConfig,
 	type PortalAssetsPatch,
 	type PortalStatus,
+	type PrioritizationWeights,
 	type SolicitationMode,
 	type UpdatePortalConfigPayload
 } from '$lib/types/portal-config';
@@ -42,7 +45,8 @@ const ALLOWED_UPDATE_FIELDS: readonly (keyof UpdatePortalConfigPayload)[] = [
 	'protocolMask',
 	'assets',
 	'categories',
-	'statuses'
+	'statuses',
+	'prioritizationWeights'
 ];
 
 const MOCK_LATENCY_MS = 500;
@@ -105,7 +109,7 @@ function validateUpdatePayload(payload: UpdatePortalConfigPayload): void {
 	if (payload.protocolMask !== undefined && !isValidProtocolMask(payload.protocolMask)) {
 		throw new ApiError(
 			400,
-			'Máscara de protocolo deve ter entre 1 e 40 caracteres: letras, números ou hífen.'
+			'Máscara de protocolo deve ter entre 1 e 10 caracteres, apenas letras e números.'
 		);
 	}
 
@@ -119,6 +123,10 @@ function validateUpdatePayload(payload: UpdatePortalConfigPayload): void {
 
 	if (payload.statuses !== undefined) {
 		validateStatusesPatch(payload.statuses);
+	}
+
+	if (payload.prioritizationWeights !== undefined) {
+		validatePrioritizationWeights(payload.prioritizationWeights);
 	}
 }
 
@@ -201,6 +209,33 @@ function validateStatusesPatch(statuses: PortalStatus[]): void {
 
 	if (!areStatusNamesUnique(statuses)) {
 		throw new ApiError(400, 'Nomes de status não podem se repetir.');
+	}
+}
+
+// O objeto de pesos é completo e atômico: todas as chaves da allowlist devem
+// estar presentes, cada peso dentro de 1.0..5.0 (passo 0.5).
+function validatePrioritizationWeights(weights: PrioritizationWeights): void {
+	if (typeof weights !== 'object' || weights === null) {
+		throw new ApiError(400, 'Os pesos da priorização devem ser um objeto.');
+	}
+
+	const seen = new Set<string>();
+	for (const key of Object.keys(weights)) {
+		if (!PRIORITIZATION_CRITERIA.includes(key as (typeof PRIORITIZATION_CRITERIA)[number])) {
+			throw new ApiError(400, `Critério de priorização não permitido: "${key}".`);
+		}
+		if (seen.has(key)) {
+			throw new ApiError(400, `Critério de priorização duplicado: "${key}".`);
+		}
+		seen.add(key);
+
+		if (!isValidPrioritizationWeight(weights[key as keyof typeof weights])) {
+			throw new ApiError(400, 'Peso de priorização deve estar entre 1.0 e 5.0 (passo 0.5).');
+		}
+	}
+
+	if (seen.size !== PRIORITIZATION_CRITERIA.length) {
+		throw new ApiError(400, 'Envie todos os critérios de priorização com seus pesos.');
 	}
 }
 

@@ -1,12 +1,14 @@
 import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
 import { savePortalConfig, uploadAsset } from '$lib/config/portal-config.service';
-import { ASSET_KEYS } from '$lib/types/portal-config';
+import type { Result } from '$lib/types/result';
+import { ASSET_KEYS, PRIORITIZATION_CRITERIA } from '$lib/types/portal-config';
 import type {
 	AssetKey,
 	PortalCategory,
 	PortalConfig,
 	PortalAssetsPatch,
 	PortalStatus,
+	PrioritizationCriterion,
 	SolicitationMode,
 	UpdatePortalConfigPayload
 } from '$lib/types/portal-config';
@@ -16,6 +18,7 @@ import {
 	isValidCategoryName,
 	isValidCategoryDescription,
 	isValidStatusName,
+	isValidPrioritizationWeight,
 	areCategoryNamesUnique,
 	hasActiveCategory,
 	areStatusNamesUnique,
@@ -42,7 +45,9 @@ export class SettingsState {
 			this.draft.solicitationMode !== this.pristine.solicitationMode ||
 			ASSET_KEYS.some((key) => this.draft.assets[key] !== this.pristine.assets[key]) ||
 			JSON.stringify(this.draft.categories) !== JSON.stringify(this.pristine.categories) ||
-			JSON.stringify(this.draft.statuses) !== JSON.stringify(this.pristine.statuses)
+			JSON.stringify(this.draft.statuses) !== JSON.stringify(this.pristine.statuses) ||
+			JSON.stringify(this.draft.prioritizationWeights) !==
+				JSON.stringify(this.pristine.prioritizationWeights)
 	);
 
 	// Valida apenas os campos editáveis — o rádio de modo de acesso não tem
@@ -53,7 +58,7 @@ export class SettingsState {
 			: { platformName: 'Informe um nome com até 80 caracteres.' }),
 		...(isValidProtocolMask(this.draft.protocolMask)
 			? {}
-			: { protocolMask: 'Use letras, números ou hífen, até 40 caracteres.' })
+			: { protocolMask: 'Apenas letras e números, até 10 caracteres.' })
 	});
 
 	// Erro global de categorias (Card 5) — aja na lista inteira: nome vazio,
@@ -105,11 +110,24 @@ export class SettingsState {
 		return null;
 	});
 
+	// Erro global de pesos de priorização (Card 7) — qualquer peso fora de
+	// 1.0..5.0 (passo 0.5) bloqueia o salvamento.
+	prioritizationWeightsError: string | null = $derived.by(() => {
+		const weights = this.draft.prioritizationWeights;
+
+		const hasInvalidWeight = PRIORITIZATION_CRITERIA.some(
+			(criterion) => !isValidPrioritizationWeight(weights[criterion])
+		);
+
+		return hasInvalidWeight ? 'Os pesos devem estar entre 1,0 e 5,0 (passo 0,5).' : null;
+	});
+
 	hasValidationErrors: boolean = $derived(
 		this.fieldErrors.platformName !== undefined ||
 			this.fieldErrors.protocolMask !== undefined ||
 			this.categoriesError !== null ||
-			this.statusesError !== null
+			this.statusesError !== null ||
+			this.prioritizationWeightsError !== null
 	);
 
 	init(config: PortalConfig): void {
@@ -193,6 +211,23 @@ export class SettingsState {
 		this.feedbackType = null;
 	}
 
+	// Move uma categoria para a posição da categoria alvo (reordenação por
+	// arraste no Card 5). A lista continua atômica: a nova ordem é preservada
+	// no PATCH e exibida conforme o array.
+	reorderCategory(fromId: number, toId: number): void {
+		const fromIndex = this.draft.categories.findIndex((category) => category.id === fromId);
+		const toIndex = this.draft.categories.findIndex((category) => category.id === toId);
+		if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) return;
+
+		const reordered = [...this.draft.categories];
+		const [moved] = reordered.splice(fromIndex, 1);
+		reordered.splice(toIndex, 0, moved);
+
+		this.draft = { ...this.draft, categories: reordered };
+		this.feedback = null;
+		this.feedbackType = null;
+	}
+
 	// ---- Status do ciclo de vida (Card 6) ----
 
 	// Mesmas regras das categorias: operações imutáveis sobre a lista do draft,
@@ -242,9 +277,26 @@ export class SettingsState {
 		this.feedbackType = null;
 	}
 
+	// ---- Pesos da priorização (Card 7) ----
+
+	// Atualiza um único peso no objeto do draft; o erro de validação é
+	// derivado (prioritizationWeightsError) e exibido inline pelo card.
+	setPrioritizationWeight(criterion: PrioritizationCriterion, value: number): void {
+		this.draft = {
+			...this.draft,
+			prioritizationWeights: {
+				...this.draft.prioritizationWeights,
+				[criterion]: value
+			}
+		};
+		this.feedback = null;
+		this.feedbackType = null;
+	}
+
 	// Faz upload imediato do asset selecionado (Card 4) e atualiza o draft com
-	// a URL retornada; erros de validação/upload caem no feedback global.
-	async changeAsset(asset: AssetKey, file: File): Promise<string | null> {
+	// a URL retornada. O erro de validação/upload é devolvido no Result para o
+	// card exibir inline (não vai para o feedback global do rodapé).
+	async changeAsset(asset: AssetKey, file: File): Promise<Result<string>> {
 		this.uploadingAsset = asset;
 		this.feedback = null;
 		this.feedbackType = null;
@@ -252,18 +304,14 @@ export class SettingsState {
 		try {
 			const result = await uploadAsset(asset, file);
 
-			if (!result.ok) {
-				this.feedbackType = 'error';
-				this.feedback = result.error.message;
-				return null;
+			if (result.ok) {
+				this.draft = {
+					...this.draft,
+					assets: { ...this.draft.assets, [asset]: result.data }
+				};
 			}
 
-			this.draft = {
-				...this.draft,
-				assets: { ...this.draft.assets, [asset]: result.data }
-			};
-
-			return result.data;
+			return result;
 		} finally {
 			this.uploadingAsset = null;
 		}
@@ -329,6 +377,15 @@ export class SettingsState {
 			// Status são atômicos: qualquer diferença envia a lista completa.
 			if (JSON.stringify(this.draft.statuses) !== JSON.stringify(this.pristine.statuses)) {
 				payload.statuses = structuredClone(this.draft.statuses);
+			}
+
+			// Pesos de priorização são atômicos: qualquer diferença envia o
+			// objeto completo (todas as chaves da allowlist).
+			if (
+				JSON.stringify(this.draft.prioritizationWeights) !==
+				JSON.stringify(this.pristine.prioritizationWeights)
+			) {
+				payload.prioritizationWeights = { ...this.draft.prioritizationWeights };
 			}
 
 			const result = await savePortalConfig(payload);
