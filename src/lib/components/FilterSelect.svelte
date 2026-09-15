@@ -366,7 +366,7 @@
 	}
 
 	.control.dirty {
-		border-color: var(--secondary-color);
+		border-color: var(--status-green);
 	}
 
 	.control.error {

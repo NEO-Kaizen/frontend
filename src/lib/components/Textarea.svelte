@@ -116,7 +116,7 @@
 	}
 
 	textarea.dirty {
-		border-color: var(--secondary-color);
+		border-color: var(--status-green);
 	}
 
 	textarea:disabled {

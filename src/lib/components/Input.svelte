@@ -256,7 +256,7 @@
 	}
 
 	input.dirty {
-		border-color: var(--secondary-color);
+		border-color: var(--status-green);
 	}
 
 	input:disabled {
