@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { afterNavigate, goto, replaceState } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import Icon from '$lib/components/Icon.svelte';
 	import type { InternalRequestDetail } from '$lib/types/request';
@@ -70,31 +70,6 @@
 			SPEC_TABS.find((tab) => tab.id === DEFAULT_TAB_ID)?.label ??
 			DEFAULT_TAB_ID
 	);
-
-	// URL canônica: a aba ativa fica sempre explícita em ?aba= (replaceState
-	// shallow — sem rerodar loads). Entrada nua, ?aba= inválido ou de aba
-	// desabilitada cai na aba padrão e a URL passa a exibir ?aba=informacoes.
-	// O conteúdo é renderizado via fallback no SSR; aqui só o address bar
-	// é corrigido, sem flash de conteúdo.
-	afterNavigate(({ from }) => {
-		const aba = page.url.searchParams.get('aba');
-		if (aba !== activeTab) {
-			const url = new URL(page.url);
-			url.searchParams.set('aba', activeTab);
-			const canonicalUrl = `${url.pathname}${url.search}`;
-			if (from === null) {
-				// Primeiro mount: o router do SvelteKit ainda não está inicializado,
-				// então replaceState($app/navigation) lança. history.replaceState
-				// nativo não navega nem dispara loads — só corrige o address bar.
-				history.replaceState({}, '', canonicalUrl);
-			} else {
-				// Plugin não aceita URL sem resolve() (eslint-plugin-svelte#1327);
-				// o pathname atual já contém o protocolo da rota.
-				// eslint-disable-next-line svelte/no-navigation-without-resolve
-				replaceState(canonicalUrl, {});
-			}
-		}
-	});
 
 	// Botão Editar visível apenas para Administrador ou o responsável pela triagem.
 	// Regra definitiva é decidida pela issue #121 (modo de edição).
