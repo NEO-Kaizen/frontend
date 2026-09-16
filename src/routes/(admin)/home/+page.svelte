@@ -13,12 +13,24 @@
 	let isFetching = $state(false);
 	let requestToken = 0;
 
+	const NO_ASSIGNMENT = '00000000-0000-0000-0000-000000000000';
+	// professional_id é UUID no backend — espelha a guarda do load do server.
+	const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 	const isAnalyst = $derived(data.user?.role === 'Analista');
 
 	let result = $derived(fetchedResult ?? data.result);
 	let userName = $derived(data.user?.name ?? 'Usuário');
 	let userRole = $derived(data.user?.role ?? '');
-	let assigneeId = $derived(isAnalyst && data.user ? data.user.id : 'unassigned');
+	let assigneeId = $derived.by(() => {
+		if (!isAnalyst || !data.user) {
+			return 'unassigned';
+		}
+
+		const professionalId = data.user.professionalId;
+
+		return professionalId && UUID_PATTERN.test(professionalId) ? professionalId : NO_ASSIGNMENT;
+	});
 	let sectionTitle = $derived(
 		isAnalyst ? 'Solicitações sob minha responsabilidade' : 'Solicitações sem responsável'
 	);

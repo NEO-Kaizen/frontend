@@ -45,7 +45,7 @@ export type MockRequest = RequestSummary & {
 	assigneeId: string | null;
 };
 
-const MOCK_ASSIGNEES = {
+export const MOCK_ASSIGNEES = {
 	fernandoAlves: '650e8400-e29b-41d4-a716-446655440001',
 	anaSouza: '650e8400-e29b-41d4-a716-446655440002',
 	lucasGomes: '650e8400-e29b-41d4-a716-446655440003',
