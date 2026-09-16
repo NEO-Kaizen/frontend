@@ -425,7 +425,9 @@ export interface InternalRequestDetail {
 	status: RequestStatus;
 	priority: RequestPriority | null;
 	prioritization: PrioritizationResult;
-	assignee: { name: string | null; email?: string | null } | null;
+	// ID do responsável (preparação para limitação por perfil — issue #121).
+	// `id` + `name` obrigatórios; ambos `null` apenas quando não atribuído.
+	assignee: { id: string | null; name: string | null; email?: string | null } | null;
 	correctionAlert?: { count: number; message: string } | null;
 
 	// blocos da solicitação
@@ -442,3 +444,10 @@ export interface InternalRequestDetail {
 	lastUpdate: string;
 	internalObservations?: string | null;
 }
+
+// PATCH /requests/:protocol/internal — proposta (backend definirá o contrato
+// final). Só blocos editáveis; imutáveis (fullName/corporateEmail) ficam fora.
+export type UpdateInternalRequestPayload = Pick<
+	InternalRequestDetail,
+	'requester' | 'demand' | 'operational' | 'complementary'
+>;

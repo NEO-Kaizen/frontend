@@ -25,6 +25,10 @@ export function isInternalProfile(role: UserType): boolean {
 	return INTERNAL_PROFILES.includes(role);
 }
 
+export function isProfileAllowed(role: UserType, profiles: 'any' | readonly UserType[]): boolean {
+	return profiles === 'any' || profiles.includes(role);
+}
+
 export function isAllowedReturnTo(value: string): value is PostLoginRoute {
 	if (!value.startsWith('/')) return false;
 	if (value.includes('://')) return false;
@@ -41,7 +45,7 @@ export function guard(rule: GuardRuleId, user: SessionUser | null, pathname?: st
 				: LOGIN_PATH;
 		redirect(303, returnUrl);
 	}
-	if (profiles !== 'any' && !profiles.includes(user.role)) {
+	if (!isProfileAllowed(user.role, profiles)) {
 		redirect(303, UNAUTHORIZED_PATH);
 	}
 }

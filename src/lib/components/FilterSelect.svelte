@@ -18,6 +18,9 @@
 		// Valor considerado "sem filtro". Quando definido e o valor atual difere,
 		// um "x" à direita reseta o filtro individualmente.
 		clearValue?: string;
+		error?: string;
+		disabled?: boolean;
+		dirty?: boolean;
 	}
 
 	let {
@@ -28,7 +31,10 @@
 		icon,
 		ariaLabel,
 		placeholder = 'Selecione',
-		clearValue
+		clearValue,
+		error = '',
+		disabled = false,
+		dirty = false
 	}: Props = $props();
 
 	const uid = $props.id();
@@ -176,7 +182,13 @@
 		<label for={inputId}>{label}</label>
 	{/if}
 
-	<div class="control" bind:this={container}>
+	<div
+		class="control"
+		class:error={Boolean(error)}
+		class:dirty
+		class:disabled
+		bind:this={container}
+	>
 		{#if icon}
 			<Icon iconName={icon} iconSize="md" />
 		{/if}
@@ -190,7 +202,10 @@
 			aria-controls={listId}
 			aria-activedescendant={open && filtered[highlighted] ? optionId(highlighted) : undefined}
 			aria-label={ariaLabel ?? label}
+			aria-invalid={error ? true : undefined}
+			aria-describedby={error ? `${inputId}-error` : undefined}
 			{placeholder}
+			{disabled}
 			value={displayValue}
 			bind:this={inputEl}
 			onfocus={openList}
@@ -203,6 +218,7 @@
 				type="button"
 				class="trailing-action"
 				aria-label={clearAriaLabel}
+				{disabled}
 				onclick={clearFilter}
 			>
 				<Icon iconName="close" iconSize="md" />
@@ -215,6 +231,7 @@
 			class:open
 			tabindex="-1"
 			aria-label="Abrir opções"
+			{disabled}
 			onmousedown={(event) => event.preventDefault()}
 			onclick={toggleOpen}
 		>
@@ -228,12 +245,15 @@
 				{:else}
 					{#each filtered as option, index (option.value)}
 						<!-- Padrão ARIA listbox: as opções não recebem foco; a navegação por teclado fica no input combobox. -->
+						<!-- mousedown com preventDefault mantém o foco no input: se o foco saísse no mousedown,
+						     o estilo :focus-within cairia e deslocaria a lista antes do mouseup, engolindo o clique. -->
 						<!-- svelte-ignore a11y_click_events_have_key_events -->
 						<li
 							id={optionId(index)}
 							role="option"
 							aria-selected={option.value === value}
 							class:highlighted={index === highlighted}
+							onmousedown={(event) => event.preventDefault()}
 							onclick={() => {
 								selectOption(option);
 								inputEl?.blur();
@@ -246,6 +266,12 @@
 			</ul>
 		{/if}
 	</div>
+
+	{#if error}
+		<p id={`${inputId}-error`} class="error-message">
+			{error}
+		</p>
+	{/if}
 </div>
 
 <style>
@@ -253,8 +279,8 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--spacing-sm);
-		width: 250px;
-		min-width: 250px;
+		width: 100%;
+		min-width: 0;
 	}
 
 	label {
@@ -272,6 +298,11 @@
 		border: var(--border-default);
 		border-radius: var(--radius-sm);
 		background-color: var(--white);
+		transition: var(--transition-default);
+	}
+
+	.control:focus-within {
+		border-color: var(--primary-color);
 	}
 
 	.control :global(.material-symbols-outlined) {
@@ -334,6 +365,28 @@
 		transform: rotate(180deg);
 	}
 
+	.control.dirty {
+		border-color: var(--status-green);
+	}
+
+	.control.error {
+		border-color: var(--status-red);
+	}
+
+	.control.error:focus-within {
+		border-color: var(--status-red);
+	}
+
+	.control.disabled {
+		opacity: 0.6;
+	}
+
+	.control.disabled input,
+	.control.disabled .trailing-action,
+	.control.disabled .caret {
+		cursor: not-allowed;
+	}
+
 	.options {
 		position: absolute;
 		top: calc(100% + 4px);
@@ -373,17 +426,15 @@
 		cursor: default;
 	}
 
-	@media (max-width: 900px) {
-		.filter-select {
-			flex: 1 1 250px;
-		}
+	.error-message {
+		margin: 0;
+		margin-top: 2px;
+		color: var(--status-red);
+		font: var(--label);
 	}
 
-	@media (max-width: 560px) {
-		.filter-select {
-			width: 100%;
-			min-width: 0;
-			flex-basis: auto;
-		}
+	.filter-select:focus-within {
+		position: relative;
+		z-index: 30;
 	}
 </style>

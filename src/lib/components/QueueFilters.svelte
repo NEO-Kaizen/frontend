@@ -41,35 +41,41 @@
 
 <div class="queue-filters">
 	<div class="filters">
-		<FilterSelect
-			icon="filterList"
-			label="Status"
-			ariaLabel="Filtrar por status"
-			value={status}
-			options={statusOptions}
-			clearValue="all"
-			onchange={(next) => onFilterChange({ status: next, priority, assignee })}
-		/>
+		<div class="filter-item">
+			<FilterSelect
+				icon="filterList"
+				label="Status"
+				ariaLabel="Filtrar por status"
+				value={status}
+				options={statusOptions}
+				clearValue="all"
+				onchange={(next) => onFilterChange({ status: next, priority, assignee })}
+			/>
+		</div>
 
-		<FilterSelect
-			icon="filterList"
-			label="Prioridade"
-			ariaLabel="Filtrar por prioridade"
-			value={priority}
-			options={priorityOptions}
-			clearValue="all"
-			onchange={(next) => onFilterChange({ status, priority: next, assignee })}
-		/>
+		<div class="filter-item">
+			<FilterSelect
+				icon="filterList"
+				label="Prioridade"
+				ariaLabel="Filtrar por prioridade"
+				value={priority}
+				options={priorityOptions}
+				clearValue="all"
+				onchange={(next) => onFilterChange({ status, priority: next, assignee })}
+			/>
+		</div>
 
-		<FilterSelect
-			icon="filterList"
-			label="Responsável"
-			ariaLabel="Filtrar por responsável"
-			value={assignee}
-			options={assigneeOptions}
-			clearValue="all"
-			onchange={(next) => onFilterChange({ status, priority, assignee: next })}
-		/>
+		<div class="filter-item">
+			<FilterSelect
+				icon="filterList"
+				label="Responsável"
+				ariaLabel="Filtrar por responsável"
+				value={assignee}
+				options={assigneeOptions}
+				clearValue="all"
+				onchange={(next) => onFilterChange({ status, priority, assignee: next })}
+			/>
+		</div>
 	</div>
 
 	<div class="clear-action">
@@ -106,6 +112,12 @@
 		display: flex;
 		align-items: center;
 		gap: var(--spacing-sm);
+	}
+
+	.filter-item {
+		width: 250px;
+		min-width: 250px;
+		flex-shrink: 0;
 	}
 
 	.clear-action {
@@ -153,11 +165,22 @@
 		.filters {
 			flex-wrap: wrap;
 		}
+
+		.filter-item {
+			flex: 1 1 250px;
+			width: auto;
+		}
 	}
 
 	@media (max-width: 560px) {
 		.filters {
 			flex-direction: column;
+		}
+
+		.filter-item {
+			width: 100%;
+			min-width: 0;
+			flex-basis: auto;
 		}
 	}
 </style>

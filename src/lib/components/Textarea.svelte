@@ -6,6 +6,7 @@
 		required?: boolean;
 		disabled?: boolean;
 		error?: string;
+		dirty?: boolean;
 		name?: string;
 		id?: string;
 		rows?: number;
@@ -20,6 +21,7 @@
 		required = false,
 		disabled = false,
 		error = '',
+		dirty = false,
 		name,
 		id,
 		rows = 4,
@@ -49,7 +51,8 @@
 			{oninput}
 			aria-invalid={error ? true : undefined}
 			aria-describedby={error ? `${textareaId}-error` : undefined}
-			class:error={Boolean(error)}></textarea>
+			class:error={Boolean(error)}
+			class:dirty></textarea>
 
 		{#if maxlength}
 			<span class="char-counter" aria-hidden="true">
@@ -80,6 +83,7 @@
 	}
 
 	textarea {
+		display: block;
 		width: 100%;
 		box-sizing: border-box;
 		padding: var(--spacing-sm);
@@ -111,6 +115,10 @@
 		border-color: var(--status-red);
 	}
 
+	textarea.dirty {
+		border-color: var(--status-green);
+	}
+
 	textarea:disabled {
 		cursor: not-allowed;
 		opacity: 0.6;
@@ -133,6 +141,10 @@
 	}
 
 	.error-message {
+		position: absolute;
+		top: 100%;
+		left: 0;
+		width: 100%;
 		margin: 0;
 		margin-top: 4px;
 		color: var(--status-red);

@@ -4,7 +4,8 @@ import {
 	getRequestByProtocol as getRequestByProtocolApi,
 	getInternalRequest as getInternalRequestApi,
 	listQueueRequests as listQueueRequestsApi,
-	listRequests as listRequestsApi
+	listRequests as listRequestsApi,
+	updateInternalRequest as updateInternalRequestApi
 } from '$lib/api/request.api';
 
 import type { QueueMetricsResponse, QueueQuery, QueueResponse } from '$lib/types/queue';
@@ -15,7 +16,8 @@ import type {
 	PaginatedResponse,
 	RequestDetail,
 	RequestSummary,
-	InternalRequestDetail
+	InternalRequestDetail,
+	UpdateInternalRequestPayload
 } from '$lib/types/request';
 import { ApiError, type Result } from '$lib/types/result';
 
@@ -172,6 +174,28 @@ export async function getInternalRequest(
 			return { ok: false, error: { status: error.status, message } };
 		}
 		return { ok: false, error: { message: 'Não foi possível conectar ao servidor.' } };
+	}
+}
+
+export async function updateInternalRequest(
+	protocol: string,
+	payload: UpdateInternalRequestPayload,
+	fetchImpl?: typeof fetch
+): Promise<Result<InternalRequestDetail>> {
+	try {
+		const data = await updateInternalRequestApi(protocol, payload, fetchImpl);
+		return { ok: true, data };
+	} catch (error) {
+		if (error instanceof ApiError) {
+			const message =
+				error.status === 404
+					? 'Solicitação não encontrada.'
+					: error.status === 403
+						? 'Você não tem permissão para editar esta solicitação.'
+						: 'Não foi possível salvar as alterações.';
+			return { ok: false, error: { status: error.status, message } };
+		}
+		return { ok: false, error: { message: 'Não foi possível salvar as alterações.' } };
 	}
 }
 

@@ -11,12 +11,13 @@
 	import InfoSection from './solicitation-info/InfoSection.svelte';
 	import PrioritizationCalculator from './PrioritizationCalculator.svelte';
 	import QuickActions from './QuickActions.svelte';
+	import SpecTabs from './SpecTabs.svelte';
 
 	interface Props {
 		solicitation: InternalRequestDetail;
+		onSaveSuccess?: (updated: InternalRequestDetail) => void;
+		onSaveError?: (message: string) => void;
 	}
-
-	let { solicitation }: Props = $props();
 
 	// Estado local do card do header: após salvar na calculadora ele é atualizado
 	// sem recarregar a página (e serve de fonte das notas para a reavaliação).
@@ -33,6 +34,7 @@
 
 	let activeTab = $state('informacoes');
 	let isCalculatorOpen = $state(false);
+	let { solicitation, onSaveSuccess, onSaveError }: Props = $props();
 
 	function getStatusTheme(status: RequestStatus): { bg: string; color: string; border: string } {
 		switch (status) {
@@ -207,48 +209,6 @@
 	</div>
 {/snippet}
 
-{#snippet specTabsSnippet()}
-	<div class="tabs-bar" role="tablist" aria-label="Abas da solicitação">
-		<div class="tabs-left">
-			{#each leftTabs as tab (tab.id)}
-				<button
-					type="button"
-					role="tab"
-					aria-selected={activeTab === tab.id}
-					aria-disabled={tab.disabled ? 'true' : undefined}
-					disabled={tab.disabled && tab.id !== 'informacoes' ? true : undefined}
-					class="tab-item"
-					class:active={activeTab === tab.id}
-					class:disabled={tab.disabled}
-					onclick={() => handleTabClick(tab)}
-				>
-					<Icon iconName={tab.icon} iconSize="sm" />
-					<span>{tab.label}</span>
-					{#if tab.badge}
-						<span class="tab-badge" aria-label={`${tab.badge} notificação`}>{tab.badge}</span>
-					{/if}
-				</button>
-			{/each}
-		</div>
-		<div class="tabs-right">
-			<button
-				type="button"
-				role="tab"
-				aria-selected={activeTab === rightTab.id}
-				aria-disabled={rightTab.disabled ? 'true' : undefined}
-				disabled={rightTab.disabled ? true : undefined}
-				class="tab-item"
-				class:active={activeTab === rightTab.id}
-				class:disabled={rightTab.disabled}
-				onclick={() => handleTabClick(rightTab)}
-			>
-				<Icon iconName={rightTab.icon} iconSize="sm" />
-				<span>{rightTab.label}</span>
-			</button>
-		</div>
-	</div>
-{/snippet}
-
 <div class="solicitation-specs-page">
 	{@render headerSnippet()}
 
@@ -273,6 +233,9 @@
 
 		<QuickActions onaction={handleQuickAction} />
 	</section>
+	<SpecTabs {solicitation} {onSaveSuccess} {onSaveError} />
+
+	<QuickActions />
 </div>
 
 {#if isCalculatorOpen}
@@ -570,29 +533,11 @@
 		.prio-card {
 			width: 100%;
 		}
-
-		.details-card {
-			padding: var(--spacing-md);
-		}
-
-		.tabs-right {
-			margin-left: 0;
-			margin-top: 4px;
-		}
 	}
 
 	@media (max-width: 640px) {
 		.solicitation-title {
 			font-size: 18px;
-		}
-
-		.tabs-bar {
-			gap: 6px;
-		}
-
-		.tab-item {
-			padding: 6px 10px;
-			font-size: 12px;
 		}
 	}
 </style>
