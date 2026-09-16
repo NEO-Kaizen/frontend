@@ -76,7 +76,7 @@
 	h1 {
 		margin: 0 0 var(--spacing-md);
 
-		color: var(--on-dark);
+		color: var(--on-gradient);
 
 		font: var(--h1);
 	}
@@ -85,7 +85,7 @@
 		margin: 0;
 
 		max-width: 510px;
-		color: var(--on-dark);
+		color: var(--on-gradient);
 
 		font: var(--paragrafo);
 	}
@@ -105,7 +105,7 @@
 	}
 
 	.background-logo span {
-		color: var(--on-dark);
+		color: var(--on-gradient);
 
 		font-family: var(--font-montserrat);
 		font-size: 6.2rem;

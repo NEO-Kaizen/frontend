@@ -107,8 +107,8 @@
 	}
 
 	.card.primary {
-		background: linear-gradient(180deg, #002068 0%, #003399 100%);
-		color: var(--on-dark);
+		background: var(--gradient);
+		color: var(--on-gradient);
 	}
 
 	.card.secondary {
@@ -132,7 +132,7 @@
 
 	.primary h3,
 	.primary .description {
-		color: var(--on-dark);
+		color: var(--on-gradient);
 	}
 
 	.secondary h3 {

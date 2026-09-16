@@ -228,7 +228,7 @@ export const DEFAULT_THEME: PortalTheme = {
 		onPrimary: '#0b0f1a',
 		onDark: '#ffffff',
 		onGradient: '#ffffff',
-		gradient: { from: '#0b0f1a', to: '#1b2942', angle: 143 },
+		gradient: { from: '#002068', to: '#003399', angle: 143 },
 		statuses: DARK_STATUS_TONES
 	}
 };

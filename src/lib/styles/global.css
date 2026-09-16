@@ -123,6 +123,11 @@ html[data-theme='dark'] {
 	--text-color-secondary: var(--light-text-secondary, #757682);
 	--rich-black: var(--light-rich-black, #0f1a2a);
 	--tint: var(--light-tint, #d6e7fb);
+	/* Gradiente de destaque (hero/cards): o valor composto vem de
+		`--light-gradient` (theme.ts via +layout.svelte); o fallback preserva o
+		visual anterior quando a paleta não é injetada. */
+	--gradient: var(--light-gradient, linear-gradient(143deg, #002068, #003399));
+	--on-gradient: var(--light-on-gradient, #ffffff);
 
 	--status-error: var(--light-status-error, #ef4444);
 	--status-error-bg: var(--light-status-error-bg, #ef444410);
@@ -161,6 +166,8 @@ html[data-theme='dark'] {
 	--text-color-secondary: var(--dark-text-secondary, #9aa3b2);
 	--rich-black: var(--dark-rich-black, #0f1a2a);
 	--tint: var(--dark-tint, #1b2942);
+	--gradient: var(--dark-gradient, linear-gradient(143deg, #0b0f1a, #1b2942));
+	--on-gradient: var(--dark-on-gradient, #ffffff);
 	/* Sobre o azul vivo do dark (#4c7dff/#5b9bff), texto escuro passa AA;
 		branco reprovaria (3.69/2.77). */
 	--on-primary: #0b0f1a;
