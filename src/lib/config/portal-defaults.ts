@@ -7,10 +7,10 @@ import type {
 	StatusTone,
 	StatusToneTokens
 } from '$lib/types/portal-config';
-import logoUrl from '$lib/assets/MAAT-logo.svg';
-import avatarUrl from '$lib/assets/avatar-default.svg';
-import faviconUrl from '$lib/assets/favicon.svg';
-import loginImageUrl from '$lib/assets/login.png';
+import logoAsset from '$lib/assets/MAAT-logo.svg';
+import avatarAsset from '$lib/assets/avatar-default.svg';
+import faviconAsset from '$lib/assets/favicon.svg';
+import loginImageAsset from '$lib/assets/login.png';
 
 // Categorias padrão do formulário de solicitação (Card 5). Espelham as antigas
 // opções fixas (CATEGORY_OPTIONS) que passaram a ser configuráveis; servem
@@ -225,10 +225,15 @@ export const DEFAULT_PORTAL_CONFIG: PortalConfig = {
 	protocolMask: 'MAAT',
 	theme: structuredClone(DEFAULT_THEME),
 	assets: {
-		logoUrl,
-		avatarUrl,
-		faviconUrl,
-		loginImageUrl
+		logoLightUrl: logoAsset,
+		logoDarkUrl: logoAsset,
+		logoUsePrimaryColor: true,
+		avatarLightUrl: avatarAsset,
+		avatarDarkUrl: avatarAsset,
+		loginImageLightUrl: loginImageAsset,
+		loginImageDarkUrl: loginImageAsset,
+		faviconLightUrl: faviconAsset,
+		faviconDarkUrl: faviconAsset
 	},
 	categories: structuredClone(DEFAULT_CATEGORIES),
 	statuses: structuredClone(DEFAULT_STATUSES),

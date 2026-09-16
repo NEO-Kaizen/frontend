@@ -26,13 +26,13 @@
 		(draft) => savePrioritizationWeights({ prioritizationWeights: draft.prioritizationWeights })
 	);
 
-	// Qualquer peso fora de 1.0..5.0 (passo 0.5) bloqueia o salvamento.
+	// Qualquer peso fora de 1..10 (inteiro) bloqueia o salvamento.
 	const weightsError: string | null = $derived.by(() => {
 		const weights = section.draft.prioritizationWeights;
 		const hasInvalid = PRIORITIZATION_CRITERIA.some(
 			(criterion) => !isValidPrioritizationWeight(weights[criterion])
 		);
-		return hasInvalid ? 'Os pesos devem estar entre 1,0 e 5,0 (passo 0,5).' : null;
+		return hasInvalid ? 'Os pesos devem ser inteiros de 1 a 10.' : null;
 	});
 
 	const invalid = $derived(weightsError !== null);
@@ -46,7 +46,7 @@
 
 	function adjustWeight(criterion: PrioritizationCriterion, direction: number) {
 		const current = section.draft.prioritizationWeights[criterion];
-		const next = Number((current + direction * PRIORITIZATION_WEIGHT_STEP).toFixed(1));
+		const next = current + direction * PRIORITIZATION_WEIGHT_STEP;
 		if (next < PRIORITIZATION_WEIGHT_MIN || next > PRIORITIZATION_WEIGHT_MAX) return;
 		setWeight(criterion, next);
 	}
@@ -83,7 +83,7 @@
 			<thead>
 				<tr>
 					<th scope="col" class="criteria-col">Critério</th>
-					<th scope="col" class="weight-col">Peso (1,0 a 5,0)</th>
+					<th scope="col" class="weight-col">Peso (1 a 10)</th>
 				</tr>
 			</thead>
 			<tbody>
@@ -117,7 +117,7 @@
 										−
 									</button>
 									<span class="stepper-value">
-										{section.draft.prioritizationWeights[criterion].toFixed(1)}
+										{section.draft.prioritizationWeights[criterion]}
 									</span>
 									<button
 										class="stepper-button"

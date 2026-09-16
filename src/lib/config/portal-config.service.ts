@@ -160,6 +160,9 @@ export function saveAssets(
 			sanitizedPatch[key] = value.trim();
 		}
 	}
+	if (typeof patch.logoUsePrimaryColor === 'boolean') {
+		sanitizedPatch.logoUsePrimaryColor = patch.logoUsePrimaryColor;
+	}
 
 	return persist('os assets', async () => {
 		const data = await updateAssets(sanitizedPatch, files);
@@ -315,11 +318,28 @@ function sanitizeAssets(raw: unknown): PortalAssets {
 	const source = isRecord(raw) ? raw : {};
 	const fallback = DEFAULT_PORTAL_CONFIG.assets;
 
+	const logoLightUrl = sanitizeAssetUrl(source.logoLightUrl, fallback.logoLightUrl);
+	const avatarLightUrl = sanitizeAssetUrl(source.avatarLightUrl, fallback.avatarLightUrl);
+	const loginImageLightUrl = sanitizeAssetUrl(
+		source.loginImageLightUrl,
+		fallback.loginImageLightUrl
+	);
+	const faviconLightUrl = sanitizeAssetUrl(source.faviconLightUrl, fallback.faviconLightUrl);
+
+	// A variante escura cai para a clara quando ausente/inválida.
 	return {
-		logoUrl: sanitizeAssetUrl(source.logoUrl, fallback.logoUrl),
-		avatarUrl: sanitizeAssetUrl(source.avatarUrl, fallback.avatarUrl),
-		faviconUrl: sanitizeAssetUrl(source.faviconUrl, fallback.faviconUrl),
-		loginImageUrl: sanitizeAssetUrl(source.loginImageUrl, fallback.loginImageUrl)
+		logoLightUrl,
+		logoDarkUrl: sanitizeAssetUrl(source.logoDarkUrl, logoLightUrl),
+		logoUsePrimaryColor:
+			typeof source.logoUsePrimaryColor === 'boolean'
+				? source.logoUsePrimaryColor
+				: fallback.logoUsePrimaryColor,
+		avatarLightUrl,
+		avatarDarkUrl: sanitizeAssetUrl(source.avatarDarkUrl, avatarLightUrl),
+		loginImageLightUrl,
+		loginImageDarkUrl: sanitizeAssetUrl(source.loginImageDarkUrl, loginImageLightUrl),
+		faviconLightUrl,
+		faviconDarkUrl: sanitizeAssetUrl(source.faviconDarkUrl, faviconLightUrl)
 	};
 }
 
@@ -416,8 +436,8 @@ function sanitizeStatusTone(value: unknown): StatusTone {
 }
 
 // Pesos de priorização vindos da API ou do payload — apenas as chaves da
-// allowlist (PRIORITIZATION_CRITERIA) são lidas; cada peso precisa estar em
-// 1.0..5.0 (passo 0.5). Chave ausente ou valor inválido cai em 1.0 (neutro).
+// allowlist (PRIORITIZATION_CRITERIA) são lidas; cada peso precisa ser um inteiro
+// de 1 a 10. Chave ausente ou valor inválido cai no default (1).
 function sanitizePrioritizationWeights(value: unknown): PrioritizationWeights {
 	const source = isRecord(value) ? value : {};
 	const weights = {} as PrioritizationWeights;

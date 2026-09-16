@@ -4,6 +4,7 @@
 	import { page } from '$app/state';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import AssetImage from '$lib/components/AssetImage.svelte';
 	import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
 	import { saveAssets } from '$lib/config/portal-config.service';
 	import { SectionState } from '$lib/states/section.svelte';
@@ -17,39 +18,65 @@
 	import SectionActions from './SectionActions.svelte';
 	import SettingsCard from './SettingsCard.svelte';
 
-	// Configuração de apresentação de cada asset — dirige a renderização sem
-	// duplicar o bloco para cada chave. `previewClass` casa com o CSS abaixo.
-	interface AssetUi {
+	// Cada asset tem duas variantes (tema claro/escuro); o logo também expõe o
+	// toggle de cor primária. `previewClass` casa com o CSS abaixo.
+	interface AssetVariantUi {
 		key: AssetKey;
+		theme: 'light' | 'dark';
+		label: string;
+	}
+
+	interface AssetUi {
+		id: string;
 		label: string;
 		alt: string;
 		previewClass: string;
+		variants: AssetVariantUi[];
+		// Só o logo tem o flag de renderização monocromática na cor primária.
+		primaryFlag?: boolean;
 	}
 
 	const ASSET_UI: AssetUi[] = [
 		{
-			key: 'logoUrl',
+			id: 'logo',
 			label: 'Logo do header',
 			alt: 'Prévia do logo do header',
-			previewClass: 'asset-preview-logo'
+			previewClass: 'asset-preview-logo',
+			primaryFlag: true,
+			variants: [
+				{ key: 'logoLightUrl', theme: 'light', label: 'Claro' },
+				{ key: 'logoDarkUrl', theme: 'dark', label: 'Escuro' }
+			]
 		},
 		{
-			key: 'avatarUrl',
+			id: 'avatar',
 			label: 'Avatar padrão',
 			alt: 'Prévia do avatar padrão',
-			previewClass: 'asset-preview-avatar'
+			previewClass: 'asset-preview-avatar',
+			variants: [
+				{ key: 'avatarLightUrl', theme: 'light', label: 'Claro' },
+				{ key: 'avatarDarkUrl', theme: 'dark', label: 'Escuro' }
+			]
 		},
 		{
-			key: 'faviconUrl',
+			id: 'favicon',
 			label: 'Favicon',
 			alt: 'Prévia do favicon',
-			previewClass: 'asset-preview-favicon'
+			previewClass: 'asset-preview-favicon',
+			variants: [
+				{ key: 'faviconLightUrl', theme: 'light', label: 'Claro' },
+				{ key: 'faviconDarkUrl', theme: 'dark', label: 'Escuro' }
+			]
 		},
 		{
-			key: 'loginImageUrl',
+			id: 'loginImage',
 			label: 'Imagem de login',
 			alt: 'Prévia da imagem de login',
-			previewClass: 'asset-preview-login'
+			previewClass: 'asset-preview-login',
+			variants: [
+				{ key: 'loginImageLightUrl', theme: 'light', label: 'Claro' },
+				{ key: 'loginImageDarkUrl', theme: 'dark', label: 'Escuro' }
+			]
 		}
 	];
 
@@ -73,12 +100,28 @@
 				}
 			}
 
+			if (draft.assets.logoUsePrimaryColor !== pristine.assets.logoUsePrimaryColor) {
+				patch.logoUsePrimaryColor = draft.assets.logoUsePrimaryColor;
+			}
+
 			return saveAssets(patch, files);
 		}
 	);
 
 	// Refs dos inputs de arquivo — acionados pelo botão do card.
 	const fileInputs = $state<Partial<Record<AssetKey, HTMLInputElement>>>({});
+
+	const SVG_PATTERN = /\.svg(\?.*)?$/i;
+
+	// Detecta SVG considerando o arquivo pendente (blob URL não tem extensão).
+	function isSvgKey(key: AssetKey): boolean {
+		const file = pendingFiles[key];
+		if (file) return file.type === 'image/svg+xml';
+		return SVG_PATTERN.test(section.draft.assets[key]);
+	}
+
+	// O flag de cor primária só faz sentido quando a variante clara do logo é SVG.
+	const logoSvg = $derived(isSvgKey('logoLightUrl'));
 
 	// Info de formatos/tamanho derivada das regras do contrato.
 	function assetInfo(key: AssetKey): string {
@@ -103,6 +146,11 @@
 		pendingFiles = { ...pendingFiles, [asset]: file };
 		previewUrls = { ...previewUrls, [asset]: url };
 		section.draft = { assets: { ...section.draft.assets, [asset]: url } };
+		section.clearFeedback();
+	}
+
+	function setLogoUsePrimaryColor(value: boolean) {
+		section.draft = { assets: { ...section.draft.assets, logoUsePrimaryColor: value } };
 		section.clearFeedback();
 	}
 
@@ -137,7 +185,7 @@
 <SettingsCard
 	iconName="cloudUpload"
 	title="4. Assets"
-	description="Faça o upload dos assets do portal e defina o texto alternativo quando necessário."
+	description="Faça o upload das variantes claro/escuro de cada imagem do portal."
 >
 	{#snippet actions()}
 		<SectionActions
@@ -151,52 +199,89 @@
 	{/snippet}
 
 	<div class="assets-body">
-		{#each ASSET_UI as asset (asset.key)}
+		{#each ASSET_UI as asset (asset.id)}
 			<div class="asset-section">
 				<div class="asset-section-header">
 					<span class="asset-label">{asset.label}</span>
-					<span class="asset-current">Novo / Atual</span>
+
+					{#if asset.primaryFlag}
+						<label class="asset-flag" class:disabled={section.saving || !logoSvg}>
+							<input
+								type="checkbox"
+								checked={section.draft.assets.logoUsePrimaryColor}
+								disabled={section.saving || !logoSvg}
+								onchange={(event) => setLogoUsePrimaryColor(event.currentTarget.checked)}
+							/>
+							Usar cor primária
+						</label>
+					{/if}
 				</div>
 
-				<div class="asset-content">
-					<img
-						class="asset-preview {asset.previewClass}"
-						src={section.draft.assets[asset.key]}
-						alt={asset.alt}
-					/>
+				{#each asset.variants as variant (variant.key)}
+					<div class="asset-variant">
+						<div class="asset-variant-header">
+							<span class="asset-variant-label">{variant.label}</span>
+							<span class="asset-current">Novo / Atual</span>
+						</div>
 
-					<div class="asset-actions">
-						<Button
-							variant="outline-neutral"
-							disabled={section.saving}
-							onclick={() => fileInputs[asset.key]?.click()}
-						>
-							<Icon iconName="edit" iconSize="sm" />
-							Alterar imagem
-						</Button>
-						<p class="asset-info">{assetInfo(asset.key)}</p>
+						<div class="asset-content">
+							<span class="asset-preview {asset.previewClass}">
+								<AssetImage
+									lightSrc={section.draft.assets[variant.key]}
+									alt={asset.alt}
+									tint={asset.primaryFlag === true && section.draft.assets.logoUsePrimaryColor}
+									svg={variant.key.startsWith('logo') ? isSvgKey(variant.key) : undefined}
+									width="100%"
+									height="100%"
+								/>
+							</span>
+
+							<div class="asset-actions">
+								<Button
+									variant="outline-neutral"
+									disabled={section.saving}
+									onclick={() => fileInputs[variant.key]?.click()}
+								>
+									<Icon iconName="edit" iconSize="sm" />
+									Alterar imagem
+								</Button>
+								<p class="asset-info">{assetInfo(variant.key)}</p>
+							</div>
+
+							<span class="asset-preview {asset.previewClass}-current">
+								<AssetImage
+									lightSrc={section.pristine.assets[variant.key]}
+									alt={`${variant.label} atual do ${asset.label}`}
+									tint={asset.primaryFlag === true && section.pristine.assets.logoUsePrimaryColor}
+									width="100%"
+									height="100%"
+								/>
+							</span>
+						</div>
 					</div>
+				{/each}
 
-					<img
-						class="asset-preview {asset.previewClass}-current"
-						src={section.pristine.assets[asset.key]}
-						alt="{asset.label} atual"
-					/>
-				</div>
+				{#if asset.primaryFlag && !logoSvg}
+					<p class="asset-hint">
+						A cor primária só se aplica a arquivos SVG. Envie o logo em .svg para habilitar.
+					</p>
+				{/if}
 			</div>
 		{/each}
 	</div>
 
-	{#each ASSET_UI as asset (asset.key)}
-		<input
-			class="sr-only"
-			bind:this={fileInputs[asset.key]}
-			type="file"
-			accept={ASSET_FILE_RULES[asset.key].extensions.join(',')}
-			tabindex="-1"
-			aria-label={`Alterar ${asset.label}`}
-			onchange={(event) => handleAssetChange(event, asset.key)}
-		/>
+	{#each ASSET_UI as asset (asset.id)}
+		{#each asset.variants as variant (variant.key)}
+			<input
+				class="sr-only"
+				bind:this={fileInputs[variant.key]}
+				type="file"
+				accept={ASSET_FILE_RULES[variant.key].extensions.join(',')}
+				tabindex="-1"
+				aria-label={`Alterar ${variant.label} de ${asset.label}`}
+				onchange={(event) => handleAssetChange(event, variant.key)}
+			/>
+		{/each}
 	{/each}
 </SettingsCard>
 
@@ -221,11 +306,51 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
+		gap: var(--spacing-md);
 	}
 
 	.asset-label {
 		font: var(--label);
 		color: var(--rich-black);
+	}
+
+	.asset-flag {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--spacing-sm);
+		font: var(--label);
+		font-size: 13px;
+		color: var(--text-color-secondary);
+		cursor: pointer;
+	}
+
+	.asset-flag.disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.asset-flag input {
+		accent-color: var(--primary-color);
+	}
+
+	.asset-variant {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-sm);
+	}
+
+	.asset-variant-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.asset-variant-label {
+		font: var(--label);
+		font-size: 12px;
+		color: var(--text-color-secondary);
+		text-transform: uppercase;
+		letter-spacing: 0.4px;
 	}
 
 	.asset-current {
@@ -241,7 +366,11 @@
 	}
 
 	.asset-preview {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
 		flex-shrink: 0;
+		overflow: hidden;
 		border: var(--border-default);
 		border-radius: var(--radius-sm);
 		background-color: var(--white);
@@ -250,53 +379,45 @@
 	.asset-preview-logo {
 		width: 80px;
 		height: 56px;
-		object-fit: contain;
 	}
 
 	.asset-preview-logo-current {
 		width: 56px;
 		height: 40px;
-		object-fit: contain;
 	}
 
 	.asset-preview-avatar {
 		width: 56px;
 		height: 56px;
 		border-radius: 100%;
-		object-fit: cover;
 	}
 
 	.asset-preview-avatar-current {
 		width: 40px;
 		height: 40px;
 		border-radius: 100%;
-		object-fit: cover;
 	}
 
 	.asset-preview-favicon {
 		width: 40px;
 		height: 40px;
 		padding: 4px;
-		object-fit: contain;
 	}
 
 	.asset-preview-favicon-current {
 		width: 32px;
 		height: 32px;
 		padding: 3px;
-		object-fit: contain;
 	}
 
 	.asset-preview-login {
 		width: 120px;
 		height: 68px;
-		object-fit: cover;
 	}
 
 	.asset-preview-login-current {
 		width: 80px;
 		height: 45px;
-		object-fit: cover;
 	}
 
 	.asset-actions {
@@ -313,6 +434,13 @@
 		font: var(--paragrafo);
 		font-size: 12px;
 		color: var(--gray);
+	}
+
+	.asset-hint {
+		margin: 0;
+		font: var(--paragrafo);
+		font-size: 12px;
+		color: var(--status-warning);
 	}
 
 	:global(.asset-actions button) {

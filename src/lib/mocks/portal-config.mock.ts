@@ -115,11 +115,17 @@ export function updateAssetsMock(
 	patch: PortalAssetsPatch,
 	files: Partial<Record<AssetKey, File>>
 ): Promise<AssetsSection> {
-	for (const key of Object.keys(patch) as AssetKey[]) {
-		if (!ASSET_KEYS.includes(key)) {
+	for (const key of Object.keys(patch)) {
+		if (key === 'logoUsePrimaryColor') {
+			if (typeof patch.logoUsePrimaryColor !== 'boolean') {
+				throw new ApiError(400, 'Valor inválido para "assets.logoUsePrimaryColor".');
+			}
+			continue;
+		}
+		if (!ASSET_KEYS.includes(key as AssetKey)) {
 			throw new ApiError(400, `Campo não permitido em "assets": "${key}".`);
 		}
-		const url = patch[key];
+		const url = patch[key as AssetKey];
 		if (typeof url !== 'string' || !isValidAssetUrl(url)) {
 			throw new ApiError(400, `Valor inválido para "assets.${key}": URL relativa ou http(s).`);
 		}
@@ -141,8 +147,12 @@ export function updateAssetsMock(
 
 	const nextAssets = { ...mockConfig.assets };
 
-	for (const key of Object.keys(patch) as AssetKey[]) {
-		nextAssets[key] = patch[key] as string;
+	for (const key of Object.keys(patch)) {
+		if (key === 'logoUsePrimaryColor') {
+			nextAssets.logoUsePrimaryColor = patch.logoUsePrimaryColor === true;
+			continue;
+		}
+		nextAssets[key as AssetKey] = patch[key as AssetKey] as string;
 	}
 	for (const [key, file] of Object.entries(files) as [AssetKey, File | undefined][]) {
 		if (file) nextAssets[key] = URL.createObjectURL(file);
@@ -328,7 +338,7 @@ function validateStatuses(statuses: PortalStatus[]): void {
 }
 
 // O objeto de pesos é completo e atômico: todas as chaves da allowlist devem
-// estar presentes, cada peso dentro de 1.0..5.0 (passo 0.5).
+// estar presentes, cada peso é um inteiro de 1 a 10.
 function validatePrioritizationWeights(weights: PrioritizationWeights): void {
 	if (typeof weights !== 'object' || weights === null) {
 		throw new ApiError(400, 'Os pesos da priorização devem ser um objeto.');
@@ -345,7 +355,7 @@ function validatePrioritizationWeights(weights: PrioritizationWeights): void {
 		seen.add(key);
 
 		if (!isValidPrioritizationWeight(weights[key as keyof typeof weights])) {
-			throw new ApiError(400, 'Peso de priorização deve estar entre 1.0 e 5.0 (passo 0.5).');
+			throw new ApiError(400, 'Peso de priorização deve ser um inteiro de 1 a 10.');
 		}
 	}
 

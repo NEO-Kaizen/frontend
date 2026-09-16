@@ -6,30 +6,45 @@
 // o solicitante autenticado vê identidade pré-preenchida/bloqueada.
 export type SolicitationMode = 'PUBLIC' | 'AUTHENTICATED';
 
-// Assets do portal. Valores vindos da API passam por validação de URL segura
-// (relativo do próprio app ou http/https); qualquer valor inválido cai no
-// default local por campo (fallback).
+// Assets do portal — sempre URLs de imagem (relativa do próprio app ou http(s)).
+// Cada imagem tem variante para os temas claro/escuro; `*DarkUrl` vazio cai para
+// a variante clara (fallback). Valores vindos da API passam por validação de URL
+// segura e qualquer valor inválido cai no default local por campo.
 export interface PortalAssets {
-	logoUrl: string;
-	avatarUrl: string;
-	faviconUrl: string;
-	loginImageUrl: string;
+	logoLightUrl: string;
+	logoDarkUrl: string;
+	// Quando true, o logo (SVG) é renderizado monocromático em `var(--primary-color)`
+	// e a variante escura é ignorada. Sem efeito para assets que não sejam SVG.
+	logoUsePrimaryColor: boolean;
+	avatarLightUrl: string;
+	avatarDarkUrl: string;
+	loginImageLightUrl: string;
+	loginImageDarkUrl: string;
+	faviconLightUrl: string;
+	faviconDarkUrl: string;
 }
 
-// Chaves dos assets — allowlist usada pelo service (sanitize do PATCH), pelo
-// mock (upload/validação) e pelo estado da tela de configurações (dirty/save).
-export type AssetKey = keyof PortalAssets;
+// Chaves de URL dos assets — allowlist usada pelo service (sanitize do PATCH),
+// pelo mock (upload/validação) e pelo estado da tela de configurações
+// (dirty/save). O flag `logoUsePrimaryColor` (booleano) fica fora desta lista.
+export const ASSET_KEYS = [
+	'logoLightUrl',
+	'logoDarkUrl',
+	'avatarLightUrl',
+	'avatarDarkUrl',
+	'loginImageLightUrl',
+	'loginImageDarkUrl',
+	'faviconLightUrl',
+	'faviconDarkUrl'
+] as const;
 
-export const ASSET_KEYS: readonly AssetKey[] = [
-	'logoUrl',
-	'avatarUrl',
-	'faviconUrl',
-	'loginImageUrl'
-];
+export type AssetKey = (typeof ASSET_KEYS)[number];
 
 // Atualização parcial de assets via PATCH /portal-config — apenas as chaves
 // alteradas são enviadas (mesmo princípio de minimum payload dos demais campos).
-export type PortalAssetsPatch = Partial<Pick<PortalAssets, AssetKey>>;
+export type PortalAssetsPatch = Partial<Record<AssetKey, string>> & {
+	logoUsePrimaryColor?: boolean;
+};
 
 // Categoria da demanda (Card 5) — alimenta o select do formulário de
 // solicitação. `id` é a chave estável (número inteiro positivo, gerado pelo

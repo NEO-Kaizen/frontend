@@ -31,27 +31,40 @@ export interface AssetFileRule {
 	maxBytes: number;
 }
 
+const LOGO_FILE_RULE: AssetFileRule = {
+	kinds: ['image/png', 'image/svg+xml'],
+	extensions: ['.png', '.svg'],
+	maxBytes: 2 * 1024 * 1024
+};
+
+const AVATAR_FILE_RULE: AssetFileRule = {
+	kinds: ['image/jpeg', 'image/png'],
+	extensions: ['.jpg', '.jpeg', '.png'],
+	maxBytes: 2 * 1024 * 1024
+};
+
+const FAVICON_FILE_RULE: AssetFileRule = {
+	kinds: ['image/x-icon', 'image/svg+xml', 'image/png'],
+	extensions: ['.ico', '.svg', '.png'],
+	maxBytes: 1 * 1024 * 1024
+};
+
+const LOGIN_IMAGE_FILE_RULE: AssetFileRule = {
+	kinds: ['image/jpeg', 'image/png', 'image/webp'],
+	extensions: ['.jpg', '.jpeg', '.png', '.webp'],
+	maxBytes: 5 * 1024 * 1024
+};
+
+// A variante claro/escuro de cada imagem usa a mesma regra do asset base.
 export const ASSET_FILE_RULES = {
-	logoUrl: {
-		kinds: ['image/png', 'image/svg+xml'],
-		extensions: ['.png', '.svg'],
-		maxBytes: 2 * 1024 * 1024
-	},
-	avatarUrl: {
-		kinds: ['image/jpeg', 'image/png'],
-		extensions: ['.jpg', '.jpeg', '.png'],
-		maxBytes: 2 * 1024 * 1024
-	},
-	faviconUrl: {
-		kinds: ['image/x-icon', 'image/svg+xml', 'image/png'],
-		extensions: ['.ico', '.svg', '.png'],
-		maxBytes: 1 * 1024 * 1024
-	},
-	loginImageUrl: {
-		kinds: ['image/jpeg', 'image/png', 'image/webp'],
-		extensions: ['.jpg', '.jpeg', '.png', '.webp'],
-		maxBytes: 5 * 1024 * 1024
-	}
+	logoLightUrl: LOGO_FILE_RULE,
+	logoDarkUrl: LOGO_FILE_RULE,
+	avatarLightUrl: AVATAR_FILE_RULE,
+	avatarDarkUrl: AVATAR_FILE_RULE,
+	loginImageLightUrl: LOGIN_IMAGE_FILE_RULE,
+	loginImageDarkUrl: LOGIN_IMAGE_FILE_RULE,
+	faviconLightUrl: FAVICON_FILE_RULE,
+	faviconDarkUrl: FAVICON_FILE_RULE
 } satisfies Record<AssetKey, AssetFileRule>;
 
 export function isValidAssetFile(asset: AssetKey, file: File): boolean {
@@ -135,19 +148,15 @@ export function areStatusNamesUnique(statuses: readonly PortalStatus[]): boolean
 
 export const PRIORITIZATION_WEIGHT_MIN = 1;
 
-export const PRIORITIZATION_WEIGHT_MAX = 5;
+export const PRIORITIZATION_WEIGHT_MAX = 10;
 
-export const PRIORITIZATION_WEIGHT_STEP = 0.5;
+export const PRIORITIZATION_WEIGHT_STEP = 1;
 
-// Valores aceitos para um peso (1.0 a 5.0, passo 0.5).
+// Valores aceitos para um peso — inteiros de 1 a 10.
 export const ALLOWED_PRIORITIZATION_WEIGHTS: readonly number[] = (() => {
 	const values: number[] = [];
-	for (
-		let value = PRIORITIZATION_WEIGHT_MIN;
-		value <= PRIORITIZATION_WEIGHT_MAX + 1e-9;
-		value += PRIORITIZATION_WEIGHT_STEP
-	) {
-		values.push(Number(value.toFixed(1)));
+	for (let value = PRIORITIZATION_WEIGHT_MIN; value <= PRIORITIZATION_WEIGHT_MAX; value += 1) {
+		values.push(value);
 	}
 	return values;
 })();
@@ -155,10 +164,9 @@ export const ALLOWED_PRIORITIZATION_WEIGHTS: readonly number[] = (() => {
 export function isValidPrioritizationWeight(value: unknown): value is number {
 	return (
 		typeof value === 'number' &&
-		Number.isFinite(value) &&
+		Number.isInteger(value) &&
 		value >= PRIORITIZATION_WEIGHT_MIN &&
-		value <= PRIORITIZATION_WEIGHT_MAX &&
-		Number.isInteger((value - PRIORITIZATION_WEIGHT_MIN) / PRIORITIZATION_WEIGHT_STEP)
+		value <= PRIORITIZATION_WEIGHT_MAX
 	);
 }
 

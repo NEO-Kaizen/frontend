@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
+	import AssetImage from './AssetImage.svelte';
 	import type { IconName } from '$lib/types/icons';
 	import { page } from '$app/state';
 	import Button from '$lib/components/Button.svelte';
@@ -174,7 +175,14 @@
 <header>
 	<div class="top_bar">
 		<a class="top_bar-logo" href={resolve('/')}>
-			<img width="123" height="37" alt={appConfig.platformName} src={appConfig.assets.logoUrl} />
+			<AssetImage
+				lightSrc={appConfig.assets.logoLightUrl}
+				darkSrc={appConfig.assets.logoDarkUrl}
+				alt={appConfig.platformName}
+				tint={appConfig.assets.logoUsePrimaryColor}
+				width={123}
+				height={37}
+			/>
 		</a>
 
 		<div class="top_bar-interactables">
@@ -219,7 +227,15 @@
 						<p class="profile_block-name">{currentUser?.name}</p>
 						<p class="profile_block-role">{currentUser?.role}</p>
 					</div>
-					<img src={appConfig.assets.avatarUrl} alt="Imagem do usuário" width="47" height="47" />
+					<span class="profile_block-avatar">
+						<AssetImage
+							lightSrc={appConfig.assets.avatarLightUrl}
+							darkSrc={appConfig.assets.avatarDarkUrl}
+							alt="Imagem do usuário"
+							width="100%"
+							height="100%"
+						/>
+					</span>
 				</div>
 			{:else}
 				<Button
@@ -340,9 +356,19 @@
 		gap: var(--spacing-sm);
 		padding: 0 var(--spacing-md);
 	}
-	.profile_block > img {
+	.profile_block-avatar {
+		display: inline-flex;
+		width: 47px;
 		height: 47px;
 		border-radius: 100%;
+		overflow: hidden;
+		flex-shrink: 0;
+	}
+	.profile_block-avatar :global(img),
+	.profile_block-avatar :global(.asset-tint) {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
 	}
 	.profile_block-identification {
 		display: flex;
