@@ -2,7 +2,12 @@
 	import { onMount } from 'svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import { getSettingsState } from '$lib/states/settings.svelte';
-	import { endPreviewTheme, getThemeMode, previewThemeMode } from '$lib/states/theme.svelte';
+	import {
+		endPreviewTheme,
+		getThemeMode,
+		previewPortalTheme,
+		previewThemeMode
+	} from '$lib/states/theme.svelte';
 	import {
 		STATUS_TONES,
 		THEME_TOKEN_KEYS,
@@ -37,6 +42,14 @@
 	$effect(() => {
 		previewThemeMode(editingPalette);
 		return () => endPreviewTheme();
+	});
+
+	// Aplica as cores do draft na página em tempo real. O corpo lê
+	// `draft.theme` (rastreado → repinta a cada edição); o cleanup restaura a
+	// paleta salva, cobrindo Cancelar/Reset e a saída da rota.
+	$effect(() => {
+		previewPortalTheme(settingsState.draft.theme);
+		return () => previewPortalTheme(settingsState.pristine.theme);
 	});
 
 	const palette = $derived(settingsState.draft.theme[editingPalette]);

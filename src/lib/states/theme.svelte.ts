@@ -1,4 +1,6 @@
 import { browser } from '$app/environment';
+import { themeStyleVars } from '$lib/utils/theme';
+import type { PortalTheme } from '$lib/types/portal-config';
 
 // Preferência de tema do usuário (claro/escuro). É uma decisão local do
 // cliente — não faz parte do PortalConfig — por isso vive fora do
@@ -75,4 +77,15 @@ export function previewThemeMode(preview: ThemeMode): void {
 
 export function endPreviewTheme(): void {
 	applyThemeAttribute(mode);
+}
+
+// Pré-visualização das cores do tema (tela de configurações): escreve as duas
+// paletas como custom properties no wrapper `.app-root`, sobrepondo a paleta
+// salva que o +layout.svelte injeta via `style`. Como só o seletor `.app-root`
+// resolve `--light-*`/`--dark-*` para os tokens canônicos, o preview precisa
+// escrever no mesmo elemento — daí a manipulação direta do atributo `style`.
+export function previewPortalTheme(theme: PortalTheme): void {
+	if (!browser) return;
+
+	document.querySelector<HTMLElement>('.app-root')?.setAttribute('style', themeStyleVars(theme));
 }
