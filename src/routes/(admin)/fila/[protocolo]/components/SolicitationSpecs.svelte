@@ -1,6 +1,11 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
+	import { untrack } from 'svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import type { InternalRequestDetail, RequestStatus } from '$lib/types/request';
+	import type { CriterionNotes, PrioritizationResult } from '$lib/types/prioritization';
+	import { loadPrioritizationFinal } from '$lib/services/prioritization-draft.service';
+	import FloatingPrioritizationPanel from './prioritization/FloatingPrioritizationPanel.svelte';
 	import QuickActions from './QuickActions.svelte';
 	import SpecTabs from './SpecTabs.svelte';
 
@@ -92,6 +97,79 @@
 	let badgeTheme = $derived(
 		priorityBadgeTheme(solicitation.prioritization.label, isPriorityCalculated)
 	);
+
+	// ---- Calculadora flutuante (R1-R9) ----
+	let isCalculatorOpen = $state(false);
+	let isCalculatorMinimized = $state(false);
+	let calculatorPos = $state<{ x: number; y: number } | null>(null);
+
+	// Restaura priorização final do sessionStorage ao montar/trocar de protocolo
+	// Corrige header que revertia após invalidateAll (mock servidor isolado) — sem depender de solicitation para evitar loop
+	$effect(() => {
+		const protocol = solicitation.protocol;
+		if (!browser) return;
+		untrack(() => {
+			const persisted = loadPrioritizationFinal(protocol);
+			if (!persisted) return;
+			const hasNotes = Object.keys(persisted.notes).length > 0;
+			if (!hasNotes) return;
+			const current = solicitation;
+			const serverNotes = current.prioritization.notes;
+			const needsUpdate =
+				JSON.stringify(serverNotes) !== JSON.stringify(persisted.notes) ||
+				persisted.result?.score !== current.prioritization.score;
+			if (needsUpdate) {
+				solicitation = {
+					...current,
+					prioritization: {
+						score: persisted.result?.score ?? current.prioritization.score,
+						maxScore: 50 as const,
+						label: persisted.result?.level ?? current.prioritization.label,
+						notes: { ...persisted.notes }
+					}
+				};
+			}
+		});
+	});
+
+	function handleOpenCalculator() {
+		isCalculatorOpen = true;
+		isCalculatorMinimized = false;
+	}
+
+	function handleCloseCalculator() {
+		isCalculatorOpen = false;
+		// R5: não reseta o que foi preenchido — estado interno da calculadora permanece
+	}
+
+	function handleToggleMinimize() {
+		isCalculatorMinimized = !isCalculatorMinimized;
+	}
+
+	function handleCalculatorPositionChange(pos: { x: number; y: number }) {
+		calculatorPos = pos;
+	}
+
+	function handleCalculatorSave(result: PrioritizationResult, notes: CriterionNotes) {
+		solicitation = {
+			...solicitation,
+			prioritization: {
+				score: result.score,
+				maxScore: 50 as const,
+				label: result.level,
+				notes: { ...notes }
+			}
+		};
+		// Propaga para +page.svelte e outras abas sem reload manual (sem invalidateAll para não reverter via mock servidor)
+		onTriageSuccess?.(solicitation);
+		onSaveSuccess?.(solicitation);
+	}
+
+	function handleQuickAction(key: string) {
+		if (key === 'priorityCalculator') {
+			handleOpenCalculator();
+		}
+	}
 </script>
 
 {#snippet headerSnippet()}
@@ -149,9 +227,27 @@
 <div class="solicitation-specs-page">
 	{@render headerSnippet()}
 
-	<SpecTabs {solicitation} {onSaveSuccess} {onSaveError} {onTriageSuccess} />
+	<SpecTabs
+		{solicitation}
+		{onSaveSuccess}
+		{onSaveError}
+		{onTriageSuccess}
+		onOpenCalculator={handleOpenCalculator}
+	/>
 
-	<QuickActions />
+	<QuickActions onAction={handleQuickAction} />
+
+	<FloatingPrioritizationPanel
+		protocol={solicitation.protocol}
+		initialNotes={solicitation.prioritization.notes}
+		isOpen={isCalculatorOpen}
+		isMinimized={isCalculatorMinimized}
+		position={calculatorPos}
+		onClose={handleCloseCalculator}
+		onMinimize={handleToggleMinimize}
+		onPositionChange={handleCalculatorPositionChange}
+		onSave={handleCalculatorSave}
+	/>
 </div>
 
 <style>

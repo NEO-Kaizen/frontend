@@ -66,7 +66,7 @@
 	.modal-overlay {
 		position: fixed;
 		inset: 0;
-		z-index: 50;
+		z-index: 70; /* > QuickActions 40 e FloatingPrioritizationPanel 60 — modal sempre acima */
 		display: flex;
 		align-items: center;
 		justify-content: center;

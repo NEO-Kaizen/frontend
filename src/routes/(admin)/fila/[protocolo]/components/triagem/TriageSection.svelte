@@ -27,9 +27,10 @@
 	interface Props {
 		solicitation: InternalRequestDetail;
 		onTriageSuccess?: (updated: InternalRequestDetail) => void;
+		onOpenCalculator?: () => void;
 	}
 
-	let { solicitation, onTriageSuccess }: Props = $props();
+	let { solicitation, onTriageSuccess, onOpenCalculator }: Props = $props();
 
 	function resolveInitialDraft(): TriageAssessment {
 		// SessionStorage tem prioridade: 1) rascunho não-finalizado, 2) triage finalizado persistido (1ª e N-ésima edição)
@@ -40,14 +41,12 @@
 		return toTriageDraft(solicitation.triage);
 	}
 
-	// svelte-ignore state_referenced_locally
 	let draft = $state<TriageAssessment>(resolveInitialDraft());
 
 	// Sincroniza quando protocolo muda (navegação) — garante que cada protocolo tem seu rascunho isolado
 	$effect(() => {
 		const protocol = solicitation.protocol;
 		const serverTriage = solicitation.triage;
-		// eslint-disable-next-line svelte/infinite-reactive-loop -- leitura intencional para reagir a mudança de protocolo/triage servidor
 		const persistedDraft = loadDraftFromSession(protocol);
 		if (persistedDraft) {
 			draft = toTriageDraft(persistedDraft);
@@ -151,8 +150,7 @@
 	}
 
 	function handleCalculatePriority() {
-		// Fora de escopo nesta issue — apenas placeholder (próximo PR abre calculadora real)
-		console.log('Calcular Prioridade — ação pendente para próximo PR');
+		onOpenCalculator?.();
 	}
 
 	function handleFinalizeClick() {

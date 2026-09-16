@@ -25,9 +25,11 @@
 		onSaveSuccess?: (updated: InternalRequestDetail) => void;
 		onSaveError?: (message: string) => void;
 		onTriageSuccess?: (updated: InternalRequestDetail) => void;
+		onOpenCalculator?: () => void;
 	}
 
-	let { solicitation, onSaveSuccess, onSaveError, onTriageSuccess }: Props = $props();
+	let { solicitation, onSaveSuccess, onSaveError, onTriageSuccess, onOpenCalculator }: Props =
+		$props();
 
 	type SpecTabId = 'informacoes' | 'triagem' | 'mapeamento' | 'historico' | 'observacoes';
 
@@ -119,7 +121,9 @@
 	let draft = $state<EditableDraft | null>(null);
 	let errors = $state<Record<string, string>>({});
 	let isSaving = $state(false);
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	let saveError = $state<string | null>(null);
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	let saveSuccess = $state<string | null>(null);
 	let showDiscardModal = $state(false);
 	let editButton = $state<HTMLButtonElement | null>(null);
@@ -359,6 +363,7 @@
 							onTriageSuccess?.(updated);
 							onSaveSuccess?.(updated);
 						}}
+						{onOpenCalculator}
 					/>
 				{:else}
 					<p class="placeholder">Conteúdo de {activeTabLabel} — implementação futura</p>

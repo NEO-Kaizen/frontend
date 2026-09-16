@@ -8,6 +8,13 @@
 		submitPrioritization
 	} from '$lib/services/prioritization.service';
 	import {
+		clearPrioritizationDraft,
+		loadPrioritizationDraft,
+		loadPrioritizationFinal,
+		savePrioritizationDraft,
+		savePrioritizationFinal
+	} from '$lib/services/prioritization-draft.service';
+	import {
 		MAX_NOTE,
 		type CriterionNote,
 		type CriterionNotes,
@@ -22,13 +29,25 @@
 		initialNotes?: CriterionNotes;
 		// Renderização sem cartão próprio (ex.: dentro de aba ou modal).
 		embedded?: boolean;
+		// Modo flutuante: remove chrome do cartão (borda/sombra/margin) e
+		// esconde o header interno — o shell flutuante fornece seu próprio header
+		// arrastável com minimizar/fechar.
+		floating?: boolean;
 		onsave?: (result: PrioritizationResult, notes: CriterionNotes) => void;
 		// Quando fornecido, exibe o botão X e delega o controle de
 		// visibilidade ao pai (padrão Modal/CreateUserModal: {#if} + onclose).
+		// Em modo flutuante o X não reseta o que foi preenchido.
 		onclose?: () => void;
 	}
 
-	let { protocol, initialNotes = {}, embedded = false, onsave, onclose }: Props = $props();
+	let {
+		protocol,
+		initialNotes = {},
+		embedded = false,
+		floating = false,
+		onsave,
+		onclose
+	}: Props = $props();
 
 	const notesOptions: readonly CriterionNote[] = [1, 2, 3, 4, 5];
 
@@ -58,9 +77,25 @@
 
 		if (loaded.ok) {
 			criteria = loaded.data;
-			// Snapshot do valor inicial da prop: apenas na montagem. A reavaliação
-			// carrega as notas já salvas (vindas do /requests/:protocol/internal).
-			notes = { ...initialNotes };
+			// SessionStorage tem prioridade: 1) draft não-salvo, 2) final persistido, 3) initialNotes do servidor
+			// Inclui result para que score persista ao reabrir (correção: score sumia ao sair)
+			const draft = loadPrioritizationDraft(protocol);
+			if (draft) {
+				notes = { ...draft.notes };
+				justification = draft.justification;
+				result = draft.result ?? null;
+			} else {
+				const final = loadPrioritizationFinal(protocol);
+				if (final) {
+					notes = { ...final.notes };
+					justification = final.justification;
+					result = final.result ?? null;
+				} else {
+					notes = { ...initialNotes };
+					// Se há notas iniciais vindas do servidor (reavaliação), tenta restaurar score via sessionStorage de header?
+					// O score inicial da reavaliação será carregado via final se já calculado anteriormente.
+				}
+			}
 		} else {
 			loadError = loaded.error.message;
 		}
@@ -70,6 +105,33 @@
 
 	onMount(loadCriteria);
 
+	// Persistência contínua do rascunho — sobrevive a fechar/minimizar/reload via sessionStorage
+	// Inclui result para que score persista ao reabrir sem recalcular
+	$effect(() => {
+		// Lê snapshot para reagir a qualquer mudança em notes, justification ou result
+		const snapshotNotes = $state.snapshot(notes) as CriterionNotes;
+		const snapshotJust = justification;
+		const snapshotResult = $state.snapshot(result) as PrioritizationResult | null;
+		if (isLoading) return;
+		// Não persiste durante salvamento para evitar corrida (handleSubmit gerencia final)
+		if (isSaving) return;
+		const hasContent =
+			Object.keys(snapshotNotes).length > 0 ||
+			snapshotJust.trim().length > 0 ||
+			snapshotResult !== null;
+		if (!hasContent) {
+			clearPrioritizationDraft(protocol);
+			return;
+		}
+		savePrioritizationDraft(protocol, {
+			notes: snapshotNotes,
+			justification: snapshotJust,
+			result: snapshotResult
+		});
+	});
+
+	// Mantido para reset explícito futuro se produto exigir; atualmente não usado no close flutuante (R5)
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	function resetCalculatorState(): void {
 		notes = {};
 		result = null;
@@ -83,7 +145,8 @@
 	}
 
 	function handleClose(): void {
-		resetCalculatorState();
+		// Em modo flutuante o X não reseta o que foi preenchido — mantém
+		// notas/justificativa/resultado para reabertura sem perda (R5).
 		onclose?.();
 	}
 
@@ -119,7 +182,14 @@
 				// A justificativa é a nota de auditoria desta avaliação — recomeça
 				// vazia na próxima (o backend só devolve as notas, não o texto).
 				justification = '';
-				onsave?.(submission.data, notes);
+				// Persiste final (com result) e limpa rascunho — sobrevive a reload e reabertura sem recalcular
+				clearPrioritizationDraft(protocol);
+				savePrioritizationFinal(protocol, {
+					notes: { ...(notes as CriterionNotes) },
+					justification: '',
+					result: submission.data
+				});
+				onsave?.(submission.data, notes as CriterionNotes);
 			} else if (submission.error.missingCriterionIds?.length) {
 				missingCriterionIds = submission.error.missingCriterionIds;
 				validationError = submission.error.message;
@@ -132,26 +202,37 @@
 	}
 </script>
 
-<section class="prioritization-calculator" class:embedded aria-labelledby="prioritization-title">
-	<div class="header-fixed">
-		<h2 id="prioritization-title" class="title">
-			<span class="title-text">
-				<Icon iconName="calculate" iconSize="sm" />
-				Cálculo de Priorização
-			</span>
-		</h2>
-		{#if onclose}
-			<button
-				type="button"
-				class="calculator-close"
-				onclick={handleClose}
-				aria-label="Fechar calculadora de priorização"
-				disabled={isSaving}
-			>
-				<Icon iconName="close" iconSize="md" />
-			</button>
-		{/if}
-	</div>
+<section
+	class="prioritization-calculator"
+	class:embedded
+	class:floating
+	aria-labelledby="prioritization-title"
+>
+	{#if !floating}
+		<div class="header-fixed">
+			<h2 id="prioritization-title" class="title">
+				<span class="title-text">
+					<Icon iconName="calculate" iconSize="sm" />
+					Cálculo de Priorização
+				</span>
+			</h2>
+			{#if onclose}
+				<button
+					type="button"
+					class="calculator-close"
+					onclick={handleClose}
+					aria-label="Fechar calculadora de priorização"
+					disabled={isSaving}
+				>
+					<Icon iconName="close" iconSize="md" />
+				</button>
+			{/if}
+		</div>
+	{/if}
+	{#if floating}
+		<!-- Título oculto para aria-labelledby quando o shell fornece header visível -->
+		<h2 id="prioritization-title" class="sr-only">Cálculo de Priorização</h2>
+	{/if}
 
 	{#if isLoading}
 		<div class="state-message" role="status">Carregando critérios...</div>
@@ -260,6 +341,17 @@
 		box-shadow: var(--regular-shadow);
 		padding: var(--spacing-lg);
 		margin-top: var(--spacing-lg);
+	}
+
+	.prioritization-calculator.floating {
+		width: 100%;
+		max-width: none;
+		margin-top: 0;
+		border: none;
+		border-radius: 0;
+		box-shadow: none;
+		padding: 0;
+		background: transparent;
 	}
 
 	.title {
@@ -509,5 +601,17 @@
 		.footer :global(button) {
 			width: 100%;
 		}
+	}
+
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
 	}
 </style>

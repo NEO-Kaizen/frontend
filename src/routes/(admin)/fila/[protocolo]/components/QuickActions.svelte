@@ -3,6 +3,12 @@
 	import { fly } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
 
+	interface Props {
+		onAction?: (key: string) => void;
+	}
+
+	let { onAction }: Props = $props();
+
 	let isOpen = $state(false);
 
 	let containerEl: HTMLDivElement | undefined = $state(undefined);
@@ -64,6 +70,11 @@
 			fabEl?.focus();
 		}
 	}
+
+	function handleActionClick(key: string) {
+		isOpen = false;
+		onAction?.(key);
+	}
 </script>
 
 <svelte:window onclick={handleWindowClick} onkeydown={handleKeydown} />
@@ -89,7 +100,7 @@
 						class="action-row"
 						style:animation-delay={`${prefersReducedMotion ? '0ms' : `${index * 30}ms`}`}
 					>
-						<button type="button" class="action-item">
+						<button type="button" class="action-item" onclick={() => handleActionClick(action.key)}>
 							<span class="action-icon" aria-hidden="true">
 								<Icon iconName={action.icon} iconSize="sm" />
 							</span>
