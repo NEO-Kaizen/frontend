@@ -1,27 +1,137 @@
 <script lang="ts">
+	import { onDestroy } from 'svelte';
+	import { invalidateAll } from '$app/navigation';
+	import { page } from '$app/state';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import { getSettingsState } from '$lib/states/settings.svelte';
-	import type { AssetKey } from '$lib/types/portal-config';
+	import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
+	import { saveAssets } from '$lib/config/portal-config.service';
+	import { SectionState } from '$lib/states/section.svelte';
+	import {
+		ASSET_KEYS,
+		type AssetKey,
+		type AssetsSection,
+		type PortalAssetsPatch
+	} from '$lib/types/portal-config';
 	import { ASSET_FILE_RULES } from '$lib/utils/validations';
+	import SectionActions from './SectionActions.svelte';
 	import SettingsCard from './SettingsCard.svelte';
 
-	const settingsState = getSettingsState();
+	// Configuração de apresentação de cada asset — dirige a renderização sem
+	// duplicar o bloco para cada chave. `previewClass` casa com o CSS abaixo.
+	interface AssetUi {
+		key: AssetKey;
+		label: string;
+		alt: string;
+		previewClass: string;
+	}
 
-	let logoInput: HTMLInputElement;
-	let avatarInput: HTMLInputElement;
+	const ASSET_UI: AssetUi[] = [
+		{
+			key: 'logoUrl',
+			label: 'Logo do header',
+			alt: 'Prévia do logo do header',
+			previewClass: 'asset-preview-logo'
+		},
+		{
+			key: 'avatarUrl',
+			label: 'Avatar padrão',
+			alt: 'Prévia do avatar padrão',
+			previewClass: 'asset-preview-avatar'
+		},
+		{
+			key: 'faviconUrl',
+			label: 'Favicon',
+			alt: 'Prévia do favicon',
+			previewClass: 'asset-preview-favicon'
+		},
+		{
+			key: 'loginImageUrl',
+			label: 'Imagem de login',
+			alt: 'Prévia da imagem de login',
+			previewClass: 'asset-preview-login'
+		}
+	];
 
-	let assetErrors = $state<Partial<Record<AssetKey, string>>>({});
+	// Arquivos escolhidos e não salvos (vão como partes do multipart no Salvar)
+	// e os object URLs locais usados no preview até o commit.
+	let pendingFiles = $state<Partial<Record<AssetKey, File>>>({});
+	let previewUrls = $state<Partial<Record<AssetKey, string>>>({});
 
-	async function handleAssetChange(event: Event, asset: AssetKey) {
+	const section = new SectionState<AssetsSection>(
+		{ assets: page.data.portalConfig.assets },
+		{ assets: DEFAULT_PORTAL_CONFIG.assets },
+		(draft, pristine) => {
+			const patch: PortalAssetsPatch = {};
+			const files: Partial<Record<AssetKey, File>> = {};
+
+			for (const key of ASSET_KEYS) {
+				if (pendingFiles[key]) {
+					files[key] = pendingFiles[key];
+				} else if (draft.assets[key] !== pristine.assets[key]) {
+					patch[key] = draft.assets[key];
+				}
+			}
+
+			return saveAssets(patch, files);
+		}
+	);
+
+	// Refs dos inputs de arquivo — acionados pelo botão do card.
+	const fileInputs = $state<Partial<Record<AssetKey, HTMLInputElement>>>({});
+
+	// Info de formatos/tamanho derivada das regras do contrato.
+	function assetInfo(key: AssetKey): string {
+		const rule = ASSET_FILE_RULES[key];
+		const formats = rule.extensions.map((ext) => ext.replace('.', '').toUpperCase()).join(', ');
+		const maxMb = Math.round(rule.maxBytes / (1024 * 1024));
+		return `Formatos: ${formats} | Tamanho máx.: ${maxMb}MB`;
+	}
+
+	// Preview local até o Salvar: guarda o arquivo e troca a URL do draft pela
+	// object URL imediata. O binário só sobe no PATCH multipart de assets.
+	function handleAssetChange(event: Event, asset: AssetKey) {
 		const input = event.currentTarget as HTMLInputElement;
 		const file = input.files?.[0];
-		if (file) {
-			const result = await settingsState.changeAsset(asset, file);
-			assetErrors = { ...assetErrors, [asset]: result.ok ? '' : result.error.message };
-		}
 		input.value = '';
+		if (!file) return;
+
+		const previous = previewUrls[asset];
+		if (previous) URL.revokeObjectURL(previous);
+
+		const url = URL.createObjectURL(file);
+		pendingFiles = { ...pendingFiles, [asset]: file };
+		previewUrls = { ...previewUrls, [asset]: url };
+		section.draft = { assets: { ...section.draft.assets, [asset]: url } };
+		section.clearFeedback();
 	}
+
+	function clearPendingFiles() {
+		for (const url of Object.values(previewUrls)) {
+			if (url) URL.revokeObjectURL(url);
+		}
+		pendingFiles = {};
+		previewUrls = {};
+	}
+
+	async function handleSave() {
+		if (await section.save()) {
+			clearPendingFiles();
+			await invalidateAll();
+		}
+	}
+
+	function handleCancel() {
+		section.reset();
+		clearPendingFiles();
+	}
+
+	function handleRestoreDefaults() {
+		section.restoreDefaults();
+		clearPendingFiles();
+	}
+
+	onDestroy(clearPendingFiles);
 </script>
 
 <SettingsCard
@@ -29,105 +139,65 @@
 	title="4. Assets"
 	description="Faça o upload dos assets do portal e defina o texto alternativo quando necessário."
 >
+	{#snippet actions()}
+		<SectionActions
+			dirty={section.dirty}
+			saving={section.saving}
+			feedback={section.feedback}
+			onSave={handleSave}
+			onCancel={handleCancel}
+			onRestoreDefaults={handleRestoreDefaults}
+		/>
+	{/snippet}
+
 	<div class="assets-body">
-		<div class="asset-section">
-			<div class="asset-section-header">
-				<span class="asset-label">Logo do header</span>
-				<span class="asset-current">Atual</span>
-			</div>
-
-			<div class="asset-content">
-				<img
-					class="asset-preview asset-preview-logo"
-					src={settingsState.draft.assets.logoUrl}
-					alt="Prévia do logo do header"
-				/>
-
-				<div class="asset-actions">
-					<Button
-						variant="outline-neutral"
-						loading={settingsState.uploadingAsset === 'logoUrl'}
-						disabled={settingsState.saving}
-						onclick={() => logoInput.click()}
-					>
-						<Icon iconName="edit" iconSize="sm" />
-						Alterar imagem
-					</Button>
-					<p class="asset-info">Formatos: PNG, SVG | Tamanho máx.: 2MB</p>
-					{#if assetErrors.logoUrl}
-						<p class="asset-error" role="alert">
-							{assetErrors.logoUrl}
-						</p>
-					{/if}
+		{#each ASSET_UI as asset (asset.key)}
+			<div class="asset-section">
+				<div class="asset-section-header">
+					<span class="asset-label">{asset.label}</span>
+					<span class="asset-current">Novo / Atual</span>
 				</div>
 
-				<img
-					class="asset-preview asset-preview-current"
-					src={settingsState.pristine.assets.logoUrl}
-					alt="Logo do header atual"
-				/>
-			</div>
-		</div>
+				<div class="asset-content">
+					<img
+						class="asset-preview {asset.previewClass}"
+						src={section.draft.assets[asset.key]}
+						alt={asset.alt}
+					/>
 
-		<div class="asset-section">
-			<div class="asset-section-header">
-				<span class="asset-label">Avatar padrão</span>
-				<span class="asset-current">Atual</span>
-			</div>
+					<div class="asset-actions">
+						<Button
+							variant="outline-neutral"
+							disabled={section.saving}
+							onclick={() => fileInputs[asset.key]?.click()}
+						>
+							<Icon iconName="edit" iconSize="sm" />
+							Alterar imagem
+						</Button>
+						<p class="asset-info">{assetInfo(asset.key)}</p>
+					</div>
 
-			<div class="asset-content">
-				<img
-					class="asset-preview asset-preview-avatar"
-					src={settingsState.draft.assets.avatarUrl}
-					alt="Prévia do avatar padrão"
-				/>
-
-				<div class="asset-actions">
-					<Button
-						variant="outline-neutral"
-						loading={settingsState.uploadingAsset === 'avatarUrl'}
-						disabled={settingsState.saving}
-						onclick={() => avatarInput.click()}
-					>
-						<Icon iconName="edit" iconSize="sm" />
-						Alterar imagem
-					</Button>
-					<p class="asset-info">Formatos: JPG, PNG | Tamanho máx.: 2MB</p>
-					{#if assetErrors.avatarUrl}
-						<p class="asset-error" role="alert">
-							{assetErrors.avatarUrl}
-						</p>
-					{/if}
+					<img
+						class="asset-preview {asset.previewClass}-current"
+						src={section.pristine.assets[asset.key]}
+						alt="{asset.label} atual"
+					/>
 				</div>
-
-				<img
-					class="asset-preview asset-preview-avatar-current"
-					src={settingsState.pristine.assets.avatarUrl}
-					alt="Avatar padrão atual"
-				/>
 			</div>
-		</div>
+		{/each}
 	</div>
 
-	<input
-		class="sr-only"
-		bind:this={logoInput}
-		type="file"
-		accept={ASSET_FILE_RULES.logoUrl.extensions.join(',')}
-		tabindex="-1"
-		aria-label="Alterar logo do header"
-		onchange={(event) => handleAssetChange(event, 'logoUrl')}
-	/>
-
-	<input
-		class="sr-only"
-		bind:this={avatarInput}
-		type="file"
-		accept={ASSET_FILE_RULES.avatarUrl.extensions.join(',')}
-		tabindex="-1"
-		aria-label="Alterar avatar padrão"
-		onchange={(event) => handleAssetChange(event, 'avatarUrl')}
-	/>
+	{#each ASSET_UI as asset (asset.key)}
+		<input
+			class="sr-only"
+			bind:this={fileInputs[asset.key]}
+			type="file"
+			accept={ASSET_FILE_RULES[asset.key].extensions.join(',')}
+			tabindex="-1"
+			aria-label={`Alterar ${asset.label}`}
+			onchange={(event) => handleAssetChange(event, asset.key)}
+		/>
+	{/each}
 </SettingsCard>
 
 <style>
@@ -183,26 +253,50 @@
 		object-fit: contain;
 	}
 
-	.asset-preview-avatar,
-	.asset-preview-avatar-current {
-		border-radius: 100%;
-		object-fit: cover;
-	}
-
-	.asset-preview-avatar {
-		width: 56px;
-		height: 56px;
-	}
-
-	.asset-preview-current {
+	.asset-preview-logo-current {
 		width: 56px;
 		height: 40px;
 		object-fit: contain;
 	}
 
+	.asset-preview-avatar {
+		width: 56px;
+		height: 56px;
+		border-radius: 100%;
+		object-fit: cover;
+	}
+
 	.asset-preview-avatar-current {
 		width: 40px;
 		height: 40px;
+		border-radius: 100%;
+		object-fit: cover;
+	}
+
+	.asset-preview-favicon {
+		width: 40px;
+		height: 40px;
+		padding: 4px;
+		object-fit: contain;
+	}
+
+	.asset-preview-favicon-current {
+		width: 32px;
+		height: 32px;
+		padding: 3px;
+		object-fit: contain;
+	}
+
+	.asset-preview-login {
+		width: 120px;
+		height: 68px;
+		object-fit: cover;
+	}
+
+	.asset-preview-login-current {
+		width: 80px;
+		height: 45px;
+		object-fit: cover;
 	}
 
 	.asset-actions {
@@ -219,12 +313,6 @@
 		font: var(--paragrafo);
 		font-size: 12px;
 		color: var(--gray);
-	}
-
-	.asset-error {
-		margin: 0;
-		color: var(--status-red);
-		font: var(--label);
 	}
 
 	:global(.asset-actions button) {

@@ -1,26 +1,59 @@
 <script lang="ts">
-	import { getSettingsState } from '$lib/states/settings.svelte';
-	import { PRIORITIZATION_CRITERIA_LABELS } from '$lib/config/portal-defaults';
+	import { page } from '$app/state';
 	import {
+		DEFAULT_PORTAL_CONFIG,
+		PRIORITIZATION_CRITERIA_LABELS
+	} from '$lib/config/portal-defaults';
+	import { savePrioritizationWeights } from '$lib/config/portal-config.service';
+	import { SectionState } from '$lib/states/section.svelte';
+	import {
+		PRIORITIZATION_CRITERIA,
+		type PrioritizationCriterion,
+		type PrioritizationWeightsSection
+	} from '$lib/types/portal-config';
+	import {
+		isValidPrioritizationWeight,
 		PRIORITIZATION_WEIGHT_MIN,
 		PRIORITIZATION_WEIGHT_MAX,
 		PRIORITIZATION_WEIGHT_STEP
 	} from '$lib/utils/validations';
-	import { PRIORITIZATION_CRITERIA, type PrioritizationCriterion } from '$lib/types/portal-config';
+	import SectionActions from './SectionActions.svelte';
 	import SettingsCard from './SettingsCard.svelte';
 
-	const settingsState = getSettingsState();
+	const section = new SectionState<PrioritizationWeightsSection>(
+		{ prioritizationWeights: page.data.portalConfig.prioritizationWeights },
+		{ prioritizationWeights: DEFAULT_PORTAL_CONFIG.prioritizationWeights },
+		(draft) => savePrioritizationWeights({ prioritizationWeights: draft.prioritizationWeights })
+	);
+
+	// Qualquer peso fora de 1.0..5.0 (passo 0.5) bloqueia o salvamento.
+	const weightsError: string | null = $derived.by(() => {
+		const weights = section.draft.prioritizationWeights;
+		const hasInvalid = PRIORITIZATION_CRITERIA.some(
+			(criterion) => !isValidPrioritizationWeight(weights[criterion])
+		);
+		return hasInvalid ? 'Os pesos devem estar entre 1,0 e 5,0 (passo 0,5).' : null;
+	});
+
+	const invalid = $derived(weightsError !== null);
+
+	function setWeight(criterion: PrioritizationCriterion, value: number) {
+		section.draft = {
+			prioritizationWeights: { ...section.draft.prioritizationWeights, [criterion]: value }
+		};
+		section.clearFeedback();
+	}
 
 	function adjustWeight(criterion: PrioritizationCriterion, direction: number) {
-		const current = settingsState.draft.prioritizationWeights[criterion];
+		const current = section.draft.prioritizationWeights[criterion];
 		const next = Number((current + direction * PRIORITIZATION_WEIGHT_STEP).toFixed(1));
 		if (next < PRIORITIZATION_WEIGHT_MIN || next > PRIORITIZATION_WEIGHT_MAX) return;
-		settingsState.setPrioritizationWeight(criterion, next);
+		setWeight(criterion, next);
 	}
 
 	function handleSliderInput(event: Event, criterion: PrioritizationCriterion) {
 		const target = event.currentTarget as HTMLInputElement;
-		settingsState.setPrioritizationWeight(criterion, Number(target.value));
+		setWeight(criterion, Number(target.value));
 	}
 </script>
 
@@ -29,8 +62,20 @@
 	title="7. Pesos da priorização"
 	description="Defina a influência de cada critério no cálculo da prioridade."
 >
-	{#if settingsState.prioritizationWeightsError}
-		<p class="weights-error" role="alert">{settingsState.prioritizationWeightsError}</p>
+	{#snippet actions()}
+		<SectionActions
+			dirty={section.dirty}
+			saving={section.saving}
+			{invalid}
+			feedback={section.feedback}
+			onSave={() => section.save()}
+			onCancel={() => section.reset()}
+			onRestoreDefaults={() => section.restoreDefaults()}
+		/>
+	{/snippet}
+
+	{#if weightsError}
+		<p class="weights-error" role="alert">{weightsError}</p>
 	{/if}
 
 	<div class="weights-content">
@@ -54,9 +99,9 @@
 										min={PRIORITIZATION_WEIGHT_MIN}
 										max={PRIORITIZATION_WEIGHT_MAX}
 										step={PRIORITIZATION_WEIGHT_STEP}
-										value={settingsState.draft.prioritizationWeights[criterion]}
+										value={section.draft.prioritizationWeights[criterion]}
 										aria-label={`Peso de ${PRIORITIZATION_CRITERIA_LABELS[criterion]}`}
-										disabled={settingsState.saving}
+										disabled={section.saving}
 										oninput={(event) => handleSliderInput(event, criterion)}
 									/>
 								</div>
@@ -65,23 +110,21 @@
 										class="stepper-button"
 										type="button"
 										aria-label={`Diminuir peso de ${PRIORITIZATION_CRITERIA_LABELS[criterion]}`}
-										disabled={settingsState.saving ||
-											settingsState.draft.prioritizationWeights[criterion] <=
-												PRIORITIZATION_WEIGHT_MIN}
+										disabled={section.saving ||
+											section.draft.prioritizationWeights[criterion] <= PRIORITIZATION_WEIGHT_MIN}
 										onclick={() => adjustWeight(criterion, -1)}
 									>
 										−
 									</button>
 									<span class="stepper-value">
-										{settingsState.draft.prioritizationWeights[criterion].toFixed(1)}
+										{section.draft.prioritizationWeights[criterion].toFixed(1)}
 									</span>
 									<button
 										class="stepper-button"
 										type="button"
 										aria-label={`Aumentar peso de ${PRIORITIZATION_CRITERIA_LABELS[criterion]}`}
-										disabled={settingsState.saving ||
-											settingsState.draft.prioritizationWeights[criterion] >=
-												PRIORITIZATION_WEIGHT_MAX}
+										disabled={section.saving ||
+											section.draft.prioritizationWeights[criterion] >= PRIORITIZATION_WEIGHT_MAX}
 										onclick={() => adjustWeight(criterion, 1)}
 									>
 										+

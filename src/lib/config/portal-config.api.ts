@@ -1,15 +1,35 @@
 import { apiClient } from '$lib/api/client';
 import { MOCK_DOMAINS } from '$lib/mocks';
-import type { AssetKey, PortalConfig, UpdatePortalConfigPayload } from '$lib/types/portal-config';
+import type {
+	AccessSection,
+	AssetKey,
+	AssetsSection,
+	CategoriesSection,
+	IdentitySection,
+	PortalAssetsPatch,
+	PortalConfig,
+	PrioritizationWeightsSection,
+	StatusesSection,
+	ThemeSection,
+	UpdateAccessRequest,
+	UpdateCategoriesRequest,
+	UpdateIdentityRequest,
+	UpdatePrioritizationWeightsRequest,
+	UpdateStatusesRequest,
+	UpdateThemeRequest
+} from '$lib/types/portal-config';
 
 const PORTAL_CONFIG_PATH = '/portal-config';
-const ASSETS_PATH = '/assets';
+const ASSETS_SECTION_PATH = `${PORTAL_CONFIG_PATH}/assets`;
 
-// Leitura da configuração pública do portal. O endpoint real é definido pela
-// issue #90; em dev o mock retorna o estado em memória, fechando o loop com o
-// PATCH (dados fictícios, nunca reais).
+function useMock(): boolean {
+	return import.meta.env.DEV && Boolean(MOCK_DOMAINS && MOCK_DOMAINS.portalConfig);
+}
+
+// Leitura da configuração pública do portal (GET). O endpoint real é definido
+// pela issue #90; em dev o mock retorna o estado em memória.
 export async function fetchPortalConfig(fetchImpl?: typeof fetch): Promise<PortalConfig> {
-	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.portalConfig) {
+	if (useMock()) {
 		const { fetchPortalConfigMock } = await import('$lib/mocks/portal-config.mock');
 		return fetchPortalConfigMock();
 	}
@@ -17,39 +37,90 @@ export async function fetchPortalConfig(fetchImpl?: typeof fetch): Promise<Porta
 	return apiClient<PortalConfig>(PORTAL_CONFIG_PATH, {}, fetchImpl);
 }
 
-// Atualização parcial (PATCH) da configuração — área administrativa. Envia
-// apenas os campos alterados da allowlist; a resposta traz o estado completo.
-export async function updatePortalConfig(
-	payload: UpdatePortalConfigPayload
-): Promise<PortalConfig> {
-	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.portalConfig) {
-		const { updatePortalConfigMock } = await import('$lib/mocks/portal-config.mock');
-		return updatePortalConfigMock(payload);
-	}
-
-	return apiClient<PortalConfig>(PORTAL_CONFIG_PATH, {
+// Escrita por seção (PATCH /portal-config/:section) — cada card salva a sua
+// seção de forma independente; o backend retorna apenas a seção consolidada.
+async function patchSection<T>(section: string, body: unknown): Promise<T> {
+	return apiClient<T>(`${PORTAL_CONFIG_PATH}/${section}`, {
 		method: 'PATCH',
-		body: JSON.stringify(payload)
+		body: JSON.stringify(body)
 	});
 }
 
-// Upload de um asset do portal (Card 4). Em DEV o mock retorna um object URL
-// local (dados fictícios); o endpoint real recebe multipart com o kind do asset
-// e o arquivo, respondendo com a URL definitiva para salvar no PATCH.
-export async function uploadAssetApi(asset: AssetKey, file: File): Promise<string> {
-	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.portalConfig) {
-		const { uploadAssetMock } = await import('$lib/mocks/portal-config.mock');
-		return uploadAssetMock(asset, file);
+export async function updateAccess(payload: UpdateAccessRequest): Promise<AccessSection> {
+	if (useMock()) {
+		const { updateAccessMock } = await import('$lib/mocks/portal-config.mock');
+		return updateAccessMock(payload);
 	}
 
+	return patchSection<AccessSection>('access', payload);
+}
+
+export async function updateIdentity(payload: UpdateIdentityRequest): Promise<IdentitySection> {
+	if (useMock()) {
+		const { updateIdentityMock } = await import('$lib/mocks/portal-config.mock');
+		return updateIdentityMock(payload);
+	}
+
+	return patchSection<IdentitySection>('identity', payload);
+}
+
+export async function updateTheme(payload: UpdateThemeRequest): Promise<ThemeSection> {
+	if (useMock()) {
+		const { updateThemeMock } = await import('$lib/mocks/portal-config.mock');
+		return updateThemeMock(payload);
+	}
+
+	return patchSection<ThemeSection>('theme', payload);
+}
+
+// Assets (PATCH multipart): a parte `assets` traz as chaves definidas por URL e
+// as partes nomeadas por chave trazem os binários novos. Commit atômico.
+export async function updateAssets(
+	patch: PortalAssetsPatch,
+	files: Partial<Record<AssetKey, File>>
+): Promise<AssetsSection> {
 	const body = new FormData();
-	body.append('asset', asset);
-	body.append('file', file);
+	body.append('assets', JSON.stringify(patch));
 
-	const data = await apiClient<{ url: string }>(ASSETS_PATH, {
-		method: 'POST',
-		body
-	});
+	for (const [key, file] of Object.entries(files) as [AssetKey, File | undefined][]) {
+		if (file) body.append(key, file);
+	}
 
-	return data.url;
+	if (useMock()) {
+		const { updateAssetsMock } = await import('$lib/mocks/portal-config.mock');
+		return updateAssetsMock(patch, files);
+	}
+
+	return apiClient<AssetsSection>(ASSETS_SECTION_PATH, { method: 'PATCH', body });
+}
+
+export async function updateCategories(
+	payload: UpdateCategoriesRequest
+): Promise<CategoriesSection> {
+	if (useMock()) {
+		const { updateCategoriesMock } = await import('$lib/mocks/portal-config.mock');
+		return updateCategoriesMock(payload);
+	}
+
+	return patchSection<CategoriesSection>('categories', payload);
+}
+
+export async function updateStatuses(payload: UpdateStatusesRequest): Promise<StatusesSection> {
+	if (useMock()) {
+		const { updateStatusesMock } = await import('$lib/mocks/portal-config.mock');
+		return updateStatusesMock(payload);
+	}
+
+	return patchSection<StatusesSection>('statuses', payload);
+}
+
+export async function updatePrioritizationWeights(
+	payload: UpdatePrioritizationWeightsRequest
+): Promise<PrioritizationWeightsSection> {
+	if (useMock()) {
+		const { updatePrioritizationWeightsMock } = await import('$lib/mocks/portal-config.mock');
+		return updatePrioritizationWeightsMock(payload);
+	}
+
+	return patchSection<PrioritizationWeightsSection>('prioritization-weights', payload);
 }

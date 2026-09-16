@@ -1,17 +1,77 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import { getSettingsState } from '$lib/states/settings.svelte';
+	import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
+	import { saveStatuses } from '$lib/config/portal-config.service';
+	import { SectionState } from '$lib/states/section.svelte';
 	import {
 		STATUS_TONES,
 		type PortalStatus,
+		type StatusesSection,
 		type StatusTone,
 		type StatusVisibility
 	} from '$lib/types/portal-config';
-	import { MAX_STATUSES, MAX_STATUS_NAME_LENGTH } from '$lib/utils/validations';
+	import { nextId, removeById, replaceById } from '$lib/utils/lists';
+	import {
+		areStatusNamesUnique,
+		isValidStatusName,
+		MAX_STATUSES,
+		MAX_STATUS_NAME_LENGTH
+	} from '$lib/utils/validations';
+	import SectionActions from './SectionActions.svelte';
 	import SettingsCard from './SettingsCard.svelte';
 
-	const settingsState = getSettingsState();
+	const section = new SectionState<StatusesSection>(
+		{ statuses: page.data.portalConfig.statuses },
+		{ statuses: DEFAULT_PORTAL_CONFIG.statuses },
+		(draft) => saveStatuses({ statuses: draft.statuses })
+	);
+
+	// Erro global da lista (Card 6) — lista vazia, limite de itens, nome
+	// inválido ou nome duplicado.
+	const statusesError: string | null = $derived.by(() => {
+		const statuses = section.draft.statuses;
+
+		if (statuses.length === 0) return 'Adicione ao menos um status.';
+		if (statuses.length > MAX_STATUSES) return `O limite é de ${MAX_STATUSES} status.`;
+		if (statuses.some((status) => !isValidStatusName(status.name))) {
+			return 'Preencha o nome (até 40 caracteres) de cada status.';
+		}
+		if (!areStatusNamesUnique(statuses)) return 'Nomes de status não podem se repetir.';
+		return null;
+	});
+
+	const invalid = $derived(statusesError !== null);
+
+	function setStatuses(statuses: PortalStatus[]) {
+		section.draft = { statuses };
+		section.clearFeedback();
+	}
+
+	function addStatus() {
+		setStatuses([
+			...section.draft.statuses,
+			{
+				id: nextId(section.draft.statuses),
+				name: '',
+				visibility: 'PUBLIC',
+				closesRequest: false,
+				tone: 'info'
+			}
+		]);
+	}
+
+	function updateStatus(
+		id: number,
+		patch: Partial<Pick<PortalStatus, 'name' | 'visibility' | 'closesRequest' | 'tone'>>
+	) {
+		setStatuses(replaceById<PortalStatus>(section.draft.statuses, id, patch));
+	}
+
+	function removeStatus(id: number) {
+		setStatuses(removeById(section.draft.statuses, id));
+	}
 
 	// Status em edição (valores locais do formulário); `null` = nenhum.
 	let editing = $state<{
@@ -36,8 +96,8 @@
 	};
 
 	function handleAdd() {
-		settingsState.addStatus();
-		const statuses = settingsState.draft.statuses;
+		addStatus();
+		const statuses = section.draft.statuses;
 		const added = statuses[statuses.length - 1];
 		editing = added
 			? {
@@ -62,7 +122,7 @@
 
 	function handleSaveEdit() {
 		if (!editing) return;
-		settingsState.updateStatus(editing.id, {
+		updateStatus(editing.id, {
 			name: editing.name,
 			visibility: editing.visibility,
 			closesRequest: editing.closesRequest,
@@ -74,14 +134,14 @@
 	function handleCancelEdit(status: PortalStatus) {
 		// Cancelar um status recém-adicionado (ainda sem nome) remove a linha.
 		if (status.name.trim() === '') {
-			settingsState.removeStatus(status.id);
+			removeStatus(status.id);
 		}
 		editing = null;
 	}
 
 	// Só permite remover a última linha de status restante.
 	function canRemoveStatus(): boolean {
-		return settingsState.draft.statuses.length > 1;
+		return section.draft.statuses.length > 1;
 	}
 </script>
 
@@ -90,10 +150,22 @@
 	title="6. Status"
 	description="Configure os status do ciclo de vida das solicitações."
 >
+	{#snippet actions()}
+		<SectionActions
+			dirty={section.dirty}
+			saving={section.saving}
+			{invalid}
+			feedback={section.feedback}
+			onSave={() => section.save()}
+			onCancel={() => section.reset()}
+			onRestoreDefaults={() => section.restoreDefaults()}
+		/>
+	{/snippet}
+
 	{#snippet headerAction()}
 		<Button
 			variant="secondary"
-			disabled={settingsState.saving || settingsState.draft.statuses.length >= MAX_STATUSES}
+			disabled={section.saving || section.draft.statuses.length >= MAX_STATUSES}
 			onclick={handleAdd}
 		>
 			<Icon iconName="addCircle" iconSize="sm" />
@@ -101,8 +173,8 @@
 		</Button>
 	{/snippet}
 
-	{#if settingsState.statusesError}
-		<p class="status-error" role="alert">{settingsState.statusesError}</p>
+	{#if statusesError}
+		<p class="status-error" role="alert">{statusesError}</p>
 	{/if}
 
 	<div class="status-table">
@@ -117,7 +189,7 @@
 				</tr>
 			</thead>
 			<tbody>
-				{#each settingsState.draft.statuses as status (status.id)}
+				{#each section.draft.statuses as status (status.id)}
 					<tr class="tone-{status.tone}">
 						<td class="col-name">
 							<span class="name-field">
@@ -207,7 +279,7 @@
 									class="icon-btn"
 									type="button"
 									aria-label="Editar status"
-									disabled={settingsState.saving}
+									disabled={section.saving}
 									onclick={() => handleEdit(status)}
 								>
 									<Icon iconName="edit" iconSize="sm" />
@@ -216,8 +288,8 @@
 									class="icon-btn"
 									type="button"
 									aria-label="Remover status"
-									disabled={settingsState.saving || !canRemoveStatus()}
-									onclick={() => settingsState.removeStatus(status.id)}
+									disabled={section.saving || !canRemoveStatus()}
+									onclick={() => removeStatus(status.id)}
 								>
 									<Icon iconName="delete" iconSize="sm" />
 								</button>

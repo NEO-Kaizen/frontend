@@ -12,8 +12,14 @@ const TOKEN_VAR_SUFFIX: Record<ThemeTokenKey, string> = {
 	richBlack: 'rich-black',
 	primary: 'primary',
 	secondary: 'secondary',
-	tint: 'tint'
+	tint: 'tint',
+	onPrimary: 'on-primary',
+	onDark: 'on-dark',
+	onGradient: 'on-gradient'
 };
+
+// Ângulo padrão do gradiente quando a paleta não define um.
+const DEFAULT_GRADIENT_ANGLE = 143;
 
 // Serializa uma paleta como custom properties com prefixo (`--light-*` /
 // `--dark-*`). O Svelte 5 não interpola `{expr}` em `<style>`, então o tema é
@@ -27,6 +33,15 @@ export function paletteStyleVars(prefix: 'light' | 'dark', tokens: ThemeTokens):
 		vars.push(`--${prefix}-status-${tone}:${toneTokens.color}`);
 		vars.push(`--${prefix}-status-${tone}-bg:${toneTokens.background}`);
 	}
+
+	// Gradiente da paleta — valores separados e o composto pronto para uso. O
+	// mapeamento para os nomes canônicos fica no global.css (branch de dark mode).
+	const { from, to } = tokens.gradient;
+	const angle = tokens.gradient.angle ?? DEFAULT_GRADIENT_ANGLE;
+	vars.push(`--${prefix}-gradient-from:${from}`);
+	vars.push(`--${prefix}-gradient-to:${to}`);
+	vars.push(`--${prefix}-gradient-angle:${angle}`);
+	vars.push(`--${prefix}-gradient:linear-gradient(${angle}deg, ${from}, ${to})`);
 
 	return vars.join(';');
 }

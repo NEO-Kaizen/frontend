@@ -1,13 +1,29 @@
 <script lang="ts">
-	import type { SolicitationMode } from '$lib/types/portal-config';
+	import { page } from '$app/state';
+	import { invalidateAll } from '$app/navigation';
+	import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
+	import { saveAccess } from '$lib/config/portal-config.service';
+	import { SectionState } from '$lib/states/section.svelte';
+	import type { AccessSection, SolicitationMode } from '$lib/types/portal-config';
+	import SectionActions from './SectionActions.svelte';
 	import SettingsCard from './SettingsCard.svelte';
 
-	interface Props {
-		mode: SolicitationMode;
-		onchange: (mode: SolicitationMode) => void;
+	const section = new SectionState<AccessSection>(
+		{ solicitationMode: page.data.portalConfig.solicitationMode },
+		{ solicitationMode: DEFAULT_PORTAL_CONFIG.solicitationMode },
+		(draft) => saveAccess({ solicitationMode: draft.solicitationMode })
+	);
+
+	function setMode(mode: SolicitationMode) {
+		section.draft = { solicitationMode: mode };
+		section.clearFeedback();
 	}
 
-	let { mode, onchange }: Props = $props();
+	async function handleSave() {
+		if (await section.save()) {
+			await invalidateAll();
+		}
+	}
 </script>
 
 <SettingsCard
@@ -15,6 +31,17 @@
 	title="1. Acesso"
 	description="Defina como o portal será aberto para os usuários."
 >
+	{#snippet actions()}
+		<SectionActions
+			dirty={section.dirty}
+			saving={section.saving}
+			feedback={section.feedback}
+			onSave={handleSave}
+			onCancel={() => section.reset()}
+			onRestoreDefaults={() => section.restoreDefaults()}
+		/>
+	{/snippet}
+
 	<fieldset class="access-group">
 		<legend class="access-legend">
 			<span class="access-legend-text">Modo de abertura do portal</span>
@@ -39,8 +66,8 @@
 				type="radio"
 				name="accessMode"
 				value="PUBLIC"
-				checked={mode === 'PUBLIC'}
-				onchange={() => onchange('PUBLIC')}
+				checked={section.draft.solicitationMode === 'PUBLIC'}
+				onchange={() => setMode('PUBLIC')}
 			/>
 			<span class="radio-control" aria-hidden="true"></span>
 			<span class="access-option-text">
@@ -57,8 +84,8 @@
 				type="radio"
 				name="accessMode"
 				value="AUTHENTICATED"
-				checked={mode === 'AUTHENTICATED'}
-				onchange={() => onchange('AUTHENTICATED')}
+				checked={section.draft.solicitationMode === 'AUTHENTICATED'}
+				onchange={() => setMode('AUTHENTICATED')}
 			/>
 			<span class="radio-control" aria-hidden="true"></span>
 			<span class="access-option-text">

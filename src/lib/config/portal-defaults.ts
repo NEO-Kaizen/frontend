@@ -192,6 +192,10 @@ export const DEFAULT_THEME: PortalTheme = {
 		primary: '#00236f',
 		secondary: '#0058be',
 		tint: '#d6e7fb',
+		onPrimary: '#ffffff',
+		onDark: '#ffffff',
+		onGradient: '#ffffff',
+		gradient: { from: '#002068', to: '#003399', angle: 143 },
 		statuses: LIGHT_STATUS_TONES
 	},
 	dark: {
@@ -204,6 +208,10 @@ export const DEFAULT_THEME: PortalTheme = {
 		primary: '#4c7dff',
 		secondary: '#5b9bff',
 		tint: '#1b2942',
+		onPrimary: '#0b0f1a',
+		onDark: '#ffffff',
+		onGradient: '#ffffff',
+		gradient: { from: '#0b0f1a', to: '#1b2942', angle: 143 },
 		statuses: DARK_STATUS_TONES
 	}
 };

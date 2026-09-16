@@ -1,21 +1,16 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { invalidateAll } from '$app/navigation';
-	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
-	import { provideSettingsState } from '$lib/states/settings.svelte';
 	import AccessCard from './components/AccessCard.svelte';
 	import AssetsCard from './components/AssetsCard.svelte';
 	import CategoriesCard from './components/CategoriesCard.svelte';
 	import PlatformIdentityCard from './components/PlatformIdentityCard.svelte';
 	import PriorizationWeightsCard from './components/PriorizationWeightsCard.svelte';
-	import SettingsActions from './components/SettingsActions.svelte';
 	import SettingsPageHeader from './components/SettingsPageHeader.svelte';
 	import StatusCard from './components/StatusCard.svelte';
 	import VisualIdentityCard from './components/VisualIdentityCard.svelte';
 
-	const settingsState = provideSettingsState(page.data.portalConfig);
-
-	let confirmRestore = $state(false);
+	// Cada card é independente: mantém o próprio draft/pristine, validação e
+	// botões Salvar/Cancelar, e persiste a sua seção via PATCH próprio.
 </script>
 
 <svelte:head>
@@ -27,58 +22,17 @@
 
 	<div class="settings-grid">
 		<div class="settings-col">
-			<AccessCard
-				mode={settingsState.draft.solicitationMode}
-				onchange={(mode) => settingsState.setField('solicitationMode', mode)}
-			/>
+			<AccessCard />
 			<VisualIdentityCard />
 			<CategoriesCard />
 		</div>
 		<div class="settings-col">
-			<PlatformIdentityCard
-				platformName={settingsState.draft.platformName}
-				protocolMask={settingsState.draft.protocolMask}
-				saving={settingsState.saving}
-				errors={settingsState.fieldErrors}
-				onchange={(field, value) => settingsState.setField(field, value)}
-			/>
+			<PlatformIdentityCard />
 			<AssetsCard />
 			<StatusCard />
 			<PriorizationWeightsCard />
 		</div>
 	</div>
-
-	<SettingsActions
-		dirty={settingsState.dirty}
-		saving={settingsState.saving}
-		invalid={settingsState.hasValidationErrors}
-		feedback={settingsState.feedback}
-		onSave={async () => {
-			await settingsState.save();
-
-			if (settingsState.feedback?.type === 'success') {
-				// Revalida os dados do layout para o header/footer refletirem a
-				// nova logo/avatar em todo o projeto. O state de configurações já
-				// foi sincronizado pelo próprio save(), então não é reinicializado.
-				await invalidateAll();
-			}
-		}}
-		onCancel={() => settingsState.reset()}
-		onRestoreDefaults={() => (confirmRestore = true)}
-	/>
-
-	<ConfirmDialog
-		open={confirmRestore}
-		title="Restaurar valores padrão?"
-		description="Esta ação substitui as configurações atuais pelos valores padrão do portal."
-		confirmLabel="Restaurar"
-		cancelLabel="Cancelar"
-		onConfirm={() => {
-			settingsState.restoreDefaults();
-			confirmRestore = false;
-		}}
-		onClose={() => (confirmRestore = false)}
-	/>
 </main>
 
 <style>

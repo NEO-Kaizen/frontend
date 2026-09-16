@@ -1,7 +1,12 @@
 import {
 	fetchPortalConfig,
-	updatePortalConfig,
-	uploadAssetApi
+	updateAccess,
+	updateAssets,
+	updateCategories,
+	updateIdentity,
+	updatePrioritizationWeights,
+	updateStatuses,
+	updateTheme
 } from '$lib/config/portal-config.api';
 import { DEFAULT_PORTAL_CONFIG, DEFAULT_PRIORITIZATION_WEIGHTS } from '$lib/config/portal-defaults';
 import { ApiError, type Result } from '$lib/types/result';
@@ -29,19 +34,33 @@ import {
 	STATUS_VISIBILITIES
 } from '$lib/types/portal-config';
 import type {
+	AccessSection,
 	AssetKey,
+	AssetsSection,
+	CategoriesSection,
+	IdentitySection,
+	PortalAssets,
 	PortalCategory,
 	PortalConfig,
 	PortalAssetsPatch,
 	PortalStatus,
 	PortalTheme,
 	PrioritizationWeights,
+	PrioritizationWeightsSection,
 	SolicitationMode,
+	StatusesSection,
 	StatusTone,
 	StatusToneTokens,
 	StatusVisibility,
+	ThemeGradient,
+	ThemeSection,
 	ThemeTokens,
-	UpdatePortalConfigPayload
+	UpdateAccessRequest,
+	UpdateCategoriesRequest,
+	UpdateIdentityRequest,
+	UpdatePrioritizationWeightsRequest,
+	UpdateStatusesRequest,
+	UpdateThemeRequest
 } from '$lib/types/portal-config';
 
 // Carrega a configuração do portal com fallback. Nunca joga exceção para o
@@ -57,24 +76,18 @@ export async function loadPortalConfig(fetchImpl?: typeof fetch): Promise<Portal
 	}
 }
 
-const SOLICITATION_MODES: readonly SolicitationMode[] = ['PUBLIC', 'AUTHENTICATED'];
-
-// Persiste atualizações parciais da configuração (PATCH). Sanitiza o payload
-// para a allowlist do contrato antes de enviar e sanitiza a resposta do
-// backend; nunca expõe exceção à UI.
-export async function savePortalConfig(
-	payload: UpdatePortalConfigPayload
-): Promise<Result<PortalConfig>> {
+// Converte a chamada de escrita em `Result` — nunca expõe exceção à UI. A
+// mensagem é genérica por seção; o card exibe o feedback.
+async function persist<T>(section: string, fn: () => Promise<T>): Promise<Result<T>> {
 	try {
-		const raw = await updatePortalConfig(sanitizeUpdatePayload(payload));
-		return { ok: true, data: sanitizePortalConfig(raw) };
+		return { ok: true, data: await fn() };
 	} catch (error) {
 		if (error instanceof ApiError) {
 			return {
 				ok: false,
 				error: {
 					status: error.status,
-					message: 'Não foi possível salvar as configurações.'
+					message: `Não foi possível salvar ${section}.`
 				}
 			};
 		}
@@ -82,90 +95,111 @@ export async function savePortalConfig(
 	}
 }
 
-// Upload de um asset (Card 4). Valida localmente tipo e tamanho (espelho das
-// regras do contrato) antes de qualquer chamada de rede; retorna a URL do
-// asset pronto para ser salva no PATCH. Nunca expõe exceção à UI.
-export async function uploadAsset(asset: AssetKey, file: File): Promise<Result<string>> {
-	const rule = ASSET_FILE_RULES[asset];
-
-	if (file.size > rule.maxBytes) {
-		return { ok: false, error: { message: 'Arquivo excede o tamanho máximo permitido.' } };
-	}
-
-	if (!isValidAssetFile(asset, file)) {
-		return { ok: false, error: { message: 'Tipo de arquivo não permitido para este asset.' } };
-	}
-
-	try {
-		const url = await uploadAssetApi(asset, file);
-		return { ok: true, data: url };
-	} catch (error) {
-		if (error instanceof ApiError) {
-			return {
-				ok: false,
-				error: { status: error.status, message: 'Não foi possível enviar o arquivo.' }
-			};
-		}
-		return { ok: false, error: { message: 'Não foi possível conectar ao servidor.' } };
-	}
+export function saveAccess(payload: UpdateAccessRequest): Promise<Result<AccessSection>> {
+	return persist('o modo de acesso', async () => {
+		const data = await updateAccess({
+			solicitationMode: sanitizeSolicitationMode(payload.solicitationMode)
+		});
+		return { solicitationMode: sanitizeSolicitationMode(data.solicitationMode) };
+	});
 }
 
-// Mantém apenas as chaves da allowlist do contrato, valores dos campos simples
-// e assets parciais validados (URL relativa ou http(s)). Campos desconhecidos
-// ou inválidos são descartados — o backend contínua sendo a autoridade.
-function sanitizeUpdatePayload(payload: UpdatePortalConfigPayload): UpdatePortalConfigPayload {
-	const sanitized: UpdatePortalConfigPayload = {};
-
-	if (payload.solicitationMode !== undefined) {
-		sanitized.solicitationMode = payload.solicitationMode;
-	}
-	if (payload.platformName !== undefined) {
-		sanitized.platformName = payload.platformName;
-	}
-	if (payload.protocolMask !== undefined) {
-		sanitized.protocolMask = payload.protocolMask;
-	}
-	if (payload.theme !== undefined) {
-		sanitized.theme = sanitizeTheme(payload.theme);
-	}
-
-	if (payload.assets !== undefined) {
-		const assets: PortalAssetsPatch = {};
-		for (const key of ASSET_KEYS) {
-			const value = payload.assets[key];
-			if (typeof value === 'string' && isValidAssetUrl(value)) {
-				assets[key] = value.trim();
-			}
+export function saveIdentity(payload: UpdateIdentityRequest): Promise<Result<IdentitySection>> {
+	return persist('a identidade da plataforma', async () => {
+		const request: UpdateIdentityRequest = {};
+		if (payload.platformName !== undefined) {
+			request.platformName = payload.platformName.trim();
 		}
-		sanitized.assets = assets;
-	}
+		if (payload.protocolMask !== undefined) {
+			request.protocolMask = payload.protocolMask.trim();
+		}
 
-	if (payload.categories !== undefined) {
-		const categories = sanitizeCategories(payload.categories);
-		if (categories.length > 0) {
-			sanitized.categories = categories;
+		const data = await updateIdentity(request);
+		return {
+			platformName: sanitizePlatformName(data.platformName),
+			protocolMask: sanitizeProtocolMask(data.protocolMask)
+		};
+	});
+}
+
+export function saveTheme(payload: UpdateThemeRequest): Promise<Result<ThemeSection>> {
+	return persist('a identidade visual', async () => {
+		const data = await updateTheme({ theme: sanitizeTheme(payload.theme) });
+		return { theme: sanitizeTheme(data.theme) };
+	});
+}
+
+// Assets: valida localmente tipo/tamanho dos arquivos antes da rede (espelho das
+// regras do contrato) e sanitiza as URLs do patch e da resposta.
+export function saveAssets(
+	patch: PortalAssetsPatch,
+	files: Partial<Record<AssetKey, File>>
+): Promise<Result<AssetsSection>> {
+	for (const [key, file] of Object.entries(files) as [AssetKey, File | undefined][]) {
+		if (!file) continue;
+
+		const rule = ASSET_FILE_RULES[key];
+		if (file.size > rule.maxBytes) {
+			return Promise.resolve({
+				ok: false,
+				error: { message: 'Arquivo excede o tamanho máximo permitido.' }
+			});
+		}
+		if (!isValidAssetFile(key, file)) {
+			return Promise.resolve({
+				ok: false,
+				error: { message: 'Tipo de arquivo não permitido para este asset.' }
+			});
 		}
 	}
 
-	if (payload.statuses !== undefined) {
-		const statuses = sanitizeStatuses(payload.statuses);
-		if (statuses.length > 0) {
-			sanitized.statuses = statuses;
+	const sanitizedPatch: PortalAssetsPatch = {};
+	for (const key of ASSET_KEYS) {
+		const value = patch[key];
+		if (typeof value === 'string' && isValidAssetUrl(value)) {
+			sanitizedPatch[key] = value.trim();
 		}
 	}
 
-	if (payload.prioritizationWeights !== undefined) {
-		sanitized.prioritizationWeights = sanitizePrioritizationWeights(payload.prioritizationWeights);
-	}
+	return persist('os assets', async () => {
+		const data = await updateAssets(sanitizedPatch, files);
+		return { assets: sanitizeAssets(data.assets) };
+	});
+}
 
-	return sanitized;
+export function saveCategories(
+	payload: UpdateCategoriesRequest
+): Promise<Result<CategoriesSection>> {
+	return persist('as categorias', async () => {
+		const data = await updateCategories({ categories: sanitizeCategories(payload.categories) });
+		return { categories: sanitizeCategories(data.categories) };
+	});
+}
+
+export function saveStatuses(payload: UpdateStatusesRequest): Promise<Result<StatusesSection>> {
+	return persist('os status', async () => {
+		const data = await updateStatuses({ statuses: sanitizeStatuses(payload.statuses) });
+		return { statuses: sanitizeStatuses(data.statuses) };
+	});
+}
+
+export function savePrioritizationWeights(
+	payload: UpdatePrioritizationWeightsRequest
+): Promise<Result<PrioritizationWeightsSection>> {
+	return persist('os pesos da priorização', async () => {
+		const data = await updatePrioritizationWeights({
+			prioritizationWeights: sanitizePrioritizationWeights(payload.prioritizationWeights)
+		});
+		return {
+			prioritizationWeights: sanitizePrioritizationWeights(data.prioritizationWeights)
+		};
+	});
 }
 
 // Validação allowlist — apenas as chaves do contrato são lidas; nenhum
 // HTML/CSS/JS vindo da API é aceito (apenas strings tipadas com formato válido).
 function sanitizePortalConfig(raw: unknown): PortalConfig {
 	const source = isRecord(raw) ? raw : {};
-
 	const assets = isRecord(source.assets) ? source.assets : {};
 
 	return {
@@ -173,15 +207,7 @@ function sanitizePortalConfig(raw: unknown): PortalConfig {
 		solicitationMode: sanitizeSolicitationMode(source.solicitationMode),
 		protocolMask: sanitizeProtocolMask(source.protocolMask),
 		theme: sanitizeTheme(source.theme),
-		assets: {
-			logoUrl: sanitizeAssetUrl(assets.logoUrl, DEFAULT_PORTAL_CONFIG.assets.logoUrl),
-			avatarUrl: sanitizeAssetUrl(assets.avatarUrl, DEFAULT_PORTAL_CONFIG.assets.avatarUrl),
-			faviconUrl: sanitizeAssetUrl(assets.faviconUrl, DEFAULT_PORTAL_CONFIG.assets.faviconUrl),
-			loginImageUrl: sanitizeAssetUrl(
-				assets.loginImageUrl,
-				DEFAULT_PORTAL_CONFIG.assets.loginImageUrl
-			)
-		},
+		assets: sanitizeAssets(assets),
 		categories: sanitizeCategories(source.categories),
 		statuses: sanitizeStatuses(source.statuses),
 		prioritizationWeights: sanitizePrioritizationWeights(source.prioritizationWeights)
@@ -198,7 +224,8 @@ function sanitizePlatformName(value: unknown): string {
 }
 
 function sanitizeSolicitationMode(value: unknown): SolicitationMode {
-	return typeof value === 'string' && SOLICITATION_MODES.includes(value as SolicitationMode)
+	const modes: readonly SolicitationMode[] = ['PUBLIC', 'AUTHENTICATED'];
+	return typeof value === 'string' && modes.includes(value as SolicitationMode)
 		? (value as SolicitationMode)
 		: DEFAULT_PORTAL_CONFIG.solicitationMode;
 }
@@ -238,7 +265,28 @@ function sanitizeThemeTokens(raw: unknown, fallback: ThemeTokens): ThemeTokens {
 		primary: sanitizeHexColor(source.primary, fallback.primary),
 		secondary: sanitizeHexColor(source.secondary, fallback.secondary),
 		tint: sanitizeHexColor(source.tint, fallback.tint),
-		statuses: sanitizeStatusToneTokens(source.statuses, fallback.statuses)
+		onPrimary: sanitizeHexColor(source.onPrimary, fallback.onPrimary),
+		onDark: sanitizeHexColor(source.onDark, fallback.onDark),
+		onGradient: sanitizeHexColor(source.onGradient, fallback.onGradient),
+		statuses: sanitizeStatusToneTokens(source.statuses, fallback.statuses),
+		gradient: sanitizeGradient(source.gradient, fallback.gradient)
+	};
+}
+
+// Gradiente por paleta: `from`/`to` em hex e `angle` inteiro 0..360 (default do
+// fallback quando ausente/ inválido).
+function sanitizeGradient(raw: unknown, fallback: ThemeGradient): ThemeGradient {
+	const source = isRecord(raw) ? raw : {};
+
+	const angle =
+		typeof source.angle === 'number' && Number.isFinite(source.angle)
+			? Math.min(360, Math.max(0, Math.round(source.angle)))
+			: fallback.angle;
+
+	return {
+		from: sanitizeHexColor(source.from, fallback.from),
+		to: sanitizeHexColor(source.to, fallback.to),
+		angle
 	};
 }
 
@@ -263,11 +311,27 @@ function sanitizeStatusToneTokens(
 	return result;
 }
 
+function sanitizeAssets(raw: unknown): PortalAssets {
+	const source = isRecord(raw) ? raw : {};
+	const fallback = DEFAULT_PORTAL_CONFIG.assets;
+
+	return {
+		logoUrl: sanitizeAssetUrl(source.logoUrl, fallback.logoUrl),
+		avatarUrl: sanitizeAssetUrl(source.avatarUrl, fallback.avatarUrl),
+		faviconUrl: sanitizeAssetUrl(source.faviconUrl, fallback.faviconUrl),
+		loginImageUrl: sanitizeAssetUrl(source.loginImageUrl, fallback.loginImageUrl)
+	};
+}
+
 function sanitizeAssetUrl(value: unknown, fallback: string): string {
 	if (typeof value !== 'string') return fallback;
 
 	const url = value.trim();
-	return isValidAssetUrl(url) ? url : fallback;
+	// `blob:` é aceito apenas para o preview local do mock em desenvolvimento;
+	// o backend real devolve URL relativa ou http(s) (contrato portal-config-api).
+	if (isValidAssetUrl(url) || url.startsWith('blob:')) return url;
+
+	return fallback;
 }
 
 // Categorias vindas da API ou do payload — itens estruturalmente válidos com
@@ -292,21 +356,12 @@ function sanitizeCategories(value: unknown): PortalCategory[] {
 			isValidCategoryName(name) &&
 			isValidCategoryDescription(description)
 		) {
-			categories.push({
-				id: item.id,
-				name,
-				description,
-				isActive
-			});
+			categories.push({ id: item.id, name, description, isActive });
 		}
 	}
 
 	if (categories.length === 0) return structuredClone(DEFAULT_PORTAL_CONFIG.categories);
-
-	if (categories.length > MAX_CATEGORIES) {
-		return structuredClone(DEFAULT_PORTAL_CONFIG.categories);
-	}
-
+	if (categories.length > MAX_CATEGORIES) return structuredClone(DEFAULT_PORTAL_CONFIG.categories);
 	if (!areCategoryNamesUnique(categories) || !hasActiveCategory(categories)) {
 		return structuredClone(DEFAULT_PORTAL_CONFIG.categories);
 	}
@@ -337,25 +392,13 @@ function sanitizeStatuses(value: unknown): PortalStatus[] {
 			item.id > 0 &&
 			isValidStatusName(name)
 		) {
-			statuses.push({
-				id: item.id,
-				name,
-				visibility,
-				closesRequest,
-				tone
-			});
+			statuses.push({ id: item.id, name, visibility, closesRequest, tone });
 		}
 	}
 
 	if (statuses.length === 0) return structuredClone(DEFAULT_PORTAL_CONFIG.statuses);
-
-	if (statuses.length > MAX_STATUSES) {
-		return structuredClone(DEFAULT_PORTAL_CONFIG.statuses);
-	}
-
-	if (!areStatusNamesUnique(statuses)) {
-		return structuredClone(DEFAULT_PORTAL_CONFIG.statuses);
-	}
+	if (statuses.length > MAX_STATUSES) return structuredClone(DEFAULT_PORTAL_CONFIG.statuses);
+	if (!areStatusNamesUnique(statuses)) return structuredClone(DEFAULT_PORTAL_CONFIG.statuses);
 
 	return statuses;
 }

@@ -24,37 +24,38 @@ import {
 	STATUS_VISIBILITIES,
 	THEME_TOKEN_KEYS,
 	type AssetKey,
+	type AccessSection,
+	type AssetsSection,
+	type CategoriesSection,
+	type IdentitySection,
 	type PortalCategory,
 	type PortalConfig,
 	type PortalAssetsPatch,
 	type PortalStatus,
 	type PortalTheme,
+	type PrioritizationWeightsSection,
 	type PrioritizationWeights,
 	type SolicitationMode,
+	type StatusesSection,
 	type StatusTone,
 	type StatusToneTokens,
+	type ThemeGradient,
+	type ThemeSection,
 	type ThemeTokens,
-	type UpdatePortalConfigPayload
+	type UpdateAccessRequest,
+	type UpdateCategoriesRequest,
+	type UpdateIdentityRequest,
+	type UpdatePrioritizationWeightsRequest,
+	type UpdateStatusesRequest,
+	type UpdateThemeRequest
 } from '$lib/types/portal-config';
 
 // Estado do mock em memória — inicia com os defaults locais e recebe os PATCHes
-// durante a sessão de desenvolvimento. Espelha o contrato de CONTRATO-BACKEND.md.
+// por seção durante a sessão de desenvolvimento. Espelha o contrato de
+// `contratos/portal-config-api.md`.
 let mockConfig: PortalConfig = structuredClone(DEFAULT_PORTAL_CONFIG);
 
 const SOLICITATION_MODES: readonly SolicitationMode[] = ['PUBLIC', 'AUTHENTICATED'];
-
-// Allowlist espelhada do contrato: o mock rejeita exatamente o que a API real
-// rejeitaria (campo desconhecido ou valor fora dos aceitos).
-const ALLOWED_UPDATE_FIELDS: readonly (keyof UpdatePortalConfigPayload)[] = [
-	'solicitationMode',
-	'platformName',
-	'protocolMask',
-	'theme',
-	'assets',
-	'categories',
-	'statuses',
-	'prioritizationWeights'
-];
 
 const MOCK_LATENCY_MS = 500;
 
@@ -62,88 +63,125 @@ export function fetchPortalConfigMock(): Promise<PortalConfig> {
 	return delay(MOCK_LATENCY_MS).then(() => structuredClone(mockConfig));
 }
 
-export function updatePortalConfigMock(payload: UpdatePortalConfigPayload): Promise<PortalConfig> {
-	validateUpdatePayload(payload);
-	mockConfig = {
-		...mockConfig,
-		...payload,
-		// `assets` é parcial: mescla só as chaves enviadas sobre o estado atual.
-		assets: payload.assets ? { ...mockConfig.assets, ...payload.assets } : mockConfig.assets
-	};
-	return delay(MOCK_LATENCY_MS).then(() => structuredClone(mockConfig));
-}
-
-// Upload de asset — aceita apenas kinds da allowlist e arquivos dentro das
-// regras do contrato (tipo/tamanho por kind). Retorna um object URL local;
-// o mock não persiste entre reinícios do dev server (dados fictícios).
-export function uploadAssetMock(asset: AssetKey, file: File): Promise<string> {
-	if (!ASSET_KEYS.includes(asset)) {
-		return Promise.reject(new ApiError(400, `Tipo de asset não permitido: "${asset}".`));
-	}
-
-	if (file.size > ASSET_FILE_RULES[asset].maxBytes) {
-		return Promise.reject(new ApiError(413, 'Arquivo excede o tamanho máximo permitido.'));
-	}
-
-	if (!isValidAssetFile(asset, file)) {
-		return Promise.reject(new ApiError(415, 'Tipo de arquivo não permitido para este asset.'));
-	}
-
-	return delay(MOCK_LATENCY_MS).then(() => URL.createObjectURL(file));
-}
-
-function validateUpdatePayload(payload: UpdatePortalConfigPayload): void {
-	for (const field of Object.keys(payload) as (keyof UpdatePortalConfigPayload)[]) {
-		if (!ALLOWED_UPDATE_FIELDS.includes(field)) {
-			throw new ApiError(400, `Campo não permitido: "${field}".`);
-		}
-	}
-
-	if (
-		payload.solicitationMode !== undefined &&
-		!SOLICITATION_MODES.includes(payload.solicitationMode)
-	) {
+export function updateAccessMock(payload: UpdateAccessRequest): Promise<AccessSection> {
+	if (!SOLICITATION_MODES.includes(payload.solicitationMode)) {
 		throw new ApiError(400, 'Modo de solicitação inválido.');
 	}
 
-	if (payload.platformName !== undefined && !isValidPlatformName(payload.platformName)) {
-		throw new ApiError(
-			400,
-			'Nome da plataforma deve ter entre 1 e 80 caracteres (após remover espaços).'
-		);
+	mockConfig = { ...mockConfig, solicitationMode: payload.solicitationMode };
+	return delay(MOCK_LATENCY_MS).then(() => ({ solicitationMode: mockConfig.solicitationMode }));
+}
+
+export function updateIdentityMock(payload: UpdateIdentityRequest): Promise<IdentitySection> {
+	if (payload.platformName === undefined && payload.protocolMask === undefined) {
+		throw new ApiError(400, 'Informe ao menos um campo da identidade.');
 	}
 
-	if (payload.protocolMask !== undefined && !isValidProtocolMask(payload.protocolMask)) {
-		throw new ApiError(
-			400,
-			'Máscara de protocolo deve ter entre 1 e 10 caracteres, apenas letras e números.'
-		);
+	if (payload.platformName !== undefined) {
+		if (!isValidPlatformName(payload.platformName)) {
+			throw new ApiError(
+				400,
+				'Nome da plataforma deve ter entre 1 e 80 caracteres (após remover espaços).'
+			);
+		}
+		mockConfig = { ...mockConfig, platformName: payload.platformName.trim() };
 	}
 
-	if (payload.theme !== undefined) {
-		validateThemePatch(payload.theme);
+	if (payload.protocolMask !== undefined) {
+		if (!isValidProtocolMask(payload.protocolMask)) {
+			throw new ApiError(
+				400,
+				'Máscara de protocolo deve ter entre 1 e 10 caracteres, apenas letras e números.'
+			);
+		}
+		mockConfig = { ...mockConfig, protocolMask: payload.protocolMask.trim() };
 	}
 
-	if (payload.assets !== undefined) {
-		validateAssetsPatch(payload.assets);
+	return delay(MOCK_LATENCY_MS).then(() => ({
+		platformName: mockConfig.platformName,
+		protocolMask: mockConfig.protocolMask
+	}));
+}
+
+export function updateThemeMock(payload: UpdateThemeRequest): Promise<ThemeSection> {
+	validateTheme(payload.theme);
+	mockConfig = { ...mockConfig, theme: structuredClone(payload.theme) };
+	return delay(MOCK_LATENCY_MS).then(() => ({ theme: structuredClone(mockConfig.theme) }));
+}
+
+// Assets: simula o commit atômico do multipart. Cada arquivo enviado vira uma
+// URL local (object URL) e cada URL do patch é aplicada diretamente.
+export function updateAssetsMock(
+	patch: PortalAssetsPatch,
+	files: Partial<Record<AssetKey, File>>
+): Promise<AssetsSection> {
+	for (const key of Object.keys(patch) as AssetKey[]) {
+		if (!ASSET_KEYS.includes(key)) {
+			throw new ApiError(400, `Campo não permitido em "assets": "${key}".`);
+		}
+		const url = patch[key];
+		if (typeof url !== 'string' || !isValidAssetUrl(url)) {
+			throw new ApiError(400, `Valor inválido para "assets.${key}": URL relativa ou http(s).`);
+		}
 	}
 
-	if (payload.categories !== undefined) {
-		validateCategoriesPatch(payload.categories);
+	for (const [key, file] of Object.entries(files) as [AssetKey, File | undefined][]) {
+		if (!file) continue;
+
+		if (!ASSET_KEYS.includes(key)) {
+			throw new ApiError(400, `Tipo de asset não permitido: "${key}".`);
+		}
+		if (file.size > ASSET_FILE_RULES[key].maxBytes) {
+			throw new ApiError(413, 'Arquivo excede o tamanho máximo permitido.');
+		}
+		if (!isValidAssetFile(key, file)) {
+			throw new ApiError(415, 'Tipo de arquivo não permitido para este asset.');
+		}
 	}
 
-	if (payload.statuses !== undefined) {
-		validateStatusesPatch(payload.statuses);
+	const nextAssets = { ...mockConfig.assets };
+
+	for (const key of Object.keys(patch) as AssetKey[]) {
+		nextAssets[key] = patch[key] as string;
+	}
+	for (const [key, file] of Object.entries(files) as [AssetKey, File | undefined][]) {
+		if (file) nextAssets[key] = URL.createObjectURL(file);
 	}
 
-	if (payload.prioritizationWeights !== undefined) {
-		validatePrioritizationWeights(payload.prioritizationWeights);
-	}
+	mockConfig = { ...mockConfig, assets: nextAssets };
+	return delay(MOCK_LATENCY_MS).then(() => ({ assets: structuredClone(mockConfig.assets) }));
+}
+
+export function updateCategoriesMock(payload: UpdateCategoriesRequest): Promise<CategoriesSection> {
+	validateCategories(payload.categories);
+	mockConfig = { ...mockConfig, categories: structuredClone(payload.categories) };
+	return delay(MOCK_LATENCY_MS).then(() => ({
+		categories: structuredClone(mockConfig.categories)
+	}));
+}
+
+export function updateStatusesMock(payload: UpdateStatusesRequest): Promise<StatusesSection> {
+	validateStatuses(payload.statuses);
+	mockConfig = { ...mockConfig, statuses: structuredClone(payload.statuses) };
+	return delay(MOCK_LATENCY_MS).then(() => ({ statuses: structuredClone(mockConfig.statuses) }));
+}
+
+export function updatePrioritizationWeightsMock(
+	payload: UpdatePrioritizationWeightsRequest
+): Promise<PrioritizationWeightsSection> {
+	validatePrioritizationWeights(payload.prioritizationWeights);
+	mockConfig = {
+		...mockConfig,
+		prioritizationWeights: { ...payload.prioritizationWeights }
+	};
+	return delay(MOCK_LATENCY_MS).then(() => ({
+		prioritizationWeights: { ...mockConfig.prioritizationWeights }
+	}));
 }
 
 // O tema é atômico: as duas paletas completas (light/dark), cada uma com todos
-// os papéis em hex válido e os quatro tons de status com color/background.
-function validateThemePatch(theme: PortalTheme): void {
+// os papéis em hex válido e os cinco tons de status com color/background.
+function validateTheme(theme: PortalTheme): void {
 	if (typeof theme !== 'object' || theme === null) {
 		throw new ApiError(400, 'O tema deve ser um objeto com as paletas "light" e "dark".');
 	}
@@ -164,6 +202,30 @@ function validateThemeTokens(tokens: ThemeTokens, palette: 'light' | 'dark'): vo
 	}
 
 	validateStatusToneTokens(tokens.statuses, palette);
+	validateGradient(tokens.gradient, palette);
+}
+
+// Gradiente por paleta: `from`/`to` em hex e `angle` opcional inteiro 0..360.
+function validateGradient(gradient: ThemeGradient, palette: 'light' | 'dark'): void {
+	if (typeof gradient !== 'object' || gradient === null) {
+		throw new ApiError(400, `O gradiente da paleta "${palette}" deve ser um objeto.`);
+	}
+
+	for (const key of ['from', 'to'] as const) {
+		if (!isValidHexColor(gradient[key])) {
+			throw new ApiError(
+				400,
+				`Cor inválida em "theme.${palette}.gradient.${key}" (esperado #RRGGBB ou #RRGGBBAA).`
+			);
+		}
+	}
+
+	if (
+		gradient.angle !== undefined &&
+		(!Number.isInteger(gradient.angle) || gradient.angle < 0 || gradient.angle > 360)
+	) {
+		throw new ApiError(400, `"theme.${palette}.gradient.angle" deve ser inteiro entre 0 e 360.`);
+	}
 }
 
 function validateStatusToneTokens(
@@ -198,25 +260,10 @@ function validateStatusToneTokens(
 	}
 }
 
-// Valida o objeto parcial de assets: apenas chaves da allowlist e URLs com
-// formato aceito (relativo do próprio app ou http/https).
-function validateAssetsPatch(assets: PortalAssetsPatch): void {
-	for (const key of Object.keys(assets) as AssetKey[]) {
-		if (!ASSET_KEYS.includes(key)) {
-			throw new ApiError(400, `Campo não permitido em "assets": "${key}".`);
-		}
-
-		const url = assets[key];
-		if (typeof url !== 'string' || !isValidAssetUrl(url)) {
-			throw new ApiError(400, `Valor inválido para "assets.${key}": URL relativa ou http(s).`);
-		}
-	}
-}
-
 // A lista de categorias é atômica: 1..50 itens, ids presentes, nomes únicos
 // (sem diferenciar maiúsculas) e ao menos uma categoria ativa.
-function validateCategoriesPatch(categories: PortalCategory[]): void {
-	if (categories.length === 0 || categories.length > MAX_CATEGORIES) {
+function validateCategories(categories: PortalCategory[]): void {
+	if (!Array.isArray(categories) || categories.length === 0 || categories.length > MAX_CATEGORIES) {
 		throw new ApiError(400, 'A lista de categorias deve ter entre 1 e 50 itens.');
 	}
 
@@ -249,8 +296,8 @@ function validateCategoriesPatch(categories: PortalCategory[]): void {
 
 // A lista de status é atômica: 1..50 itens, ids presentes, visibility/tone na
 // allowlist, closesRequest booleano e nomes únicos (sem diferenciar maiúsculas).
-function validateStatusesPatch(statuses: PortalStatus[]): void {
-	if (statuses.length === 0 || statuses.length > MAX_STATUSES) {
+function validateStatuses(statuses: PortalStatus[]): void {
+	if (!Array.isArray(statuses) || statuses.length === 0 || statuses.length > MAX_STATUSES) {
 		throw new ApiError(400, 'A lista de status deve ter entre 1 e 50 itens.');
 	}
 

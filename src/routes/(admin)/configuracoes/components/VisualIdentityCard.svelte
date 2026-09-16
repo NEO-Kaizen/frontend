@@ -1,7 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { page } from '$app/state';
 	import Icon from '$lib/components/Icon.svelte';
-	import { getSettingsState } from '$lib/states/settings.svelte';
+	import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
+	import { saveTheme } from '$lib/config/portal-config.service';
+	import { SectionState } from '$lib/states/section.svelte';
 	import {
 		endPreviewTheme,
 		getThemeMode,
@@ -12,22 +15,31 @@
 		STATUS_TONES,
 		THEME_TOKEN_KEYS,
 		type StatusTone,
+		type ThemeGradient,
 		type ThemePalette,
-		type ThemeTokenKey
+		type ThemeSection,
+		type ThemeTokenKey,
+		type ThemeTokens
 	} from '$lib/types/portal-config';
 	import {
 		classifyContrast,
 		contrastRatio,
 		flattenColor,
 		meetsMinimum,
+		suggestStatusBackground,
 		MIN_AA_NORMAL,
 		MIN_NON_TEXT,
 		type ContrastLevel
 	} from '$lib/utils/contrast';
 	import ColorField from './ColorField.svelte';
+	import SectionActions from './SectionActions.svelte';
 	import SettingsCard from './SettingsCard.svelte';
 
-	const settingsState = getSettingsState();
+	const section = new SectionState<ThemeSection>(
+		{ theme: page.data.portalConfig.theme },
+		{ theme: DEFAULT_PORTAL_CONFIG.theme },
+		(draft) => saveTheme({ theme: draft.theme })
+	);
 
 	// Paleta em edição. O toggle aplica a paleta no documento **temporariamente**
 	// (sem persistir), de modo que a página inteira renderize no contexto da
@@ -48,13 +60,90 @@
 	// `draft.theme` (rastreado → repinta a cada edição); o cleanup restaura a
 	// paleta salva, cobrindo Cancelar/Reset e a saída da rota.
 	$effect(() => {
-		previewPortalTheme(settingsState.draft.theme);
-		return () => previewPortalTheme(settingsState.pristine.theme);
+		previewPortalTheme(section.draft.theme);
+		return () => previewPortalTheme(section.pristine.theme);
 	});
 
-	const palette = $derived(settingsState.draft.theme[editingPalette]);
+	const palette = $derived(section.draft.theme[editingPalette]);
 	const surface = $derived(palette.surface);
 	const pageBackground = $derived(palette.background);
+
+	// Mutações do tema — o draft é atômico (as duas paletas), então cada
+	// alteração substitui a paleta em edição dentro do objeto.
+	function setThemeTokens(paletteKey: ThemePalette, tokens: ThemeTokens): void {
+		section.draft = { theme: { ...section.draft.theme, [paletteKey]: tokens } };
+		section.clearFeedback();
+	}
+
+	function setThemeToken(paletteKey: ThemePalette, key: ThemeTokenKey, value: string): void {
+		setThemeTokens(paletteKey, { ...section.draft.theme[paletteKey], [key]: value });
+	}
+
+	function setStatusToneBackground(
+		paletteKey: ThemePalette,
+		tone: StatusTone,
+		value: string
+	): void {
+		const tokens = section.draft.theme[paletteKey];
+		setThemeTokens(paletteKey, {
+			...tokens,
+			statuses: {
+				...tokens.statuses,
+				[tone]: { ...tokens.statuses[tone], background: value, backgroundLocked: true }
+			}
+		});
+	}
+
+	function setStatusToneBackgroundLocked(
+		paletteKey: ThemePalette,
+		tone: StatusTone,
+		locked: boolean
+	): void {
+		const current = section.draft.theme[paletteKey].statuses[tone];
+		const tokens = section.draft.theme[paletteKey];
+		setThemeTokens(paletteKey, {
+			...tokens,
+			statuses: {
+				...tokens.statuses,
+				[tone]: {
+					...current,
+					backgroundLocked: locked,
+					background: locked
+						? current.background
+						: suggestStatusBackground(current.color, paletteKey)
+				}
+			}
+		});
+	}
+
+	function updateStatusToneColor(paletteKey: ThemePalette, tone: StatusTone, color: string): void {
+		const current = section.draft.theme[paletteKey].statuses[tone];
+		const tokens = section.draft.theme[paletteKey];
+		setThemeTokens(paletteKey, {
+			...tokens,
+			statuses: {
+				...tokens.statuses,
+				[tone]: {
+					...current,
+					color,
+					background: current.backgroundLocked
+						? current.background
+						: suggestStatusBackground(color, paletteKey)
+				}
+			}
+		});
+	}
+
+	function setThemeGradient(paletteKey: ThemePalette, patch: Partial<ThemeGradient>): void {
+		const tokens = section.draft.theme[paletteKey];
+		setThemeTokens(paletteKey, { ...tokens, gradient: { ...tokens.gradient, ...patch } });
+	}
+
+	function handleGradientAngleInput(event: Event): void {
+		const value = Number((event.currentTarget as HTMLInputElement).value);
+		if (!Number.isFinite(value)) return;
+		setThemeGradient(editingPalette, { angle: Math.min(360, Math.max(0, Math.round(value))) });
+	}
 
 	const TOKEN_LABELS: Record<ThemeTokenKey, string> = {
 		background: 'Fundo da página',
@@ -62,10 +151,13 @@
 		border: 'Borda',
 		textPrimary: 'Texto principal',
 		textSecondary: 'Texto secundário',
-		richBlack: 'Rich black',
+		richBlack: 'Superfície escura',
 		primary: 'Cor primária',
 		secondary: 'Cor secundária',
-		tint: 'Tint'
+		tint: 'Tint',
+		onPrimary: 'Sobre a primária',
+		onDark: 'Sobre superfície escura',
+		onGradient: 'Sobre o gradiente'
 	};
 
 	const TONE_LABELS: Record<StatusTone, string> = {
@@ -104,6 +196,24 @@
 		})
 	);
 
+	// Advisor do gradiente: `onGradient` precisa manter legibilidade sobre as
+	// duas pontas do gradiente (a pior das duas manda). Apenas avisa.
+	const gradientAdvisory = $derived.by(() => {
+		const { from, to } = palette.gradient;
+		const fromRatio = contrastRatio(palette.onGradient, from, from);
+		const toRatio = contrastRatio(palette.onGradient, to, to);
+		return {
+			fromRatio,
+			toRatio,
+			worst: Math.min(fromRatio, toRatio),
+			pass: meetsMinimum(Math.min(fromRatio, toRatio), MIN_AA_NORMAL)
+		};
+	});
+
+	const gradientPreviewStyle = $derived(
+		`linear-gradient(${palette.gradient.angle ?? 143}deg, ${palette.gradient.from}, ${palette.gradient.to})`
+	);
+
 	function setEditingPalette(next: ThemePalette) {
 		editingPalette = next;
 	}
@@ -139,6 +249,17 @@
 		</div>
 	{/snippet}
 
+	{#snippet actions()}
+		<SectionActions
+			dirty={section.dirty}
+			saving={section.saving}
+			feedback={section.feedback}
+			onSave={() => section.save()}
+			onCancel={() => section.reset()}
+			onRestoreDefaults={() => section.restoreDefaults()}
+		/>
+	{/snippet}
+
 	<section class="section">
 		<h3 class="section-title">Tokens do tema</h3>
 		<div class="token-grid">
@@ -146,9 +267,56 @@
 				<ColorField
 					label={TOKEN_LABELS[key]}
 					value={palette[key]}
-					onchange={(value) => settingsState.setThemeToken(editingPalette, key, value)}
+					onchange={(value) => setThemeToken(editingPalette, key, value)}
 				/>
 			{/each}
+		</div>
+	</section>
+
+	<section class="section">
+		<h3 class="section-title">Gradiente</h3>
+
+		<div class="gradient-editor">
+			<span class="gradient-preview" style:background={gradientPreviewStyle}>
+				<span class="gradient-sample" style:color={palette.onGradient}>Aa</span>
+			</span>
+
+			<div class="gradient-fields">
+				<ColorField
+					label="De"
+					value={palette.gradient.from}
+					onchange={(value) => setThemeGradient(editingPalette, { from: value })}
+				/>
+				<ColorField
+					label="Até"
+					value={palette.gradient.to}
+					onchange={(value) => setThemeGradient(editingPalette, { to: value })}
+				/>
+				<label class="gradient-angle">
+					<span class="gradient-angle-label">Ângulo</span>
+					<input
+						class="gradient-angle-input"
+						type="number"
+						min="0"
+						max="360"
+						step="1"
+						value={palette.gradient.angle ?? 143}
+						aria-label="Ângulo do gradiente"
+						oninput={handleGradientAngleInput}
+					/>
+				</label>
+			</div>
+
+			<ul class="tone-advice gradient-advice">
+				<li class:fail={!gradientAdvisory.pass}>
+					Texto × início: <strong>{gradientAdvisory.fromRatio.toFixed(2)}:1</strong>
+					({LEVEL_LABELS[classifyContrast(gradientAdvisory.fromRatio)]}) · mín. {MIN_AA_NORMAL}
+				</li>
+				<li class:fail={!gradientAdvisory.pass}>
+					Texto × fim: <strong>{gradientAdvisory.toRatio.toFixed(2)}:1</strong>
+					({LEVEL_LABELS[classifyContrast(gradientAdvisory.toRatio)]}) · mín. {MIN_AA_NORMAL}
+				</li>
+			</ul>
 		</div>
 	</section>
 
@@ -189,15 +357,13 @@
 						<ColorField
 							label="Acento"
 							value={advisory.tokens.color}
-							onchange={(value) =>
-								settingsState.updateStatusToneColor(editingPalette, advisory.tone, value)}
+							onchange={(value) => updateStatusToneColor(editingPalette, advisory.tone, value)}
 						/>
 						<ColorField
 							label="Fundo"
 							value={advisory.tokens.background}
 							allowAlpha
-							onchange={(value) =>
-								settingsState.setStatusToneBackground(editingPalette, advisory.tone, value)}
+							onchange={(value) => setStatusToneBackground(editingPalette, advisory.tone, value)}
 						/>
 					</div>
 
@@ -219,7 +385,7 @@
 							? 'Fundo travado: mudar o acento não altera o fundo. Clique para destravar e recalcular a sugestão a partir do acento.'
 							: 'Fundo automático: acompanha o acento. Clique para travar e fixar o valor manual.'}
 						onclick={() =>
-							settingsState.setStatusToneBackgroundLocked(
+							setStatusToneBackgroundLocked(
 								editingPalette,
 								advisory.tone,
 								!advisory.tokens.backgroundLocked
@@ -282,6 +448,65 @@
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
 		gap: var(--spacing-md);
+	}
+
+	.gradient-editor {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: var(--spacing-md);
+	}
+
+	.gradient-preview {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 120px;
+		height: 56px;
+		border: var(--border-default);
+		border-radius: var(--radius-sm);
+		flex-shrink: 0;
+	}
+
+	.gradient-sample {
+		font: var(--h4);
+	}
+
+	.gradient-fields {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: var(--spacing-md);
+		flex: 1;
+		min-width: 260px;
+	}
+
+	.gradient-angle {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-xs);
+	}
+
+	.gradient-angle-label {
+		font: var(--label);
+		font-size: 13px;
+		color: var(--text-color-secondary);
+	}
+
+	.gradient-angle-input {
+		height: 32px;
+		box-sizing: border-box;
+		padding: 0 var(--spacing-sm);
+		border: var(--border-default);
+		border-radius: var(--radius-sm);
+		background-color: var(--white);
+		color: var(--text-color-primary);
+		font: var(--label);
+		font-size: 13px;
+	}
+
+	.gradient-advice {
+		flex-basis: 100%;
+		text-align: left;
 	}
 
 	.tone-list {
@@ -372,8 +597,13 @@
 	}
 
 	@media (max-width: 640px) {
-		.tone-fields {
+		.tone-fields,
+		.gradient-fields {
 			grid-template-columns: 1fr;
+		}
+
+		.gradient-preview {
+			width: 100%;
 		}
 	}
 </style>

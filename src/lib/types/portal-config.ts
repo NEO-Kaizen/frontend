@@ -66,7 +66,7 @@ export interface StatusToneTokens {
 }
 
 // Chaves de papel de uma paleta — allowlist usada pelo service e pelo mock para
-// sanitizar/validar. `statuses` fica de fora (validado por tom).
+// sanitizar/validar. `statuses` e `gradient` ficam de fora (validados à parte).
 export const THEME_TOKEN_KEYS = [
 	'background',
 	'surface',
@@ -76,15 +76,29 @@ export const THEME_TOKEN_KEYS = [
 	'richBlack',
 	'primary',
 	'secondary',
-	'tint'
+	'tint',
+	'onPrimary',
+	'onDark',
+	'onGradient'
 ] as const;
 
 export type ThemeTokenKey = (typeof THEME_TOKEN_KEYS)[number];
 
+// Gradiente de superfícies de destaque (hero/banner), por paleta. Independente
+// de `primary`/`secondary`: no dark o gradiente precisa seguir escuro para o
+// texto branco manter contraste.
+export interface ThemeGradient {
+	from: string;
+	to: string;
+	angle?: number;
+}
+
 // Paleta de tema (uma por modo). O admin configura cada papel; a UI consome via
-// custom properties CSS. `statuses` guarda as cores de cada tom do ciclo de vida.
+// custom properties CSS. `statuses` guarda as cores de cada tom do ciclo de
+// vida; `gradient` compõe as superfícies de destaque.
 export interface ThemeTokens extends Record<ThemeTokenKey, string> {
 	statuses: Record<StatusTone, StatusToneTokens>;
+	gradient: ThemeGradient;
 }
 
 // Paletas do portal — claro e escuro. O usuário escolhe qual usar (preferência
@@ -153,37 +167,49 @@ export interface PortalConfig {
 	prioritizationWeights: PrioritizationWeights;
 }
 
-// Campos editáveis pela tela de configurações — allowlist que cresce conforme
-// novos cards entram em escopo (ver CONTRATO-BACKEND.md). O serviço só aceita
-// essas chaves no payload de atualização; o backend permanece a autoridade.
-export type EditablePortalConfigFields =
-	| 'solicitationMode'
-	| 'platformName'
-	| 'protocolMask'
-	| 'theme'
-	| 'assets'
-	| 'categories'
-	| 'statuses'
-	| 'prioritizationWeights';
+// ---- Seções editáveis (contrato portal-config-api.md) ----
+//
+// Cada card da tela de configurações edita uma seção independente, com seu
+// próprio PATCH e Salvar/Cancelar. Os recortes abaixo tipam o corpo de cada
+// requisição e a seção retornada pelo backend.
 
-// Payload parcial de atualização (PATCH /portal-config) — apenas campos
-// da allowlist acima, enviados somente quando alterados. `theme` é atômico
-// (as duas paletas completas — claro e escuro); `assets` aceita um objeto
-// parcial (só as chaves de assets modificadas); `categories` e `statuses` são
-// as listas completas (atômicas — a ordem dos itens importa e o backend
-// retorna o estado consolidado); `prioritizationWeights` é o objeto completo
-// de pesos (atômico — todas as chaves presentes).
-export type UpdatePortalConfigPayload = Partial<
-	Pick<
-		PortalConfig,
-		Exclude<
-			EditablePortalConfigFields,
-			'assets' | 'categories' | 'statuses' | 'prioritizationWeights'
-		>
-	>
-> & {
-	assets?: PortalAssetsPatch;
-	categories?: PortalCategory[];
-	statuses?: PortalStatus[];
-	prioritizationWeights?: PrioritizationWeights;
-};
+export type AccessSection = Pick<PortalConfig, 'solicitationMode'>;
+export type IdentitySection = Pick<PortalConfig, 'platformName' | 'protocolMask'>;
+export type ThemeSection = Pick<PortalConfig, 'theme'>;
+export type AssetsSection = Pick<PortalConfig, 'assets'>;
+export type CategoriesSection = Pick<PortalConfig, 'categories'>;
+export type StatusesSection = Pick<PortalConfig, 'statuses'>;
+export type PrioritizationWeightsSection = Pick<PortalConfig, 'prioritizationWeights'>;
+
+// Chave de rota de cada seção — usada pela camada de dados e pelos cards.
+export type PortalConfigSection =
+	'access' | 'identity' | 'theme' | 'assets' | 'categories' | 'statuses' | 'prioritization-weights';
+
+// Corpos das requisições de escrita (PATCH por seção). `theme`,
+// `categories`, `statuses` e `prioritizationWeights` são atômicos (a seção
+// inteira); `identity` é parcial (só os campos alterados); `assets` é um patch
+// parcial de URLs por chave.
+export interface UpdateAccessRequest {
+	solicitationMode: SolicitationMode;
+}
+
+export interface UpdateIdentityRequest {
+	platformName?: string;
+	protocolMask?: string;
+}
+
+export interface UpdateThemeRequest {
+	theme: PortalTheme;
+}
+
+export interface UpdateCategoriesRequest {
+	categories: PortalCategory[];
+}
+
+export interface UpdateStatusesRequest {
+	statuses: PortalStatus[];
+}
+
+export interface UpdatePrioritizationWeightsRequest {
+	prioritizationWeights: PrioritizationWeights;
+}

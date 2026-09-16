@@ -9,9 +9,11 @@
 		iconName?: IconName;
 		headerAction?: Snippet;
 		children?: Snippet;
+		// Ações do card (Salvar/Cancelar/feedback) — cada seção é independente.
+		actions?: Snippet;
 	}
 
-	let { title, description = '', iconName, headerAction, children }: Props = $props();
+	let { title, description = '', iconName, headerAction, children, actions }: Props = $props();
 </script>
 
 <article class="settings-card">
@@ -37,6 +39,12 @@
 
 	{#if children}
 		{@render children()}
+	{/if}
+
+	{#if actions}
+		<footer class="settings-card-actions">
+			{@render actions()}
+		</footer>
 	{/if}
 </article>
 
@@ -83,6 +91,11 @@
 		display: flex;
 		align-items: flex-start;
 		flex-shrink: 0;
+	}
+
+	.settings-card-actions {
+		border-top: var(--border-default);
+		padding-top: var(--spacing-md);
 	}
 
 	h2 {

@@ -1,23 +1,97 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import { getSettingsState } from '$lib/states/settings.svelte';
-	import type { PortalCategory } from '$lib/types/portal-config';
+	import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
+	import { saveCategories } from '$lib/config/portal-config.service';
+	import { SectionState } from '$lib/states/section.svelte';
+	import type { CategoriesSection, PortalCategory } from '$lib/types/portal-config';
+	import { nextId, removeById, replaceById } from '$lib/utils/lists';
 	import {
+		areCategoryNamesUnique,
+		hasActiveCategory,
+		isValidCategoryDescription,
+		isValidCategoryName,
 		MAX_CATEGORIES,
 		MAX_CATEGORY_DESCRIPTION_LENGTH,
 		MAX_CATEGORY_NAME_LENGTH
 	} from '$lib/utils/validations';
+	import SectionActions from './SectionActions.svelte';
 	import SettingsCard from './SettingsCard.svelte';
 
-	const settingsState = getSettingsState();
+	const section = new SectionState<CategoriesSection>(
+		{ categories: page.data.portalConfig.categories },
+		{ categories: DEFAULT_PORTAL_CONFIG.categories },
+		(draft) => saveCategories({ categories: draft.categories })
+	);
+
+	// Erro global da lista (Card 5) — nome vazio, duplicado, nenhuma ativa ou
+	// limite de itens. Sem erro, fica null e o campo não bloqueia o salvamento.
+	const categoriesError: string | null = $derived.by(() => {
+		const categories = section.draft.categories;
+
+		if (categories.length === 0) return 'Adicione ao menos uma categoria.';
+		if (categories.length > MAX_CATEGORIES) return `O limite é de ${MAX_CATEGORIES} categorias.`;
+		if (
+			categories.some(
+				(category) =>
+					!isValidCategoryName(category.name) || !isValidCategoryDescription(category.description)
+			)
+		) {
+			return 'Preencha nome (até 40 caracteres) e descrição (até 200 caracteres) de cada categoria.';
+		}
+		if (!areCategoryNamesUnique(categories)) return 'Nomes de categoria não podem se repetir.';
+		if (!hasActiveCategory(categories)) return 'Mantenha ao menos uma categoria ativa.';
+		return null;
+	});
+
+	const invalid = $derived(categoriesError !== null);
+
+	function setCategories(categories: PortalCategory[]) {
+		section.draft = { categories };
+		section.clearFeedback();
+	}
+
+	function addCategory() {
+		setCategories([
+			...section.draft.categories,
+			{ id: nextId(section.draft.categories), name: '', description: '', isActive: true }
+		]);
+	}
+
+	function updateCategory(
+		id: number,
+		patch: Partial<Pick<PortalCategory, 'name' | 'description' | 'isActive'>>
+	) {
+		setCategories(replaceById<PortalCategory>(section.draft.categories, id, patch));
+	}
+
+	function toggleCategory(id: number) {
+		const current = section.draft.categories.find((category) => category.id === id);
+		updateCategory(id, { isActive: !current?.isActive });
+	}
+
+	function removeCategory(id: number) {
+		setCategories(removeById(section.draft.categories, id));
+	}
+
+	function reorderCategory(fromId: number, toId: number) {
+		const fromIndex = section.draft.categories.findIndex((category) => category.id === fromId);
+		const toIndex = section.draft.categories.findIndex((category) => category.id === toId);
+		if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) return;
+
+		const reordered = [...section.draft.categories];
+		const [moved] = reordered.splice(fromIndex, 1);
+		reordered.splice(toIndex, 0, moved);
+		setCategories(reordered);
+	}
 
 	// Categoria em edição (nome/descrição locais do input); `null` = nenhuma.
 	let editing = $state<{ id: number; name: string; description: string } | null>(null);
 
 	function handleAdd() {
-		settingsState.addCategory();
-		const categories = settingsState.draft.categories;
+		addCategory();
+		const categories = section.draft.categories;
 		const added = categories[categories.length - 1];
 		editing = added ? { id: added.id, name: added.name, description: added.description } : null;
 	}
@@ -28,17 +102,14 @@
 
 	function handleSaveEdit() {
 		if (!editing) return;
-		settingsState.updateCategory(editing.id, {
-			name: editing.name,
-			description: editing.description
-		});
+		updateCategory(editing.id, { name: editing.name, description: editing.description });
 		editing = null;
 	}
 
 	function handleCancelEdit(category: PortalCategory) {
 		// Cancelar uma categoria recém-adicionada (ainda sem nome) remove a linha.
 		if (category.name.trim() === '') {
-			settingsState.removeCategory(category.id);
+			removeCategory(category.id);
 		}
 		editing = null;
 	}
@@ -46,13 +117,13 @@
 	// Impede desativar a última categoria ativa.
 	function canToggleInactive(category: PortalCategory): boolean {
 		if (!category.isActive) return true;
-		const activeCategories = settingsState.draft.categories.filter((item) => item.isActive);
+		const activeCategories = section.draft.categories.filter((item) => item.isActive);
 		return activeCategories.length > 1;
 	}
 
 	// Só permite remover se sobrar ao menos uma categoria ativa.
 	function canRemoveCategory(category: PortalCategory): boolean {
-		const categories = settingsState.draft.categories;
+		const categories = section.draft.categories;
 		if (categories.length === 1) return false;
 		if (!category.isActive) return true;
 		return categories.filter((item) => item.isActive).length > 1;
@@ -77,7 +148,7 @@
 
 	function handleDrop(target: PortalCategory): void {
 		if (draggingId !== null) {
-			settingsState.reorderCategory(draggingId, target.id);
+			reorderCategory(draggingId, target.id);
 		}
 		handleDragEnd();
 	}
@@ -85,11 +156,11 @@
 	// Fallback de teclado para a reordenação (acessibilidade): setas movem a
 	// categoria para a posição do vizinho, na direção indicada.
 	function handleMoveByKeyboard(id: number, delta: -1 | 1): void {
-		const categories = settingsState.draft.categories;
+		const categories = section.draft.categories;
 		const index = categories.findIndex((category) => category.id === id);
 		const neighbor = categories[index + delta];
 		if (neighbor) {
-			settingsState.reorderCategory(id, neighbor.id);
+			reorderCategory(id, neighbor.id);
 		}
 	}
 </script>
@@ -99,18 +170,30 @@
 	title="5. Categorias da demanda"
 	description="Gerencie as categorias que alimentam o select do formulário de solicitação."
 >
+	{#snippet actions()}
+		<SectionActions
+			dirty={section.dirty}
+			saving={section.saving}
+			{invalid}
+			feedback={section.feedback}
+			onSave={() => section.save()}
+			onCancel={() => section.reset()}
+			onRestoreDefaults={() => section.restoreDefaults()}
+		/>
+	{/snippet}
+
 	<div class="categories-body">
 		<Button
 			variant="secondary"
-			disabled={settingsState.saving || settingsState.draft.categories.length >= MAX_CATEGORIES}
+			disabled={section.saving || section.draft.categories.length >= MAX_CATEGORIES}
 			onclick={handleAdd}
 		>
 			<Icon iconName="addCircle" iconSize="sm" />
 			Adicionar categoria
 		</Button>
 
-		{#if settingsState.categoriesError}
-			<p class="categories-error" role="alert">{settingsState.categoriesError}</p>
+		{#if categoriesError}
+			<p class="categories-error" role="alert">{categoriesError}</p>
 		{/if}
 
 		<div class="categories-table">
@@ -124,7 +207,7 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#each settingsState.draft.categories as category (category.id)}
+					{#each section.draft.categories as category (category.id)}
 						<tr
 							class:is-drag-source={draggingId === category.id}
 							class:is-drag-target={dropTargetId === category.id}
@@ -150,7 +233,7 @@
 										tabindex="0"
 										title="Arraste para reordenar (ou use as setas para cima/baixo)"
 										aria-label="Reordenar categoria"
-										draggable={!settingsState.saving && !(editing && editing.id === category.id)}
+										draggable={!section.saving && !(editing && editing.id === category.id)}
 										ondragstart={(event) => handleDragStart(event, category.id)}
 										ondragend={handleDragEnd}
 										onkeydown={(event) => {
@@ -202,7 +285,7 @@
 											type="checkbox"
 											checked={category.isActive}
 											disabled={!canToggleInactive(category)}
-											onchange={() => settingsState.toggleCategory(category.id)}
+											onchange={() => toggleCategory(category.id)}
 										/>
 										<span>Ativa</span>
 									</label>
@@ -235,7 +318,7 @@
 										class="icon-btn"
 										type="button"
 										aria-label="Editar categoria"
-										disabled={settingsState.saving}
+										disabled={section.saving}
 										onclick={() => handleEdit(category)}
 									>
 										<Icon iconName="edit" iconSize="sm" />
@@ -244,8 +327,8 @@
 										class="icon-btn"
 										type="button"
 										aria-label="Remover categoria"
-										disabled={settingsState.saving || !canRemoveCategory(category)}
-										onclick={() => settingsState.removeCategory(category.id)}
+										disabled={section.saving || !canRemoveCategory(category)}
+										onclick={() => removeCategory(category.id)}
 									>
 										<Icon iconName="delete" iconSize="sm" />
 									</button>
