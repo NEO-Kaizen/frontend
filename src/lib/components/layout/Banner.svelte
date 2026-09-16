@@ -51,13 +51,15 @@
 
 <style>
 	.banner {
+		--watermark-size: 6.2rem;
+
 		position: relative;
 
 		display: flex;
 		align-items: center;
 
 		width: 100%;
-		min-height: 170px;
+		min-height: calc(var(--watermark-size) * 2.2);
 
 		padding: var(--spacing-xl);
 
@@ -108,7 +110,7 @@
 		color: var(--on-gradient);
 
 		font-family: var(--font-montserrat);
-		font-size: 6.2rem;
+		font-size: var(--watermark-size);
 		font-weight: 700;
 		line-height: 1.2;
 
@@ -121,6 +123,8 @@
  */
 	@media (max-width: 640px) {
 		.banner {
+			--watermark-size: 4.5rem;
+
 			border-radius: var(--radius-md);
 		}
 		h1 {
@@ -129,12 +133,6 @@
 
 		.background-logo {
 			right: var(--spacing-md);
-		}
-
-		.background-logo span {
-			font-size: 4.5rem;
-			font-weight: 700;
-			line-height: 1.2;
 		}
 	}
 </style>
