@@ -23,9 +23,12 @@
 		// Renderização sem cartão próprio (ex.: dentro de aba ou modal).
 		embedded?: boolean;
 		onsave?: (result: PrioritizationResult, notes: CriterionNotes) => void;
+		// Quando fornecido, exibe o botão X e delega o controle de
+		// visibilidade ao pai (padrão Modal/CreateUserModal: {#if} + onclose).
+		onclose?: () => void;
 	}
 
-	let { protocol, initialNotes = {}, embedded = false, onsave }: Props = $props();
+	let { protocol, initialNotes = {}, embedded = false, onsave, onclose }: Props = $props();
 
 	const notesOptions: readonly CriterionNote[] = [1, 2, 3, 4, 5];
 
@@ -66,6 +69,23 @@
 	}
 
 	onMount(loadCriteria);
+
+	function resetCalculatorState(): void {
+		notes = {};
+		result = null;
+		justification = '';
+		validationError = '';
+		missingCriterionIds = [];
+		saveError = '';
+		loadError = '';
+		isSaving = false;
+		isLoading = false;
+	}
+
+	function handleClose(): void {
+		resetCalculatorState();
+		onclose?.();
+	}
 
 	function handleNoteChange(criterionId: string) {
 		// Um salvamento anterior perde validade quando uma nota é alterada.
@@ -113,13 +133,25 @@
 </script>
 
 <section class="prioritization-calculator" class:embedded aria-labelledby="prioritization-title">
-	<h2 id="prioritization-title" class="title">
-		<span class="title-text">
-			<Icon iconName="calculate" iconSize="sm" />
-			Cálculo de Priorização
-		</span>
-		<span class="scale-hint">(Escala 1 a 5)</span>
-	</h2>
+	<div class="header-fixed">
+		<h2 id="prioritization-title" class="title">
+			<span class="title-text">
+				<Icon iconName="calculate" iconSize="sm" />
+				Cálculo de Priorização
+			</span>
+		</h2>
+		{#if onclose}
+			<button
+				type="button"
+				class="calculator-close"
+				onclick={handleClose}
+				aria-label="Fechar calculadora de priorização"
+				disabled={isSaving}
+			>
+				<Icon iconName="close" iconSize="md" />
+			</button>
+		{/if}
+	</div>
 
 	{#if isLoading}
 		<div class="state-message" role="status">Carregando critérios...</div>
@@ -203,11 +235,9 @@
 						SCORE TOTAL <strong>{result ? result.score : '—'}</strong>
 						<span class="score-max">/ {result?.maxScore ?? maxScore}</span>
 					</span>
-					{#if result}
-						<span class="score-level">
-							Prioridade <strong>{result.level}</strong>
-						</span>
-					{/if}
+					<span class="score-level">
+						Prioridade: <strong>{result ? result.level : '—'}</strong>
+					</span>
 				</div>
 
 				<Button type="submit" loading={isSaving}>
@@ -221,6 +251,7 @@
 
 <style>
 	.prioritization-calculator {
+		position: relative;
 		width: 460px; /* largura fixa — o cartão não muda de tamanho entre estados */
 		max-width: 100%;
 		background: var(--white);
@@ -231,22 +262,12 @@
 		margin-top: var(--spacing-lg);
 	}
 
-	/* Dentro de aba/modal o cartão externo já fornece o container. */
-	.prioritization-calculator.embedded {
-		width: 100%;
-		margin-top: 0;
-		border: none;
-		box-shadow: none;
-		padding: 0;
-		background: transparent;
-	}
-
 	.title {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
 		gap: var(--spacing-md);
-		margin: 0 0 var(--spacing-lg);
+		margin: 0 0 10px;
 		color: var(--primary-color);
 		font-family: var(--font-montserrat);
 		font-size: 18px;
@@ -259,10 +280,47 @@
 		gap: var(--spacing-sm);
 	}
 
-	.scale-hint {
+	/* Header fixo em relação à calculadora: acompanha a rolagem da aba/modal. */
+	.header-fixed {
+		position: sticky;
+		top: 0;
+		z-index: 1;
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: var(--spacing-md);
+		background: var(--white);
+		border-bottom: 1px solid rgb(220, 220, 220);
+		margin-bottom: 20px;
+	}
+
+	/* Botão X no canto superior direito — mesmo padrão visual do Modal. */
+	.calculator-close {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		padding: var(--spacing-sm);
+		border: none;
+		background: none;
 		color: var(--gray);
-		font-size: 13px;
-		font-weight: 500;
+		border-radius: var(--radius-sm);
+		cursor: pointer;
+		transition: var(--transition-default);
+	}
+
+	.calculator-close:hover:not(:disabled) {
+		color: var(--primary-color);
+	}
+
+	.calculator-close:focus-visible {
+		outline: 2px solid var(--secondary-color);
+		outline-offset: 2px;
+	}
+
+	.calculator-close:disabled {
+		cursor: not-allowed;
+		opacity: 0.6;
 	}
 
 	.state-message {
@@ -405,7 +463,7 @@
 		display: flex;
 		align-items: baseline;
 		flex-wrap: wrap;
-		gap: var(--spacing-lg);
+		flex-direction: column;
 	}
 
 	.score-total {
