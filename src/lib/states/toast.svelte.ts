@@ -1,3 +1,5 @@
+import { browser } from '$app/environment';
+
 export type ToastType = 'success' | 'error';
 
 export interface ToastMessage {
@@ -10,6 +12,8 @@ class ToastState {
 	toasts = $state<ToastMessage[]>([]);
 
 	add(message: string, type: ToastType = 'success') {
+		if (!browser) return;
+
 		const id = Math.random().toString(36).substring(2, 9);
 		const newToast: ToastMessage = { id, message, type };
 
