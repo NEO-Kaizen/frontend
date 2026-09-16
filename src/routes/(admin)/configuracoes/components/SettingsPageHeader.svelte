@@ -26,7 +26,7 @@
 		width: 48px;
 		height: 48px;
 		border-radius: var(--radius-sm);
-		background-color: var(--status-blue-bg);
+		background-color: var(--tint);
 		color: var(--secondary-color);
 		flex-shrink: 0;
 	}

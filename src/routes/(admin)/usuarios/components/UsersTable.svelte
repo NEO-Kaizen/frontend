@@ -261,9 +261,9 @@
 
 		border-radius: 50%;
 
-		background-color: var(--status-info-bg);
+		background-color: var(--tint);
 
-		color: var(--status-info-text);
+		color: var(--primary-color);
 
 		font: var(--label);
 	}
@@ -316,7 +316,7 @@
 
 		padding: 4px var(--spacing-sm);
 
-		background-color: var(--status-blue-bg);
+		background-color: var(--tint);
 
 		border-radius: 999px;
 

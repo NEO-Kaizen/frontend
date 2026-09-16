@@ -868,7 +868,7 @@
 
 	.page-button:hover:not(.active),
 	.nav-button:hover:not(:disabled) {
-		background-color: var(--status-blue-bg);
+		background-color: var(--tint);
 
 		color: var(--secondary-color);
 	}

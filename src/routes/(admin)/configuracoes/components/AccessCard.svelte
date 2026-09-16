@@ -167,7 +167,7 @@
 
 	.access-option:has(input:checked) {
 		border-color: var(--secondary-color);
-		background-color: var(--status-blue-bg);
+		background-color: var(--tint);
 	}
 
 	.access-radio {

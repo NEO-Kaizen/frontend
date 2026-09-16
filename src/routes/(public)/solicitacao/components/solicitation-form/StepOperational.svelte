@@ -305,7 +305,7 @@
 		width: 40px;
 		height: 40px;
 		border-radius: var(--radius-sm);
-		background-color: var(--status-blue-bg);
+		background-color: var(--tint);
 		color: var(--secondary-color);
 	}
 

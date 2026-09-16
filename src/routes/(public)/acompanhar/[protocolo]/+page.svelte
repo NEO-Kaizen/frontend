@@ -244,7 +244,7 @@
 		font-size: 11px;
 		font-weight: 700;
 		color: var(--secondary-color);
-		background: var(--status-blue-bg);
+		background: var(--tint);
 		padding: 3px 10px;
 		border-radius: var(--radius-md);
 		margin-bottom: var(--spacing-sm);
