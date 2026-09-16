@@ -399,6 +399,8 @@ export interface RequestDetail {
 	} | null;
 }
 
+import type { TriageAssessment } from './triage';
+
 // ---- DTO interno (superconjunto) ----
 // Service: getInternalRequest(protocol: string): Promise<Result<InternalRequestDetail>>
 
@@ -439,6 +441,7 @@ export interface InternalRequestDetail {
 	openedAt: string;
 	lastUpdate: string;
 	internalObservations?: string | null;
+	triage?: TriageAssessment | null;
 }
 
 // PATCH /requests/:protocol/internal — proposta (backend definirá o contrato
