@@ -242,8 +242,8 @@
 		z-index: 60; /* > QuickActions 40, < Modal 70 */
 		width: 460px;
 		max-width: min(460px, 92vw);
-		max-height: 50dvh;
-		max-height: 50vh; /* fallback para browsers sem dvh */
+		max-height: 70dvh;
+		max-height: 70vh; /* fallback para browsers sem dvh */
 		background: var(--white);
 		border: var(--border-default);
 		border-radius: var(--radius-sm);
