@@ -8,9 +8,10 @@
 		solicitation: InternalRequestDetail;
 		onSaveSuccess?: (updated: InternalRequestDetail) => void;
 		onSaveError?: (message: string) => void;
+		onTriageSuccess?: (updated: InternalRequestDetail) => void;
 	}
 
-	let { solicitation, onSaveSuccess, onSaveError }: Props = $props();
+	let { solicitation, onSaveSuccess, onSaveError, onTriageSuccess }: Props = $props();
 
 	function getStatusTheme(status: RequestStatus): { bg: string; color: string; border: string } {
 		switch (status) {
@@ -148,7 +149,7 @@
 <div class="solicitation-specs-page">
 	{@render headerSnippet()}
 
-	<SpecTabs {solicitation} {onSaveSuccess} {onSaveError} />
+	<SpecTabs {solicitation} {onSaveSuccess} {onSaveError} {onTriageSuccess} />
 
 	<QuickActions />
 </div>

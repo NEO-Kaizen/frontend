@@ -1,15 +1,56 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { browser } from '$app/environment';
 	import NotFoundState from '$lib/components/NotFoundState.svelte';
+	import { loadTriageFromSession } from '$lib/services/triage-draft.service';
 	import SolicitationSpecs from './components/SolicitationSpecs.svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 
 	const protocol = $derived(data.protocol);
-	const solicitation = $derived(data.solicitation);
 	const error = $derived(data.error);
+	// svelte-ignore state_referenced_locally
+	let solicitation = $state(data.solicitation);
+
+	$effect(() => {
+		if (!browser) {
+			solicitation = data.solicitation;
+			return;
+		}
+		if (!data.solicitation) {
+			solicitation = data.solicitation;
+			return;
+		}
+		const persisted = loadTriageFromSession(data.protocol);
+		if (persisted) {
+			const serverStr = JSON.stringify(data.solicitation.triage);
+			const persistedStr = JSON.stringify(persisted);
+			if (serverStr !== persistedStr) {
+				solicitation = {
+					...data.solicitation,
+					triage: persisted,
+					status: persisted.exitStatus as unknown as typeof data.solicitation.status,
+					demand: {
+						...data.solicitation.demand,
+						category:
+							persisted.changeCategory === 'Sim' && persisted.newCategory
+								? persisted.newCategory
+								: data.solicitation.demand.category
+					},
+					lastUpdate: new Date().toISOString()
+				};
+				return;
+			}
+		}
+		solicitation = data.solicitation;
+	});
+
+	function handleTriageSuccess(updated: typeof solicitation) {
+		solicitation = updated;
+		void invalidateAll();
+	}
 </script>
 
 <svelte:head>
@@ -32,7 +73,7 @@
 			</div>
 		{/if}
 	{:else if solicitation}
-		<SolicitationSpecs {solicitation} />
+		<SolicitationSpecs {solicitation} onTriageSuccess={handleTriageSuccess} />
 	{:else if error && error.status === 404}
 		<NotFoundState
 			title="Solicitação não encontrada"

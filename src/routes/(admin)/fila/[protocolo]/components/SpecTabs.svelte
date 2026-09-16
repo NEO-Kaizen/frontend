@@ -2,13 +2,14 @@
 	import { invalidateAll, goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onDestroy, tick } from 'svelte';
-	import { fly } from 'svelte/transition';
+	import { fade, fly } from 'svelte/transition';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import { updateInternalRequest } from '$lib/services/request.service';
 	import type { InternalRequestDetail } from '$lib/types/request';
 	import InfoSection from './solicitation-info/InfoSection.svelte';
+	import TriageSection from './triagem/TriageSection.svelte';
 	import {
 		applyFieldChange,
 		checkDraftDirty,
@@ -23,9 +24,10 @@
 		solicitation: InternalRequestDetail;
 		onSaveSuccess?: (updated: InternalRequestDetail) => void;
 		onSaveError?: (message: string) => void;
+		onTriageSuccess?: (updated: InternalRequestDetail) => void;
 	}
 
-	let { solicitation, onSaveSuccess, onSaveError }: Props = $props();
+	let { solicitation, onSaveSuccess, onSaveError, onTriageSuccess }: Props = $props();
 
 	type SpecTabId = 'informacoes' | 'triagem' | 'mapeamento' | 'historico' | 'observacoes';
 
@@ -41,7 +43,7 @@
 
 	const SPEC_TABS: readonly SpecTabDefinition[] = [
 		{ id: 'informacoes', label: 'Informações', icon: 'description', enabled: true },
-		{ id: 'triagem', label: 'Triagem', icon: 'filter', enabled: false },
+		{ id: 'triagem', label: 'Triagem', icon: 'filter', enabled: true },
 		{
 			id: 'mapeamento',
 			label: 'Mapeamento',
@@ -59,9 +61,21 @@
 		{ id: 'observacoes', label: 'Observações Internas', icon: 'info', enabled: false }
 	];
 
+	// Botão Editar visível apenas para Administrador ou o responsável pela triagem.
+	// Regra definitiva é decidida pela issue #121 (modo de edição).
+	const currentUser = $derived(page.data.user);
+	const canEdit = $derived(
+		currentUser?.role === 'Administrador' ||
+			Boolean(currentUser && solicitation.assignee?.id === currentUser.id)
+	);
+	const canTriage = $derived(canEdit);
+
+	const displayTabs = $derived(SPEC_TABS.filter((tab) => tab.id !== 'triagem' || canTriage));
+
 	function resolveActiveTab(param: string | null): SpecTabId {
 		const tab = SPEC_TABS.find((item) => item.id === param);
 		if (tab && tab.enabled) {
+			if (tab.id === 'triagem' && !canTriage) return DEFAULT_TAB_ID;
 			return tab.id;
 		}
 		return DEFAULT_TAB_ID;
@@ -75,16 +89,9 @@
 			DEFAULT_TAB_ID
 	);
 
-	// Botão Editar visível apenas para Administrador ou o responsável pela triagem.
-	// Regra definitiva é decidida pela issue #121 (modo de edição).
-	const currentUser = $derived(page.data.user);
-	const canEdit = $derived(
-		currentUser?.role === 'Administrador' ||
-			Boolean(currentUser && solicitation.assignee?.id === currentUser.id)
-	);
-
 	function handleTabSelect(tab: SpecTabDefinition) {
 		if (!tab.enabled) return;
+		if (tab.id === 'triagem' && !canTriage) return;
 		clearSaveSuccess();
 
 		const url = new URL(page.url);
@@ -145,6 +152,8 @@
 		in: { x: 100, duration: prefersReducedMotion ? 0 : 160, delay: prefersReducedMotion ? 0 : 80 },
 		out: { x: 100, duration: prefersReducedMotion ? 0 : 140 }
 	};
+	const tabFlyIn = prefersReducedMotion ? { duration: 0 } : { y: 8, duration: 220, delay: 40 };
+	const tabFadeOut = prefersReducedMotion ? { duration: 0 } : { duration: 120 };
 
 	function focusFirstEditable(selectorScope: string | null): void {
 		const root = detailsCard;
@@ -252,7 +261,7 @@
 <section class="details-card" aria-label="Detalhes da solicitação" bind:this={detailsCard}>
 	<div class="tabs-bar" role="tablist" aria-label="Abas da solicitação">
 		<div class="tabs-left">
-			{#each SPEC_TABS as tab (tab.id)}
+			{#each displayTabs as tab (tab.id)}
 				<button
 					type="button"
 					role="tab"
@@ -322,12 +331,9 @@
 		</div>
 	</div>
 
-	{#if saveError}
-		<p class="save-feedback save-error" role="alert">{saveError}</p>
-	{/if}
-	{#if saveSuccess && !isEditMode}
-		<p class="save-feedback save-success" role="status">{saveSuccess}</p>
-	{/if}
+	<!-- TODO: toast para feedback de edição (sucesso/erro) - placeholder futuro -->
+	<!-- Mensagens de saveError/saveSuccess removidas deste escopo global para não vazar entre abas -->
+	<!-- O estado saveError/saveSuccess continua sendo controlado em handleSave/clearSaveSuccess para uso futuro via toast -->
 
 	<div
 		id="spec-panel"
@@ -335,18 +341,30 @@
 		role="tabpanel"
 		aria-labelledby={`spec-tab-${activeTab}`}
 	>
-		{#if activeTab === 'informacoes'}
-			<InfoSection
-				{solicitation}
-				{isEditMode}
-				{draft}
-				{errors}
-				onFieldChange={handleFieldChange}
-				onFieldBlur={handleFieldBlur}
-			/>
-		{:else}
-			<p class="placeholder">Conteúdo de {activeTabLabel} — implementação futura</p>
-		{/if}
+		{#key activeTab}
+			<div class="tab-panel-inner" in:fly={tabFlyIn} out:fade={tabFadeOut}>
+				{#if activeTab === 'informacoes'}
+					<InfoSection
+						{solicitation}
+						{isEditMode}
+						{draft}
+						{errors}
+						onFieldChange={handleFieldChange}
+						onFieldBlur={handleFieldBlur}
+					/>
+				{:else if activeTab === 'triagem'}
+					<TriageSection
+						{solicitation}
+						onTriageSuccess={(updated) => {
+							onTriageSuccess?.(updated);
+							onSaveSuccess?.(updated);
+						}}
+					/>
+				{:else}
+					<p class="placeholder">Conteúdo de {activeTabLabel} — implementação futura</p>
+				{/if}
+			</div>
+		{/key}
 	</div>
 </section>
 
