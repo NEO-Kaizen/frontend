@@ -146,8 +146,8 @@ export function toSavePayload(draft: MappingDraft): SaveMappingPayload {
 		scheduledFor: draft.scheduledFor,
 		durationMinutes: duration === null ? null : duration,
 		modality,
-		meetingLink: draft.meetingLink.trim() || null,
-		location: draft.location.trim() || null,
+		meetingLink: modality === 'Remoto' ? draft.meetingLink.trim() || null : null,
+		location: modality === 'Presencial' ? draft.location.trim() || null : null,
 		participants: draft.participants.map((participant) => ({ ...participant })),
 		notes: draft.notes.trim() || null
 	};
