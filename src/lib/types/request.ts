@@ -1,3 +1,5 @@
+import type { CriterionNotes } from './prioritization';
+
 export type RequestStatus =
 	| 'Solicitação enviada'
 	| 'Aguardando triagem'
@@ -414,6 +416,8 @@ export interface PrioritizationResult {
 	score: number | null;
 	maxScore: 50;
 	label: RequestPriority | null;
+	// Notas salvas da última avaliação (reavaliação). Vazio na primeira vez.
+	notes: CriterionNotes;
 }
 
 export interface InternalRequestDetail {

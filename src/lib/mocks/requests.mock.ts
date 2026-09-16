@@ -1,4 +1,5 @@
 import { ApiError } from '$lib/types/result';
+import { computePrioritizationResult, getSavedPrioritizationNotes } from './prioritization.mock';
 import type {
 	QueueAssignee,
 	QueueMetricsResponse,
@@ -517,7 +518,7 @@ function registerCreatedRequest(protocol: string, payload: CreateRequestPayload)
 		protocol,
 		status: 'Solicitação enviada',
 		priority: null,
-		prioritization: { score: null, maxScore: 50, label: null },
+		prioritization: { score: null, maxScore: 50, label: null, notes: {} },
 		assignee: null,
 		correctionAlert: null,
 		requester: payload.requester,
@@ -719,7 +720,23 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 		protocol: 'MAAT-6N2W-8VBM',
 		status: 'Concluído',
 		priority: 'Alta',
-		prioritization: { score: 18, maxScore: 50, label: 'Alta' },
+		prioritization: {
+			score: 38,
+			maxScore: 50,
+			label: 'Alta',
+			notes: {
+				impacto_operacional: 5,
+				risco_operacional: 4,
+				urgencia: 5,
+				volumetria: 3,
+				esforco_manual: 2,
+				impacto_cliente: 4,
+				prazo_regulatorio: 3,
+				areas_impactadas: 4,
+				alinhamento_estrategico: 5,
+				complexidade_estimada: 3
+			}
+		},
 		assignee: {
 			id: MOCK_ASSIGNEES.fernandoAlves,
 			name: 'Fernando Alves',
@@ -797,7 +814,7 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 		protocol: 'MAAT-8K3P-9X2M',
 		status: 'Em triagem',
 		priority: null,
-		prioritization: { score: null, maxScore: 50, label: null },
+		prioritization: { score: null, maxScore: 50, label: null, notes: {} },
 		assignee: {
 			id: MOCK_ASSIGNEES.fernandoAlves,
 			name: 'Fernando Alves',
@@ -854,7 +871,7 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 		protocol: 'MAAT-7C4F-1NXR',
 		status: 'Pendente de informações',
 		priority: null,
-		prioritization: { score: null, maxScore: 50, label: null },
+		prioritization: { score: null, maxScore: 50, label: null, notes: {} },
 		assignee: {
 			id: MOCK_ASSIGNEES.carlosMendes,
 			name: 'Carlos Mendes',
@@ -929,7 +946,21 @@ export function getInternalRequestMock(protocol: string): Promise<InternalReques
 	if (!detail) {
 		return Promise.reject(new ApiError(404, 'Solicitação não encontrada.'));
 	}
-	return delay(MOCK_LATENCY_MS).then(() => structuredClone(detail));
+
+	// Reflete avaliação salva em sessão: notas persistidas no mock de priorização
+	// voltam no /requests/:protocol/internal para reavaliação/atualização do card.
+	const savedNotes = getSavedPrioritizationNotes(normalized);
+	const hasEvaluation = Object.keys(savedNotes).length > 0;
+	const computed = hasEvaluation ? computePrioritizationResult(savedNotes) : null;
+
+	const prioritization = {
+		score: computed ? computed.score : detail.prioritization.score,
+		maxScore: 50 as const,
+		label: computed ? computed.classification : detail.prioritization.label,
+		notes: hasEvaluation ? savedNotes : detail.prioritization.notes
+	};
+
+	return delay(MOCK_LATENCY_MS).then(() => structuredClone({ ...detail, prioritization }));
 }
 
 export function updateInternalRequestMock(

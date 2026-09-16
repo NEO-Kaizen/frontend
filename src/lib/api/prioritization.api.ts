@@ -1,44 +1,42 @@
 import { apiClient } from './client';
 import { MOCK_DOMAINS } from '$lib/mocks';
 import type {
-	PrioritizationData,
-	PrioritizationResult,
-	SavePrioritizationPayload
+	EvaluatePrioritizationRequest,
+	EvaluatePrioritizationResponse,
+	ListCriteriaResponse
 } from '$lib/types/prioritization';
 
-const REQUESTS_PATH = '/requests';
+const PRIORITIZATION_PATH = '/prioritization';
 
-function prioritizationPath(protocol: string): string {
-	const encoded = encodeURIComponent(protocol);
-	return `${REQUESTS_PATH}/${encoded}/prioritization`;
-}
-
-// Carrega os critérios oficiais e as notas já existentes da solicitação
-// (vazias na primeira avaliação; preenchidas numa reavaliação).
-export async function getPrioritization(protocol: string): Promise<PrioritizationData> {
+// GET /prioritization/criteria — lista os critérios ativos com seus pesos
+// (fonte: `criteria.weight`, D-O3). Alimenta o formulário de avaliação.
+export async function getPrioritizationCriteria(): Promise<ListCriteriaResponse> {
 	// DEV inline no ponto de chamada garante a eliminação do mock no build (DCE).
 	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.prioritization) {
-		const { getPrioritizationMock } = await import('$lib/mocks/prioritization.mock');
-		return getPrioritizationMock(protocol);
+		const { getPrioritizationCriteriaMock } = await import('$lib/mocks/prioritization.mock');
+		return getPrioritizationCriteriaMock();
 	}
 
-	return apiClient<PrioritizationData>(prioritizationPath(protocol));
+	return apiClient<ListCriteriaResponse>(`${PRIORITIZATION_PATH}/criteria`);
 }
 
-// Envia apenas as notas por critério. O score e a classificação são calculados
-// pelo Backend — o Frontend não envia score final como fonte de verdade.
+// PUT /prioritization/:protocol/score — envia apenas as notas por critério.
+// Score e classificação são calculados pelo Backend (RN-007/RN-008) — o
+// Frontend não envia score final como fonte de verdade.
 export async function savePrioritization(
 	protocol: string,
-	payload: SavePrioritizationPayload
-): Promise<PrioritizationResult> {
+	payload: EvaluatePrioritizationRequest
+): Promise<EvaluatePrioritizationResponse> {
 	// DEV inline no ponto de chamada garante a eliminação do mock no build (DCE).
 	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.prioritization) {
 		const { savePrioritizationMock } = await import('$lib/mocks/prioritization.mock');
 		return savePrioritizationMock(protocol, payload.notes);
 	}
 
-	return apiClient<PrioritizationResult>(prioritizationPath(protocol), {
-		method: 'POST',
+	const encoded = encodeURIComponent(protocol);
+
+	return apiClient<EvaluatePrioritizationResponse>(`${PRIORITIZATION_PATH}/${encoded}/score`, {
+		method: 'PUT',
 		body: JSON.stringify(payload)
 	});
 }
