@@ -11,6 +11,7 @@ import logoAsset from '$lib/assets/MAAT-logo.svg';
 import avatarAsset from '$lib/assets/avatar-default.svg';
 import faviconAsset from '$lib/assets/favicon.svg';
 import loginImageAsset from '$lib/assets/login.png';
+import loginImageDarkAsset from '$lib/assets/loginDark.png';
 
 // Categorias padrão do formulário de solicitação (Card 5). Espelham as antigas
 // opções fixas (CATEGORY_OPTIONS) que passaram a ser configuráveis; servem
@@ -231,7 +232,7 @@ export const DEFAULT_PORTAL_CONFIG: PortalConfig = {
 		avatarLightUrl: avatarAsset,
 		avatarDarkUrl: avatarAsset,
 		loginImageLightUrl: loginImageAsset,
-		loginImageDarkUrl: loginImageAsset,
+		loginImageDarkUrl: loginImageDarkAsset,
 		faviconLightUrl: faviconAsset,
 		faviconDarkUrl: faviconAsset
 	},
