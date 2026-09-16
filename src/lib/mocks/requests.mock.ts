@@ -16,6 +16,7 @@ import type {
 	RequestStatus,
 	UpdateInternalRequestPayload
 } from '$lib/types/request';
+import type { TriageAssessment } from '$lib/types/triage';
 
 // Status considerados "em andamento" para a métrica da fila: trabalho já em fluxo,
 // excluindo etapas de fila/priorização e estados terminais.
@@ -530,7 +531,8 @@ function registerCreatedRequest(protocol: string, payload: CreateRequestPayload)
 		attachments: [],
 		openedAt: now,
 		lastUpdate: now,
-		internalObservations: null
+		internalObservations: null,
+		triage: null
 	});
 }
 
@@ -714,6 +716,40 @@ export function getRequestByProtocolMock(protocol: string): Promise<RequestDetai
 	return Promise.resolve(detail);
 }
 
+const TRIAGE_SESSION_PREFIX = 'maat:triage:';
+
+function triageSessionKey(protocol: string): string {
+	return `${TRIAGE_SESSION_PREFIX}${protocol.trim().toLowerCase()}`;
+}
+
+function loadTriageFromSessionStorage(protocol: string): TriageAssessment | null {
+	if (typeof window === 'undefined' || typeof sessionStorage === 'undefined') return null;
+	try {
+		const raw = sessionStorage.getItem(triageSessionKey(protocol));
+		if (!raw) return null;
+		const parsed: unknown = JSON.parse(raw);
+		if (
+			typeof parsed === 'object' &&
+			parsed !== null &&
+			typeof (parsed as Record<string, unknown>).adherentToScope === 'string'
+		) {
+			return parsed as TriageAssessment;
+		}
+		return null;
+	} catch {
+		return null;
+	}
+}
+
+function saveTriageToSessionStorage(protocol: string, triage: TriageAssessment): void {
+	if (typeof window === 'undefined' || typeof sessionStorage === 'undefined') return;
+	try {
+		sessionStorage.setItem(triageSessionKey(protocol), JSON.stringify(triage));
+	} catch {
+		// ignore quota / blocked
+	}
+}
+
 export const mockInternalRequestDetails: InternalRequestDetail[] = [
 	{
 		protocol: 'MAAT-6N2W-8VBM',
@@ -791,7 +827,22 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 		],
 		openedAt: '2026-08-10T09:41:20.000Z',
 		lastUpdate: '2026-08-28T16:20:00.000Z',
-		internalObservations: null
+		internalObservations: null,
+		triage: {
+			adherentToScope: 'Sim',
+			adherentJustification: '',
+			changeCategory: 'Não',
+			newCategory: '',
+			preliminaryComplexity:
+				'Média — envolve integração com sistema de ponto e validação de regras.',
+			perceivedRisks: 'Risco de divergência em marcações manuais e impacto na folha.',
+			suggestedResponsible: 'Ana Souza',
+			suggestedResponsibleJustification: 'Experiência prévia com automação de ponto.',
+			exitStatus: 'Elegível para avaliação',
+			result: 'Encaminhado para mapeamento detalhado.',
+			conclusionJustification:
+				'Demanda aderente ao escopo de automação e com benefícios claros de eficiência.'
+		}
 	},
 	{
 		protocol: 'MAAT-8K3P-9X2M',
@@ -848,7 +899,8 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 		attachments: [],
 		openedAt: '2026-08-25T14:03:11.000Z',
 		lastUpdate: '2026-08-26T10:12:40.000Z',
-		internalObservations: null
+		internalObservations: null,
+		triage: null
 	},
 	{
 		protocol: 'MAAT-7C4F-1NXR',
@@ -917,7 +969,8 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 		],
 		openedAt: '2026-08-26T13:45:00.000Z',
 		lastUpdate: '2026-08-27T10:30:00.000Z',
-		internalObservations: 'Aguardando volume médio mensal informado pelo solicitante.'
+		internalObservations: 'Aguardando volume médio mensal informado pelo solicitante.',
+		triage: null
 	}
 ];
 
@@ -928,6 +981,17 @@ export function getInternalRequestMock(protocol: string): Promise<InternalReques
 	);
 	if (!detail) {
 		return Promise.reject(new ApiError(404, 'Solicitação não encontrada.'));
+	}
+	// Persistência real via sessionStorage (sobrevive a reload na sessão)
+	const persisted = loadTriageFromSessionStorage(protocol);
+	if (persisted) {
+		detail.triage = structuredClone(persisted);
+		if (persisted.changeCategory === 'Sim' && persisted.newCategory) {
+			detail.demand.category = persisted.newCategory;
+		}
+		if (persisted.exitStatus) {
+			detail.status = persisted.exitStatus as unknown as RequestStatus;
+		}
 	}
 	return delay(MOCK_LATENCY_MS).then(() => structuredClone(detail));
 }
@@ -948,5 +1012,29 @@ export function updateInternalRequestMock(
 	detail.operational = structuredClone(payload.operational);
 	detail.complementary = payload.complementary ? structuredClone(payload.complementary) : undefined;
 	detail.lastUpdate = new Date().toISOString();
+	return delay(MOCK_LATENCY_MS).then(() => structuredClone(detail));
+}
+
+export function updateTriageMock(
+	protocol: string,
+	payload: TriageAssessment
+): Promise<InternalRequestDetail> {
+	const normalized = protocol.toLowerCase().trim();
+	const detail = mockInternalRequestDetails.find(
+		(d) => d.protocol.toLowerCase().trim() === normalized
+	);
+	if (!detail) {
+		return Promise.reject(new ApiError(404, 'Solicitação não encontrada.'));
+	}
+	detail.triage = structuredClone(payload);
+	if (payload.changeCategory === 'Sim' && payload.newCategory) {
+		detail.demand.category = payload.newCategory;
+	}
+	if (payload.exitStatus) {
+		detail.status = payload.exitStatus as unknown as RequestStatus;
+	}
+	detail.lastUpdate = new Date().toISOString();
+	// Persistência real via sessionStorage — garante reload na mesma sessão
+	saveTriageToSessionStorage(protocol, payload);
 	return delay(MOCK_LATENCY_MS).then(() => structuredClone(detail));
 }
