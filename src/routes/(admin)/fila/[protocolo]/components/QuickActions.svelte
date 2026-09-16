@@ -3,14 +3,6 @@
 	import { fly } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
 
-	interface Props {
-		// Dispara a ação escolhida; o painel fecha antes do callback para o
-		// consumidor abrir a funcionalidade (ex.: calculadora de prioridade).
-		onaction?: (key: string) => void;
-	}
-
-	let { onaction }: Props = $props();
-
 	let isOpen = $state(false);
 
 	let containerEl: HTMLDivElement | undefined = $state(undefined);
@@ -58,12 +50,6 @@
 		isOpen = !isOpen;
 	}
 
-	function handleAction(key: string) {
-		isOpen = false;
-		fabEl?.focus();
-		onaction?.(key);
-	}
-
 	function handleWindowClick(event: MouseEvent) {
 		if (!isOpen) return;
 		const target = event.target as Node;
@@ -103,7 +89,7 @@
 						class="action-row"
 						style:animation-delay={`${prefersReducedMotion ? '0ms' : `${index * 30}ms`}`}
 					>
-						<button type="button" class="action-item" onclick={() => handleAction(action.key)}>
+						<button type="button" class="action-item">
 							<span class="action-icon" aria-hidden="true">
 								<Icon iconName={action.icon} iconSize="sm" />
 							</span>

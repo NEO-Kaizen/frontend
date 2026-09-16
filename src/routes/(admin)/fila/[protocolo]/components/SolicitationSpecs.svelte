@@ -1,15 +1,6 @@
 <script lang="ts">
-	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import Modal from '$lib/components/Modal.svelte';
 	import type { InternalRequestDetail, RequestStatus } from '$lib/types/request';
-	import type { PrioritizationResult as DisplayPrioritization } from '$lib/types/request';
-	import type {
-		CriterionNotes,
-		PrioritizationResult as CalculatorResult
-	} from '$lib/types/prioritization';
-	import InfoSection from './solicitation-info/InfoSection.svelte';
-	import PrioritizationCalculator from './PrioritizationCalculator.svelte';
 	import QuickActions from './QuickActions.svelte';
 	import SpecTabs from './SpecTabs.svelte';
 
@@ -19,21 +10,6 @@
 		onSaveError?: (message: string) => void;
 	}
 
-	// Estado local do card do header: após salvar na calculadora ele é atualizado
-	// sem recarregar a página (e serve de fonte das notas para a reavaliação).
-	function snapshotInitialPrioritization(): DisplayPrioritization {
-		return {
-			score: solicitation.prioritization.score,
-			maxScore: 50,
-			label: solicitation.prioritization.label,
-			notes: { ...solicitation.prioritization.notes }
-		};
-	}
-
-	let headerPrioritization = $state<DisplayPrioritization>(snapshotInitialPrioritization());
-
-	let activeTab = $state('informacoes');
-	let isCalculatorOpen = $state(false);
 	let { solicitation, onSaveSuccess, onSaveError }: Props = $props();
 
 	function getStatusTheme(status: RequestStatus): { bg: string; color: string; border: string } {
@@ -71,53 +47,11 @@
 
 	let statusTheme = $derived(getStatusTheme(solicitation.status));
 	let displayScore = $derived(
-		headerPrioritization.score === null ? '-' : String(headerPrioritization.score)
+		solicitation.prioritization.score === null ? '-' : String(solicitation.prioritization.score)
 	);
-	let priorityLabel = $derived(headerPrioritization.label ?? 'Prioridade a ser calculada');
-	let isPriorityCalculated = $derived(headerPrioritization.score !== null);
-	let maxScore = $derived(headerPrioritization.maxScore ?? 50);
-
-	type TabItem = {
-		id: string;
-		label: string;
-		icon: 'description' | 'edit' | 'filter' | 'calendarCheck' | 'history' | 'info';
-		badge?: number;
-		disabled?: boolean;
-	};
-
-	const leftTabs: TabItem[] = [
-		{ id: 'informacoes', label: 'Informações', icon: 'description' },
-		{ id: 'triagem', label: 'Triagem', icon: 'filter' },
-		{ id: 'mapeamento', label: 'Mapeamento', icon: 'calendarCheck', badge: 1, disabled: true },
-		{ id: 'historico', label: 'Histórico de Conversa', icon: 'history', badge: 1, disabled: true },
-		{ id: 'observacoes', label: 'Observações Internas', icon: 'info', disabled: true }
-	];
-
-	const rightTab: TabItem = { id: 'editar', label: 'Editar', icon: 'edit', disabled: true };
-
-	function handleTabClick(tab: TabItem) {
-		if (tab.disabled) {
-			return;
-		}
-		activeTab = tab.id;
-	}
-
-	// Atualiza o card de Resultado da Priorização do header sem recarregar a página
-	// e mantém as notas salvas como fonte da reavaliação.
-	function handlePrioritizationSaved(result: CalculatorResult, notes: CriterionNotes) {
-		headerPrioritization = {
-			score: result.score,
-			maxScore: 50,
-			label: result.level,
-			notes
-		};
-	}
-
-	function handleQuickAction(key: string) {
-		if (key === 'priorityCalculator') {
-			isCalculatorOpen = true;
-		}
-	}
+	let priorityLabel = $derived(solicitation.prioritization.label ?? 'Prioridade a ser calculada');
+	let isPriorityCalculated = $derived(solicitation.prioritization.score !== null);
+	let maxScore = $derived(solicitation.prioritization.maxScore ?? 50);
 
 	function priorityBadgeTheme(
 		label: string | null,
@@ -154,7 +88,9 @@
 		}
 	}
 
-	let badgeTheme = $derived(priorityBadgeTheme(headerPrioritization.label, isPriorityCalculated));
+	let badgeTheme = $derived(
+		priorityBadgeTheme(solicitation.prioritization.label, isPriorityCalculated)
+	);
 </script>
 
 {#snippet headerSnippet()}
@@ -212,42 +148,10 @@
 <div class="solicitation-specs-page">
 	{@render headerSnippet()}
 
-	<section class="details-card" aria-label="Detalhes da solicitação">
-		{@render specTabsSnippet()}
-
-		<div class="tab-content">
-			{#if activeTab === 'informacoes'}
-				<InfoSection {solicitation} />
-			{:else if activeTab === 'triagem'}
-				<div class="triagem-empty">
-					<p class="triagem-text">Calcule e registre a prioridade desta solicitação.</p>
-					<Button onclick={() => (isCalculatorOpen = true)}>
-						<Icon iconName="calculate" iconSize="sm" />
-						Calcular Prioridade
-					</Button>
-				</div>
-			{:else}
-				<p class="placeholder">Conteúdo de {activeTab} — implementação futura</p>
-			{/if}
-		</div>
-
-		<QuickActions onaction={handleQuickAction} />
-	</section>
 	<SpecTabs {solicitation} {onSaveSuccess} {onSaveError} />
 
 	<QuickActions />
 </div>
-
-{#if isCalculatorOpen}
-	<Modal title="Calculadora de Prioridade" onclose={() => (isCalculatorOpen = false)}>
-		<PrioritizationCalculator
-			protocol={solicitation.protocol}
-			initialNotes={headerPrioritization.notes}
-			embedded
-			onsave={handlePrioritizationSaved}
-		/>
-	</Modal>
-{/if}
 
 <style>
 	.solicitation-specs-page {
@@ -388,141 +292,6 @@
 		font-size: 11px;
 		font-weight: 700;
 		white-space: nowrap;
-	}
-
-	.details-card {
-		background: var(--white);
-		border: var(--border-default);
-		border-radius: var(--radius-sm);
-		box-shadow: var(--regular-shadow);
-		padding: var(--spacing-lg);
-		position: relative;
-		display: flex;
-		flex-direction: column;
-		gap: var(--spacing-md);
-		word-break: break-word;
-	}
-
-	.tabs-bar {
-		display: flex;
-		align-items: center;
-		gap: 4px;
-		flex-wrap: wrap;
-		border-bottom: 1px solid var(--white-gray);
-		padding-bottom: 12px;
-		margin-bottom: 4px;
-	}
-
-	.tabs-left {
-		display: flex;
-		align-items: center;
-		gap: 4px;
-		flex-wrap: wrap;
-	}
-
-	.tabs-right {
-		display: flex;
-		align-items: center;
-		gap: 4px;
-		margin-left: auto;
-	}
-
-	.tab-item {
-		display: inline-flex;
-		align-items: center;
-		gap: 6px;
-		padding: 8px 14px;
-		border-radius: var(--radius-sm);
-		border: 1px solid transparent;
-		background: transparent;
-		color: var(--secondary-color);
-		font-family: var(--font-inter);
-		font-size: 13px;
-		font-weight: 600;
-		cursor: pointer;
-		white-space: nowrap;
-		transition:
-			background 150ms ease,
-			color 150ms ease;
-		position: relative;
-	}
-
-	.tab-item:hover {
-		background: var(--background-color);
-	}
-
-	.tab-item:focus-visible {
-		outline: 2px solid var(--secondary-color);
-		outline-offset: 2px;
-	}
-
-	.tab-item.active {
-		background: var(--primary-color);
-		color: var(--white);
-		border-color: var(--primary-color);
-	}
-
-	.tab-item.disabled {
-		opacity: 0.7;
-		cursor: not-allowed;
-	}
-
-	.tab-item.disabled:hover {
-		background: transparent;
-	}
-
-	.tab-item.active.disabled {
-		opacity: 1;
-	}
-
-	.tab-badge {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		min-width: 18px;
-		height: 18px;
-		padding: 0 5px;
-		border-radius: 999px;
-		background: var(--secondary-color);
-		color: var(--white);
-		font-size: 11px;
-		font-weight: 700;
-		line-height: 1;
-	}
-
-	.tab-item.active .tab-badge {
-		background: var(--white);
-		color: var(--primary-color);
-	}
-
-	.tab-content {
-		display: flex;
-		flex-direction: column;
-		min-height: 200px;
-	}
-
-	.placeholder {
-		font-family: var(--font-inter);
-		font-size: 14px;
-		color: var(--gray);
-		padding: var(--spacing-md) 0;
-		margin: 0;
-	}
-
-	.triagem-empty {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: var(--spacing-md);
-		padding: var(--spacing-xl) var(--spacing-md);
-		text-align: center;
-	}
-
-	.triagem-text {
-		margin: 0;
-		font-family: var(--font-inter);
-		font-size: 14px;
-		color: var(--gray);
 	}
 
 	@media (max-width: 768px) {
