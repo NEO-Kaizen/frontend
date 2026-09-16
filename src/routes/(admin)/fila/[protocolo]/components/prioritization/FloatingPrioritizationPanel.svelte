@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
-	import { fly, slide } from 'svelte/transition';
+	import { fly } from 'svelte/transition';
 	import { cubicOut, cubicInOut } from 'svelte/easing';
 	import Icon from '$lib/components/Icon.svelte';
 	import type { CriterionNotes, PrioritizationResult } from '$lib/types/prioritization';
@@ -54,9 +54,6 @@
 	const flyOut = prefersReducedMotion
 		? { y: 0, duration: 0 }
 		: { y: 20, duration: 240, easing: cubicInOut };
-	const slideMinimize = prefersReducedMotion
-		? { duration: 0 }
-		: { duration: 260, easing: cubicOut };
 
 	// Quando protocolo muda, não resetamos posição automaticamente — mantém
 	// última posição arrastada. Se produto exigir reset por protocolo, reativa aqui.
@@ -166,15 +163,6 @@
 			});
 		}
 	});
-
-	// Quando minimizado, não precisa clamp extra; quando restaurado, re-clamp
-	$effect(() => {
-		// Reagir a isMinimized para re-clamp após altura mudar
-		void isMinimized;
-		if (isOpen) {
-			tick().then(handleWindowResize);
-		}
-	});
 </script>
 
 <svelte:window onkeydown={handleKeydown} onresize={handleWindowResize} />
@@ -231,13 +219,17 @@
 			</div>
 		</div>
 
-		{#if !isMinimized}
-			<div class="panel-content" transition:slide={slideMinimize}>
+		<div class="panel-content-wrapper" class:minimized={isMinimized}>
+			<div
+				class="panel-content"
+				aria-hidden={isMinimized ? 'true' : undefined}
+				inert={isMinimized ? true : undefined}
+			>
 				{#key protocol}
 					<PrioritizationCalculator {protocol} {initialNotes} floating={true} onsave={onSave} />
 				{/key}
 			</div>
-		{/if}
+		</div>
 	</div>
 {/if}
 
@@ -261,17 +253,6 @@
 		overflow: hidden;
 		/* Isola stacking context para evitar vazamento de z-index interno */
 		isolation: isolate;
-		/* Transição suave para minimizar/restaurar (height/max-height) */
-		transition:
-			max-height 300ms cubic-bezier(0.32, 0.72, 0, 1),
-			height 300ms cubic-bezier(0.32, 0.72, 0, 1);
-	}
-
-	.floating-panel.minimized {
-		/* Header-only: 48px + borda — transição suave via max-height acima */
-		max-height: 48px;
-		height: 48px;
-		overflow: hidden;
 	}
 
 	.panel-header {
@@ -357,13 +338,34 @@
 		opacity: 0.6;
 	}
 
-	.panel-content {
-		overflow-y: auto;
-		overscroll-behavior: contain;
-		padding: var(--spacing-md) var(--spacing-lg) var(--spacing-lg);
-		flex: 1 1 auto;
+	.panel-content-wrapper {
+		display: grid;
+		grid-template-rows: 1fr;
+		transition: grid-template-rows 260ms cubic-bezier(0.33, 1, 0.68, 1);
+		overflow: hidden;
 		min-height: 0;
-		/* Scroll interno respeita max-height do container */
+	}
+
+	.panel-content-wrapper.minimized {
+		grid-template-rows: 0fr;
+	}
+
+	.panel-content {
+		min-height: 0;
+		overflow: hidden;
+		padding: var(--spacing-md) var(--spacing-lg) var(--spacing-lg);
+		overscroll-behavior: contain;
+		transition: padding 260ms cubic-bezier(0.33, 1, 0.68, 1);
+	}
+
+	.panel-content-wrapper.minimized .panel-content {
+		padding-top: 0;
+		padding-bottom: 0;
+		overflow: hidden;
+	}
+
+	.panel-content-wrapper:not(.minimized) .panel-content {
+		overflow-y: auto;
 	}
 
 	@media (max-width: 640px) {
@@ -378,7 +380,8 @@
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.floating-panel {
+		.floating-panel,
+		.panel-content-wrapper {
 			transition: none;
 		}
 	}
