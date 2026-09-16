@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import Icon from '$lib/components/Icon.svelte';
+	import InfoTip from '$lib/components/InfoTip.svelte';
 	import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
 	import { saveTheme } from '$lib/config/portal-config.service';
 	import { SectionState } from '$lib/states/section.svelte';
@@ -13,7 +14,6 @@
 	} from '$lib/states/theme.svelte';
 	import {
 		STATUS_TONES,
-		THEME_TOKEN_KEYS,
 		type StatusTone,
 		type ThemeGradient,
 		type ThemePalette,
@@ -22,14 +22,12 @@
 		type ThemeTokens
 	} from '$lib/types/portal-config';
 	import {
-		classifyContrast,
 		contrastRatio,
 		flattenColor,
 		meetsMinimum,
 		suggestStatusBackground,
 		MIN_AA_NORMAL,
-		MIN_NON_TEXT,
-		type ContrastLevel
+		MIN_NON_TEXT
 	} from '$lib/utils/contrast';
 	import ColorField from './ColorField.svelte';
 	import SectionActions from './SectionActions.svelte';
@@ -151,14 +149,63 @@
 		border: 'Borda',
 		textPrimary: 'Texto principal',
 		textSecondary: 'Texto secundário',
-		richBlack: 'Superfície escura',
-		primary: 'Cor primária',
-		secondary: 'Cor secundária',
-		tint: 'Tint',
-		onPrimary: 'Sobre a primária',
-		onDark: 'Sobre superfície escura',
-		onGradient: 'Sobre o gradiente'
+		richBlack: 'Barra escura',
+		primary: 'Primária',
+		secondary: 'Secundária',
+		tint: 'Realce',
+		onPrimary: 'Texto sobre a primária',
+		onDark: 'Texto sobre a barra escura',
+		onGradient: 'Texto sobre o gradiente'
 	};
+
+	// Uso de cada token (fonte: doc de dark mode), exibido como hint acessível.
+	// Sem hint onde o rótulo e o preview já bastam (background e os "texto sobre").
+	const TOKEN_HINTS: Partial<Record<ThemeTokenKey, string>> = {
+		surface: 'Cards, painéis e modais.',
+		border: 'Linhas, separadores e contornos.',
+		textPrimary: 'Corpo de texto e labels.',
+		textSecondary: 'Legendas e texto auxiliar.',
+		richBlack: 'Barra de navegação / sidebar.',
+		primary: 'CTAs e botões primários.',
+		secondary: 'Links e ícones de destaque.',
+		tint: 'Hover e seleção.'
+	};
+
+	// Agrupamento apenas de exibição — não altera a allowlist `THEME_TOKEN_KEYS`
+	// nem a persistência. `onGradient` é editado na seção Gradiente.
+	const TOKEN_GROUPS: { title: string; keys: ThemeTokenKey[] }[] = [
+		{ title: 'Superfícies', keys: ['background', 'surface', 'richBlack', 'tint'] },
+		{ title: 'Textos', keys: ['textPrimary', 'textSecondary'] },
+		{ title: 'Marca', keys: ['primary', 'secondary'] },
+		{ title: 'Linhas', keys: ['border'] },
+		{ title: 'Texto sobre cores', keys: ['onPrimary', 'onDark'] }
+	];
+
+	// Amostra "Aa" por token de texto: fundo de referência + a própria cor de texto.
+	const TOKEN_PREVIEW_PAIRS: Partial<
+		Record<ThemeTokenKey, { background: ThemeTokenKey; foreground: ThemeTokenKey }>
+	> = {
+		onPrimary: { background: 'primary', foreground: 'onPrimary' },
+		onDark: { background: 'richBlack', foreground: 'onDark' }
+	};
+
+	const tokenGroups = $derived(
+		TOKEN_GROUPS.map((group) => ({
+			title: group.title,
+			fields: group.keys.map((key) => {
+				const pair = TOKEN_PREVIEW_PAIRS[key];
+				return {
+					key,
+					label: TOKEN_LABELS[key],
+					hint: TOKEN_HINTS[key],
+					reserveHint: true,
+					value: palette[key],
+					previewBackground: pair ? palette[pair.background] : undefined,
+					previewForeground: pair ? palette[pair.foreground] : undefined
+				};
+			})
+		}))
+	);
 
 	const TONE_LABELS: Record<StatusTone, string> = {
 		error: 'Erro',
@@ -166,13 +213,6 @@
 		info: 'Informação',
 		warning: 'Alerta',
 		neutral: 'Neutro'
-	};
-
-	const LEVEL_LABELS: Record<ContrastLevel, string> = {
-		AAA: 'AAA',
-		AA: 'AA',
-		'AA-large': 'AA (texto grande)',
-		fail: 'insuficiente'
 	};
 
 	// Advisor por tom (modelo monocromático): acento × fundo do badge (AA 4,5:1,
@@ -205,6 +245,8 @@
 		return {
 			fromRatio,
 			toRatio,
+			fromPass: meetsMinimum(fromRatio, MIN_AA_NORMAL),
+			toPass: meetsMinimum(toRatio, MIN_AA_NORMAL),
 			worst: Math.min(fromRatio, toRatio),
 			pass: meetsMinimum(Math.min(fromRatio, toRatio), MIN_AA_NORMAL)
 		};
@@ -262,19 +304,35 @@
 
 	<section class="section">
 		<h3 class="section-title">Tokens do tema</h3>
-		<div class="token-grid">
-			{#each THEME_TOKEN_KEYS as key (key)}
-				<ColorField
-					label={TOKEN_LABELS[key]}
-					value={palette[key]}
-					onchange={(value) => setThemeToken(editingPalette, key, value)}
-				/>
-			{/each}
-		</div>
+
+		{#each tokenGroups as group (group.title)}
+			<div class="token-group">
+				<h4 class="token-group-title">{group.title}</h4>
+				<div class="token-grid">
+					{#each group.fields as field (field.key)}
+						<ColorField
+							label={field.label}
+							hint={field.hint}
+							reserveHint={field.reserveHint}
+							value={field.value}
+							previewBackground={field.previewBackground}
+							previewForeground={field.previewForeground}
+							onchange={(value) => setThemeToken(editingPalette, field.key, value)}
+						/>
+					{/each}
+				</div>
+			</div>
+		{/each}
 	</section>
 
 	<section class="section">
-		<h3 class="section-title">Gradiente</h3>
+		<div class="section-head">
+			<h3 class="section-title">Gradiente</h3>
+			<InfoTip
+				label="Ver informação sobre o contraste do gradiente"
+				text="O texto sobre o gradiente precisa de contraste mínimo 4,5:1 (AA) nas duas pontas. É apenas um aviso — não impede salvar."
+			/>
+		</div>
 
 		<div class="gradient-editor">
 			<span class="gradient-preview" style:background={gradientPreviewStyle}>
@@ -292,6 +350,11 @@
 					value={palette.gradient.to}
 					onchange={(value) => setThemeGradient(editingPalette, { to: value })}
 				/>
+				<ColorField
+					label={TOKEN_LABELS.onGradient}
+					value={palette.onGradient}
+					onchange={(value) => setThemeToken(editingPalette, 'onGradient', value)}
+				/>
 				<label class="gradient-angle">
 					<span class="gradient-angle-label">Ângulo</span>
 					<input
@@ -308,20 +371,40 @@
 			</div>
 
 			<ul class="tone-advice gradient-advice">
-				<li class:fail={!gradientAdvisory.pass}>
-					Texto × início: <strong>{gradientAdvisory.fromRatio.toFixed(2)}:1</strong>
-					({LEVEL_LABELS[classifyContrast(gradientAdvisory.fromRatio)]}) · mín. {MIN_AA_NORMAL}
+				<li class:fail={!gradientAdvisory.fromPass}>
+					<span class="advice-icon" aria-hidden="true">
+						<Icon iconName={gradientAdvisory.fromPass ? 'check' : 'priority'} iconSize="sm" />
+					</span>
+					Texto sobre o gradiente × início:
+					<strong>{gradientAdvisory.fromRatio.toFixed(2)}:1</strong> · mín. {MIN_AA_NORMAL}:1
 				</li>
-				<li class:fail={!gradientAdvisory.pass}>
-					Texto × fim: <strong>{gradientAdvisory.toRatio.toFixed(2)}:1</strong>
-					({LEVEL_LABELS[classifyContrast(gradientAdvisory.toRatio)]}) · mín. {MIN_AA_NORMAL}
+				<li class:fail={!gradientAdvisory.toPass}>
+					<span class="advice-icon" aria-hidden="true">
+						<Icon iconName={gradientAdvisory.toPass ? 'check' : 'priority'} iconSize="sm" />
+					</span>
+					Texto sobre o gradiente × fim: <strong>{gradientAdvisory.toRatio.toFixed(2)}:1</strong> ·
+					mín. {MIN_AA_NORMAL}:1
 				</li>
 			</ul>
+			{#if !gradientAdvisory.pass}
+				<p class="tone-fix">
+					Ajuste o contraste entre o texto e o gradiente (clareie ou escureça o texto).
+				</p>
+			{/if}
 		</div>
 	</section>
 
 	<section class="section">
-		<h3 class="section-title">Cores de status</h3>
+		<div class="section-head">
+			<h3 class="section-title">Cores de status</h3>
+			<InfoTip
+				label="Ver informação sobre o contraste das cores de status"
+				text="O contraste mede a legibilidade sobre o fundo, seguindo o mínimo WCAG (AA): texto do badge exige 4,5:1 e o ponto/borda sobre a página exige 3:1. É apenas um aviso — não impede salvar."
+			/>
+		</div>
+		<p class="section-note">
+			O contraste é apenas um aviso de legibilidade; você pode salvar mesmo abaixo do mínimo.
+		</p>
 
 		<div class="tone-list">
 			{#each toneAdvisories as advisory (advisory.tone)}
@@ -343,19 +426,24 @@
 
 						<ul class="tone-advice">
 							<li class:fail={!advisory.backgroundPass}>
-								Acento × fundo do badge: <strong>{advisory.backgroundRatio.toFixed(2)}:1</strong>
-								({LEVEL_LABELS[classifyContrast(advisory.backgroundRatio)]}) · mín. {MIN_AA_NORMAL}
+								<span class="advice-icon" aria-hidden="true">
+									<Icon iconName={advisory.backgroundPass ? 'check' : 'priority'} iconSize="sm" />
+								</span>
+								Texto do badge × fundo: <strong>{advisory.backgroundRatio.toFixed(2)}:1</strong> ·
+								mín. {MIN_AA_NORMAL}:1
 							</li>
 							<li class:fail={!advisory.pagePass}>
-								Acento × fundo da página: <strong>{advisory.pageRatio.toFixed(2)}:1</strong>
-								({LEVEL_LABELS[classifyContrast(advisory.pageRatio)]}) · mín. {MIN_NON_TEXT}
+								<span class="advice-icon" aria-hidden="true">
+									<Icon iconName={advisory.pagePass ? 'check' : 'priority'} iconSize="sm" />
+								</span>
+								Detalhe × página: <strong>{advisory.pageRatio.toFixed(2)}:1</strong> · mín. {MIN_NON_TEXT}:1
 							</li>
 						</ul>
 					</div>
 
 					<div class="tone-fields">
 						<ColorField
-							label="Acento"
+							label="Detalhe"
 							value={advisory.tokens.color}
 							onchange={(value) => updateStatusToneColor(editingPalette, advisory.tone, value)}
 						/>
@@ -366,6 +454,12 @@
 							onchange={(value) => setStatusToneBackground(editingPalette, advisory.tone, value)}
 						/>
 					</div>
+
+					{#if !advisory.backgroundPass || !advisory.pagePass}
+						<p class="tone-fix">
+							Ajuste o contraste entre o detalhe e o fundo (clareie ou escureça um deles).
+						</p>
+					{/if}
 
 					<button
 						class="tone-lock"
@@ -378,12 +472,12 @@
 								: 'Travar o fundo (modo manual)'
 						} do tom ${TONE_LABELS[advisory.tone]}. O fundo está ${
 							advisory.tokens.backgroundLocked
-								? 'travado: mudar o acento não altera o fundo'
-								: 'automático: o fundo acompanha o acento'
+								? 'travado: mudar o detalhe não altera o fundo'
+								: 'automático: o fundo acompanha o detalhe'
 						}.`}
 						title={advisory.tokens.backgroundLocked
-							? 'Fundo travado: mudar o acento não altera o fundo. Clique para destravar e recalcular a sugestão a partir do acento.'
-							: 'Fundo automático: acompanha o acento. Clique para travar e fixar o valor manual.'}
+							? 'Fundo travado: mudar o detalhe não altera o fundo. Clique para destravar e recalcular a sugestão a partir do detalhe.'
+							: 'Fundo automático: acompanha o detalhe. Clique para travar e fixar o valor manual.'}
 						onclick={() =>
 							setStatusToneBackgroundLocked(
 								editingPalette,
@@ -436,9 +530,37 @@
 		gap: var(--spacing-md);
 	}
 
+	.section-head {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-sm);
+	}
+
 	.section-title {
+		margin: 0;
 		font: var(--label);
 		font-size: 13px;
+		color: var(--text-color-secondary);
+		text-transform: uppercase;
+		letter-spacing: 0.4px;
+	}
+
+	.section-note {
+		margin: 0;
+		font-size: 12px;
+		color: var(--text-color-secondary);
+	}
+
+	.token-group {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-sm);
+	}
+
+	.token-group-title {
+		margin: 0;
+		font: var(--label);
+		font-size: 12px;
 		color: var(--text-color-secondary);
 		text-transform: uppercase;
 		letter-spacing: 0.4px;
@@ -447,6 +569,7 @@
 	.token-grid {
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+		align-items: start;
 		gap: var(--spacing-md);
 	}
 
@@ -474,7 +597,8 @@
 
 	.gradient-fields {
 		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+		align-items: start;
 		gap: var(--spacing-md);
 		flex: 1;
 		min-width: 260px;
@@ -489,7 +613,7 @@
 	.gradient-angle-label {
 		font: var(--label);
 		font-size: 13px;
-		color: var(--text-color-secondary);
+		color: var(--text-color-primary);
 	}
 
 	.gradient-angle-input {
@@ -569,9 +693,28 @@
 		color: var(--status-warning);
 	}
 
+	.advice-icon {
+		display: inline-flex;
+		vertical-align: -3px;
+		margin-right: 4px;
+		color: var(--status-success);
+	}
+
+	.tone-advice li.fail .advice-icon {
+		color: var(--status-warning);
+	}
+
+	.tone-fix {
+		flex-basis: 100%;
+		margin: 0;
+		font-size: 12px;
+		color: var(--status-warning);
+	}
+
 	.tone-fields {
 		display: grid;
 		grid-template-columns: repeat(2, minmax(0, 1fr));
+		align-items: start;
 		gap: var(--spacing-md);
 		max-width: 420px;
 	}

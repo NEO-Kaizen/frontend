@@ -8,9 +8,30 @@
 		onchange: (value: string) => void;
 		// Exibe o slider de opacidade (alpha) — usado só onde a cor aceita alpha.
 		allowAlpha?: boolean;
+		// Texto auxiliar de uso, exibido sob o rótulo e ligado via aria-describedby.
+		hint?: string;
+		// Amostra "Aa": fundo (cor ou gradiente) + cor do texto.
+		previewBackground?: string;
+		previewForeground?: string;
+		// Reserva a linha do hint mesmo sem texto, para alinhar campos no grid.
+		reserveHint?: boolean;
 	}
 
-	let { label, value, onchange, allowAlpha = false }: Props = $props();
+	let {
+		label,
+		value,
+		onchange,
+		allowAlpha = false,
+		hint,
+		previewBackground,
+		previewForeground,
+		reserveHint = false
+	}: Props = $props();
+
+	// id estável entre SSR e cliente para o aria-describedby.
+	const uid = $props.id();
+	const hintId = `color-field-hint-${uid}`;
+	const hasPreview = $derived(previewBackground !== undefined && previewForeground !== undefined);
 
 	// O `<input type="color">` só é criado após o mount: a hidratação do Svelte
 	// remove o atributo `value` desses inputs (tratamento de reset de formulário)
@@ -66,6 +87,16 @@
 
 <label class="color-field" class:invalid={isInvalid}>
 	<span class="color-field-label">{label}</span>
+	{#if hint || reserveHint}
+		<span
+			class="color-field-hint"
+			class:placeholder={!hint}
+			id={hint ? hintId : undefined}
+			aria-hidden={hint ? undefined : 'true'}
+		>
+			{hint ?? ''}
+		</span>
+	{/if}
 	<span class="color-field-inputs">
 		{#if isMounted}
 			<input
@@ -73,6 +104,7 @@
 				type="color"
 				value={rgbValue}
 				aria-label={`Selecionar cor de ${label}`}
+				aria-describedby={hint ? hintId : undefined}
 				oninput={handleColorInput}
 			/>
 		{:else}
@@ -90,8 +122,14 @@
 			spellcheck="false"
 			aria-label={`Código hexadecimal de ${label}`}
 			aria-invalid={isInvalid}
+			aria-describedby={hint ? hintId : undefined}
 			oninput={handleTextInput}
 		/>
+		{#if hasPreview}
+			<span class="color-field-preview" style:background={previewBackground} aria-hidden="true">
+				<span style:color={previewForeground}>Aa</span>
+			</span>
+		{/if}
 	</span>
 	{#if allowAlpha}
 		<span class="color-field-alpha">
@@ -116,12 +154,25 @@
 		flex-direction: column;
 		gap: var(--spacing-xs);
 		min-width: 0;
+		align-self: start;
 	}
 
 	.color-field-label {
 		font: var(--label);
 		font-size: 13px;
+		color: var(--text-color-primary);
+	}
+
+	.color-field-hint {
+		min-height: 1.3em;
+		font-size: 12px;
+		line-height: 1.3;
 		color: var(--text-color-secondary);
+	}
+
+	.color-field-hint.placeholder {
+		color: transparent;
+		user-select: none;
 	}
 
 	.color-field-inputs {
@@ -162,6 +213,19 @@
 
 	.color-field.invalid .color-field-hex {
 		border-color: var(--status-error);
+	}
+
+	.color-field-preview {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+		flex-shrink: 0;
+		border: var(--border-default);
+		border-radius: var(--radius-sm);
+		font: var(--label);
+		font-size: 12px;
 	}
 
 	.color-field-alpha {
