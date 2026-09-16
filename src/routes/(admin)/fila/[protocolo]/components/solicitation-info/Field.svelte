@@ -2,6 +2,7 @@
 	import FilterSelect from '$lib/components/FilterSelect.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import Textarea from '$lib/components/Textarea.svelte';
+	import type { IconName } from '$lib/types/icons';
 
 	interface FieldBase {
 		label: string;
@@ -13,12 +14,16 @@
 		error?: string;
 		dirty?: boolean;
 		disabled?: boolean;
+		required?: boolean;
+		placeholder?: string;
+		hint?: string;
+		icon?: IconName;
 		onEditInput?: (value: string) => void;
 		onEditBlur?: () => void;
 	}
 
 	interface TextFieldProps extends FieldBase {
-		kind?: 'text' | 'number' | 'date';
+		kind?: 'text' | 'number' | 'date' | 'datetime-local' | 'url';
 		maxlength?: number;
 		min?: string;
 		step?: string;
@@ -49,6 +54,10 @@
 		error = '',
 		dirty = false,
 		disabled = false,
+		required = false,
+		placeholder = '',
+		hint = '',
+		icon,
 		onEditInput,
 		onEditBlur,
 		...variant
@@ -62,8 +71,16 @@
 	let editing = $derived(isEditMode && editable);
 	let isDirty = $derived(dirty && !error);
 	let isMultiline = $derived(variant.kind === 'textarea' && variant.multiline === true);
-	let inputType: 'text' | 'number' | 'date' = $derived(
-		variant.kind === 'number' ? 'number' : variant.kind === 'date' ? 'date' : 'text'
+	let inputType: 'text' | 'number' | 'date' | 'datetime-local' | 'url' = $derived(
+		variant.kind === 'number'
+			? 'number'
+			: variant.kind === 'date'
+				? 'date'
+				: variant.kind === 'datetime-local'
+					? 'datetime-local'
+					: variant.kind === 'url'
+						? 'url'
+						: 'text'
 	);
 
 	function getEditValue(): string {
@@ -93,6 +110,8 @@
 				{label}
 				bind:value={getEditValue, setEditValue}
 				{disabled}
+				{required}
+				{placeholder}
 				maxlength={variant.maxlength}
 				rows={variant.rows ?? 4}
 				{error}
@@ -115,12 +134,18 @@
 				type={inputType}
 				bind:value={getEditValue, setEditValue}
 				{disabled}
+				{required}
+				{placeholder}
+				{icon}
 				maxlength={variant.maxlength}
 				min={variant.min}
 				step={variant.step}
 				{error}
 				dirty={isDirty}
 			/>
+		{/if}
+		{#if hint}
+			<p class="field-hint">{hint}</p>
 		{/if}
 	</div>
 {:else}
@@ -186,6 +211,13 @@
 		position: relative;
 		z-index: 10;
 		transform: scale(1.015);
+	}
+
+	.field-hint {
+		margin: 4px 0 0 0;
+		font-family: var(--font-inter);
+		font-size: 12px;
+		color: var(--gray);
 	}
 
 	@media (prefers-reduced-motion: reduce) {
