@@ -375,11 +375,6 @@
 		color: var(--gray);
 	}
 
-	input:focus-visible {
-		outline: 1px solid var(--secondary-color);
-		outline-offset: 2px;
-	}
-
 	.control.disabled {
 		opacity: 0.6;
 	}
