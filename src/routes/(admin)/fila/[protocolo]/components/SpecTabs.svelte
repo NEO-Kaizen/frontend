@@ -6,8 +6,10 @@
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Modal from '$lib/components/Modal.svelte';
+	import { loadInternalObservations } from '$lib/services/internal-observations.service';
 	import { updateInternalRequest } from '$lib/services/request.service';
 	import type { InternalRequestDetail } from '$lib/types/request';
+	import InternalObservationsSection from './internal-observations/InternalObservationsSection.svelte';
 	import InfoSection from './solicitation-info/InfoSection.svelte';
 	import {
 		applyFieldChange,
@@ -27,6 +29,16 @@
 
 	let { solicitation, onSaveSuccess, onSaveError }: Props = $props();
 
+	let internalObservationsCount = $state(0);
+
+	async function loadInternalObservationsCount(): Promise<void> {
+		const result = await loadInternalObservations(solicitation.protocol);
+
+		if (result.ok) {
+			internalObservationsCount = result.data.observations.length;
+		}
+	}
+
 	type SpecTabId = 'informacoes' | 'triagem' | 'mapeamento' | 'historico' | 'observacoes';
 
 	const DEFAULT_TAB_ID: SpecTabId = 'informacoes';
@@ -39,7 +51,7 @@
 		badge?: number;
 	};
 
-	const SPEC_TABS: readonly SpecTabDefinition[] = [
+	const SPEC_TABS: readonly SpecTabDefinition[] = $derived([
 		{ id: 'informacoes', label: 'Informações', icon: 'description', enabled: true },
 		{ id: 'triagem', label: 'Triagem', icon: 'filter', enabled: false },
 		{
@@ -56,8 +68,14 @@
 			enabled: false,
 			badge: 1
 		},
-		{ id: 'observacoes', label: 'Observações Internas', icon: 'info', enabled: false }
-	];
+		{
+			id: 'observacoes',
+			label: 'Observações Internas',
+			icon: 'info',
+			enabled: true,
+			badge: internalObservationsCount
+		}
+	]);
 
 	function resolveActiveTab(param: string | null): SpecTabId {
 		const tab = SPEC_TABS.find((item) => item.id === param);
@@ -135,23 +153,35 @@
 		typeof window !== 'undefined' &&
 		typeof window.matchMedia === 'function' &&
 		window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 	// Transição única suave: mesma distância/duração para entrada/saída evita "pulo"
 	// quando os dois ramos ({#if}/{:else}) trocam simultaneamente.
 	const editButtonFlight = {
-		in: { x: 100, duration: prefersReducedMotion ? 0 : 160, delay: prefersReducedMotion ? 0 : 80 },
+		in: {
+			x: 100,
+			duration: prefersReducedMotion ? 0 : 160,
+			delay: prefersReducedMotion ? 0 : 80
+		},
 		out: { x: 100, duration: prefersReducedMotion ? 0 : 140 }
 	};
+
 	const editActionsFlight = {
-		in: { x: 100, duration: prefersReducedMotion ? 0 : 160, delay: prefersReducedMotion ? 0 : 80 },
+		in: {
+			x: 100,
+			duration: prefersReducedMotion ? 0 : 160,
+			delay: prefersReducedMotion ? 0 : 80
+		},
 		out: { x: 100, duration: prefersReducedMotion ? 0 : 140 }
 	};
 
 	function focusFirstEditable(selectorScope: string | null): void {
 		const root = detailsCard;
 		if (!root) return;
+
 		const selector = selectorScope
 			? `${selectorScope} input:not(:disabled), ${selectorScope} select:not(:disabled), ${selectorScope} textarea:not(:disabled)`
 			: '.field-editor input:not(:disabled), .field-editor select:not(:disabled), .field-editor textarea:not(:disabled)';
+
 		const target = root.querySelector<HTMLElement>(selector);
 		target?.focus();
 	}
@@ -181,16 +211,19 @@
 			exitEditMode();
 			return;
 		}
+
 		if (checkDraftDirty(draft, solicitation)) {
 			showDiscardModal = true;
 			return;
 		}
+
 		exitEditMode();
 	}
 
 	function handleFieldChange(path: string, value: string): void {
 		if (!draft) return;
 		applyFieldChange(draft, path, value);
+
 		// Padrão clearError do formulário: limpa o erro do campo (e do par
 		// escolha/detalhe) sem validar o restante.
 		if (path.endsWith('Detail')) {
@@ -204,41 +237,51 @@
 
 	function handleFieldBlur(path: string): void {
 		if (!draft) return;
+
 		const next = validateEditField(draft, path);
 		const related = path.endsWith('Detail')
 			? [path, path.slice(0, -'Detail'.length)]
 			: [path, `${path}Detail`];
+
 		for (const key of related) delete errors[key];
 		Object.assign(errors, next);
 	}
 
 	async function handleSave(): Promise<void> {
 		if (!draft || isSaving) return;
+
 		const validation = validateEditDraft(draft);
 		errors = validation;
+
 		if (Object.keys(validation).length > 0) {
 			saveError = 'Revise os campos destacados antes de salvar.';
 			tick().then(() => focusFirstEditable('.field-editor.is-invalid'));
 			return;
 		}
+
 		isSaving = true;
 		saveError = null;
 		clearSaveSuccess();
+
 		const result = await updateInternalRequest(
 			solicitation.protocol,
 			toUpdatePayload(draft, solicitation)
 		);
+
 		isSaving = false;
+
 		if (result.ok) {
 			isEditMode = false;
 			draft = null;
 			errors = {};
 			clearSaveSuccess();
 			saveSuccess = 'Alterações salvas com sucesso.';
+
 			saveSuccessTimer = setTimeout(() => {
 				saveSuccess = null;
 				saveSuccessTimer = undefined;
 			}, SAVE_SUCCESS_TIMEOUT_MS);
+
 			onSaveSuccess?.(result.data);
 			await invalidateAll();
 			tick().then(() => editButton?.focus());
@@ -247,6 +290,8 @@
 			onSaveError?.(result.error.message);
 		}
 	}
+
+	void loadInternalObservationsCount();
 </script>
 
 <section class="details-card" aria-label="Detalhes da solicitação" bind:this={detailsCard}>
@@ -268,12 +313,23 @@
 				>
 					<Icon iconName={tab.icon} iconSize="sm" />
 					<span>{tab.label}</span>
-					{#if tab.badge}
-						<span class="tab-badge" aria-label={`${tab.badge} notificação`}>{tab.badge}</span>
+
+					{#if tab.id === 'observacoes' && internalObservationsCount > 0}
+						<span
+							class="tab-badge"
+							aria-label={`${internalObservationsCount} observações internas`}
+						>
+							{internalObservationsCount}
+						</span>
+					{:else if tab.badge}
+						<span class="tab-badge" aria-label={`${tab.badge} notificação`}>
+							{tab.badge}
+						</span>
 					{/if}
 				</button>
 			{/each}
 		</div>
+
 		<div class="tabs-right">
 			{#if isEditMode}
 				<div
@@ -294,6 +350,7 @@
 						<Icon iconName="check" iconSize="sm" />
 						<span>{isSaving ? 'Salvando…' : 'Salvar'}</span>
 					</button>
+
 					<button
 						type="button"
 						class="btn-cancel"
@@ -325,6 +382,7 @@
 	{#if saveError}
 		<p class="save-feedback save-error" role="alert">{saveError}</p>
 	{/if}
+
 	{#if saveSuccess && !isEditMode}
 		<p class="save-feedback save-success" role="status">{saveSuccess}</p>
 	{/if}
@@ -344,6 +402,11 @@
 				onFieldChange={handleFieldChange}
 				onFieldBlur={handleFieldBlur}
 			/>
+		{:else if activeTab === 'observacoes'}
+			<InternalObservationsSection
+				{solicitation}
+				onCountChange={(count) => (internalObservationsCount = count)}
+			/>
 		{:else}
 			<p class="placeholder">Conteúdo de {activeTabLabel} — implementação futura</p>
 		{/if}
@@ -354,6 +417,7 @@
 	<Modal title="Descartar alterações?" onclose={() => (showDiscardModal = false)}>
 		<div class="discard-body">
 			<p>Há alterações não salvas. Deseja descartá-las e sair do modo de edição?</p>
+
 			<div class="discard-actions">
 				<Button variant="outline-neutral" onclick={() => (showDiscardModal = false)}>
 					Continuar editando
