@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import { invalidateAll } from '$app/navigation';
 	import { untrack } from 'svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import type { InternalRequestDetail, RequestStatus } from '$lib/types/request';
 	import type { CriterionNotes, PrioritizationResult } from '$lib/types/prioritization';
 	import { loadPrioritizationFinal } from '$lib/services/prioritization-draft.service';
+	import AssignAction from './AssignAction.svelte';
 	import FloatingPrioritizationPanel from './prioritization/FloatingPrioritizationPanel.svelte';
 	import QuickActions from './QuickActions.svelte';
 	import SpecTabs from './SpecTabs.svelte';
@@ -103,6 +105,8 @@
 	let isCalculatorMinimized = $state(false);
 	let calculatorPos = $state<{ x: number; y: number } | null>(null);
 
+	let isAssignModalOpen = $state(false);
+
 	// Restaura priorização final do sessionStorage ao montar/trocar de protocolo
 	// Corrige header que revertia após invalidateAll (mock servidor isolado) — sem depender de solicitation para evitar loop
 	$effect(() => {
@@ -165,9 +169,18 @@
 		onSaveSuccess?.(solicitation);
 	}
 
+	function handleAssignSuccess(updated: InternalRequestDetail): void {
+		solicitation = updated;
+		onTriageSuccess?.(updated);
+		onSaveSuccess?.(updated);
+		void invalidateAll();
+	}
+
 	function handleQuickAction(key: string) {
 		if (key === 'priorityCalculator') {
 			handleOpenCalculator();
+		} else if (key === 'assignResponsible') {
+			isAssignModalOpen = true;
 		}
 	}
 </script>
@@ -191,6 +204,19 @@
 				</span>
 			</div>
 			<h1 class="solicitation-title">{solicitation.demand.title}</h1>
+			<div class="responsible-field" aria-label="Responsável da solicitação">
+				<span class="responsible-label">
+					<Icon iconName="person" iconSize="sm" />
+					Responsável
+				</span>
+				<span
+					class="responsible-value"
+					class:is-unassigned={!solicitation.assignee?.name}
+					title={solicitation.assignee?.name ?? 'Não atribuído'}
+				>
+					{solicitation.assignee?.name ?? 'Não atribuído'}
+				</span>
+			</div>
 		</div>
 		{@render prioritizationCardSnippet()}
 	</div>
@@ -248,6 +274,16 @@
 		onPositionChange={handleCalculatorPositionChange}
 		onSave={handleCalculatorSave}
 	/>
+
+	{#if isAssignModalOpen}
+		<AssignAction
+			protocol={solicitation.protocol}
+			currentAssigneeId={solicitation.assignee?.id ?? null}
+			currentAssigneeName={solicitation.assignee?.name ?? null}
+			onclose={() => (isAssignModalOpen = false)}
+			onSuccess={handleAssignSuccess}
+		/>
+	{/if}
 </div>
 
 <style>
@@ -327,6 +363,60 @@
 		overflow-wrap: anywhere;
 	}
 
+	.responsible-field {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		gap: 4px;
+		padding: 6px 10px;
+		background: linear-gradient(135deg, var(--white) 0%, var(--background-color) 100%);
+		border: 1px solid var(--white-gray);
+		border-left: 3px solid var(--secondary-color);
+		border-radius: var(--radius-sm);
+		box-shadow: var(--regular-shadow);
+		width: fit-content;
+		min-width: 180px;
+		max-width: 100%;
+		text-align: center;
+		flex-shrink: 0;
+	}
+
+	.responsible-field :global(.material-symbols-outlined) {
+		color: var(--gray);
+	}
+
+	.responsible-label {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 6px;
+		font-family: var(--font-inter);
+		font-size: 11px;
+		font-weight: 600;
+		color: var(--gray);
+		letter-spacing: 0.02em;
+		white-space: nowrap;
+	}
+
+	.responsible-value {
+		font-family: var(--font-inter);
+		font-size: 13px;
+		font-weight: 700;
+		color: var(--primary-color);
+		line-height: 1.3;
+		word-break: break-word;
+		overflow-wrap: anywhere;
+		max-width: 220px;
+		text-align: center;
+	}
+
+	.responsible-value.is-unassigned {
+		color: var(--gray);
+		font-weight: 400;
+		font-style: italic;
+	}
+
 	.prio-card {
 		background: linear-gradient(135deg, var(--white) 0%, var(--background-color) 100%);
 		border: 1px solid var(--white-gray);
@@ -398,6 +488,11 @@
 
 		.prio-card {
 			width: 100%;
+		}
+
+		.responsible-field {
+			width: 100%;
+			min-width: 0;
 		}
 	}
 

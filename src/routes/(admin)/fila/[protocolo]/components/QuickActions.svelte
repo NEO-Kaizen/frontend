@@ -30,7 +30,7 @@
 		},
 		{
 			key: 'assignResponsible',
-			label: 'Atribuir Responsável',
+			label: 'Atribuir Analista',
 			hint: 'Atribuir ou Alterar',
 			icon: 'group'
 		},
