@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import ToggleButton from '$lib/components/ToggleButton.svelte';
 	import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
 	import { saveCategories } from '$lib/config/portal-config.service';
 	import { SectionState } from '$lib/states/section.svelte';
@@ -178,22 +179,6 @@
 	title="5. Categorias da demanda"
 	description="Gerencie as categorias que alimentam o select do formulário de solicitação."
 >
-	{#snippet headerAction()}
-		<button
-			class="inactive-toggle"
-			type="button"
-			aria-pressed={showInactive}
-			onclick={() => (showInactive = !showInactive)}
-		>
-			<Icon iconName={showInactive ? 'visibilityOff' : 'visibility'} iconSize="sm" />
-			<span>
-				{showInactive
-					? 'Ocultar inativas'
-					: `Mostrar inativas${inactiveCount ? ` (${inactiveCount})` : ''}`}
-			</span>
-		</button>
-	{/snippet}
-
 	{#snippet actions()}
 		<SectionActions
 			dirty={section.dirty}
@@ -207,14 +192,24 @@
 	{/snippet}
 
 	<div class="categories-body">
-		<Button
-			variant="secondary"
-			disabled={section.saving || section.draft.categories.length >= MAX_CATEGORIES}
-			onclick={handleAdd}
-		>
-			<Icon iconName="addCircle" iconSize="sm" />
-			Adicionar categoria
-		</Button>
+		<div class="categories-toolbar">
+			<Button
+				variant="secondary"
+				disabled={section.saving || section.draft.categories.length >= MAX_CATEGORIES}
+				onclick={handleAdd}
+			>
+				<Icon iconName="addCircle" iconSize="sm" />
+				<span>Adicionar categoria</span>
+			</Button>
+
+			<ToggleButton
+				pressed={showInactive}
+				label="Mostrar inativas"
+				pressedLabel="Ocultar inativas"
+				count={inactiveCount}
+				onclick={() => (showInactive = !showInactive)}
+			/>
+		</div>
 
 		{#if categoriesError}
 			<p class="categories-error" role="alert">{categoriesError}</p>
@@ -368,23 +363,10 @@
 </SettingsCard>
 
 <style>
-	.inactive-toggle {
-		display: inline-flex;
+	.categories-toolbar {
+		display: flex;
 		align-items: center;
-		gap: var(--spacing-xs);
-		padding: var(--spacing-sm) var(--spacing-md);
-		border: var(--border-default);
-		border-radius: var(--radius-sm);
-		background-color: var(--white);
-		color: var(--text-color-secondary);
-		font: var(--label);
-		font-size: 13px;
-		cursor: pointer;
-	}
-
-	.inactive-toggle[aria-pressed='true'] {
-		border-color: var(--secondary-color);
-		color: var(--secondary-color);
+		gap: var(--spacing-sm);
 	}
 
 	.categories-body {
@@ -614,14 +596,5 @@
 		margin: 0;
 		font-size: 13px;
 		color: var(--status-red);
-	}
-
-	:global(.categories-body > button) {
-		align-self: flex-start;
-		padding: var(--spacing-sm) var(--spacing-md);
-		border-radius: var(--radius-sm);
-		font-size: 14px;
-		font-weight: 600;
-		white-space: nowrap;
 	}
 </style>

@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import ToggleButton from '$lib/components/ToggleButton.svelte';
 	import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
 	import { saveStatuses } from '$lib/config/portal-config.service';
 	import { SectionState } from '$lib/states/section.svelte';
@@ -182,32 +183,24 @@
 		/>
 	{/snippet}
 
-	{#snippet headerAction()}
-		<div class="status-actions">
-			<button
-				class="inactive-toggle"
-				type="button"
-				aria-pressed={showInactive}
-				onclick={() => (showInactive = !showInactive)}
-			>
-				<Icon iconName={showInactive ? 'visibilityOff' : 'visibility'} iconSize="sm" />
-				<span>
-					{showInactive
-						? 'Ocultar inativos'
-						: `Mostrar inativos${inactiveCount ? ` (${inactiveCount})` : ''}`}
-				</span>
-			</button>
+	<div class="status-toolbar">
+		<Button
+			variant="secondary"
+			disabled={section.saving || section.draft.statuses.length >= MAX_STATUSES}
+			onclick={handleAdd}
+		>
+			<Icon iconName="addCircle" iconSize="sm" />
+			<span>Adicionar status</span>
+		</Button>
 
-			<Button
-				variant="secondary"
-				disabled={section.saving || section.draft.statuses.length >= MAX_STATUSES}
-				onclick={handleAdd}
-			>
-				<Icon iconName="addCircle" iconSize="sm" />
-				<span>Adicionar status</span>
-			</Button>
-		</div>
-	{/snippet}
+		<ToggleButton
+			pressed={showInactive}
+			label="Mostrar inativos"
+			pressedLabel="Ocultar inativos"
+			count={inactiveCount}
+			onclick={() => (showInactive = !showInactive)}
+		/>
+	</div>
 
 	{#if statusesError}
 		<p class="status-error" role="alert">{statusesError}</p>
@@ -340,29 +333,10 @@
 </SettingsCard>
 
 <style>
-	.status-actions {
+	.status-toolbar {
 		display: flex;
 		align-items: center;
 		gap: var(--spacing-sm);
-	}
-
-	.inactive-toggle {
-		display: inline-flex;
-		align-items: center;
-		gap: var(--spacing-xs);
-		padding: var(--spacing-sm) var(--spacing-md);
-		border: var(--border-default);
-		border-radius: var(--radius-sm);
-		background-color: var(--white);
-		color: var(--text-color-secondary);
-		font: var(--label);
-		font-size: 13px;
-		cursor: pointer;
-	}
-
-	.inactive-toggle[aria-pressed='true'] {
-		border-color: var(--secondary-color);
-		color: var(--secondary-color);
 	}
 
 	.status-error {
@@ -562,14 +536,5 @@
 		--tone-family: var(--status-neutral);
 		--tone-bg: var(--status-neutral-bg);
 		--tone-border: color-mix(in srgb, var(--status-neutral) 30%, transparent);
-	}
-
-	:global(.settings-card-action button) {
-		padding: var(--spacing-sm) var(--spacing-md);
-		border-radius: var(--radius-sm);
-		font-size: 13px;
-		font-weight: 600;
-		line-height: 1.3;
-		white-space: normal;
 	}
 </style>
