@@ -136,7 +136,7 @@
 	}
 
 	.secondary h3 {
-		color: var(--text-color-primary);
+		color: var(--heading-color);
 	}
 
 	.secondary .description {

@@ -361,7 +361,7 @@
 	.empty-state h3 {
 		margin: 0 0 var(--spacing-xs);
 		font: var(--h3);
-		color: var(--primary-color);
+		color: var(--heading-color);
 	}
 
 	.empty-state p {

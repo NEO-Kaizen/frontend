@@ -39,7 +39,7 @@
 	.text h1 {
 		margin: 0;
 		font: var(--h1);
-		color: var(--primary-color);
+		color: var(--heading-color);
 	}
 
 	.text p {

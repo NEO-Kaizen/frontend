@@ -537,7 +537,7 @@
 
 	.form-header h1 {
 		font: var(--h1);
-		color: var(--primary-color);
+		color: var(--heading-color);
 	}
 
 	.form-card {

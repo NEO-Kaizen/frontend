@@ -175,7 +175,7 @@
 
 	.step-header h3 {
 		font: var(--h3);
-		color: var(--primary-color);
+		color: var(--heading-color);
 	}
 
 	.fields-grid {
