@@ -1,4 +1,4 @@
-import { base } from '$app/paths';
+import { resolvePublicApiUrl } from '$lib/api/client';
 import { fetchPortalConfig } from '$lib/config/portal-config.api';
 import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
 import type { PortalConfig, SolicitationMode } from '$lib/types/portal-config';
@@ -98,13 +98,13 @@ function sanitizeAssetUrl(value: unknown, fallback: string): string {
 	const url = value.trim();
 	if (!url) return fallback;
 
-	// Assets públicos enviados pelo painel e armazenados pelo backend.
-	// Quando a aplicação está publicada/deploy em um subcaminho, transforma:
+	// Assets públicos enviados pelo painel e armazenados pelo backend usam a
+	// mesma URL pública da API. Em produção, transforma:
 	// /uploads/portal/imagem.png
 	// em:
-	// /server03/uploads/portal/imagem.png
+	// https://lab.alphaedtech.org.br/server03/api/uploads/portal/imagem.png
 	if (url.startsWith('/uploads/portal/')) {
-		return `${base}${url}`;
+		return resolvePublicApiUrl(url);
 	}
 
 	// Outros assets internos já são processados pelo build do SvelteKit. Continuam aqui.

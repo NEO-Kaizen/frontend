@@ -25,24 +25,21 @@ export const handle: Handle = async ({ event, resolve }) => {
 export const handleFetch: HandleFetch = ({ event, request, fetch }) => {
 	const publicApiUrl = publicEnv.PUBLIC_API_URL ? new URL(publicEnv.PUBLIC_API_URL) : null;
 
-	const internalApiUrl = privateEnv.API_INTERNAL_URL
-		? new URL(privateEnv.API_INTERNAL_URL)
-		: null;
+	const internalApiUrl = privateEnv.API_INTERNAL_URL ? new URL(privateEnv.API_INTERNAL_URL) : null;
 
 	const target = new URL(request.url);
 
 	// -------------------mapping--------------------------
 	// https://lab.alphaedtech.org.br/server03/api/auth/me
-  //                          ↓
+	//                          ↓
 	// http://127.0.0.1:3000/auth/me
-	if(publicApiUrl) {
+	if (publicApiUrl) {
 		const publicApiPath = publicApiUrl.pathname.replace(/\/$/, '');
 
 		const isPublicApiRequest =
 			target.origin === publicApiUrl.origin &&
-			(target.pathname === publicApiPath ||
-				target.pathname.startsWith(`${publicApiPath}/`));
-			
+			(target.pathname === publicApiPath || target.pathname.startsWith(`${publicApiPath}/`));
+
 		if (isPublicApiRequest && internalApiUrl) {
 			const suffix = target.pathname.slice(publicApiPath.length);
 			const internalPath = internalApiUrl.pathname.replace(/\/$/, '');
@@ -82,7 +79,6 @@ export const handleFetch: HandleFetch = ({ event, request, fetch }) => {
 				if (cookie) request.headers.set('cookie', cookie);
 			}
 		}
-
 	}
 
 	return fetch(request);

@@ -2,7 +2,6 @@ import adapter from '@sveltejs/adapter-node';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 
-
 function getBasePath(): '' | `/${string}` {
 	const value = process.env.BASE_PATH?.trim();
 
@@ -11,16 +10,13 @@ function getBasePath(): '' | `/${string}` {
 	}
 
 	if (!value.startsWith('/') || value === '/' || value.endsWith('/')) {
-		throw new Error(
-			'BASE_PATH deve começar com "/" e não terminar com "/". Exemplo: /server03'
-		);
+		throw new Error('BASE_PATH deve começar com "/" e não terminar com "/". Exemplo: /server03');
 	}
 
 	return value as `/${string}`;
 }
 
 const base = getBasePath();
-
 
 export default defineConfig({
 	plugins: [
@@ -37,7 +33,7 @@ export default defineConfig({
 			adapter: adapter(),
 
 			paths: {
-				base,
+				base
 			}
 		})
 	]

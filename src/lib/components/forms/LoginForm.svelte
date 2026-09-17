@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
@@ -76,7 +75,9 @@
 		}
 
 		const redirectPath = getPostLoginRedirect(meResult.data, returnTo);
-		await goto(resolve(redirectPath), { invalidateAll: true });
+		// O service retorna uma URL já resolvida, incluindo o base path.
+		// eslint-disable-next-line svelte/no-navigation-without-resolve
+		await goto(redirectPath, { invalidateAll: true });
 	}
 </script>
 
