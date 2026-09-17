@@ -1,11 +1,12 @@
 <script lang="ts">
+	import type { HTMLAttributes } from 'svelte/elements';
 	import type { Snippet } from 'svelte';
 
 	type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'outline-neutral';
 	type ButtonSize = 'default' | 'full'; //futuramente podemos adicionar nova variação de tamanho
 	type ButtonType = 'button' | 'submit' | 'reset';
 
-	interface Props {
+	interface Props extends HTMLAttributes<HTMLButtonElement> {
 		variant?: ButtonVariant;
 		size?: ButtonSize;
 		loading?: boolean;
@@ -22,13 +23,15 @@
 		disabled = false,
 		type = 'button',
 		onclick,
-		children
+		children,
+		...restProps
 	}: Props = $props();
 
 	const isDisabled = $derived(disabled || loading);
 </script>
 
 <button
+	{...restProps}
 	{type}
 	{onclick}
 	disabled={isDisabled}
