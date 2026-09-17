@@ -128,6 +128,12 @@ html[data-theme='dark'] {
 		visual anterior quando a paleta não é injetada. */
 	--gradient: var(--light-gradient, linear-gradient(143deg, #002068, #003399));
 	--on-gradient: var(--light-on-gradient, #ffffff);
+	/* `onPrimary`/`onDark`/`heading` também vêm da paleta injetada: sem este
+		bridge, editar esses tokens no Portal não chega à UI (o valor ficaria
+		preso no fallback). */
+	--on-primary: var(--light-on-primary, #ffffff);
+	--on-dark: var(--light-on-dark, #ffffff);
+	--heading-color: var(--light-heading, #00236f);
 
 	--status-error: var(--light-status-error, #ef4444);
 	--status-error-bg: var(--light-status-error-bg, #ef444410);
@@ -169,8 +175,10 @@ html[data-theme='dark'] {
 	--gradient: var(--dark-gradient, linear-gradient(143deg, #0b0f1a, #1b2942));
 	--on-gradient: var(--dark-on-gradient, #ffffff);
 	/* Sobre o azul vivo do dark (#4c7dff/#5b9bff), texto escuro passa AA;
-		branco reprovaria (3.69/2.77). */
-	--on-primary: #0b0f1a;
+		branco reprovaria (3.69/2.77) — daí o fallback de `--dark-on-primary`. */
+	--on-primary: var(--dark-on-primary, #0b0f1a);
+	--on-dark: var(--dark-on-dark, #ffffff);
+	--heading-color: var(--dark-heading, #4c7dff);
 
 	--status-error: var(--dark-status-error, #f87171);
 	--status-error-bg: var(--dark-status-error-bg, #4c0f0a);
@@ -232,7 +240,7 @@ h3,
 h4,
 h5,
 h6 {
-	color: var(--primary-color);
+	color: var(--heading-color);
 }
 
 h1 {
