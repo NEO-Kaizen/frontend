@@ -1,8 +1,8 @@
-import { getPrioritization, savePrioritization } from '$lib/api/prioritization.api';
+import { getPrioritizationCriteria, savePrioritization } from '$lib/api/prioritization.api';
 import { ApiError, type Result } from '$lib/types/result';
 import type {
 	CriterionNotes,
-	PrioritizationData,
+	PrioritizationCriterion,
 	PrioritizationResult
 } from '$lib/types/prioritization';
 import { MAX_NOTE, MIN_NOTE } from '$lib/types/prioritization';
@@ -19,8 +19,24 @@ type SavePrioritizationResult =
 type ValidationResult =
 	{ ok: true } | { ok: false; error: { message: string; missingCriterionIds: string[] } };
 
+// Carrega os critérios oficiais ativos (GET /prioritization/criteria).
+// As notas já salvas para reavaliação vêm no /requests/:protocol/internal
+// (contrato aprovado) e são repassadas ao componente via prop.
+export async function loadPrioritizationCriteria(): Promise<Result<PrioritizationCriterion[]>> {
+	try {
+		const data = await getPrioritizationCriteria();
+		const criteria = data.criteria.map(({ id, name, weight }) => ({ id, name, weight }));
+		return { ok: true, data: criteria };
+	} catch (error) {
+		if (error instanceof ApiError) {
+			return { ok: false, error: { status: error.status, message: error.message } };
+		}
+		return { ok: false, error: { message: 'Não foi possível conectar ao servidor.' } };
+	}
+}
+
 function validateNotes(
-	criteria: PrioritizationData['criteria'],
+	criteria: PrioritizationCriterion[],
 	notes: CriterionNotes
 ): ValidationResult {
 	const missingCriterionIds = criteria
@@ -43,22 +59,11 @@ function validateNotes(
 	return { ok: true };
 }
 
-export async function loadPrioritization(protocol: string): Promise<Result<PrioritizationData>> {
-	try {
-		const data = await getPrioritization(protocol);
-		return { ok: true, data };
-	} catch (error) {
-		if (error instanceof ApiError) {
-			return { ok: false, error: { status: error.status, message: error.message } };
-		}
-		return { ok: false, error: { message: 'Não foi possível conectar ao servidor.' } };
-	}
-}
-
 export async function submitPrioritization(
 	protocol: string,
-	criteria: PrioritizationData['criteria'],
-	notes: CriterionNotes
+	criteria: PrioritizationCriterion[],
+	notes: CriterionNotes,
+	justification?: string
 ): Promise<SavePrioritizationResult> {
 	const validation = validateNotes(criteria, notes);
 	if (!validation.ok) {
@@ -72,8 +77,20 @@ export async function submitPrioritization(
 	}
 
 	try {
-		const data = await savePrioritization(protocol, { notes });
-		return { ok: true, data };
+		// Campo opcional: só-espaços vira ausência e some do JSON.
+		const trimmed = justification?.trim();
+		const data = await savePrioritization(protocol, {
+			notes,
+			justification: trimmed ? trimmed : undefined
+		});
+
+		const result: PrioritizationResult = {
+			score: data.score,
+			maxScore: criteria.length * MAX_NOTE,
+			level: data.classification
+		};
+
+		return { ok: true, data: result };
 	} catch (error) {
 		if (error instanceof ApiError) {
 			return { ok: false, error: { status: error.status, message: error.message } };

@@ -6,9 +6,11 @@
 
 	interface Props {
 		solicitation: InternalRequestDetail;
+		onSaveSuccess?: (updated: InternalRequestDetail) => void;
+		onSaveError?: (message: string) => void;
 	}
 
-	let { solicitation }: Props = $props();
+	let { solicitation, onSaveSuccess, onSaveError }: Props = $props();
 
 	function getStatusTheme(status: RequestStatus): { bg: string; color: string; border: string } {
 		switch (status) {
@@ -160,11 +162,9 @@
 <div class="solicitation-specs-page">
 	{@render headerSnippet()}
 
-	<section class="details-card" aria-label="Detalhes da solicitação">
-		<SpecTabs {solicitation} />
+	<SpecTabs {solicitation} {onSaveSuccess} {onSaveError} />
 
-		<QuickActions />
-	</section>
+	<QuickActions />
 </div>
 
 <style>
@@ -308,19 +308,6 @@
 		white-space: nowrap;
 	}
 
-	.details-card {
-		background: var(--white);
-		border: var(--border-default);
-		border-radius: var(--radius-sm);
-		box-shadow: var(--regular-shadow);
-		padding: var(--spacing-lg);
-		position: relative;
-		display: flex;
-		flex-direction: column;
-		gap: var(--spacing-md);
-		word-break: break-word;
-	}
-
 	@media (max-width: 768px) {
 		.header-row {
 			flex-direction: column;
@@ -328,10 +315,6 @@
 
 		.prio-card {
 			width: 100%;
-		}
-
-		.details-card {
-			padding: var(--spacing-md);
 		}
 	}
 

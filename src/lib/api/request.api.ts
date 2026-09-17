@@ -9,7 +9,8 @@ import type {
 	PaginatedResponse,
 	RequestDetail,
 	RequestSummary,
-	InternalRequestDetail
+	InternalRequestDetail,
+	UpdateInternalRequestPayload
 } from '$lib/types/request';
 
 const REQUESTS_PATH = '/requests';
@@ -129,4 +130,27 @@ export async function getInternalRequest(
 
 	const encoded = encodeURIComponent(protocol);
 	return apiClient<InternalRequestDetail>(`${REQUESTS_PATH}/${encoded}/internal`, {}, fetchImpl);
+}
+
+// PATCH /requests/:protocol/internal (método proposto — o backend definirá o
+// contrato final). Em DEV com mock, mescla no fixture em memória.
+export async function updateInternalRequest(
+	protocol: string,
+	payload: UpdateInternalRequestPayload,
+	fetchImpl?: typeof fetch
+): Promise<InternalRequestDetail> {
+	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.request) {
+		const { updateInternalRequestMock } = await import('$lib/mocks/requests.mock');
+		return updateInternalRequestMock(protocol, payload);
+	}
+
+	const encoded = encodeURIComponent(protocol);
+	return apiClient<InternalRequestDetail>(
+		`${REQUESTS_PATH}/${encoded}/internal`,
+		{
+			method: 'PATCH',
+			body: JSON.stringify(payload)
+		},
+		fetchImpl
+	);
 }

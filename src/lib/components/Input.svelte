@@ -18,6 +18,7 @@
 		disabled?: boolean;
 		readonly?: boolean;
 		error?: string;
+		dirty?: boolean;
 		name?: string;
 		id?: string;
 		maxlength?: number;
@@ -49,6 +50,7 @@
 		disabled = false,
 		readonly = false,
 		error = '',
+		dirty = false,
 		name,
 		id,
 		maxlength,
@@ -108,6 +110,7 @@
 			aria-invalid={error ? true : undefined}
 			aria-describedby={error ? `${inputId}-error` : undefined}
 			class:error={Boolean(error)}
+			class:dirty
 			class:readonly
 			class:has-leading-icon={Boolean(icon && !prefix)}
 			class:has-leading-prefix={Boolean(prefix)}
@@ -263,6 +266,10 @@
 
 	input.error {
 		border-color: var(--status-red);
+	}
+
+	input.dirty {
+		border-color: var(--status-green);
 	}
 
 	input:disabled {
