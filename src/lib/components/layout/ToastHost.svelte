@@ -12,7 +12,7 @@
 <style>
 	.toast-host {
 		position: fixed;
-		bottom: 1rem;
+		top: 1rem;
 		right: 1rem;
 		z-index: 50;
 		display: flex;

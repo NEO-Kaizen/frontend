@@ -10,9 +10,20 @@
 
 	let { toast, onClose }: Props = $props();
 
-	let isSuccess = $derived(toast.type === 'success');
-
-	let iconName: IconName = $derived(isSuccess ? 'check' : 'info');
+	let iconName: IconName = $derived.by(() => {
+		switch (toast.type) {
+			case 'success':
+				return 'check';
+			case 'error':
+				return 'info';
+			case 'info':
+				return 'info';
+			case 'warning':
+				return 'warning';
+			default:
+				return 'info';
+		}
+	});
 </script>
 
 <div class="toast-item {toast.type}" role="alert" aria-live="polite">
@@ -51,6 +62,14 @@
 
 	.toast-item.error {
 		background-color: var(--status-red);
+	}
+
+	.toast-item.info {
+		background-color: var(--status-blue);
+	}
+
+	.toast-item.warning {
+		background-color: var(--status-yellow);
 	}
 
 	.toast-content {
