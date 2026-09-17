@@ -1,5 +1,4 @@
 import { apiClient } from './client';
-import { MOCK_DOMAINS } from '$lib/mocks';
 
 import type { PaginatedResponse } from '$lib/types/request';
 
@@ -19,11 +18,6 @@ export async function listUsers(
 	query: ListUsersQuery,
 	fetchImpl?: typeof fetch
 ): Promise<PaginatedResponse<UserSummary>> {
-	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.users) {
-		const { listUsersMock } = await import('$lib/mocks/users.mock');
-		return listUsersMock(query);
-	}
-
 	const params = new URLSearchParams();
 
 	if (query.profile) {
@@ -50,11 +44,6 @@ export async function listUsers(
 }
 
 export async function getUserStats(fetchImpl?: typeof fetch): Promise<UserStats> {
-	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.users) {
-		const { getUserStatsMock } = await import('$lib/mocks/users.mock');
-		return getUserStatsMock();
-	}
-
 	try {
 		return await apiClient<UserStats>(`${USERS_PATH}/metrics`, {}, fetchImpl);
 	} catch {
@@ -63,11 +52,6 @@ export async function getUserStats(fetchImpl?: typeof fetch): Promise<UserStats>
 }
 
 export async function createUser(payload: CreateUserPayload): Promise<CreateUserResponse> {
-	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.users) {
-		const { createUserMock } = await import('$lib/mocks/users.mock');
-		return createUserMock(payload);
-	}
-
 	return apiClient<CreateUserResponse>(USERS_PATH, {
 		method: 'POST',
 		body: JSON.stringify(payload)
@@ -78,11 +62,6 @@ export async function updateUserStatus(
 	id: string,
 	isActive: boolean
 ): Promise<UpdateUserStatusResponse> {
-	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.users) {
-		const { updateUserStatusMock } = await import('$lib/mocks/users.mock');
-		return updateUserStatusMock(id, isActive);
-	}
-
 	return apiClient<UpdateUserStatusResponse>(`${USERS_PATH}/${id}/status`, {
 		method: 'PATCH',
 		body: JSON.stringify({
@@ -92,11 +71,6 @@ export async function updateUserStatus(
 }
 
 export async function resetUserPassword(id: string): Promise<ResetPasswordResponse> {
-	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.users) {
-		const { resetUserPasswordMock } = await import('$lib/mocks/users.mock');
-		return resetUserPasswordMock(id);
-	}
-
 	return apiClient<ResetPasswordResponse>(`${USERS_PATH}/${id}/reset-password`, {
 		method: 'POST'
 	});

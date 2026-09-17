@@ -32,12 +32,9 @@ export async function logout(): Promise<void> {
 	}
 }
 
-export async function getMe(
-	fetchImpl?: typeof fetch,
-	sessionId?: string
-): Promise<Result<SessionUser>> {
+export async function getMe(fetchImpl?: typeof fetch): Promise<Result<SessionUser>> {
 	try {
-		const data = await getMeRequest(fetchImpl, sessionId);
+		const data = await getMeRequest(fetchImpl);
 		return { ok: true, data };
 	} catch (error) {
 		if (error instanceof ApiError) {
