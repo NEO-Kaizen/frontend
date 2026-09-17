@@ -55,6 +55,11 @@ export const iconDictionary = {
 	cloudUpload: 'cloud_upload',
 	delete: 'delete',
 	calendarMonth: 'calendar_month',
+	validate: 'verified',
+	reopen: 'replay',
+	error: 'error',
+	inbox: 'inbox',
+	flag: 'flag',
 	content_copy: 'content_copy'
 } as const;
 
