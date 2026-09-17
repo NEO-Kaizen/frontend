@@ -30,8 +30,12 @@ export async function listUsers(
 		params.set('profile', query.profile);
 	}
 
-	if (query.search) {
-		params.set('search', query.search);
+	if (query.search?.trim()) {
+		params.set('search', query.search.trim());
+	}
+
+	if (query.category) {
+		params.set('category', query.category);
 	}
 
 	if (query.page !== undefined) {

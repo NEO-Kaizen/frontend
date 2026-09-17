@@ -2,6 +2,7 @@ import { ApiError } from '$lib/types/result';
 import type { PaginatedResponse } from '$lib/types/request';
 
 import type {
+	Analyst,
 	CreateUserPayload,
 	CreateUserResponse,
 	ListUsersQuery,
@@ -13,7 +14,9 @@ import type {
 	UserSummary
 } from '$lib/types/user';
 
-export const mockUsers: UserSummary[] = [
+export type MockUser = UserSummary & Partial<Analyst>;
+
+export const mockUsers: MockUser[] = [
 	{
 		id: '1',
 		fullName: 'Maria Oliveira',
@@ -129,7 +132,11 @@ export const mockUsers: UserSummary[] = [
 		profile: 'Analista',
 		isActive: true,
 		mustChangePassword: false,
-		createdAt: '2026-07-05T09:00:00.000Z'
+		createdAt: '2026-07-05T09:00:00.000Z',
+		specialty: 'Analista de processos',
+		categories: ['Padronização', 'Revisão de processo'],
+		notes: 'Foco em padronização de processos; disponível em horário integral.',
+		requestLoad: 8
 	},
 	{
 		id: '14',
@@ -138,7 +145,11 @@ export const mockUsers: UserSummary[] = [
 		profile: 'Analista',
 		isActive: true,
 		mustChangePassword: true,
-		createdAt: '2026-08-18T11:30:00.000Z'
+		createdAt: '2026-08-18T11:30:00.000Z',
+		specialty: 'Técnico em infraestrutura',
+		categories: ['Apoio técnico', 'Outros'],
+		notes: null,
+		requestLoad: 4
 	},
 	{
 		id: '15',
@@ -147,7 +158,11 @@ export const mockUsers: UserSummary[] = [
 		profile: 'Analista',
 		isActive: false,
 		mustChangePassword: false,
-		createdAt: '2026-08-27T16:20:00.000Z'
+		createdAt: '2026-08-27T16:20:00.000Z',
+		specialty: 'Especialista em indicadores',
+		categories: ['Indicador', 'Dashboard ou relatório'],
+		notes: 'Em licença até 09/2026.',
+		requestLoad: null
 	},
 	{
 		id: '16',
@@ -184,6 +199,58 @@ export const mockUsers: UserSummary[] = [
 		isActive: true,
 		mustChangePassword: false,
 		createdAt: '2026-07-19T13:40:00.000Z'
+	},
+	{
+		id: '20',
+		fullName: 'Rafael Alves',
+		email: 'rafael.alves@maat.com.br',
+		profile: 'Analista',
+		isActive: true,
+		mustChangePassword: false,
+		createdAt: '2026-08-10T10:00:00.000Z',
+		specialty: 'Eletricista residencial',
+		categories: ['Apoio técnico', 'Automação'],
+		notes: 'Disponível à tarde; já atuou nesta região.',
+		requestLoad: 6
+	},
+	{
+		id: '21',
+		fullName: 'Fernanda Lima',
+		email: 'fernanda.lima.analista@maat.com.br',
+		profile: 'Analista',
+		isActive: true,
+		mustChangePassword: false,
+		createdAt: '2026-08-11T09:30:00.000Z',
+		specialty: 'Instalações elétricas prediais',
+		categories: ['Melhoria de processo', 'Apoio técnico'],
+		notes: null,
+		requestLoad: 9
+	},
+	{
+		id: '22',
+		fullName: 'Mariana Costa',
+		email: 'mariana.costa@maat.com.br',
+		profile: 'Analista',
+		isActive: true,
+		mustChangePassword: false,
+		createdAt: '2026-08-12T09:00:00.000Z',
+		specialty: 'Técnica em climatização',
+		categories: ['Indicador', 'Dashboard ou relatório'],
+		notes: 'Disponível às segundas e quartas; foco em climatização.',
+		requestLoad: 12
+	},
+	{
+		id: '23',
+		fullName: 'Lucas Andrade',
+		email: 'lucas.andrade@maat.com.br',
+		profile: 'Analista',
+		isActive: true,
+		mustChangePassword: false,
+		createdAt: '2026-08-13T10:15:00.000Z',
+		specialty: '',
+		categories: [],
+		notes: null,
+		requestLoad: null
 	}
 ];
 
@@ -204,6 +271,14 @@ function delay(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function normalize(text: string): string {
+	return text
+		.normalize('NFD')
+		.replace(/\p{Diacritic}/gu, '')
+		.toLowerCase()
+		.trim();
+}
+
 export function listUsersMock(query: ListUsersQuery): Promise<PaginatedResponse<UserSummary>> {
 	let result = [...mockUsers];
 
@@ -214,12 +289,19 @@ export function listUsersMock(query: ListUsersQuery): Promise<PaginatedResponse<
 	}
 
 	if (query.search) {
-		const search = query.search.toLowerCase().trim();
+		const search = normalize(query.search);
 
 		result = result.filter(
-			(user) =>
-				user.fullName.toLowerCase().includes(search) || user.email.toLowerCase().includes(search)
+			(user) => normalize(user.fullName).includes(search) || normalize(user.email).includes(search)
 		);
+	}
+
+	if (query.category) {
+		const normalizedCategory = normalize(query.category);
+		result = result.filter((user) => {
+			const categories = (user as Analyst).categories ?? [];
+			return categories.some((cat) => normalize(cat) === normalizedCategory);
+		});
 	}
 
 	const page = query.page ?? 1;
@@ -231,7 +313,7 @@ export function listUsersMock(query: ListUsersQuery): Promise<PaginatedResponse<
 	const data = result.slice(start, start + pageSize);
 
 	return delay(MOCK_LATENCY_MS).then(() => ({
-		data,
+		data: data as unknown as UserSummary[],
 		page,
 		pageSize,
 		total,
@@ -270,7 +352,7 @@ export function createUserMock(payload: CreateUserPayload): Promise<CreateUserRe
 		return Promise.reject(new ApiError(403, 'Não é possível gerenciar contas de Administradores'));
 	}
 
-	const user: UserSummary = {
+	const baseUser: MockUser = {
 		id,
 		fullName: payload.fullName.trim(),
 		email,
@@ -280,12 +362,19 @@ export function createUserMock(payload: CreateUserPayload): Promise<CreateUserRe
 		createdAt
 	};
 
-	mockUsers.unshift(user);
+	if (role === 'Analista') {
+		baseUser.specialty = '';
+		baseUser.categories = [];
+		baseUser.notes = null;
+		baseUser.requestLoad = 0;
+	}
+
+	mockUsers.unshift(baseUser);
 
 	return delay(MOCK_LATENCY_MS).then(() => ({
 		id,
-		fullName: user.fullName,
-		email: user.email,
+		fullName: baseUser.fullName,
+		email: baseUser.email,
 		role,
 		isActive: true,
 		mustChangePassword: true,
@@ -337,7 +426,7 @@ export function resetUserPasswordMock(id: string): Promise<ResetPasswordResponse
 	}));
 }
 
-function findMockUser(id: string): UserSummary | undefined {
+function findMockUser(id: string): MockUser | undefined {
 	return mockUsers.find((user) => user.id === id);
 }
 

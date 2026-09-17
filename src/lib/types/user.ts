@@ -1,3 +1,5 @@
+import type { RequestCategory } from './request';
+
 export type UserType = 'Solicitante' | 'Analista' | 'Administrador' | 'Gestor';
 
 export type UserRole = UserType;
@@ -28,6 +30,13 @@ export interface UserSummary {
 	createdAt: string;
 }
 
+export interface Analyst extends UserSummary {
+	specialty: string;
+	categories: RequestCategory[];
+	notes: string | null;
+	requestLoad: number | null;
+}
+
 export interface UserStats {
 	total: number;
 	active: number;
@@ -38,6 +47,7 @@ export interface UserStats {
 export interface ListUsersQuery {
 	profile?: UserProfile;
 	search?: string;
+	category?: RequestCategory;
 	page?: number;
 	pageSize?: number;
 }

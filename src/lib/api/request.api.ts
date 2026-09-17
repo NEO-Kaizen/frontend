@@ -154,3 +154,24 @@ export async function updateInternalRequest(
 		fetchImpl
 	);
 }
+
+export async function assignAnalyst(
+	protocol: string,
+	analystId: string,
+	fetchImpl?: typeof fetch
+): Promise<InternalRequestDetail> {
+	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.request) {
+		const { assignAnalystMock } = await import('$lib/mocks/requests.mock');
+		return assignAnalystMock(protocol, analystId);
+	}
+
+	const encoded = encodeURIComponent(protocol);
+	return apiClient<InternalRequestDetail>(
+		`${REQUESTS_PATH}/${encoded}/internal/assignee`,
+		{
+			method: 'PATCH',
+			body: JSON.stringify({ analystId })
+		},
+		fetchImpl
+	);
+}

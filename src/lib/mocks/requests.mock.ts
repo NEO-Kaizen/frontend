@@ -1,5 +1,6 @@
 import { ApiError } from '$lib/types/result';
 import { computePrioritizationResult, getSavedPrioritizationNotes } from './prioritization.mock';
+import { mockUsers } from './users.mock';
 import type {
 	QueueAssignee,
 	QueueMetricsResponse,
@@ -1068,5 +1069,46 @@ export function updateTriageMock(
 	detail.lastUpdate = new Date().toISOString();
 	// Persistência real via sessionStorage — garante reload na mesma sessão
 	saveTriageToSessionStorage(protocol, payload);
+	return delay(MOCK_LATENCY_MS).then(() => structuredClone(detail));
+}
+
+export async function assignAnalystMock(
+	protocol: string,
+	analystId: string
+): Promise<InternalRequestDetail> {
+	const normalized = protocol.toLowerCase().trim();
+	const detail = mockInternalRequestDetails.find(
+		(d) => d.protocol.toLowerCase().trim() === normalized
+	);
+	if (!detail) {
+		return Promise.reject(new ApiError(404, 'Solicitação não encontrada.'));
+	}
+
+	if (!analystId || !analystId.trim()) {
+		return Promise.reject(new ApiError(400, 'Analista não informado.'));
+	}
+
+	const analyst = (
+		mockUsers as unknown as Array<{ id: string; fullName: string; email: string; profile: string }>
+	).find((u) => u.id === analystId && u.profile === 'Analista');
+
+	if (!analyst) {
+		return Promise.reject(new ApiError(404, 'Analista não encontrado.'));
+	}
+
+	detail.assignee = {
+		id: analyst.id,
+		name: analyst.fullName,
+		email: analyst.email
+	};
+	detail.lastUpdate = new Date().toISOString();
+
+	// Também reflete na fila centralizada para consistência visual
+	const queueItem = mockRequests.find((r) => r.protocol.toLowerCase().trim() === normalized);
+	if (queueItem) {
+		queueItem.assigneeId = analyst.id;
+		queueItem.assignee = analyst.fullName;
+	}
+
 	return delay(MOCK_LATENCY_MS).then(() => structuredClone(detail));
 }
