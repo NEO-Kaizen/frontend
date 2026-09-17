@@ -9,6 +9,7 @@ const TOKEN_VAR_SUFFIX: Record<ThemeTokenKey, string> = {
 	border: 'border',
 	textPrimary: 'text-primary',
 	textSecondary: 'text-secondary',
+	heading: 'heading',
 	richBlack: 'rich-black',
 	primary: 'primary',
 	secondary: 'secondary',

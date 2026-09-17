@@ -88,6 +88,7 @@ export const THEME_TOKEN_KEYS = [
 	'border',
 	'textPrimary',
 	'textSecondary',
+	'heading',
 	'richBlack',
 	'primary',
 	'secondary',

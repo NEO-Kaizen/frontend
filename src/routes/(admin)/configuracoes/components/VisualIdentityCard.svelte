@@ -162,6 +162,7 @@
 		border: 'Borda',
 		textPrimary: 'Texto principal',
 		textSecondary: 'Texto secundário',
+		heading: 'Títulos',
 		richBlack: 'Barra escura',
 		primary: 'Primária',
 		secondary: 'Secundária',
@@ -178,6 +179,7 @@
 		border: 'Linhas, separadores e contornos.',
 		textPrimary: 'Corpo de texto e labels.',
 		textSecondary: 'Legendas e texto auxiliar.',
+		heading: 'Títulos de página e de seção.',
 		richBlack: 'Barra de navegação / sidebar.',
 		primary: 'CTAs e botões primários.',
 		secondary: 'Links e ícones de destaque.',
@@ -193,7 +195,7 @@
 			title: 'Superfícies e barras',
 			keys: ['background', 'surface', 'richBlack', 'tint', 'onDark']
 		},
-		{ title: 'Textos', keys: ['textPrimary', 'textSecondary'] },
+		{ title: 'Textos', keys: ['textPrimary', 'textSecondary', 'heading'] },
 		{ title: 'Marca', keys: ['primary', 'secondary', 'onPrimary'] },
 		{ title: 'Linhas', keys: ['border'] }
 	];
@@ -213,7 +215,8 @@
 		onPrimary: ['primary', 'secondary'],
 		onDark: ['richBlack'],
 		textPrimary: ['surface', 'background'],
-		textSecondary: ['surface', 'background']
+		textSecondary: ['surface', 'background'],
+		heading: ['surface', 'background']
 	};
 
 	const tokenGroups = $derived(

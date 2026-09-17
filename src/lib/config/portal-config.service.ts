@@ -271,6 +271,7 @@ function sanitizeThemeTokens(raw: unknown, fallback: ThemeTokens): ThemeTokens {
 		border: sanitizeHexColor(source.border, fallback.border),
 		textPrimary: sanitizeHexColor(source.textPrimary, fallback.textPrimary),
 		textSecondary: sanitizeHexColor(source.textSecondary, fallback.textSecondary),
+		heading: sanitizeHexColor(source.heading, fallback.heading),
 		richBlack: sanitizeHexColor(source.richBlack, fallback.richBlack),
 		primary: sanitizeHexColor(source.primary, fallback.primary),
 		secondary: sanitizeHexColor(source.secondary, fallback.secondary),
