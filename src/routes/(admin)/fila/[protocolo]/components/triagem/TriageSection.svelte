@@ -303,8 +303,8 @@
 	<div class="field-75">
 		<div class="split-75">
 			<Input
-				label="Responsável Sugerido"
-				placeholder="Informe o responsável"
+				label="Sugerir Analista"
+				placeholder="Informe o Analista"
 				bind:value={draft.suggestedResponsible}
 				maxlength={150}
 				disabled={isSaving}
