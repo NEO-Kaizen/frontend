@@ -17,7 +17,7 @@
 		MAX_CATEGORY_DESCRIPTION_LENGTH,
 		MAX_CATEGORY_NAME_LENGTH
 	} from '$lib/utils/validations';
-	import { notifySectionSave } from '$lib/utils/feedback';
+	import { notifyError, notifySectionSave } from '$lib/utils/feedback';
 	import SectionActions from './SectionActions.svelte';
 	import SettingsCard from './SettingsCard.svelte';
 
@@ -49,6 +49,30 @@
 
 	const invalid = $derived(categoriesError !== null);
 
+	// Linha nova ainda sem nome no draft: bloqueia "Adicionar categoria" para
+	// não acumular registros vazios.
+	const hasPendingCategory = $derived(
+		section.draft.categories.some((category) => category.name.trim() === '')
+	);
+
+	// Validação da linha em edição (Card 5) — nome obrigatório/único e descrição
+	// dentro do limite.
+	function categoryRowError(name: string, description: string, id: number): string | null {
+		if (!isValidCategoryName(name)) return 'Preencha o nome da categoria (até 40 caracteres).';
+
+		const duplicated = section.draft.categories.some(
+			(category) =>
+				category.id !== id && category.name.trim().toLowerCase() === name.trim().toLowerCase()
+		);
+		if (duplicated) return 'Nomes de categoria não podem se repetir.';
+
+		if (!isValidCategoryDescription(description)) {
+			return 'A descrição da categoria deve ter até 200 caracteres.';
+		}
+
+		return null;
+	}
+
 	function setCategories(categories: PortalCategory[]) {
 		section.draft = { categories };
 	}
@@ -59,8 +83,8 @@
 
 	function addCategory() {
 		setCategories([
-			...section.draft.categories,
-			{ id: nextId(section.draft.categories), name: '', description: '', isActive: true }
+			{ id: nextId(section.draft.categories), name: '', description: '', isActive: true },
+			...section.draft.categories
 		]);
 	}
 
@@ -94,21 +118,43 @@
 	// Categoria em edição (nome/descrição locais do input); `null` = nenhuma.
 	let editing = $state<{ id: number; name: string; description: string } | null>(null);
 
+	// Foca o input de nome assim que a linha entra em edição.
+	function focusOnMount(node: HTMLInputElement) {
+		node.focus();
+	}
+
+	// Só marca a linha como inválida depois que o usuário tenta confirmá-la.
+	let rowError = $state(false);
+	const nameInvalid = $derived(rowError && editing !== null && !isValidCategoryName(editing.name));
+	const descriptionInvalid = $derived(
+		rowError && editing !== null && !isValidCategoryDescription(editing.description)
+	);
+
 	function handleAdd() {
 		addCategory();
-		const categories = section.draft.categories;
-		const added = categories[categories.length - 1];
+		const added = section.draft.categories[0];
 		editing = added ? { id: added.id, name: added.name, description: added.description } : null;
+		rowError = false;
 	}
 
 	function handleEdit(category: PortalCategory) {
 		editing = { id: category.id, name: category.name, description: category.description };
+		rowError = false;
 	}
 
 	function handleSaveEdit() {
 		if (!editing) return;
+
+		const error = categoryRowError(editing.name, editing.description, editing.id);
+		if (error) {
+			rowError = true;
+			notifyError(error);
+			return;
+		}
+
 		updateCategory(editing.id, { name: editing.name, description: editing.description });
 		editing = null;
+		rowError = false;
 	}
 
 	function handleCancelEdit(category: PortalCategory) {
@@ -117,6 +163,7 @@
 			removeCategory(category.id);
 		}
 		editing = null;
+		rowError = false;
 	}
 
 	// Impede desativar a última categoria ativa.
@@ -195,7 +242,9 @@
 		<div class="categories-toolbar">
 			<Button
 				variant="secondary"
-				disabled={section.saving || section.draft.categories.length >= MAX_CATEGORIES}
+				disabled={section.saving ||
+					section.draft.categories.length >= MAX_CATEGORIES ||
+					hasPendingCategory}
 				onclick={handleAdd}
 			>
 				<Icon iconName="addCircle" iconSize="sm" />
@@ -211,7 +260,7 @@
 			/>
 		</div>
 
-		{#if categoriesError}
+		{#if categoriesError && !editing}
 			<p class="categories-error" role="alert">{categoriesError}</p>
 		{/if}
 
@@ -271,9 +320,12 @@
 									{#if editing && editing.id === category.id}
 										<input
 											class="edit-input"
+											class:invalid={nameInvalid}
 											type="text"
 											maxlength={MAX_CATEGORY_NAME_LENGTH}
 											aria-label="Nome da categoria"
+											aria-invalid={nameInvalid}
+											{@attach focusOnMount}
 											bind:value={editing.name}
 										/>
 									{:else}
@@ -285,9 +337,11 @@
 								{#if editing && editing.id === category.id}
 									<input
 										class="edit-input"
+										class:invalid={descriptionInvalid}
 										type="text"
 										maxlength={MAX_CATEGORY_DESCRIPTION_LENGTH}
 										aria-label="Descrição da categoria"
+										aria-invalid={descriptionInvalid}
 										bind:value={editing.description}
 									/>
 								{:else if category.description}
@@ -537,6 +591,10 @@
 		border-radius: var(--radius-sm);
 		font-size: 14px;
 		color: var(--rich-black);
+	}
+
+	.edit-input.invalid {
+		border-color: var(--status-error);
 	}
 
 	.icon-btn {

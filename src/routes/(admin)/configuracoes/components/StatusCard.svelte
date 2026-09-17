@@ -20,7 +20,7 @@
 		MAX_STATUSES,
 		MAX_STATUS_NAME_LENGTH
 	} from '$lib/utils/validations';
-	import { notifySectionSave } from '$lib/utils/feedback';
+	import { notifyError, notifySectionSave } from '$lib/utils/feedback';
 	import SectionActions from './SectionActions.svelte';
 	import SettingsCard from './SettingsCard.svelte';
 
@@ -46,6 +46,24 @@
 
 	const invalid = $derived(statusesError !== null);
 
+	// Linha nova ainda sem nome no draft: bloqueia "Adicionar status" para não
+	// acumular registros vazios.
+	const hasPendingStatus = $derived(
+		section.draft.statuses.some((status) => status.name.trim() === '')
+	);
+
+	// Validação da linha em edição (Card 6) — nome obrigatório e único.
+	function statusRowError(name: string, id: number): string | null {
+		if (!isValidStatusName(name)) return 'Preencha o nome do status (até 40 caracteres).';
+
+		const duplicated = section.draft.statuses.some(
+			(status) => status.id !== id && status.name.trim().toLowerCase() === name.trim().toLowerCase()
+		);
+		if (duplicated) return 'Nomes de status não podem se repetir.';
+
+		return null;
+	}
+
 	function setStatuses(statuses: PortalStatus[]) {
 		section.draft = { statuses };
 	}
@@ -56,7 +74,6 @@
 
 	function addStatus() {
 		setStatuses([
-			...section.draft.statuses,
 			{
 				id: nextId(section.draft.statuses),
 				name: '',
@@ -64,7 +81,8 @@
 				closesRequest: false,
 				tone: 'info',
 				isActive: true
-			}
+			},
+			...section.draft.statuses
 		]);
 	}
 
@@ -86,6 +104,15 @@
 		tone: StatusTone;
 		isActive: boolean;
 	} | null>(null);
+
+	// Foca o input de nome assim que a linha entra em edição.
+	function focusOnMount(node: HTMLInputElement) {
+		node.focus();
+	}
+
+	// Só marca a linha como inválida depois que o usuário tenta confirmá-la.
+	let rowError = $state(false);
+	const nameInvalid = $derived(rowError && editing !== null && !isValidStatusName(editing.name));
 
 	// Filtro de exibição: inativos continuam no draft e podem ser reativados.
 	let showInactive = $state(false);
@@ -120,8 +147,7 @@
 
 	function handleAdd() {
 		addStatus();
-		const statuses = section.draft.statuses;
-		const added = statuses[statuses.length - 1];
+		const added = section.draft.statuses[0];
 		editing = added
 			? {
 					id: added.id,
@@ -132,6 +158,7 @@
 					isActive: added.isActive
 				}
 			: null;
+		rowError = false;
 	}
 
 	function handleEdit(status: PortalStatus) {
@@ -143,10 +170,19 @@
 			tone: status.tone,
 			isActive: status.isActive
 		};
+		rowError = false;
 	}
 
 	function handleSaveEdit() {
 		if (!editing) return;
+
+		const error = statusRowError(editing.name, editing.id);
+		if (error) {
+			rowError = true;
+			notifyError(error);
+			return;
+		}
+
 		updateStatus(editing.id, {
 			name: editing.name,
 			visibility: editing.visibility,
@@ -154,6 +190,7 @@
 			tone: editing.tone
 		});
 		editing = null;
+		rowError = false;
 	}
 
 	function handleCancelEdit(status: PortalStatus) {
@@ -163,6 +200,7 @@
 			setStatuses(removeById(section.draft.statuses, status.id));
 		}
 		editing = null;
+		rowError = false;
 	}
 </script>
 
@@ -186,7 +224,7 @@
 	<div class="status-toolbar">
 		<Button
 			variant="secondary"
-			disabled={section.saving || section.draft.statuses.length >= MAX_STATUSES}
+			disabled={section.saving || section.draft.statuses.length >= MAX_STATUSES || hasPendingStatus}
 			onclick={handleAdd}
 		>
 			<Icon iconName="addCircle" iconSize="sm" />
@@ -202,7 +240,7 @@
 		/>
 	</div>
 
-	{#if statusesError}
+	{#if statusesError && !editing}
 		<p class="status-error" role="alert">{statusesError}</p>
 	{/if}
 
@@ -226,9 +264,12 @@
 								{#if editing && editing.id === status.id}
 									<input
 										class="edit-input"
+										class:invalid={nameInvalid}
 										type="text"
 										maxlength={MAX_STATUS_NAME_LENGTH}
 										aria-label="Nome do status"
+										aria-invalid={nameInvalid}
+										{@attach focusOnMount}
 										bind:value={editing.name}
 									/>
 								{:else}
@@ -472,6 +513,10 @@
 		border-radius: var(--radius-sm);
 		font-size: 14px;
 		color: var(--rich-black);
+	}
+
+	.edit-input.invalid {
+		border-color: var(--status-error);
 	}
 
 	.edit-select {
