@@ -26,7 +26,12 @@
 	});
 </script>
 
-<div class="toast-item {toast.type}">
+<div
+	class="toast-item {toast.type}"
+	role={toast.type === 'error' ? 'alert' : 'status'}
+	aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
+	aria-atomic="true"
+>
 	<div class="toast-content">
 		<Icon {iconName} iconSize="sm" />
 		<span class="toast-message">{toast.message}</span>
