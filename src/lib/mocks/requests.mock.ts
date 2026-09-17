@@ -47,7 +47,7 @@ export type MockRequest = RequestSummary & {
 
 export const MOCK_ASSIGNEES = {
 	fernandoAlves: '650e8400-e29b-41d4-a716-446655440001',
-	anaSouza: '650e8400-e29b-41d4-a716-446655440002',
+	anaSouza: '1',
 	lucasGomes: '650e8400-e29b-41d4-a716-446655440003',
 	gabrielSoares: '650e8400-e29b-41d4-a716-446655440004',
 	carlosMendes: '650e8400-e29b-41d4-a716-446655440005'

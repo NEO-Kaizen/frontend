@@ -1,5 +1,4 @@
 import { browser } from '$app/environment';
-import { MOCK_ASSIGNEES } from '$lib/mocks/requests.mock';
 import type {
 	ChangePasswordPayload,
 	LoginCredentials,
@@ -12,10 +11,7 @@ type MockUser = SessionUser & { password: string };
 
 const MOCK_USERS: MockUser[] = [
 	{
-		// id espelha users.user_id (numérico) da sessão real; o vínculo com o
-		// profissional da fila (professional_id UUID) fica em professionalId.
 		id: '1',
-		professionalId: MOCK_ASSIGNEES.anaSouza,
 		name: 'Ana Souza',
 		email: 'analista@maat.com.br',
 		role: 'Analista',
@@ -24,7 +20,6 @@ const MOCK_USERS: MockUser[] = [
 	},
 	{
 		id: '2',
-		professionalId: null,
 		name: 'Marcos Lima',
 		email: 'gestor@maat.com.br',
 		role: 'Gestor',
@@ -33,7 +28,6 @@ const MOCK_USERS: MockUser[] = [
 	},
 	{
 		id: '3',
-		professionalId: null,
 		name: 'Adriana Castro',
 		email: 'admin@maat.com.br',
 		role: 'Administrador',
@@ -42,7 +36,6 @@ const MOCK_USERS: MockUser[] = [
 	},
 	{
 		id: '4',
-		professionalId: null,
 		name: 'Carlos Mendes',
 		email: 'solicitante@maat.com.br',
 		role: 'Solicitante',
@@ -115,8 +108,7 @@ function toSessionUser(user: MockUser): SessionUser {
 		name: user.name,
 		email: user.email,
 		role: user.role,
-		mustChangePassword: user.mustChangePassword,
-		professionalId: user.professionalId
+		mustChangePassword: user.mustChangePassword
 	};
 }
 
