@@ -88,50 +88,57 @@ export const DEFAULT_CATEGORIES: PortalCategory[] = [
 
 // Status padrão do ciclo de vida das solicitações (Card 6). Espelham os
 // status exibidos no card de configuração; `closesRequest` indica encerramento
-// e `tone`/`visibility` são enums allowlist do contrato. Servem de fallback do
-// service e de seed do mock. Dados fictícios.
+// e `tone`/`visibility` são enums allowlist do contrato. `isActive` é a
+// ativação/inativação (não há exclusão). Servem de fallback do service e de
+// seed do mock. Dados fictícios.
 export const DEFAULT_STATUSES: PortalStatus[] = [
 	{
 		id: 1,
 		name: 'Em aberto',
 		visibility: 'PUBLIC',
 		closesRequest: false,
-		tone: 'info'
+		tone: 'info',
+		isActive: true
 	},
 	{
 		id: 2,
 		name: 'Em análise',
 		visibility: 'PUBLIC',
 		closesRequest: false,
-		tone: 'warning'
+		tone: 'warning',
+		isActive: true
 	},
 	{
 		id: 3,
 		name: 'Em andamento',
 		visibility: 'PUBLIC',
 		closesRequest: false,
-		tone: 'info'
+		tone: 'info',
+		isActive: true
 	},
 	{
 		id: 4,
 		name: 'Aguardando cliente',
 		visibility: 'PUBLIC',
 		closesRequest: false,
-		tone: 'warning'
+		tone: 'warning',
+		isActive: true
 	},
 	{
 		id: 5,
 		name: 'Concluído',
 		visibility: 'PUBLIC',
 		closesRequest: true,
-		tone: 'success'
+		tone: 'success',
+		isActive: true
 	},
 	{
 		id: 6,
 		name: 'Cancelado',
 		visibility: 'INTERNAL',
 		closesRequest: true,
-		tone: 'error'
+		tone: 'error',
+		isActive: true
 	}
 ];
 

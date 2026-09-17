@@ -131,12 +131,15 @@ export type ThemePalette = keyof PortalTheme;
 // PortalConfig. `id` é a chave estável (número inteiro positivo, gerado pelo
 // cliente em novos status e aceito pela API); `closesRequest` indica se o
 // status encerra a solicitação; `visibility` e `tone` são enums allowlist.
+// `isActive` é a ativação/inativação (não há exclusão): status inativos
+// permanecem no histórico, mas não entram em novos fluxos.
 export interface PortalStatus {
 	id: number;
 	name: string;
 	visibility: StatusVisibility;
 	closesRequest: boolean;
 	tone: StatusTone;
+	isActive: boolean;
 }
 
 // Critérios fixos de priorização (Card 7) — allowlist das chaves aceitas.
@@ -158,7 +161,7 @@ export const PRIORITIZATION_CRITERIA = [
 export type PrioritizationCriterion = (typeof PRIORITIZATION_CRITERIA)[number];
 
 // Pesos de priorização (Card 7) — objeto completo com todas as chaves da
-// allowlist; cada peso é um número entre 1.0 e 5.0 (passo 0.5). O cálculo da
+// allowlist; cada peso é um número inteiro entre 1 e 10. O cálculo da
 // prioridade em si é escopo do backend (os pesos são entrada da fórmula).
 export type PrioritizationWeights = Record<PrioritizationCriterion, number>;
 

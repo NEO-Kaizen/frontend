@@ -12,6 +12,7 @@ import {
 	isValidHexColor,
 	areCategoryNamesUnique,
 	hasActiveCategory,
+	hasActiveStatus,
 	areStatusNamesUnique,
 	MAX_CATEGORIES,
 	MAX_STATUSES,
@@ -305,7 +306,8 @@ function validateCategories(categories: PortalCategory[]): void {
 }
 
 // A lista de status é atômica: 1..50 itens, ids presentes, visibility/tone na
-// allowlist, closesRequest booleano e nomes únicos (sem diferenciar maiúsculas).
+// allowlist, closesRequest/isActive booleanos, nomes únicos (sem diferenciar
+// maiúsculas) e ao menos um status ativo.
 function validateStatuses(statuses: PortalStatus[]): void {
 	if (!Array.isArray(statuses) || statuses.length === 0 || statuses.length > MAX_STATUSES) {
 		throw new ApiError(400, 'A lista de status deve ter entre 1 e 50 itens.');
@@ -327,6 +329,9 @@ function validateStatuses(statuses: PortalStatus[]): void {
 		if (typeof status.closesRequest !== 'boolean') {
 			throw new ApiError(400, 'Campo "closesRequest" deve ser booleano.');
 		}
+		if (typeof status.isActive !== 'boolean') {
+			throw new ApiError(400, 'Campo "isActive" deve ser booleano.');
+		}
 		if (!STATUS_TONES.includes(status.tone)) {
 			throw new ApiError(400, 'Tom visual não permitido para o status.');
 		}
@@ -334,6 +339,10 @@ function validateStatuses(statuses: PortalStatus[]): void {
 
 	if (!areStatusNamesUnique(statuses)) {
 		throw new ApiError(400, 'Nomes de status não podem se repetir.');
+	}
+
+	if (!hasActiveStatus(statuses)) {
+		throw new ApiError(400, 'Ao menos um status deve estar ativo.');
 	}
 }
 

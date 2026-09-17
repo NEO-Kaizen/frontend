@@ -125,17 +125,21 @@
 		return activeCategories.length > 1;
 	}
 
-	// Só permite remover se sobrar ao menos uma categoria ativa.
-	function canRemoveCategory(category: PortalCategory): boolean {
-		const categories = section.draft.categories;
-		if (categories.length === 1) return false;
-		if (!category.isActive) return true;
-		return categories.filter((item) => item.isActive).length > 1;
-	}
-
 	// Categoria arrastada para reordenação (Card 5); `null` = nenhuma.
 	let draggingId = $state<number | null>(null);
 	let dropTargetId = $state<number | null>(null);
+
+	// Filtro de exibição: inativos continuam no draft e podem ser reativados.
+	let showInactive = $state(false);
+	const visibleCategories = $derived(
+		section.draft.categories.filter((category) => showInactive || category.isActive)
+	);
+	const inactiveCount = $derived(section.draft.categories.filter((c) => !c.isActive).length);
+
+	// Ativa/inativa é a única ação de "saída" — não há exclusão de item salvo.
+	function toggleActive(category: PortalCategory) {
+		updateCategory(category.id, { isActive: !category.isActive });
+	}
 
 	function handleDragStart(event: DragEvent, id: number): void {
 		draggingId = id;
@@ -174,6 +178,22 @@
 	title="5. Categorias da demanda"
 	description="Gerencie as categorias que alimentam o select do formulário de solicitação."
 >
+	{#snippet headerAction()}
+		<button
+			class="inactive-toggle"
+			type="button"
+			aria-pressed={showInactive}
+			onclick={() => (showInactive = !showInactive)}
+		>
+			<Icon iconName={showInactive ? 'visibilityOff' : 'visibility'} iconSize="sm" />
+			<span>
+				{showInactive
+					? 'Ocultar inativas'
+					: `Mostrar inativas${inactiveCount ? ` (${inactiveCount})` : ''}`}
+			</span>
+		</button>
+	{/snippet}
+
 	{#snippet actions()}
 		<SectionActions
 			dirty={section.dirty}
@@ -211,7 +231,7 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#each section.draft.categories as category (category.id)}
+					{#each visibleCategories as category (category.id)}
 						<tr
 							class:is-drag-source={draggingId === category.id}
 							class:is-drag-target={dropTargetId === category.id}
@@ -330,11 +350,12 @@
 									<button
 										class="icon-btn"
 										type="button"
-										aria-label="Remover categoria"
-										disabled={section.saving || !canRemoveCategory(category)}
-										onclick={() => removeCategory(category.id)}
+										aria-label={category.isActive ? 'Inativar categoria' : 'Ativar categoria'}
+										title={category.isActive ? 'Inativar categoria' : 'Ativar categoria'}
+										disabled={section.saving || !canToggleInactive(category)}
+										onclick={() => toggleActive(category)}
 									>
-										<Icon iconName="delete" iconSize="sm" />
+										<Icon iconName={category.isActive ? 'block' : 'check'} iconSize="sm" />
 									</button>
 								{/if}
 							</td>
@@ -347,6 +368,25 @@
 </SettingsCard>
 
 <style>
+	.inactive-toggle {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--spacing-xs);
+		padding: var(--spacing-sm) var(--spacing-md);
+		border: var(--border-default);
+		border-radius: var(--radius-sm);
+		background-color: var(--white);
+		color: var(--text-color-secondary);
+		font: var(--label);
+		font-size: 13px;
+		cursor: pointer;
+	}
+
+	.inactive-toggle[aria-pressed='true'] {
+		border-color: var(--secondary-color);
+		color: var(--secondary-color);
+	}
+
 	.categories-body {
 		display: flex;
 		flex-direction: column;

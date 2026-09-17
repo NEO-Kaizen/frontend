@@ -61,20 +61,19 @@
 				name: '',
 				visibility: 'PUBLIC',
 				closesRequest: false,
-				tone: 'info'
+				tone: 'info',
+				isActive: true
 			}
 		]);
 	}
 
 	function updateStatus(
 		id: number,
-		patch: Partial<Pick<PortalStatus, 'name' | 'visibility' | 'closesRequest' | 'tone'>>
+		patch: Partial<
+			Pick<PortalStatus, 'name' | 'visibility' | 'closesRequest' | 'tone' | 'isActive'>
+		>
 	) {
 		setStatuses(replaceById<PortalStatus>(section.draft.statuses, id, patch));
-	}
-
-	function removeStatus(id: number) {
-		setStatuses(removeById(section.draft.statuses, id));
 	}
 
 	// Status em edição (valores locais do formulário); `null` = nenhum.
@@ -84,7 +83,26 @@
 		visibility: StatusVisibility;
 		closesRequest: boolean;
 		tone: StatusTone;
+		isActive: boolean;
 	} | null>(null);
+
+	// Filtro de exibição: inativos continuam no draft e podem ser reativados.
+	let showInactive = $state(false);
+	const visibleStatuses = $derived(
+		section.draft.statuses.filter((status) => showInactive || status.isActive)
+	);
+	const inactiveCount = $derived(section.draft.statuses.filter((s) => !s.isActive).length);
+
+	// Impede inativar o último status ativo.
+	function canToggleInactive(status: PortalStatus): boolean {
+		if (!status.isActive) return true;
+		return section.draft.statuses.filter((item) => item.isActive).length > 1;
+	}
+
+	// Ativa/inativa é a única ação de "saída" — não há exclusão de item salvo.
+	function toggleActive(status: PortalStatus) {
+		updateStatus(status.id, { isActive: !status.isActive });
+	}
 
 	const VISIBILITY_OPTIONS: { value: StatusVisibility; label: string }[] = [
 		{ value: 'PUBLIC', label: 'Público' },
@@ -109,7 +127,8 @@
 					name: added.name,
 					visibility: added.visibility,
 					closesRequest: added.closesRequest,
-					tone: added.tone
+					tone: added.tone,
+					isActive: added.isActive
 				}
 			: null;
 	}
@@ -120,7 +139,8 @@
 			name: status.name,
 			visibility: status.visibility,
 			closesRequest: status.closesRequest,
-			tone: status.tone
+			tone: status.tone,
+			isActive: status.isActive
 		};
 	}
 
@@ -136,16 +156,12 @@
 	}
 
 	function handleCancelEdit(status: PortalStatus) {
-		// Cancelar um status recém-adicionado (ainda sem nome) remove a linha.
+		// Cancelar um status recém-adicionado (ainda sem nome) descarta a linha;
+		// itens já salvos nunca são excluídos (apenas ativados/inativados).
 		if (status.name.trim() === '') {
-			removeStatus(status.id);
+			setStatuses(removeById(section.draft.statuses, status.id));
 		}
 		editing = null;
-	}
-
-	// Só permite remover a última linha de status restante.
-	function canRemoveStatus(): boolean {
-		return section.draft.statuses.length > 1;
 	}
 </script>
 
@@ -167,14 +183,30 @@
 	{/snippet}
 
 	{#snippet headerAction()}
-		<Button
-			variant="secondary"
-			disabled={section.saving || section.draft.statuses.length >= MAX_STATUSES}
-			onclick={handleAdd}
-		>
-			<Icon iconName="addCircle" iconSize="sm" />
-			<span>Adicionar status</span>
-		</Button>
+		<div class="status-actions">
+			<button
+				class="inactive-toggle"
+				type="button"
+				aria-pressed={showInactive}
+				onclick={() => (showInactive = !showInactive)}
+			>
+				<Icon iconName={showInactive ? 'visibilityOff' : 'visibility'} iconSize="sm" />
+				<span>
+					{showInactive
+						? 'Ocultar inativos'
+						: `Mostrar inativos${inactiveCount ? ` (${inactiveCount})` : ''}`}
+				</span>
+			</button>
+
+			<Button
+				variant="secondary"
+				disabled={section.saving || section.draft.statuses.length >= MAX_STATUSES}
+				onclick={handleAdd}
+			>
+				<Icon iconName="addCircle" iconSize="sm" />
+				<span>Adicionar status</span>
+			</Button>
+		</div>
 	{/snippet}
 
 	{#if statusesError}
@@ -193,7 +225,7 @@
 				</tr>
 			</thead>
 			<tbody>
-				{#each section.draft.statuses as status (status.id)}
+				{#each visibleStatuses as status (status.id)}
 					<tr class="tone-{status.tone}">
 						<td class="col-name">
 							<span class="name-field">
@@ -291,11 +323,12 @@
 								<button
 									class="icon-btn"
 									type="button"
-									aria-label="Remover status"
-									disabled={section.saving || !canRemoveStatus()}
-									onclick={() => removeStatus(status.id)}
+									aria-label={status.isActive ? 'Inativar status' : 'Ativar status'}
+									title={status.isActive ? 'Inativar status' : 'Ativar status'}
+									disabled={section.saving || !canToggleInactive(status)}
+									onclick={() => toggleActive(status)}
 								>
-									<Icon iconName="delete" iconSize="sm" />
+									<Icon iconName={status.isActive ? 'block' : 'check'} iconSize="sm" />
 								</button>
 							{/if}
 						</td>
@@ -307,6 +340,31 @@
 </SettingsCard>
 
 <style>
+	.status-actions {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-sm);
+	}
+
+	.inactive-toggle {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--spacing-xs);
+		padding: var(--spacing-sm) var(--spacing-md);
+		border: var(--border-default);
+		border-radius: var(--radius-sm);
+		background-color: var(--white);
+		color: var(--text-color-secondary);
+		font: var(--label);
+		font-size: 13px;
+		cursor: pointer;
+	}
+
+	.inactive-toggle[aria-pressed='true'] {
+		border-color: var(--secondary-color);
+		color: var(--secondary-color);
+	}
+
 	.status-error {
 		margin: 0;
 		font-size: 13px;

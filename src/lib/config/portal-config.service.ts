@@ -23,6 +23,7 @@ import {
 	areCategoryNamesUnique,
 	hasActiveCategory,
 	areStatusNamesUnique,
+	hasActiveStatus,
 	MAX_CATEGORIES,
 	MAX_STATUSES,
 	ASSET_FILE_RULES
@@ -399,9 +400,9 @@ function sanitizeCategories(value: unknown): PortalCategory[] {
 
 // Status do ciclo de vida vindos da API ou do payload — itens estruturalmente
 // válidos (id inteiro positivo, nome nos limites, visibility/tone na allowlist,
-// closesRequest booleano). Descarta cada item inválido em vez de derrubar a
-// lista toda; se nada restar, exceder o limite ou repetir nomes, cai nos
-// status padrão.
+// closesRequest/isActive booleanos). Descarta cada item inválido em vez de
+// derrubar a lista toda; se nada restar, exceder o limite, repetir nomes ou
+// nenhum item ativo, cai nos status padrão.
 function sanitizeStatuses(value: unknown): PortalStatus[] {
 	if (!Array.isArray(value)) return structuredClone(DEFAULT_PORTAL_CONFIG.statuses);
 
@@ -413,6 +414,8 @@ function sanitizeStatuses(value: unknown): PortalStatus[] {
 		const visibility = sanitizeStatusVisibility(item.visibility);
 		const tone = sanitizeStatusTone(item.tone);
 		const closesRequest = item.closesRequest === true;
+		// Ausente cai em ativo para não inativar listas legadas por omissão.
+		const isActive = item.isActive !== false;
 
 		if (
 			typeof item.id === 'number' &&
@@ -420,13 +423,14 @@ function sanitizeStatuses(value: unknown): PortalStatus[] {
 			item.id > 0 &&
 			isValidStatusName(name)
 		) {
-			statuses.push({ id: item.id, name, visibility, closesRequest, tone });
+			statuses.push({ id: item.id, name, visibility, closesRequest, tone, isActive });
 		}
 	}
 
 	if (statuses.length === 0) return structuredClone(DEFAULT_PORTAL_CONFIG.statuses);
 	if (statuses.length > MAX_STATUSES) return structuredClone(DEFAULT_PORTAL_CONFIG.statuses);
 	if (!areStatusNamesUnique(statuses)) return structuredClone(DEFAULT_PORTAL_CONFIG.statuses);
+	if (!hasActiveStatus(statuses)) return structuredClone(DEFAULT_PORTAL_CONFIG.statuses);
 
 	return statuses;
 }

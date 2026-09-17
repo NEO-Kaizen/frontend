@@ -144,6 +144,10 @@ export function areStatusNamesUnique(statuses: readonly PortalStatus[]): boolean
 	return true;
 }
 
+export function hasActiveStatus(statuses: readonly PortalStatus[]): boolean {
+	return statuses.some((status) => status.isActive);
+}
+
 // ---- Pesos da priorização (Card 7 / CONTRATO-BACKEND.md) ----
 
 export const PRIORITIZATION_WEIGHT_MIN = 1;
