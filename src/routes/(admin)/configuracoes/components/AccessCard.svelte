@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { invalidateAll } from '$app/navigation';
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import InfoTip from '$lib/components/InfoTip.svelte';
 	import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
 	import { saveAccess } from '$lib/config/portal-config.service';
@@ -16,14 +17,28 @@
 		(draft) => saveAccess({ solicitationMode: draft.solicitationMode })
 	);
 
+	// Ativar o modo autenticado é a mudança de maior impacto (passa a exigir
+	// login), então pede confirmação antes de aplicar. Não bloqueia — apenas
+	// confirma. Mudar para Público salva direto.
+	let confirmAuthenticated = $state(false);
+
 	function setMode(mode: SolicitationMode) {
 		section.draft = { solicitationMode: mode };
 	}
 
-	async function handleSave() {
+	async function persistSave(): Promise<void> {
 		if (notifySectionSave(await section.save())) {
 			await invalidateAll();
 		}
+	}
+
+	async function handleSave(): Promise<void> {
+		if (section.draft.solicitationMode === 'AUTHENTICATED') {
+			confirmAuthenticated = true;
+			return;
+		}
+
+		await persistSave();
 	}
 </script>
 
@@ -90,6 +105,19 @@
 		</label>
 	</fieldset>
 </SettingsCard>
+
+<ConfirmDialog
+	open={confirmAuthenticated}
+	title="Ativar acesso autenticado?"
+	description="O portal passará a exigir login. Visitantes anônimos serão direcionados ao login e as solicitações ficarão vinculadas à conta. Você poderá salvar assim mesmo."
+	confirmLabel="Ativar autenticado"
+	cancelLabel="Voltar"
+	onConfirm={() => {
+		confirmAuthenticated = false;
+		void persistSave();
+	}}
+	onClose={() => (confirmAuthenticated = false)}
+/>
 
 <style>
 	.access-group {

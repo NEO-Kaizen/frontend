@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import InfoTip from '$lib/components/InfoTip.svelte';
 	import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
@@ -72,12 +73,24 @@
 	let invalidColorFields = $state<Record<string, boolean>>({});
 	const invalid = $derived(Object.values(invalidColorFields).some(Boolean));
 
+	// Salvar com contraste abaixo do mínimo pede confirmação (não bloqueia).
+	let confirmLowContrast = $state(false);
+
 	function handleColorValidity(id: string, isInvalid: boolean): void {
 		invalidColorFields = { ...invalidColorFields, [id]: isInvalid };
 	}
 
-	async function handleSave(): Promise<void> {
+	async function persistSave(): Promise<void> {
 		notifySectionSave(await section.save());
+	}
+
+	async function handleSave(): Promise<void> {
+		if (hasContrastWarning) {
+			confirmLowContrast = true;
+			return;
+		}
+
+		await persistSave();
 	}
 
 	// Mutações do tema — o draft é atômico (as duas paletas), então cada
@@ -293,6 +306,15 @@
 
 	const gradientPreviewStyle = $derived(
 		`linear-gradient(${palette.gradient.angle ?? 143}deg, ${palette.gradient.from}, ${palette.gradient.to})`
+	);
+
+	// Algum par abaixo do mínimo WCAG AA? Salvar pede confirmação (não bloqueia).
+	const hasContrastWarning = $derived(
+		toneAdvisories.some((advisory) => !advisory.backgroundPass || !advisory.pagePass) ||
+			!gradientAdvisory.pass ||
+			tokenGroups.some((group) =>
+				group.fields.some((field) => field.advisors.some((advisory) => !advisory.pass))
+			)
 	);
 
 	function setEditingPalette(next: ThemePalette) {
@@ -559,6 +581,19 @@
 		</div>
 	</section>
 </SettingsCard>
+
+<ConfirmDialog
+	open={confirmLowContrast}
+	title="Salvar com contraste abaixo do mínimo?"
+	description="Algumas combinações de cor ficaram abaixo do mínimo recomendado de contraste (WCAG AA). Isso é apenas um aviso — você pode salvar mesmo assim."
+	confirmLabel="Salvar assim mesmo"
+	cancelLabel="Revisar cores"
+	onConfirm={() => {
+		confirmLowContrast = false;
+		void persistSave();
+	}}
+	onClose={() => (confirmLowContrast = false)}
+/>
 
 <style>
 	.palette-switch {
