@@ -20,6 +20,10 @@
 		errors?: Record<string, string>;
 		onFieldChange?: (path: string, value: string) => void;
 		onFieldBlur?: (path: string) => void;
+		isPendencyMode?: boolean;
+		markedFieldKeys?: ReadonlySet<string>;
+		onFieldPendencyClick?: (path: string) => void;
+		onFieldPendencyRemove?: (path: string) => void;
 	}
 
 	let {
@@ -28,7 +32,11 @@
 		draft = null,
 		errors = {},
 		onFieldChange,
-		onFieldBlur
+		onFieldBlur,
+		isPendencyMode = false,
+		markedFieldKeys = new Set<string>(),
+		onFieldPendencyClick,
+		onFieldPendencyRemove
 	}: Props = $props();
 
 	function formatYesNoDetail(value: YesNoDetail | undefined): string {
@@ -69,6 +77,19 @@
 		return errors[path] ?? '';
 	}
 
+	// Propriedades de marcação por campo no modo "Solicitar Alteração".
+	function mark(path: string): {
+		pending: boolean;
+		onPendencyClick?: () => void;
+		onPendencyRemove?: () => void;
+	} {
+		return {
+			pending: isPendencyMode && markedFieldKeys.has(path),
+			onPendencyClick: isPendencyMode ? () => onFieldPendencyClick?.(path) : undefined,
+			onPendencyRemove: isPendencyMode ? () => onFieldPendencyRemove?.(path) : undefined
+		};
+	}
+
 	function isDirty(path: string): boolean {
 		return dirtyCheck?.(path) ?? false;
 	}
@@ -94,6 +115,7 @@
 				dirty={isDirty('requester.area')}
 				onEditInput={emit('requester.area')}
 				onEditBlur={emitBlur('requester.area')}
+				{...mark('requester.area')}
 			/>
 			<Field
 				label="Departamento"
@@ -104,6 +126,7 @@
 				dirty={isDirty('requester.department')}
 				onEditInput={emit('requester.department')}
 				onEditBlur={emitBlur('requester.department')}
+				{...mark('requester.department')}
 			/>
 			<Field
 				label="Gestor Responsável"
@@ -114,6 +137,7 @@
 				dirty={isDirty('requester.manager')}
 				onEditInput={emit('requester.manager')}
 				onEditBlur={emitBlur('requester.manager')}
+				{...mark('requester.manager')}
 			/>
 			<Field
 				label="Contato adicional"
@@ -124,6 +148,7 @@
 				dirty={isDirty('requester.additionalContact')}
 				onEditInput={emit('requester.additionalContact')}
 				onEditBlur={emitBlur('requester.additionalContact')}
+				{...mark('requester.additionalContact')}
 			/>
 		</div>
 	</ToggleSection>
@@ -140,6 +165,7 @@
 				dirty={isDirty('demand.title')}
 				onEditInput={emit('demand.title')}
 				onEditBlur={emitBlur('demand.title')}
+				{...mark('demand.title')}
 			/>
 			<Field
 				label="Categoria"
@@ -152,6 +178,7 @@
 				dirty={isDirty('demand.category')}
 				onEditInput={emit('demand.category')}
 				onEditBlur={emitBlur('demand.category')}
+				{...mark('demand.category')}
 			/>
 			<Field
 				label="Nome do Processo Atual"
@@ -163,6 +190,7 @@
 				dirty={isDirty('demand.processName')}
 				onEditInput={emit('demand.processName')}
 				onEditBlur={emitBlur('demand.processName')}
+				{...mark('demand.processName')}
 			/>
 			<Field
 				label="Tipo de Solicitação"
@@ -175,6 +203,7 @@
 				dirty={isDirty('demand.requestType')}
 				onEditInput={emit('demand.requestType')}
 				onEditBlur={emitBlur('demand.requestType')}
+				{...mark('demand.requestType')}
 			/>
 		</div>
 		<div class="multiline-stack">
@@ -191,6 +220,7 @@
 				dirty={isDirty('demand.description')}
 				onEditInput={emit('demand.description')}
 				onEditBlur={emitBlur('demand.description')}
+				{...mark('demand.description')}
 			/>
 			<Field
 				label="Problema ou oportunidade"
@@ -204,6 +234,7 @@
 				dirty={isDirty('demand.problem')}
 				onEditInput={emit('demand.problem')}
 				onEditBlur={emitBlur('demand.problem')}
+				{...mark('demand.problem')}
 			/>
 			<Field
 				label="Resultado esperado"
@@ -217,6 +248,7 @@
 				dirty={isDirty('demand.expectedResult')}
 				onEditInput={emit('demand.expectedResult')}
 				onEditBlur={emitBlur('demand.expectedResult')}
+				{...mark('demand.expectedResult')}
 			/>
 			<Field
 				label="Justificativa da solicitação"
@@ -230,6 +262,7 @@
 				dirty={isDirty('demand.justification')}
 				onEditInput={emit('demand.justification')}
 				onEditBlur={emitBlur('demand.justification')}
+				{...mark('demand.justification')}
 			/>
 		</div>
 	</ToggleSection>
@@ -247,6 +280,7 @@
 				dirty={isDirty('operational.executionFrequency')}
 				onEditInput={emit('operational.executionFrequency')}
 				onEditBlur={emitBlur('operational.executionFrequency')}
+				{...mark('operational.executionFrequency')}
 			/>
 			<Field
 				label="Volumetria Aproximada"
@@ -258,6 +292,7 @@
 				dirty={isDirty('operational.volumetry')}
 				onEditInput={emit('operational.volumetry')}
 				onEditBlur={emitBlur('operational.volumetry')}
+				{...mark('operational.volumetry')}
 			/>
 			<Field
 				label="Pessoas Envolvidas"
@@ -271,6 +306,7 @@
 				dirty={isDirty('operational.peopleInvolved')}
 				onEditInput={emit('operational.peopleInvolved')}
 				onEditBlur={emitBlur('operational.peopleInvolved')}
+				{...mark('operational.peopleInvolved')}
 			/>
 			<Field
 				label="Tempo Médio de Execução"
@@ -282,6 +318,7 @@
 				dirty={isDirty('operational.averageExecutionTime')}
 				onEditInput={emit('operational.averageExecutionTime')}
 				onEditBlur={emitBlur('operational.averageExecutionTime')}
+				{...mark('operational.averageExecutionTime')}
 			/>
 			<Field
 				label="Esforço Mensal (horas)"
@@ -295,6 +332,7 @@
 				dirty={isDirty('operational.monthlyEffortHours')}
 				onEditInput={emit('operational.monthlyEffortHours')}
 				onEditBlur={emitBlur('operational.monthlyEffortHours')}
+				{...mark('operational.monthlyEffortHours')}
 			/>
 			<Field
 				label="Sistemas Utilizados"
@@ -306,6 +344,7 @@
 				dirty={isDirty('operational.systemsUsed')}
 				onEditInput={emit('operational.systemsUsed')}
 				onEditBlur={emitBlur('operational.systemsUsed')}
+				{...mark('operational.systemsUsed')}
 			/>
 			<Field
 				label="Impacto Operacional"
@@ -318,6 +357,7 @@
 				dirty={isDirty('operational.operationalImpact')}
 				onEditInput={emit('operational.operationalImpact')}
 				onEditBlur={emitBlur('operational.operationalImpact')}
+				{...mark('operational.operationalImpact')}
 			/>
 			<Field
 				label="Criticidade Percebida"
@@ -330,6 +370,7 @@
 				dirty={isDirty('operational.perceivedCriticality')}
 				onEditInput={emit('operational.perceivedCriticality')}
 				onEditBlur={emitBlur('operational.perceivedCriticality')}
+				{...mark('operational.perceivedCriticality')}
 			/>
 			<Field
 				label="Prazo Desejado"
@@ -342,12 +383,14 @@
 				dirty={isDirty('operational.desiredDeadline')}
 				onEditInput={emit('operational.desiredDeadline')}
 				onEditBlur={emitBlur('operational.desiredDeadline')}
+				{...mark('operational.desiredDeadline')}
 			/>
 		</div>
 		<div class="yesno-pair-row">
 			<YesNoDetailEditor
 				label="Controles Manuais"
 				display={formatYesNoDetail(solicitation.operational.hasManualControls)}
+				{...mark('operational.hasManualControls')}
 				value={draft?.operational.hasManualControls}
 				{isEditMode}
 				detailLabel="Detalhamento dos controles manuais"
@@ -374,6 +417,7 @@
 				dirty={isDirty('operational.processDescription')}
 				onEditInput={emit('operational.processDescription')}
 				onEditBlur={emitBlur('operational.processDescription')}
+				{...mark('operational.processDescription')}
 			/>
 			<Field
 				label="Etapas do Processo"
@@ -387,6 +431,7 @@
 				dirty={isDirty('operational.processSteps')}
 				onEditInput={emit('operational.processSteps')}
 				onEditBlur={emitBlur('operational.processSteps')}
+				{...mark('operational.processSteps')}
 			/>
 			<Field
 				label="Principais Riscos"
@@ -400,6 +445,7 @@
 				dirty={isDirty('operational.mainRisks')}
 				onEditInput={emit('operational.mainRisks')}
 				onEditBlur={emitBlur('operational.mainRisks')}
+				{...mark('operational.mainRisks')}
 			/>
 			<Field
 				label="Impacto ao Cliente"
@@ -413,6 +459,7 @@
 				dirty={isDirty('operational.clientImpact')}
 				onEditInput={emit('operational.clientImpact')}
 				onEditBlur={emitBlur('operational.clientImpact')}
+				{...mark('operational.clientImpact')}
 			/>
 		</div>
 	</ToggleSection>
@@ -422,6 +469,7 @@
 			<YesNoDetailEditor
 				label="Possui Documentação de Processo"
 				display={formatYesNoDetail(solicitation.complementary?.hasProcessDocumentation)}
+				{...mark('complementary.hasProcessDocumentation')}
 				value={draft?.complementary?.hasProcessDocumentation}
 				{isEditMode}
 				optional
@@ -438,6 +486,7 @@
 			<YesNoDetailEditor
 				label="Possui Solução Similar"
 				display={formatYesNoDetail(solicitation.complementary?.hasSimilarSolution)}
+				{...mark('complementary.hasSimilarSolution')}
 				value={draft?.complementary?.hasSimilarSolution}
 				{isEditMode}
 				optional
@@ -454,6 +503,7 @@
 			<YesNoDetailEditor
 				label="Depende de Outras Áreas"
 				display={formatYesNoDetail(solicitation.complementary?.dependsOnOtherAreas)}
+				{...mark('complementary.dependsOnOtherAreas')}
 				value={draft?.complementary?.dependsOnOtherAreas}
 				{isEditMode}
 				optional
@@ -470,6 +520,7 @@
 			<YesNoDetailEditor
 				label="Trata Dados Restritos"
 				display={formatYesNoDetail(solicitation.complementary?.handlesRestrictedInfo)}
+				{...mark('complementary.handlesRestrictedInfo')}
 				value={draft?.complementary?.handlesRestrictedInfo}
 				{isEditMode}
 				optional
@@ -497,6 +548,7 @@
 				dirty={isDirty('complementary.additionalNotes')}
 				onEditInput={emit('complementary.additionalNotes')}
 				onEditBlur={emitBlur('complementary.additionalNotes')}
+				{...mark('complementary.additionalNotes')}
 			/>
 		</div>
 

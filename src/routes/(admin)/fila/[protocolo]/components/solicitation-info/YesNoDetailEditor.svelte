@@ -16,6 +16,9 @@
 		detailError?: string;
 		choiceDirty?: boolean;
 		detailDirty?: boolean;
+		pending?: boolean;
+		onPendencyClick?: () => void;
+		onPendencyRemove?: () => void;
 		onChoiceInput?: (value: string) => void;
 		onDetailInput?: (value: string) => void;
 		onChoiceBlur?: () => void;
@@ -33,6 +36,9 @@
 		detailError = '',
 		choiceDirty = false,
 		detailDirty = false,
+		pending = false,
+		onPendencyClick,
+		onPendencyRemove,
 		onChoiceInput,
 		onDetailInput,
 		onChoiceBlur,
@@ -71,7 +77,7 @@
 		/>
 	</div>
 {:else}
-	<Field {label} value={display} />
+	<Field {label} value={display} {pending} {onPendencyClick} {onPendencyRemove} />
 {/if}
 
 <style>

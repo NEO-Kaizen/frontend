@@ -1,6 +1,14 @@
 <script lang="ts">
 	import Icon from '$lib/components/Icon.svelte';
+	import Button from '$lib/components/Button.svelte';
+	import Modal from '$lib/components/Modal.svelte';
+	import { invalidateAll } from '$app/navigation';
+	import { SvelteMap } from 'svelte/reactivity';
+	import { requestFieldChange } from '$lib/services/pendency.service';
+	import type { PendingFieldRef } from '$lib/types/pendency';
 	import type { InternalRequestDetail, RequestStatus } from '$lib/types/request';
+	import FieldPendencyModal from './pendency/FieldPendencyModal.svelte';
+	import { buildFieldLookup } from './pendency/field-catalog';
 	import QuickActions from './QuickActions.svelte';
 	import SpecTabs from './SpecTabs.svelte';
 
@@ -11,6 +19,102 @@
 	}
 
 	let { solicitation, onSaveSuccess, onSaveError }: Props = $props();
+
+	async function handlePendencySaved(): Promise<void> {
+		await invalidateAll();
+	}
+
+	// ---- Modo "Solicitar Alteração" (marcação por campo + envio em lote) ----
+
+	type PendencyDraftEntry = {
+		field: PendingFieldRef;
+		comment: string;
+	};
+
+	let isPendencyMode = $state(false);
+	let pendingDraft = new SvelteMap<string, PendencyDraftEntry>();
+	let pendingFieldPath = $state<string | null>(null);
+	let isPendencySaving = $state(false);
+	let pendencyError = $state<string | null>(null);
+	let pendingSuccess = $state<string | null>(null);
+	let showPendencyCancelConfirm = $state(false);
+
+	const fieldLookup = $derived(buildFieldLookup(solicitation));
+	const markedFieldKeys = $derived(new Set(pendingDraft.keys()));
+	const pendencyCount = $derived(pendingDraft.size);
+	const pendingFieldRef = $derived(
+		pendingFieldPath ? (fieldLookup.get(pendingFieldPath) ?? null) : null
+	);
+	const pendingFieldEntry = $derived(
+		pendingFieldPath ? (pendingDraft.get(pendingFieldPath) ?? null) : null
+	);
+
+	function enterPendencyMode(): void {
+		if (isPendencyMode) return;
+		pendingDraft.clear();
+		pendingFieldPath = null;
+		pendencyError = null;
+		pendingSuccess = null;
+		showPendencyCancelConfirm = false;
+		isPendencyMode = true;
+	}
+
+	function exitPendencyMode(): void {
+		isPendencyMode = false;
+		pendingDraft.clear();
+		pendingFieldPath = null;
+		pendencyError = null;
+		showPendencyCancelConfirm = false;
+	}
+
+	function handleFieldPendencyClick(path: string): void {
+		if (!fieldLookup.has(path)) return;
+		pendingFieldPath = path;
+		pendencyError = null;
+	}
+
+	function handlePendencyConfirm(value: { comment: string }): void {
+		if (pendingFieldPath && pendingFieldRef) {
+			pendingDraft.set(pendingFieldPath, {
+				field: pendingFieldRef,
+				comment: value.comment
+			});
+		}
+		pendingFieldPath = null;
+	}
+
+	function handlePendencyRemove(path: string): void {
+		if (!fieldLookup.has(path)) return;
+		pendingDraft.delete(path);
+		if (pendingFieldPath === path) {
+			pendingFieldPath = null;
+		}
+	}
+
+	function handlePendencyCancelRequest(): void {
+		if (pendingDraft.size === 0) {
+			exitPendencyMode();
+			return;
+		}
+		showPendencyCancelConfirm = true;
+	}
+
+	async function handlePendencySubmit(): Promise<void> {
+		if (pendingDraft.size === 0 || isPendencySaving) return;
+		const items = [...pendingDraft.values()].map(({ field, comment }) => ({ field, comment }));
+		isPendencySaving = true;
+		pendencyError = null;
+		pendingSuccess = null;
+		const result = await requestFieldChange(solicitation.protocol, { items });
+		isPendencySaving = false;
+		if (result.ok) {
+			pendingSuccess = 'Alterações solicitadas ao solicitante.';
+			exitPendencyMode();
+			await invalidateAll();
+		} else {
+			pendencyError = result.error.message;
+		}
+	}
 
 	function getStatusTheme(status: RequestStatus): { bg: string; color: string; border: string } {
 		switch (status) {
@@ -148,10 +252,57 @@
 <div class="solicitation-specs-page">
 	{@render headerSnippet()}
 
-	<SpecTabs {solicitation} {onSaveSuccess} {onSaveError} />
+	{#if pendencyError}
+		<p class="pendency-feedback pendency-error" role="alert">{pendencyError}</p>
+	{:else if pendingSuccess && !isPendencyMode}
+		<p class="pendency-feedback pendency-success" role="status">{pendingSuccess}</p>
+	{/if}
 
-	<QuickActions />
+	<SpecTabs
+		{solicitation}
+		{onSaveSuccess}
+		{onSaveError}
+		{isPendencyMode}
+		{pendencyCount}
+		{isPendencySaving}
+		{markedFieldKeys}
+		onFieldPendencyClick={handleFieldPendencyClick}
+		onFieldPendencyRemove={handlePendencyRemove}
+		onPendencySave={handlePendencySubmit}
+		onPendencyCancel={handlePendencyCancelRequest}
+	/>
+
+	<QuickActions {solicitation} onSaved={handlePendencySaved} onRequestChange={enterPendencyMode} />
 </div>
+
+{#if pendingFieldPath && pendingFieldRef}
+	<FieldPendencyModal
+		field={pendingFieldRef}
+		existing={pendingFieldEntry ? { comment: pendingFieldEntry.comment } : null}
+		onConfirm={handlePendencyConfirm}
+		onRemove={() => {
+			if (pendingFieldPath) handlePendencyRemove(pendingFieldPath);
+		}}
+		onclose={() => (pendingFieldPath = null)}
+	/>
+{/if}
+
+{#if showPendencyCancelConfirm}
+	<Modal
+		title="Cancelar solicitação de alteração?"
+		onclose={() => (showPendencyCancelConfirm = false)}
+	>
+		<div class="pendency-cancel-body">
+			<p>Há justificativas não enviadas. Deseja descartá-las e cancelar?</p>
+			<div class="pendency-cancel-actions">
+				<Button variant="outline-neutral" onclick={() => (showPendencyCancelConfirm = false)}>
+					Continuar marcando
+				</Button>
+				<Button variant="primary" onclick={exitPendencyMode}>Descartar e cancelar</Button>
+			</div>
+		</div>
+	</Modal>
+{/if}
 
 <style>
 	.solicitation-specs-page {
@@ -228,6 +379,48 @@
 		line-height: 1.3;
 		word-break: break-word;
 		overflow-wrap: anywhere;
+	}
+
+	.pendency-feedback {
+		margin: 0;
+		padding: 10px 14px;
+		border-radius: var(--radius-sm);
+		font-family: var(--font-inter);
+		font-size: 13px;
+		font-weight: 600;
+	}
+
+	.pendency-error {
+		background-color: var(--status-red-bg);
+		color: var(--status-red);
+		border: 1px solid var(--status-red);
+	}
+
+	.pendency-success {
+		background-color: var(--status-green-bg);
+		color: var(--status-green);
+		border: 1px solid var(--status-green);
+	}
+
+	.pendency-cancel-body {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-md);
+	}
+
+	.pendency-cancel-body p {
+		margin: 0;
+		font-family: var(--font-inter);
+		font-size: 14px;
+		color: var(--black);
+		line-height: 1.5;
+	}
+
+	.pendency-cancel-actions {
+		display: flex;
+		justify-content: flex-end;
+		gap: var(--spacing-sm);
+		flex-wrap: wrap;
 	}
 
 	.prio-card {
