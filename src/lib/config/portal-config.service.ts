@@ -1,3 +1,4 @@
+import { base } from '$app/paths';
 import { fetchPortalConfig } from '$lib/config/portal-config.api';
 import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
 import type { PortalConfig, SolicitationMode } from '$lib/types/portal-config';
@@ -97,6 +98,16 @@ function sanitizeAssetUrl(value: unknown, fallback: string): string {
 	const url = value.trim();
 	if (!url) return fallback;
 
+	// Assets públicos enviados pelo painel e armazenados pelo backend.
+	// Quando a aplicação está publicada/deploy em um subcaminho, transforma:
+	// /uploads/portal/imagem.png
+	// em:
+	// /server03/uploads/portal/imagem.png
+	if (url.startsWith('/uploads/portal/')) {
+		return `${base}${url}`;
+	}
+
+	// Outros assets internos já são processados pelo build do SvelteKit. Continuam aqui.
 	// Caminho relativo do próprio app (assets empacotados) é aceito direto.
 	if (url.startsWith('/')) return url;
 
