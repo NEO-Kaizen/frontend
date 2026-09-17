@@ -167,14 +167,9 @@
 		<form onsubmit={handleSubmit} novalidate>
 			<div class="criteria-list">
 				{#each criteria as criterion (criterion.id)}
-					<!-- svelte-ignore a11y_role_supports_aria_props_implicit -->
 					<fieldset
 						class="criterion"
 						class:has-error={criterionErrors.has(criterion.id)}
-						aria-invalid={criterionErrors.has(criterion.id) ? true : undefined}
-						aria-describedby={criterionErrors.has(criterion.id)
-							? `criterion-error-${criterion.id}`
-							: undefined}
 					>
 						<legend class="criterion-legend">
 							<span class="criterion-name">{criterion.name}</span>
