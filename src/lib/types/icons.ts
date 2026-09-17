@@ -48,6 +48,8 @@ export const iconDictionary = {
 	calculate: 'calculate',
 	link: 'link',
 	info: 'info',
+	warning: 'warning',
+	error: 'error',
 	check: 'check',
 	person: 'person',
 	description: 'description',
@@ -55,8 +57,7 @@ export const iconDictionary = {
 	cloudUpload: 'cloud_upload',
 	delete: 'delete',
 	calendarMonth: 'calendar_month',
-	content_copy: 'content_copy',
-	warning: 'warning'
+	content_copy: 'content_copy'
 } as const;
 
 export type IconName = keyof typeof iconDictionary;
