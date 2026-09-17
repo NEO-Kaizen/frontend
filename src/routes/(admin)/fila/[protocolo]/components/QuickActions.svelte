@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Icon from '$lib/components/Icon.svelte';
+	import type { SessionUser } from '$lib/types/auth';
 	import type { InternalRequestDetail } from '$lib/types/request';
 	import { fly } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
@@ -7,11 +8,12 @@
 
 	interface Props {
 		solicitation: InternalRequestDetail;
+		currentUser?: SessionUser | null;
 		onSaved?: () => void;
 		onRequestChange?: () => void;
 	}
 
-	let { solicitation, onSaved, onRequestChange }: Props = $props();
+	let { solicitation, currentUser = null, onSaved, onRequestChange }: Props = $props();
 
 	let isOpen = $state(false);
 	let showPendingModal = $state(false);
@@ -56,6 +58,16 @@
 
 	const prefersReducedMotion =
 		typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+	// "Solicitar Alteração" visível apenas para Administrador ou o responsável
+	// pela triagem (mesma regra do botão Editar).
+	const canRequestChange = $derived(
+		currentUser?.role === 'Administrador' ||
+			Boolean(currentUser && solicitation.assignee?.id === currentUser.id)
+	);
+	const visibleActions = $derived(
+		canRequestChange ? actions : actions.filter((action) => action.key !== 'requestChange')
+	);
 
 	function toggle() {
 		isOpen = !isOpen;
@@ -104,7 +116,7 @@
 		>
 			<p class="panel-title">Ações rápidas</p>
 			<ul class="actions-list">
-				{#each actions as action, index (action.key)}
+				{#each visibleActions as action, index (action.key)}
 					<li
 						class="action-row"
 						style:animation-delay={`${prefersReducedMotion ? '0ms' : `${index * 30}ms`}`}

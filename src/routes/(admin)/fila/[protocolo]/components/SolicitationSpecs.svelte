@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { invalidateAll } from '$app/navigation';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
@@ -19,6 +20,8 @@
 	}
 
 	let { solicitation, onSaveSuccess, onSaveError }: Props = $props();
+
+	const currentUser = $derived(page.data.user);
 
 	async function handlePendencySaved(): Promise<void> {
 		await invalidateAll();
@@ -254,8 +257,6 @@
 
 	{#if pendencyError}
 		<p class="pendency-feedback pendency-error" role="alert">{pendencyError}</p>
-	{:else if pendingSuccess && !isPendencyMode}
-		<p class="pendency-feedback pendency-success" role="status">{pendingSuccess}</p>
 	{/if}
 
 	<SpecTabs
@@ -265,6 +266,7 @@
 		{isPendencyMode}
 		{pendencyCount}
 		{isPendencySaving}
+		pendingSuccessText={pendingSuccess}
 		{markedFieldKeys}
 		onFieldPendencyClick={handleFieldPendencyClick}
 		onFieldPendencyRemove={handlePendencyRemove}
@@ -272,7 +274,12 @@
 		onPendencyCancel={handlePendencyCancelRequest}
 	/>
 
-	<QuickActions {solicitation} onSaved={handlePendencySaved} onRequestChange={enterPendencyMode} />
+	<QuickActions
+		{solicitation}
+		{currentUser}
+		onSaved={handlePendencySaved}
+		onRequestChange={enterPendencyMode}
+	/>
 </div>
 
 {#if pendingFieldPath && pendingFieldRef}
@@ -394,12 +401,6 @@
 		background-color: var(--status-red-bg);
 		color: var(--status-red);
 		border: 1px solid var(--status-red);
-	}
-
-	.pendency-success {
-		background-color: var(--status-green-bg);
-		color: var(--status-green);
-		border: 1px solid var(--status-green);
 	}
 
 	.pendency-cancel-body {

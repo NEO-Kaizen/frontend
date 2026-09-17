@@ -981,22 +981,3 @@ export function updateInternalRequestMock(
 	detail.lastUpdate = new Date().toISOString();
 	return delay(MOCK_LATENCY_MS).then(() => structuredClone(detail));
 }
-
-export function updateInternalRequestMock(
-	protocol: string,
-	payload: UpdateInternalRequestPayload
-): Promise<InternalRequestDetail> {
-	const normalized = protocol.toLowerCase().trim();
-	const detail = mockInternalRequestDetails.find(
-		(d) => d.protocol.toLowerCase().trim() === normalized
-	);
-	if (!detail) {
-		return Promise.reject(new ApiError(404, 'Solicitação não encontrada.'));
-	}
-	detail.requester = structuredClone(payload.requester);
-	detail.demand = structuredClone(payload.demand);
-	detail.operational = structuredClone(payload.operational);
-	detail.complementary = payload.complementary ? structuredClone(payload.complementary) : undefined;
-	detail.lastUpdate = new Date().toISOString();
-	return delay(MOCK_LATENCY_MS).then(() => structuredClone(detail));
-}
