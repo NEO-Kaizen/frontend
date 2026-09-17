@@ -14,6 +14,7 @@
 		saveDraftToSession,
 		saveTriageToSession
 	} from '$lib/services/triage-draft.service';
+	import { toastState } from '$lib/states/toast.svelte';
 	import { CATEGORY_OPTIONS, YES_NO_OPTIONS } from '$lib/types/request';
 	import type { InternalRequestDetail } from '$lib/types/request';
 	import { TRIAGE_EXIT_OPTIONS, type TriageAssessment } from '$lib/types/triage';
@@ -80,7 +81,6 @@
 	let errors = $state<Record<string, string>>({});
 	let isSaving = $state(false);
 	let showConfirm = $state(false);
-	let saveError = $state<string | null>(null);
 	let sectionRoot = $state<HTMLElement | null>(null);
 
 	function isJustificationDisabled(): boolean {
@@ -107,7 +107,6 @@
 		// @ts-expect-error dynamic
 		draft[path] = value;
 		clearFieldError(path);
-		saveError = null;
 		persistDraft();
 		if (path === 'adherentToScope' && value !== 'Não') {
 			// quando muda para Sim ou vazio, limpa justificativa não requerida
@@ -145,7 +144,6 @@
 		clearDraftFromSession(solicitation.protocol);
 		draft = toTriageDraft(solicitation.triage);
 		errors = {};
-		saveError = null;
 		showConfirm = false;
 	}
 
@@ -157,12 +155,10 @@
 		const validation = validateTriageDraft(draft);
 		errors = validation;
 		if (Object.keys(validation).length > 0) {
-			// TODO: UTILIZAR TOAST BAR PARA EXIBIR ERRO
-			// saveError = 'Revise os campos destacados antes de finalizar.';
+			toastState.add('Revise os campos destacados antes de finalizar.', 'error');
 			tick().then(() => focusFirstInvalid());
 			return;
 		}
-		saveError = null;
 		showConfirm = true;
 	}
 
@@ -172,13 +168,11 @@
 		if (Object.keys(validation).length > 0) {
 			errors = validation;
 			showConfirm = false;
-			// TODO: UTILIZAR TOAST BAR PARA EXIBIR ERRO
-			// saveError = 'Revise os campos destacados antes de finalizar.';
+			toastState.add('Revise os campos destacados antes de finalizar.', 'error');
 			tick().then(() => focusFirstInvalid());
 			return;
 		}
 		isSaving = true;
-		saveError = null;
 		const payload = toTriagePayload(draft);
 		const result = await updateTriage(solicitation.protocol, payload);
 		isSaving = false;
@@ -189,9 +183,10 @@
 			saveTriageToSession(solicitation.protocol, payload);
 			clearDraftFromSession(solicitation.protocol);
 			draft = toTriageDraft(result.data.triage);
+			toastState.add('Triagem finalizada com sucesso.', 'success');
 			onTriageSuccess?.(result.data);
 		} else {
-			saveError = result.error.message;
+			toastState.add(result.error.message, 'error');
 			showConfirm = false;
 		}
 	}
@@ -222,10 +217,7 @@
 					maxlength={1000}
 					disabled={isSaving || isJustificationDisabled()}
 					error={errors['adherentJustification'] ?? ''}
-					oninput={() => {
-						clearFieldError('adherentJustification');
-						saveError = null;
-					}}
+					oninput={() => clearFieldError('adherentJustification')}
 					onblur={() => handleBlur('adherentJustification')}
 				/>
 			</div>
@@ -276,10 +268,7 @@
 			rows={4}
 			disabled={isSaving}
 			error={errors['preliminaryComplexity'] ?? ''}
-			oninput={() => {
-				clearFieldError('preliminaryComplexity');
-				saveError = null;
-			}}
+			oninput={() => clearFieldError('preliminaryComplexity')}
 		/>
 	</div>
 
@@ -292,10 +281,7 @@
 			rows={4}
 			disabled={isSaving}
 			error={errors['perceivedRisks'] ?? ''}
-			oninput={() => {
-				clearFieldError('perceivedRisks');
-				saveError = null;
-			}}
+			oninput={() => clearFieldError('perceivedRisks')}
 		/>
 	</div>
 
@@ -309,10 +295,7 @@
 				maxlength={150}
 				disabled={isSaving}
 				error={errors['suggestedResponsible'] ?? ''}
-				oninput={() => {
-					clearFieldError('suggestedResponsible');
-					saveError = null;
-				}}
+				oninput={() => clearFieldError('suggestedResponsible')}
 				onblur={() => handleBlur('suggestedResponsible')}
 			/>
 			<Input
@@ -322,10 +305,7 @@
 				maxlength={1000}
 				disabled={isSaving}
 				error={errors['suggestedResponsibleJustification'] ?? ''}
-				oninput={() => {
-					clearFieldError('suggestedResponsibleJustification');
-					saveError = null;
-				}}
+				oninput={() => clearFieldError('suggestedResponsibleJustification')}
 				onblur={() => handleBlur('suggestedResponsibleJustification')}
 			/>
 		</div>
@@ -355,10 +335,7 @@
 					maxlength={1000}
 					disabled={isSaving}
 					error={errors['result'] ?? ''}
-					oninput={() => {
-						clearFieldError('result');
-						saveError = null;
-					}}
+					oninput={() => clearFieldError('result')}
 					onblur={() => handleBlur('result')}
 				/>
 			</div>
@@ -374,16 +351,9 @@
 			rows={5}
 			disabled={isSaving}
 			error={errors['conclusionJustification'] ?? ''}
-			oninput={() => {
-				clearFieldError('conclusionJustification');
-				saveError = null;
-			}}
+			oninput={() => clearFieldError('conclusionJustification')}
 		/>
 	</div>
-
-	{#if saveError}
-		<p class="save-error" role="alert">{saveError}</p>
-	{/if}
 
 	<div class="footer-actions">
 		<Button variant="outline-neutral" disabled={isSaving} onclick={handleCancel}>Cancelar</Button>
@@ -554,20 +524,6 @@
 		max-width: 260px;
 	}
 
-	.save-error {
-		margin: 0;
-		padding: 10px 14px;
-		border-radius: var(--radius-sm);
-		background-color: var(--status-red-bg);
-		color: var(--status-red);
-		border: 1px solid var(--status-red);
-		font-family: var(--font-inter);
-		font-size: 13px;
-		font-weight: 600;
-		width: 75%;
-		box-sizing: border-box;
-	}
-
 	.footer-actions {
 		display: flex;
 		gap: var(--spacing-sm);
@@ -601,7 +557,6 @@
 	@media (max-width: 1024px) {
 		.top-row,
 		.field-75,
-		.save-error,
 		.footer-actions {
 			width: 85%;
 			max-width: 85%;
@@ -611,7 +566,6 @@
 	@media (max-width: 768px) {
 		.top-row,
 		.field-75,
-		.save-error,
 		.footer-actions {
 			width: 100%;
 			max-width: 100%;

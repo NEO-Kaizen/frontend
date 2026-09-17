@@ -16,6 +16,8 @@
 		protocol: string;
 		currentAssigneeId: string | null;
 		currentAssigneeName?: string | null;
+		currentMappingAssigneeId?: string | null;
+		currentMappingAssigneeName?: string | null;
 		onclose: () => void;
 		onSuccess: (updated: InternalRequestDetail) => void;
 	}
@@ -24,9 +26,17 @@
 		protocol,
 		currentAssigneeId,
 		currentAssigneeName = null,
+		currentMappingAssigneeId = null,
+		currentMappingAssigneeName = null,
 		onclose,
 		onSuccess
 	}: Props = $props();
+
+	// Props de mapeamento mantidas para compatibilidade do patch, mas UI não altera com elas
+	// svelte-ignore state_referenced_locally
+	void currentMappingAssigneeId;
+	// svelte-ignore state_referenced_locally
+	void currentMappingAssigneeName;
 
 	let analysts = $state<Analyst[]>([]);
 	let isLoading = $state(true);
@@ -36,6 +46,7 @@
 	// svelte-ignore state_referenced_locally
 	let selectedId = $state<string | null>(currentAssigneeId ?? null);
 	let isSaving = $state(false);
+	let responsibility = $state<'triagem' | 'mapeamento' | null>(null);
 
 	const prefersReducedMotion =
 		typeof window !== 'undefined' &&
@@ -83,15 +94,10 @@
 	async function loadAnalysts(): Promise<void> {
 		isLoading = true;
 		loadError = null;
-		const result = await listAnalysts({
-			search: undefined,
-			category: undefined,
-			page: 1,
-			pageSize: 50
-		});
+		const result = await listAnalysts();
 		if (result.ok) {
-			// Apenas ativos na listagem de atribuição
-			analysts = (result.data.data as Analyst[]).filter((a) => a.isActive);
+			// Apenas ativos na listagem de atribuição — lista direta sem paginação, filtros no front
+			analysts = (result.data as Analyst[]).filter((a) => a.isActive);
 			isLoading = false;
 		} else {
 			loadError = result.error.message ?? 'Não foi possível carregar os analistas.';
@@ -116,9 +122,13 @@
 
 	async function handleSubmit(): Promise<void> {
 		if (!selectedId || isSaving) return;
+		if (!responsibility) {
+			submitError = 'Selecione a responsabilidade (Triagem ou Mapeamento).';
+			return;
+		}
 		isSaving = true;
 		submitError = null;
-		const result = await assignAnalyst(protocol, selectedId);
+		const result = await assignAnalyst(protocol, selectedId, responsibility);
 		isSaving = false;
 		if (result.ok) {
 			onSuccess(result.data);
@@ -126,6 +136,11 @@
 		} else {
 			submitError = result.error.message;
 		}
+	}
+
+	function handleResponsibilityChange(value: 'triagem' | 'mapeamento'): void {
+		responsibility = value;
+		submitError = null;
 	}
 
 	function handleRetry(): void {
@@ -302,41 +317,71 @@
 		{/if}
 
 		<footer class="assign-footer">
-			<span class="footer-left">
-				{#if selectedAnalyst}
-					{#if isReassign && currentAssigneeDisplayName && selectedId !== currentAssigneeId}
-						<span in:fade={{ duration: prefersReducedMotion ? 0 : 150 }}>
-							Alterando de <strong>{currentAssigneeDisplayName}</strong> para
-							<strong class="selected-name">{selectedAnalyst.fullName}</strong>
-						</span>
-					{:else if isReassign && selectedId === currentAssigneeId}
-						<span class="muted"
-							>Mantendo {currentAssigneeDisplayName} — selecione outro para alterar</span
-						>
-					{:else}
-						<span in:fade={{ duration: prefersReducedMotion ? 0 : 150 }}>
-							1 analista selecionado · <strong class="selected-name"
-								>{selectedAnalyst.fullName}</strong
+			<div class="responsibility-group" role="radiogroup" aria-label="Responsabilidade do analista">
+				<span class="responsibility-title">Responsável por:</span>
+				<label class="radio-option" class:selected={responsibility === 'triagem'}>
+					<input
+						type="radio"
+						name="responsibility"
+						value="triagem"
+						bind:group={responsibility}
+						onchange={() => handleResponsibilityChange('triagem')}
+						aria-label="Triagem"
+					/>
+					<span class="radio-indicator" aria-hidden="true"></span>
+					Triagem
+				</label>
+				<label class="radio-option" class:selected={responsibility === 'mapeamento'}>
+					<input
+						type="radio"
+						name="responsibility"
+						value="mapeamento"
+						bind:group={responsibility}
+						onchange={() => handleResponsibilityChange('mapeamento')}
+						aria-label="Mapeamento"
+					/>
+					<span class="radio-indicator" aria-hidden="true"></span>
+					Mapeamento
+				</label>
+			</div>
+
+			<div class="footer-actions">
+				<span class="footer-left">
+					{#if selectedAnalyst}
+						{#if isReassign && currentAssigneeDisplayName && selectedId !== currentAssigneeId}
+							<span in:fade={{ duration: prefersReducedMotion ? 0 : 150 }}>
+								Alterando de <strong>{currentAssigneeDisplayName}</strong> para
+								<strong class="selected-name">{selectedAnalyst.fullName}</strong>
+							</span>
+						{:else if isReassign && selectedId === currentAssigneeId}
+							<span class="muted"
+								>Mantendo {currentAssigneeDisplayName} — selecione outro para alterar</span
 							>
-						</span>
+						{:else}
+							<span in:fade={{ duration: prefersReducedMotion ? 0 : 150 }}>
+								1 analista selecionado · <strong class="selected-name"
+									>{selectedAnalyst.fullName}</strong
+								>
+							</span>
+						{/if}
+					{:else}
+						<span class="muted">Nenhum analista selecionado</span>
 					{/if}
-				{:else}
-					<span class="muted">Nenhum analista selecionado</span>
-				{/if}
-			</span>
-			<span class="footer-right">
-				<Button
-					variant="primary"
-					disabled={selectedId === null || isSaving}
-					loading={isSaving}
-					onclick={handleSubmit}
-				>
-					{#if !isSaving}
-						<Icon iconName="check" iconSize="sm" />
-					{/if}
-					Salvar
-				</Button>
-			</span>
+				</span>
+				<span class="footer-right">
+					<Button
+						variant="primary"
+						disabled={selectedId === null || !responsibility || isSaving}
+						loading={isSaving}
+						onclick={handleSubmit}
+					>
+						{#if !isSaving}
+							<Icon iconName="check" iconSize="sm" />
+						{/if}
+						Salvar
+					</Button>
+				</span>
+			</div>
 		</footer>
 	</div>
 </Modal>
@@ -345,7 +390,7 @@
 	.assign-content {
 		display: flex;
 		flex-direction: column;
-		gap: 16px;
+		gap: 10px;
 		flex: 1;
 		min-height: 0;
 		overflow: hidden;
@@ -369,7 +414,7 @@
 		display: flex;
 		align-items: center;
 		gap: 8px;
-		padding: 10px 12px;
+		padding: 8px 12px;
 		border-radius: var(--radius-sm);
 		background: var(--status-blue-bg);
 		border: 1px solid rgba(0, 51, 153, 0.12);
@@ -728,14 +773,92 @@
 
 	.assign-footer {
 		display: flex;
-		align-items: center;
-		justify-content: space-between;
+		flex-direction: column;
 		gap: 12px;
-		padding-top: 14px;
+		padding-top: 7px;
 		margin-top: 4px;
 		border-top: 1px solid var(--white-gray);
 		background: var(--white);
 		flex-shrink: 0;
+	}
+
+	.responsibility-group {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		flex-wrap: wrap;
+		padding: 8px 12px;
+		background: var(--background-color);
+		border: 1px solid var(--white-gray);
+		border-radius: var(--radius-sm);
+	}
+
+	.responsibility-title {
+		font-family: var(--font-inter);
+		font-size: 11px;
+		font-weight: 700;
+		color: var(--gray);
+		letter-spacing: 0.02em;
+		text-transform: uppercase;
+		white-space: nowrap;
+	}
+
+	.radio-option {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		padding: 4px 10px;
+		border: 1px solid var(--white-gray);
+		border-radius: var(--radius-sm);
+		background: var(--white);
+		font-family: var(--font-inter);
+		font-size: 13px;
+		font-weight: 500;
+		color: var(--black);
+		cursor: pointer;
+		transition: all 150ms ease;
+		user-select: none;
+	}
+
+	.radio-option.selected {
+		border-color: var(--secondary-color);
+		background: var(--status-blue-bg);
+		color: var(--primary-color);
+		font-weight: 600;
+	}
+
+	.radio-option input {
+		position: absolute;
+		opacity: 0;
+		pointer-events: none;
+		width: 0;
+		height: 0;
+	}
+
+	.radio-indicator {
+		width: 16px;
+		height: 16px;
+		border-radius: 50%;
+		border: 1.5px solid var(--gray);
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		transition: all 150ms ease;
+		background: var(--white);
+	}
+
+	.radio-option.selected .radio-indicator {
+		border-color: var(--secondary-color);
+		background: var(--secondary-color);
+		box-shadow: inset 0 0 0 3px var(--white);
+	}
+
+	.footer-actions {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
 		flex-wrap: wrap;
 	}
 
@@ -789,7 +912,7 @@
 			grid-template-columns: 1fr;
 		}
 
-		.assign-footer {
+		.footer-actions {
 			flex-direction: column;
 			align-items: stretch;
 		}
@@ -797,6 +920,11 @@
 		.footer-right {
 			justify-content: flex-end;
 			width: 100%;
+		}
+
+		.responsibility-group {
+			flex-direction: column;
+			align-items: flex-start;
 		}
 	}
 

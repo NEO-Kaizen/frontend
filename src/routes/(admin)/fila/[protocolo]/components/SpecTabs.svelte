@@ -7,6 +7,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import { updateInternalRequest } from '$lib/services/request.service';
+	import { toastState } from '$lib/states/toast.svelte';
 	import type { InternalRequestDetail } from '$lib/types/request';
 	import InfoSection from './solicitation-info/InfoSection.svelte';
 	import TriageSection from './triagem/TriageSection.svelte';
@@ -231,6 +232,7 @@
 		errors = validation;
 		if (Object.keys(validation).length > 0) {
 			saveError = 'Revise os campos destacados antes de salvar.';
+			toastState.add('Revise os campos destacados antes de salvar.', 'error');
 			tick().then(() => focusFirstEditable('.field-editor.is-invalid'));
 			return;
 		}
@@ -252,11 +254,13 @@
 				saveSuccess = null;
 				saveSuccessTimer = undefined;
 			}, SAVE_SUCCESS_TIMEOUT_MS);
+			toastState.add('Alterações salvas com sucesso.', 'success');
 			onSaveSuccess?.(result.data);
 			await invalidateAll();
 			tick().then(() => editButton?.focus());
 		} else {
 			saveError = result.error.message;
+			toastState.add(result.error.message, 'error');
 			onSaveError?.(result.error.message);
 		}
 	}
@@ -335,9 +339,7 @@
 		</div>
 	</div>
 
-	<!-- TODO: toast para feedback de edição (sucesso/erro) - placeholder futuro -->
-	<!-- Mensagens de saveError/saveSuccess removidas deste escopo global para não vazar entre abas -->
-	<!-- O estado saveError/saveSuccess continua sendo controlado em handleSave/clearSaveSuccess para uso futuro via toast -->
+	<!-- Feedback de edição via toast bar (toastState) -->
 
 	<div
 		id="spec-panel"

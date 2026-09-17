@@ -21,6 +21,7 @@
 		type PrioritizationCriterion,
 		type PrioritizationResult
 	} from '$lib/types/prioritization';
+	import { toastState } from '$lib/states/toast.svelte';
 
 	interface Props {
 		protocol: string;
@@ -189,12 +190,15 @@
 					justification: '',
 					result: submission.data
 				});
+				toastState.add('Notas salvas com sucesso.', 'success');
 				onsave?.(submission.data, notes as CriterionNotes);
 			} else if (submission.error.missingCriterionIds?.length) {
 				missingCriterionIds = submission.error.missingCriterionIds;
 				validationError = submission.error.message;
+				toastState.add(submission.error.message, 'error');
 			} else {
 				saveError = submission.error.message;
+				toastState.add(submission.error.message, 'error');
 			}
 		} finally {
 			isSaving = false;

@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import { invalidateAll } from '$app/navigation';
 	import { untrack } from 'svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import type { InternalRequestDetail, RequestStatus } from '$lib/types/request';
@@ -170,10 +169,9 @@
 	}
 
 	function handleAssignSuccess(updated: InternalRequestDetail): void {
+		// Atualiza localmente sem invalidar: evita revert do mock (server sem persistência) e
+		// mantém mesma lógica para Triagem/Mapeamento — apenas o PATCH muda (assigneeId vs mappingAssigneeId)
 		solicitation = updated;
-		onTriageSuccess?.(updated);
-		onSaveSuccess?.(updated);
-		void invalidateAll();
 	}
 
 	function handleQuickAction(key: string) {
@@ -280,6 +278,8 @@
 			protocol={solicitation.protocol}
 			currentAssigneeId={solicitation.assignee?.id ?? null}
 			currentAssigneeName={solicitation.assignee?.name ?? null}
+			// currentMappingAssigneeId={solicitation.mappingAssignee?.id ?? null}
+			// currentMappingAssigneeName={solicitation.mappingAssignee?.name ?? null}
 			onclose={() => (isAssignModalOpen = false)}
 			onSuccess={handleAssignSuccess}
 		/>
@@ -304,7 +304,7 @@
 	.header-left {
 		display: flex;
 		flex-direction: column;
-		gap: 8px;
+		gap: 5px;
 		flex: 1;
 		min-width: 0;
 	}
@@ -369,7 +369,7 @@
 		align-items: center;
 		justify-content: center;
 		gap: 4px;
-		padding: 6px 10px;
+		padding: 5px 10px;
 		background: linear-gradient(135deg, var(--white) 0%, var(--background-color) 100%);
 		border: 1px solid var(--white-gray);
 		border-left: 3px solid var(--secondary-color);
