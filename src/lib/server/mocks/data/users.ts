@@ -1,6 +1,4 @@
-import { ApiError } from '$lib/types/result';
-import type { PaginatedResponse } from '$lib/types/request';
-
+import type { PaginatedResponse } from '../../../types/request';
 import type {
 	CreateUserPayload,
 	CreateUserResponse,
@@ -11,7 +9,8 @@ import type {
 	UserRole,
 	UserStats,
 	UserSummary
-} from '$lib/types/user';
+} from '../../../types/user';
+import { MockHttpError } from '../http';
 
 export const mockUsers: UserSummary[] = [
 	{
@@ -204,7 +203,7 @@ function delay(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export function listUsersMock(query: ListUsersQuery): Promise<PaginatedResponse<UserSummary>> {
+export function listUsers(query: ListUsersQuery): Promise<PaginatedResponse<UserSummary>> {
 	let result = [...mockUsers];
 
 	if (query.profile) {
@@ -239,7 +238,7 @@ export function listUsersMock(query: ListUsersQuery): Promise<PaginatedResponse<
 	}));
 }
 
-export function getUserStatsMock(): UserStats {
+export function getUserStats(): UserStats {
 	return {
 		total: mockUsers.length,
 		active: mockUsers.filter((user) => user.isActive).length,
@@ -248,9 +247,11 @@ export function getUserStatsMock(): UserStats {
 	};
 }
 
-export function createUserMock(payload: CreateUserPayload): Promise<CreateUserResponse> {
+export function createUser(payload: CreateUserPayload): Promise<CreateUserResponse> {
 	if (payload.role === 'administrador') {
-		return Promise.reject(new ApiError(403, 'Não é possível gerenciar contas de Administradores'));
+		return Promise.reject(
+			new MockHttpError(403, 'Não é possível gerenciar contas de Administradores')
+		);
 	}
 
 	const email = payload.email.trim().toLowerCase();
@@ -258,17 +259,13 @@ export function createUserMock(payload: CreateUserPayload): Promise<CreateUserRe
 	const duplicatedEmail = mockUsers.some((user) => user.email.toLowerCase() === email);
 
 	if (duplicatedEmail) {
-		return Promise.reject(new ApiError(409, 'E-mail já cadastrado'));
+		return Promise.reject(new MockHttpError(409, 'E-mail já cadastrado'));
 	}
 
 	const temporaryPassword = generateTemporaryPassword();
 	const createdAt = new Date().toISOString();
 	const id = String(nextId++);
 	const role = PROFILE_TO_ROLE[payload.role];
-
-	if (role === 'Administrador') {
-		return Promise.reject(new ApiError(403, 'Não é possível gerenciar contas de Administradores'));
-	}
 
 	const user: UserSummary = {
 		id,
@@ -294,18 +291,17 @@ export function createUserMock(payload: CreateUserPayload): Promise<CreateUserRe
 	}));
 }
 
-export function updateUserStatusMock(
-	id: string,
-	isActive: boolean
-): Promise<UpdateUserStatusResponse> {
-	const user = findMockUser(id);
+export function updateUserStatus(id: string, isActive: boolean): Promise<UpdateUserStatusResponse> {
+	const user = findUser(id);
 
 	if (!user) {
-		return Promise.reject(new ApiError(404, 'Usuário não encontrado'));
+		return Promise.reject(new MockHttpError(404, 'Usuário não encontrado'));
 	}
 
 	if (user.profile === 'Administrador') {
-		return Promise.reject(new ApiError(403, 'Não é possível gerenciar contas de Administradores'));
+		return Promise.reject(
+			new MockHttpError(403, 'Não é possível gerenciar contas de Administradores')
+		);
 	}
 
 	user.isActive = isActive;
@@ -316,15 +312,17 @@ export function updateUserStatusMock(
 	}));
 }
 
-export function resetUserPasswordMock(id: string): Promise<ResetPasswordResponse> {
-	const user = findMockUser(id);
+export function resetUserPassword(id: string): Promise<ResetPasswordResponse> {
+	const user = findUser(id);
 
 	if (!user) {
-		return Promise.reject(new ApiError(404, 'Usuário não encontrado'));
+		return Promise.reject(new MockHttpError(404, 'Usuário não encontrado'));
 	}
 
 	if (user.profile === 'Administrador') {
-		return Promise.reject(new ApiError(403, 'Não é possível gerenciar contas de Administradores'));
+		return Promise.reject(
+			new MockHttpError(403, 'Não é possível gerenciar contas de Administradores')
+		);
 	}
 
 	user.mustChangePassword = true;
@@ -337,7 +335,7 @@ export function resetUserPasswordMock(id: string): Promise<ResetPasswordResponse
 	}));
 }
 
-function findMockUser(id: string): UserSummary | undefined {
+function findUser(id: string): UserSummary | undefined {
 	return mockUsers.find((user) => user.id === id);
 }
 

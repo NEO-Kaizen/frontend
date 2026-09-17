@@ -25,18 +25,18 @@ Evite criar abstrações, componentes ou estruturas sem uma necessidade real.
 
 # 3. Nomenclatura
 
-| Elemento             | Padrão               | Exemplo            |
-| -------------------- | -------------------- | ------------------ |
-| Variável             | camelCase            | `currentUser`      |
-| Função               | camelCase com verbo  | `loadUsers`        |
-| Componente           | PascalCase           | `UserTable.svelte` |
-| Tipo / Interface     | PascalCase           | `UserRole`         |
-| Constante global     | UPPER_SNAKE_CASE     | `MAX_FILE_SIZE`    |
-| Arquivo TypeScript   | kebab-case           | `auth.service.ts`  |
-| Estado compartilhado | `.svelte.ts` (runes) | `auth.svelte.ts`   |
-| Service              | `.service.ts`        | `user.service.ts`  |
-| API                  | `.api.ts`            | `user.api.ts`      |
-| Mock de dados        | `.mock.ts`           | `requests.mock.ts` |
+| Elemento             | Padrão               | Exemplo                         |
+| -------------------- | -------------------- | ------------------------------- |
+| Variável             | camelCase            | `currentUser`                   |
+| Função               | camelCase com verbo  | `loadUsers`                     |
+| Componente           | PascalCase           | `UserTable.svelte`              |
+| Tipo / Interface     | PascalCase           | `UserRole`                      |
+| Constante global     | UPPER_SNAKE_CASE     | `MAX_FILE_SIZE`                 |
+| Arquivo TypeScript   | kebab-case           | `auth.service.ts`               |
+| Estado compartilhado | `.svelte.ts` (runes) | `auth.svelte.ts`                |
+| Service              | `.service.ts`        | `user.service.ts`               |
+| API                  | `.api.ts`            | `user.api.ts`                   |
+| Mock (dev-only)      | `.ts` server-side    | `server/mocks/handlers/auth.ts` |
 
 A equipe deve manter um único padrão durante todo o projeto.
 

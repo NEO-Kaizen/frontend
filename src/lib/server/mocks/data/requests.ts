@@ -1,11 +1,11 @@
-import { ApiError } from '$lib/types/result';
-import { computePrioritizationResult, getSavedPrioritizationNotes } from './prioritization.mock';
+import { MockHttpError } from '../http';
+import { computePrioritizationResult, getSavedPrioritizationNotes } from './prioritization';
 import type {
 	QueueAssignee,
 	QueueMetricsResponse,
 	QueueQuery,
 	QueueResponse
-} from '$lib/types/queue';
+} from '../../../types/queue';
 import type {
 	InternalRequestDetail,
 	CreateRequestPayload,
@@ -16,7 +16,7 @@ import type {
 	RequestSummary,
 	RequestStatus,
 	UpdateInternalRequestPayload
-} from '$lib/types/request';
+} from '../../../types/request';
 
 // Status considerados "em andamento" para a métrica da fila: trabalho já em fluxo,
 // excluindo etapas de fila/priorização e estados terminais.
@@ -28,7 +28,7 @@ const IN_PROGRESS_STATUSES: RequestStatus[] = [
 	'Em homologação'
 ];
 
-export async function getQueueMetricsMock(): Promise<QueueMetricsResponse> {
+export async function getQueueMetrics(): Promise<QueueMetricsResponse> {
 	// Total, "sem responsável" e "em andamento" derivam dos fixtures. "Atrasados"
 	// é valor ilustrativo: o contrato ainda não expõe data-limite/atraso.
 	return {
@@ -211,6 +211,12 @@ export const mockRequests: MockRequest[] = [
 		requesterName: 'Bruno Martins'
 	}
 ];
+
+// Existe alguma solicitação com este protocolo (case/trim-insensível)?
+export function requestExists(protocol: string): boolean {
+	const normalized = protocol.toLowerCase().trim();
+	return mockRequests.some((request) => request.protocol.toLowerCase().trim() === normalized);
+}
 
 export const mockRequestDetails: RequestDetail[] = [
 	{
@@ -455,13 +461,13 @@ const ALLOWED_MIME_TYPES = [
 // Latência artificial para tornar o estado de carregamento perceptível na UI.
 const MOCK_LATENCY_MS = 500;
 
-export function createRequestMock(
+export function createRequest(
 	payload: CreateRequestPayload,
 	files: Blob[] = []
 ): Promise<CreateRequestResponse> {
 	const rejection = validateAttachments(files);
 	if (rejection) {
-		return Promise.reject(new ApiError(400, rejection));
+		return Promise.reject(new MockHttpError(400, rejection));
 	}
 
 	const protocol = generateMockProtocol();
@@ -577,9 +583,7 @@ function toRequestSummary(request: MockRequest): RequestSummary {
 	};
 }
 
-export function listRequestsMock(
-	query: ListRequestsQuery
-): Promise<PaginatedResponse<RequestSummary>> {
+export function listRequests(query: ListRequestsQuery): Promise<PaginatedResponse<RequestSummary>> {
 	let requests = [...mockRequests];
 
 	if (query.email) {
@@ -636,7 +640,7 @@ function getQueueAssignees(): QueueAssignee[] {
 	).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export function listQueueRequestsMock(query: QueueQuery): Promise<QueueResponse> {
+export function listQueueRequests(query: QueueQuery): Promise<QueueResponse> {
 	let requests = [...mockRequests];
 
 	if (query.search) {
@@ -703,13 +707,13 @@ export function listQueueRequestsMock(query: QueueQuery): Promise<QueueResponse>
 	});
 }
 
-export function getRequestByProtocolMock(protocol: string): Promise<RequestDetail> {
+export function getRequestByProtocol(protocol: string): Promise<RequestDetail> {
 	const normalized = protocol.toLowerCase().trim();
 
 	const detail = mockRequestDetails.find((d) => d.protocol.toLowerCase().trim() === normalized);
 
 	if (!detail) {
-		return Promise.reject(new ApiError(404, 'Solicitação não encontrada.'));
+		return Promise.reject(new MockHttpError(404, 'Solicitação não encontrada.'));
 	}
 
 	return Promise.resolve(detail);
@@ -938,13 +942,13 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 	}
 ];
 
-export function getInternalRequestMock(protocol: string): Promise<InternalRequestDetail> {
+export function getInternalRequest(protocol: string): Promise<InternalRequestDetail> {
 	const normalized = protocol.toLowerCase().trim();
 	const detail = mockInternalRequestDetails.find(
 		(d) => d.protocol.toLowerCase().trim() === normalized
 	);
 	if (!detail) {
-		return Promise.reject(new ApiError(404, 'Solicitação não encontrada.'));
+		return Promise.reject(new MockHttpError(404, 'Solicitação não encontrada.'));
 	}
 
 	// Reflete avaliação salva em sessão: notas persistidas no mock de priorização
@@ -963,7 +967,7 @@ export function getInternalRequestMock(protocol: string): Promise<InternalReques
 	return delay(MOCK_LATENCY_MS).then(() => structuredClone({ ...detail, prioritization }));
 }
 
-export function updateInternalRequestMock(
+export function updateInternalRequest(
 	protocol: string,
 	payload: UpdateInternalRequestPayload
 ): Promise<InternalRequestDetail> {
@@ -972,7 +976,7 @@ export function updateInternalRequestMock(
 		(d) => d.protocol.toLowerCase().trim() === normalized
 	);
 	if (!detail) {
-		return Promise.reject(new ApiError(404, 'Solicitação não encontrada.'));
+		return Promise.reject(new MockHttpError(404, 'Solicitação não encontrada.'));
 	}
 	detail.requester = structuredClone(payload.requester);
 	detail.demand = structuredClone(payload.demand);

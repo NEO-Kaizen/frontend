@@ -50,11 +50,8 @@ src/
 │   │   ├── portal-config.api.ts
 │   │   └── portal-config.service.ts
 │   │
-│   ├── mocks/
-│   │   ├── users.mock.ts
-│   │   ├── requests.mock.ts
-│   │   ├── auth.mock.ts
-│   │   └── index.ts
+│   ├── server/
+│   │   └── mocks/          # API mock dev-only (middleware Vite) — fora do build
 │   │
 │   ├── states/
 │   │   ├── auth.svelte.ts
@@ -279,45 +276,129 @@ Regras:
 - consumidores leem `page.data.portalConfig` (reativo, SSR-consistente) — não há store/estado de módulo para config; se no futuro houver mutação cliente a partir do admin (#90), um estado em `states/*.svelte.ts` (runes) pode ser adicionado na hora da necessidade;
 - `protocolMask` (prefixo do protocolo) é repassado como parâmetro a services/validações (`isProtocol(value, prefix)`), pois services não acessam `page.data`;
 - o tema (3 tokens de cor) é aplicado como exemplo/baseline no `+layout.svelte` via wrapper `.app-root` + diretivas `style:--*` (CSS custom properties): o wrapper é o container de layout (flex, centralização, `min-height: 100dvh`, fundo via `--background-color`), cobrindo o `body` — renderizado no SSR (sem `$effect`, sem flash) e reativo a `data`. Nota: o Svelte 5 não suporta interpolação `{expr}` em `<style>` (recurso removido do Svelte 4), e `:global()` só serve para CSS estático — por isso as custom properties reativas vão via `style:` num wrapper;
-- configuração de portal (runtime) é diferente do toggle dev de mocks: o toggle dev de mock/API permanece **apenas** em `mocks/index.ts` (`dev` de `$app/environment`), inerte em produção; nenhum flag runtime do portal entra nos mocks. O mock/domínio `config` da API real será adicionado em `mocks/index.ts` quando o endpoint existir (#90);
+- configuração de portal (runtime) é um dado de aplicação; não se confunde com o mock de desenvolvimento, que vive só no middleware Vite (`src/lib/server/mocks/`, `apply: 'serve'`) e é inerte em produção. O domínio `portal-config` do mock já atende `GET /portal-config` em dev (#90);
 - a aplicação do tema completo (tokens em páginas, flash minimizado) é escopo da issue #89; esta camada apenas prepara o transporte.
 
 ---
 
 ## 10. Mocks
 
-A pasta `mocks/` contém dados fictícios utilizados enquanto o backend ainda não estiver disponível ou durante testes.
+Em desenvolvimento a API é simulada por um **mock server-side dev-only**, servido pelo próprio dev server do Vite via middleware sob `/__mock/**`. O app fala HTTP de verdade: cookie de sessão, upload multipart e paginação/filtros passam pelo protocolo, e o SSR consome a mesma API.
 
-Os mocks devem:
+Os dados continuam fictícios e devem:
 
-- utilizar apenas dados fictícios;
 - seguir os tipos definidos no projeto;
 - representar diferentes cenários;
 - incluir sucesso, vazio, erro e diferentes status;
 - nunca utilizar informações reais de clientes ou usuários.
 
-### Toggle central de mocks
+### Como funciona
 
-Os mocks são controlados por `src/lib/mocks/index.ts` — único ponto para ligar/desligar:
+- implementação em `src/lib/server/mocks/`: plugin Vite (`plugin.ts`, `apply: 'serve'`), roteador (`router.ts`), handlers por domínio e fixtures reutilizáveis em `data/`;
+- o plugin é registrado em `vite.config.ts` e **não existe no build de produção** — nenhuma rota `/__mock` nem dado fictício entra no bundle;
+- em dev, `PUBLIC_API_URL=/__mock`; para usar o backend real, aponte essa variável para a URL absoluta da API (troca única, sem código);
+- `src/lib/server/mocks/config.ts` concentra o interruptor global (`USE_MOCK_API`) e a granularidade por domínio (`MOCK_DOMAINS`); domínio desligado é encaminhado por proxy para `PUBLIC_REAL_API_URL`;
+- SSR: o `fetch` do load resolveria `/__mock` internamente (sem passar pelo middleware). O `handleFetch` (`src/hooks.server.ts`) força uma requisição HTTP real e reenvia o cookie da sessão;
+- o estado do mock é **em memória**: usuários/solicitações criados e avaliações salvas duram só enquanto o dev server viver (reiniciar ou HMR limpa).
 
-- `MOCKS_ENABLED`: interruptor global (ligado em desenvolvimento);
-- `MOCK_DOMAINS`: toggle por domínio (`auth`, `request`; novos domínios entram aqui).
+> Não há mais mocks no bundle. Os antigos `src/lib/mocks/*.mock.ts` e o toggle
+> `MOCKS_ENABLED`/`MOCK_DOMAINS` do cliente (com branches nos `*.api.ts`) foram
+> removidos: os `*.api.ts` sempre chamam o `apiClient`.
 
-Regras:
+### Como usar
 
-- mocks existem apenas em desenvolvimento: em build de produção, as branches dos `*.api.ts` e os módulos de mock são eliminados do bundle;
-- para testar com a API real, desligue o interruptor global (`MOCKS_ENABLED`) ou um domínio específico em `MOCK_DOMAINS` (mudança local, sem commit);
-- os `*.api.ts` consomem o toggle com `import.meta.env.DEV` inline no ponto de chamada — o que garante a eliminação do import dinâmico no build de produção;
-- feature flags em tempo de execução não pertencem aos mocks (pertencem à camada de app-config).
+1. Copie `.env.example` para `.env` e garanta:
+
+   ```bash
+   PUBLIC_API_URL=/__mock
+   PUBLIC_REAL_API_URL=http://localhost:3000   # backend do proxy (domínios desligados)
+   ```
+
+2. Suba o app com `npm run dev`. Não é preciso backend.
+
+Personas fictícias de login:
+
+| E-mail                    | Senha     | Perfil        | Troca de senha obrigatória |
+| ------------------------- | --------- | ------------- | -------------------------- |
+| `analista@maat.com.br`    | `admin`   | Analista      | não                        |
+| `admin@maat.com.br`       | `admin`   | Administrador | não                        |
+| `gestor@maat.com.br`      | `admin`   | Gestor        | sim                        |
+| `solicitante@maat.com.br` | `temp123` | Solicitante   | sim                        |
+
+> `gestor` e `solicitante` entram com `mustChangePassword: true` e caem em `/redefinir-senha`. Para testar as áreas internas rapidamente, use `analista` ou `admin`.
+
+Domínios e endpoints mockados (`src/lib/server/mocks/router.ts`):
+
+| Domínio          | Endpoints                                                                                                                                                                              |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `auth`           | `POST /auth/login`, `POST /auth/logout`, `GET /auth/me`, `PUT /auth/change-password`                                                                                                   |
+| `users`          | `GET /users`, `GET /users/metrics`, `POST /users`, `PATCH /users/:id/status`, `POST /users/:id/reset-password`                                                                         |
+| `request`        | `POST /requests` (multipart), `GET /requests`, `GET /queue`, `GET /queue/metrics`, `GET /requests/:protocol`, `GET /requests/:protocol/internal`, `PATCH /requests/:protocol/internal` |
+| `prioritization` | `GET /prioritization/criteria`, `PUT /prioritization/:protocol/score`                                                                                                                  |
+| `portal-config`  | `GET /portal-config`                                                                                                                                                                   |
+
+**Desligar o mock**
+
+- Tudo de uma vez: `USE_MOCK_API = false` em `config.ts` — todos os domínios passam a ir por proxy ao backend real. Alternativa sem código: aponte `PUBLIC_API_URL` para a URL absoluta do backend.
+- Um domínio só: `MOCK_DOMAINS.<domínio> = false` em `config.ts`; as demais rotas continuam mockadas e o domínio desligado é encaminhado a `PUBLIC_REAL_API_URL` (cookie e multipart são repassados). `PUBLIC_API_URL` **permanece** `/__mock`.
+
+**Depurar**
+
+- `401` em rota autenticada = sem cookie `session_id` (faça login). O cookie é `HttpOnly`, então só o servidor o lê.
+- Para inspecionar o HTTP direto:
+
+  ```bash
+  curl -i -c /tmp/c.txt -H 'Content-Type: application/json' \
+    -d '{"email":"analista@maat.com.br","password":"admin"}' \
+    http://localhost:5173/__mock/auth/login
+  curl -i -b /tmp/c.txt http://localhost:5173/__mock/auth/me
+  ```
+
+- Se o app ignorar o mock, confira `PUBLIC_API_URL` (precisa ser `/__mock`) e reinicie o dev server após mexer no `.env`.
+
+### Como criar um domínio/endpoint
+
+1. **Contrato primeiro**: tipos em `src/lib/types/`, função em `src/lib/api/<domínio>.api.ts` (só `apiClient`) e a regra no service. O `*.api.ts` nunca contém lógica de mock.
+2. **Registre o domínio** em `src/lib/server/mocks/config.ts` (union `MockDomain` e mapa `MOCK_DOMAINS`).
+3. **Dados/fixtures** em `src/lib/server/mocks/data/<domínio>.ts` — apenas dados fictícios e funções puras (sem `document`/APIs de browser).
+4. **Handler** em `src/lib/server/mocks/handlers/<domínio>.ts` — funções que recebem `MockContext` e devolvem `Response`, usando `jsonResponse`, `MockHttpError`, `readSessionId` e `readJsonBody`/`isRecord`. **Valide a entrada** (corpo ausente/malformado, tipos e campos obrigatórios) e devolva `400` — o mock deve espelhar o contrato, não vazar `500`.
+5. **Rota** em `src/lib/server/mocks/router.ts` — registre método + regex + domínio. Rotas específicas vêm **antes** das paramétricas (`/queue/metrics` antes de `/queue`; `/requests/:protocol/internal` antes de `/requests/:protocol`).
+
+Exemplo mínimo (domínio fictício `status`):
+
+```ts
+// src/lib/server/mocks/config.ts
+export type MockDomain = 'auth' | /* ... */ 'status';
+export const MOCK_DOMAINS: Record<MockDomain, boolean> = { /* ... */ status: true };
+
+// src/lib/server/mocks/data/status.ts
+export function getStatus(): { status: string } {
+	return { status: 'ok' };
+}
+
+// src/lib/server/mocks/handlers/status.ts
+import { getStatus } from '../data/status';
+import { jsonResponse } from '../http';
+
+export function get(): Response {
+	return jsonResponse(getStatus());
+}
+
+// src/lib/server/mocks/router.ts
+import * as statusHandlers from './handlers/status';
+// ...
+{ method: 'GET', domain: 'status', pattern: /^\/status$/, handle: statusHandlers.get },
+```
+
+Restrições ao escrever em `src/lib/server/mocks/`:
+
+- use **imports relativos** (`../http`, `../../../types/...`): o `vite.config` carrega esses módulos fora do resolver do app, então `$lib` não resolve em runtime;
+- não importe `$app/*`, `$env/*` nem APIs de browser — o código roda no middleware do dev server;
+- os `*.api.ts` do app permanecem sem qualquer branch de mock.
 
 ### Obrigatoriedade do padrão
 
-Toda integração com o backend nasce acompanhada do mock correspondente, sempre neste formato:
-
-- novos domínios entram em `MOCK_DOMAINS` (`src/lib/mocks/index.ts`);
-- os `*.api.ts` consomem o toggle com `import.meta.env.DEV` inline no ponto de chamada, via import dinâmico do módulo de mock.
-
-Esse formato garante duas coisas: o frontend funciona integralmente desacoplado do backend (desenvolvimento e testes sem API), e o código de mock nunca entra no bundle de produção. Mocks fora desse padrão — imports estáticos, flags em runtime lidas no build de produção — quebram uma das duas garantias e não devem ser introduzidos.
+Esse formato mantém o frontend desacoplado do backend (dev e testes sem API) e garante que o código de mock nunca entre no build de produção. Toda integração nova com o backend nasce acompanhada do mock correspondente: domínio em `MOCK_DOMAINS`, rota/handler/fixtures em `src/lib/server/mocks/` e `*.api.ts` limpo.
 
 ---
 
@@ -406,10 +487,12 @@ components → services, states, types, utils e constants
 pages      → components, services, states e types
 states     → services e types
 config     → api, types e utils
-services   → api, types, mocks, utils e constants
+services   → api, types, utils e constants
 api        → types e utils
-mocks      → types
 ```
+
+> `src/lib/server/mocks/` é código dev-only carregado apenas pelo plugin do Vite;
+> não faz parte das camadas do app nem do build de produção.
 
 ---
 
@@ -423,8 +506,8 @@ lib/
 ├── services/
 ├── components/
 ├── types/
-├── mocks/
-└── states/
+├── states/
+└── server/mocks/   # API mock dev-only (fora do build)
 ```
 
 Caso uma funcionalidade cresça muito, seus arquivos podem ser agrupados:
@@ -494,7 +577,7 @@ dados → page.data
 
 ### 16.5 Verificação
 
-- Desligar localmente o domínio de mock (`MOCK_DOMAINS.request`) e validar um hard reload na rota: o backend deve receber o cookie e o HTML do SSR deve vir com os dados.
+- Em `src/lib/server/mocks/config.ts`, desligar um domínio (`MOCK_DOMAINS.request = false`) e validar um hard reload na rota: o proxy encaminha ao backend real, que deve receber o cookie, e o HTML do SSR deve vir com os dados.
 - `npm run check` e `npm run lint`.
 
 ---

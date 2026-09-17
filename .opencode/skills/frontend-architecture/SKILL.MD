@@ -53,11 +53,8 @@ src/
 	│   │   ├── access.service.ts
 	│   │   └── index.ts
 │   │
-│   ├── mocks/
-│   │   ├── users.mock.ts
-│   │   ├── requests.mock.ts
-│   │   ├── auth.mock.ts
-│   │   └── index.ts
+│   ├── server/
+│   │   └── mocks/          # API mock dev-only (middleware Vite) — fora do build
 │   │
 │   ├── states/
 │   │   ├── auth.svelte.ts
@@ -244,15 +241,28 @@ Stores não substituem:
 
 ## 9. Mocks
 
-A pasta `mocks/` contém dados fictícios utilizados enquanto o backend ainda não estiver disponível ou durante testes.
+Em desenvolvimento a API é simulada por um mock server-side dev-only, servido pelo middleware do Vite sob `/__mock/**` (`src/lib/server/mocks/`, plugin `apply: 'serve'`). O app fala HTTP de verdade (cookie de sessão, multipart, paginação/filtros) e o SSR consome a mesma API.
 
-Os mocks devem:
+Os dados são fictícios e devem:
 
-- utilizar apenas dados fictícios;
 - seguir os tipos definidos no projeto;
 - representar diferentes cenários;
 - incluir sucesso, vazio, erro e diferentes status;
 - nunca utilizar informações reais de clientes ou usuários.
+
+Usar: em dev `PUBLIC_API_URL=/__mock`; para o backend real, aponte para a URL absoluta da API. `src/lib/server/mocks/config.ts` tem `USE_MOCK_API` (global) e `MOCK_DOMAINS` (por domínio); domínio `false` vai por proxy para `PUBLIC_REAL_API_URL`. Personas de login: `analista@maat.com.br`/`admin`, `admin@maat.com.br`/`admin`, `gestor@maat.com.br`/`admin`, `solicitante@maat.com.br`/`temp123` (os dois últimos forçam troca de senha).
+
+Criar um domínio/endpoint:
+
+1. tipos em `src/lib/types/` + `*.api.ts` (só `apiClient`) + service;
+2. domínio no union `MockDomain` e em `MOCK_DOMAINS` (`config.ts`);
+3. fixtures em `data/<domínio>.ts` (dados fictícios, funções puras);
+4. handler em `handlers/<domínio>.ts` (`MockContext` → `Response`, `jsonResponse`/`MockHttpError`);
+5. rota em `router.ts` (rotas específicas antes das paramétricas).
+
+Restrições: imports relativos (o `vite.config` carrega esses módulos fora do resolver do app, então `$lib` não resolve em runtime), sem `$app/*`/`$env/*`/APIs de browser, e `*.api.ts` sem lógica de mock. O plugin não entra no build de produção.
+
+Guia completo (endpoints, desligar mock, exemplo, troubleshooting): `docs/02-Arquitetura-Frontend.md` §10.
 
 ---
 
@@ -294,10 +304,11 @@ Os grupos entre parênteses organizam as rotas sem alterar diretamente a URL.
 components → services, states, types, utils e constants
 pages      → components, services, states e types
 states     → services e types
-services   → api, types, mocks, utils e constants
+services   → api, types, utils e constants
 api        → types e utils
-mocks      → types
 ```
+
+> `src/lib/server/mocks/` é código dev-only carregado só pelo plugin do Vite; não faz parte das camadas do app.
 
 ---
 

@@ -1,10 +1,13 @@
+import { MAX_NOTE, MIN_NOTE } from '../../../types/prioritization';
 import type {
+	CriterionNote,
 	CriterionNotes,
 	EvaluatePrioritizationResponse,
 	ListCriteriaResponse,
 	PrioritizationCriterion,
 	PrioritizationLevel
-} from '$lib/types/prioritization';
+} from '../../../types/prioritization';
+import { isRecord, MockHttpError } from '../http';
 
 const mockCriteria: PrioritizationCriterion[] = [
 	{ id: 'impacto_operacional', name: 'Impacto operacional', weight: 10 },
@@ -19,8 +22,52 @@ const mockCriteria: PrioritizationCriterion[] = [
 	{ id: 'complexidade_estimada', name: 'Complexidade estimada', weight: 10 }
 ];
 
-// Simulação de persistência do Backend para que a reavaliação carregue as
-// notas salvas durante a sessão de desenvolvimento (via /requests/:protocol/internal).
+const ACTIVE_CRITERION_IDS = mockCriteria.map((criterion) => criterion.id);
+
+// Espelha a validação do backend (contrato §2): `notes` precisa conter
+// exatamente os critérios ativos, cada nota inteira entre 1 e 5.
+export function validatePrioritizationNotes(notes: unknown): CriterionNotes {
+	if (!isRecord(notes)) {
+		throw new MockHttpError(400, 'Campo "notes" é obrigatório.');
+	}
+
+	const missing = ACTIVE_CRITERION_IDS.filter((id) => !(id in notes));
+
+	if (missing.length > 0) {
+		throw new MockHttpError(400, `Notas obrigatórias ausentes: ${missing.join(', ')}`);
+	}
+
+	const unknown = Object.keys(notes).filter((id) => !ACTIVE_CRITERION_IDS.includes(id));
+
+	if (unknown.length > 0) {
+		throw new MockHttpError(400, `Critérios inválidos: ${unknown.join(', ')}`);
+	}
+
+	const validated: CriterionNotes = {};
+
+	for (const id of ACTIVE_CRITERION_IDS) {
+		const value = notes[id];
+
+		if (
+			typeof value !== 'number' ||
+			!Number.isInteger(value) ||
+			value < MIN_NOTE ||
+			value > MAX_NOTE
+		) {
+			throw new MockHttpError(
+				400,
+				`Campos inválidos: notes.${id} — nota deve ser um inteiro entre ${MIN_NOTE} e ${MAX_NOTE}.`
+			);
+		}
+
+		validated[id] = value as CriterionNote;
+	}
+
+	return validated;
+}
+
+// Persistência em memória durante a sessão do dev server, para que a
+// reavaliação carregue as notas salvas via /requests/:protocol/internal.
 const savedNotesByProtocol = new Map<string, CriterionNotes>();
 
 export function getSavedPrioritizationNotes(protocol: string): CriterionNotes {
@@ -57,13 +104,13 @@ export function computePrioritizationResult(notes: CriterionNotes): {
 }
 
 // GET /prioritization/criteria — lista os critérios ativos e seus pesos.
-export function getPrioritizationCriteriaMock(): Promise<ListCriteriaResponse> {
+export function getPrioritizationCriteria(): Promise<ListCriteriaResponse> {
 	const criteria = mockCriteria.map(({ id, name, weight }) => ({ id, name, weight }));
 	return Promise.resolve({ criteria });
 }
 
 // PUT /prioritization/:protocol/score — calcula no "servidor" (mock) e persiste.
-export function savePrioritizationMock(
+export function savePrioritization(
 	protocol: string,
 	notes: CriterionNotes
 ): Promise<EvaluatePrioritizationResponse> {
