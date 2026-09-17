@@ -185,13 +185,17 @@
 	};
 
 	// Agrupamento apenas de exibição — não altera a allowlist `THEME_TOKEN_KEYS`
-	// nem a persistência. `onGradient` é editado na seção Gradiente.
+	// nem a persistência. Cada token de texto fica junto das cores que ele usa
+	// como fundo, para o advisor de contraste medir pares reais e próximos.
+	// `onGradient` é editado na seção Gradiente.
 	const TOKEN_GROUPS: { title: string; keys: ThemeTokenKey[] }[] = [
-		{ title: 'Superfícies', keys: ['background', 'surface', 'richBlack', 'tint'] },
+		{
+			title: 'Superfícies e barras',
+			keys: ['background', 'surface', 'richBlack', 'tint', 'onDark']
+		},
 		{ title: 'Textos', keys: ['textPrimary', 'textSecondary'] },
-		{ title: 'Marca', keys: ['primary', 'secondary'] },
-		{ title: 'Linhas', keys: ['border'] },
-		{ title: 'Texto sobre cores', keys: ['onPrimary', 'onDark'] }
+		{ title: 'Marca', keys: ['primary', 'secondary', 'onPrimary'] },
+		{ title: 'Linhas', keys: ['border'] }
 	];
 
 	// Amostra "Aa" por token de texto: fundo de referência + a própria cor de texto.
@@ -200,6 +204,16 @@
 	> = {
 		onPrimary: { background: 'primary', foreground: 'onPrimary' },
 		onDark: { background: 'richBlack', foreground: 'onDark' }
+	};
+
+	// Fundos reais de cada token de texto (levantados no código da #135): mesma
+	// fonte para os campos e para o advisor de contraste AA exibido sob cada cor.
+	// Apenas avisa — nunca bloqueia o salvamento.
+	const TOKEN_ADVISOR_BACKGROUNDS: Partial<Record<ThemeTokenKey, ThemeTokenKey[]>> = {
+		onPrimary: ['primary', 'secondary'],
+		onDark: ['richBlack'],
+		textPrimary: ['surface', 'background'],
+		textSecondary: ['surface', 'background']
 	};
 
 	const tokenGroups = $derived(
@@ -214,7 +228,16 @@
 					reserveHint: true,
 					value: palette[key],
 					previewBackground: pair ? palette[pair.background] : undefined,
-					previewForeground: pair ? palette[pair.foreground] : undefined
+					previewForeground: pair ? palette[pair.foreground] : undefined,
+					advisors: (TOKEN_ADVISOR_BACKGROUNDS[key] ?? []).map((backgroundKey) => {
+						const background = palette[backgroundKey];
+						const ratio = contrastRatio(palette[key], background, background);
+						return {
+							backgroundLabel: TOKEN_LABELS[backgroundKey],
+							ratio,
+							pass: meetsMinimum(ratio, MIN_AA_NORMAL)
+						};
+					})
 				};
 			})
 		}))
@@ -325,17 +348,30 @@
 				<h4 class="token-group-title">{group.title}</h4>
 				<div class="token-grid">
 					{#each group.fields as field (field.key)}
-						<ColorField
-							label={field.label}
-							hint={field.hint}
-							reserveHint={field.reserveHint}
-							value={field.value}
-							previewBackground={field.previewBackground}
-							previewForeground={field.previewForeground}
-							fieldId={`${editingPalette}:${field.key}`}
-							onvaliditychange={handleColorValidity}
-							onchange={(value) => setThemeToken(editingPalette, field.key, value)}
-						/>
+						<div class="token-field">
+							<ColorField
+								label={field.label}
+								hint={field.hint}
+								reserveHint={field.reserveHint}
+								value={field.value}
+								previewBackground={field.previewBackground}
+								previewForeground={field.previewForeground}
+								fieldId={`${editingPalette}:${field.key}`}
+								onvaliditychange={handleColorValidity}
+								onchange={(value) => setThemeToken(editingPalette, field.key, value)}
+							/>
+
+							{#each field.advisors as advisory (advisory.backgroundLabel)}
+								<p class="field-advice" class:fail={!advisory.pass}>
+									<span class="field-advice-icon" aria-hidden="true">
+										<Icon iconName={advisory.pass ? 'check' : 'priority'} iconSize="sm" />
+									</span>
+									vs {advisory.backgroundLabel}:
+									<strong>{advisory.ratio.toFixed(2)}:1</strong>
+									· mín. {MIN_AA_NORMAL}:1
+								</p>
+							{/each}
+						</div>
 					{/each}
 				</div>
 			</div>
@@ -598,6 +634,36 @@
 		grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
 		align-items: start;
 		gap: var(--spacing-md);
+	}
+
+	.token-field {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-xs);
+		min-width: 0;
+	}
+
+	.field-advice {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		margin: 0;
+		font-size: 12px;
+		color: var(--text-color-secondary);
+	}
+
+	.field-advice.fail {
+		color: var(--status-warning);
+	}
+
+	.field-advice-icon {
+		display: inline-flex;
+		flex-shrink: 0;
+		color: var(--status-success);
+	}
+
+	.field-advice.fail .field-advice-icon {
+		color: var(--status-warning);
 	}
 
 	.gradient-editor {
