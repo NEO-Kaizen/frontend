@@ -172,6 +172,16 @@ export function saveAssets(
 		sanitizedPatch.logoUsePrimaryColor = patch.logoUsePrimaryColor;
 	}
 
+	// O contrato exige ao menos uma parte (JSON com chaves ou arquivo); sem
+	// nenhuma, não há o que persistir.
+	const hasFiles = Object.values(files).some((file) => Boolean(file));
+	if (Object.keys(sanitizedPatch).length === 0 && !hasFiles) {
+		return Promise.resolve({
+			ok: false,
+			error: { message: 'Nenhuma alteração de asset válida para salvar.' }
+		});
+	}
+
 	return persist('os assets', async () => {
 		const data = await updateAssets(sanitizedPatch, files);
 		return { assets: sanitizeAssets(data.assets) };

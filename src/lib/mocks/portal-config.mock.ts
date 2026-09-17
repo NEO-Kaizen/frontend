@@ -116,6 +116,13 @@ export function updateAssetsMock(
 	patch: PortalAssetsPatch,
 	files: Partial<Record<AssetKey, File>>
 ): Promise<AssetsSection> {
+	// Espelha o guard do backend: exige ao menos uma parte (JSON com chaves ou
+	// arquivo). Um PATCH sem nenhuma das duas é rejeitado.
+	const hasFiles = Object.values(files).some((file) => Boolean(file));
+	if (Object.keys(patch).length === 0 && !hasFiles) {
+		throw new ApiError(400, 'Envie ao menos uma chave de asset (JSON ou arquivo).');
+	}
+
 	for (const key of Object.keys(patch)) {
 		if (key === 'logoUsePrimaryColor') {
 			if (typeof patch.logoUsePrimaryColor !== 'boolean') {

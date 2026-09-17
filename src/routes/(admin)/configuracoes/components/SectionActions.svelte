@@ -2,6 +2,7 @@
 	import Button from '$lib/components/Button.svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import { notifyInfo } from '$lib/utils/feedback';
 
 	interface Props {
 		dirty: boolean;
@@ -24,7 +25,7 @@
 		onSave,
 		onCancel,
 		onRestoreDefaults,
-		confirmDescription = 'Esta ação substitui os valores atuais desta seção pelos valores padrão do portal.'
+		confirmDescription = 'Os valores padrão do portal serão aplicados ao rascunho desta seção. A restauração só é efetivada ao clicar em Salvar.'
 	}: Props = $props();
 
 	// O diálogo de confirmação do "Restaurar padrão" é local ao card — cada
@@ -64,6 +65,9 @@
 	cancelLabel="Cancelar"
 	onConfirm={() => {
 		onRestoreDefaults();
+		notifyInfo(
+			'Valores padrão aplicados ao rascunho. Clique em Salvar para efetivar a restauração.'
+		);
 		confirmRestore = false;
 	}}
 	onClose={() => (confirmRestore = false)}

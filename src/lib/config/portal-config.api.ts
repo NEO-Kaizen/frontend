@@ -73,14 +73,18 @@ export async function updateTheme(payload: UpdateThemeRequest): Promise<ThemeSec
 	return patchSection<ThemeSection>('theme', payload);
 }
 
-// Assets (PATCH multipart): a parte `assets` traz as chaves definidas por URL e
-// as partes nomeadas por chave trazem os binários novos. Commit atômico.
+// Assets (PATCH multipart): a parte `assets` (JSON) traz as chaves definidas por
+// URL e as partes nomeadas por chave trazem os binários novos. A parte JSON só é
+// enviada quando há URLs/flag a definir — um upload apenas de binário omite o
+// `assets`, evitando o 400 de "ao menos uma chave de asset". Commit atômico.
 export async function updateAssets(
 	patch: PortalAssetsPatch,
 	files: Partial<Record<AssetKey, File>>
 ): Promise<AssetsSection> {
 	const body = new FormData();
-	body.append('assets', JSON.stringify(patch));
+	if (Object.keys(patch).length > 0) {
+		body.append('assets', JSON.stringify(patch));
+	}
 
 	for (const [key, file] of Object.entries(files) as [AssetKey, File | undefined][]) {
 		if (file) body.append(key, file);
