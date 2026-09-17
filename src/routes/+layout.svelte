@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { themeStyleVars } from '$lib/utils/theme';
 	import { getThemeMode } from '$lib/states/theme.svelte';
+	import ToastHost from '$lib/components/layout/ToastHost.svelte';
 
 	let { data, children } = $props();
 
@@ -33,6 +34,7 @@
 
 <div class="app-root" style={themeVars}>
 	{@render children()}
+	<ToastHost />
 </div>
 
 <style>
