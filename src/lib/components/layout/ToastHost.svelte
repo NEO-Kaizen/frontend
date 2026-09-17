@@ -3,9 +3,9 @@
 	import Toast from '$lib/components/ui/Toast.svelte';
 </script>
 
-<div class="toast-host" aria-live="polite" aria-atomic="true">
+<div class="toast-host" aria-live="polite" aria-atomic="false">
 	{#each toastState.toasts as toast (toast.id)}
-		<Toast {toast} onClose={(id) => toastState.remove(id)} />
+		<Toast {toast} onclose={(id) => toastState.remove(id)} />
 	{/each}
 </div>
 

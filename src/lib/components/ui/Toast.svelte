@@ -5,10 +5,10 @@
 
 	interface Props {
 		toast: ToastMessage;
-		onClose: (id: string) => void;
+		onclose: (id: string) => void;
 	}
 
-	let { toast, onClose }: Props = $props();
+	let { toast, onclose }: Props = $props();
 
 	let iconName: IconName = $derived.by(() => {
 		switch (toast.type) {
@@ -26,7 +26,7 @@
 	});
 </script>
 
-<div class="toast-item {toast.type}" role="alert" aria-live="polite">
+<div class="toast-item {toast.type}">
 	<div class="toast-content">
 		<Icon {iconName} iconSize="sm" />
 		<span class="toast-message">{toast.message}</span>
@@ -35,8 +35,8 @@
 	<button
 		type="button"
 		class="toast-close-btn"
-		onclick={() => onClose(toast.id)}
-		aria-label="Close toast"
+		onclick={() => onclose(toast.id)}
+		aria-label="Fechar notificação"
 	>
 		<Icon iconName="close" iconSize="sm" />
 	</button>
