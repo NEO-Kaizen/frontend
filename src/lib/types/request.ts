@@ -422,6 +422,8 @@ export interface PrioritizationResult {
 	notes: CriterionNotes;
 }
 
+export type AnalystResponsibility = 'triagem' | 'mapeamento';
+
 export interface InternalRequestDetail {
 	protocol: string;
 	status: RequestStatus;
@@ -430,6 +432,7 @@ export interface InternalRequestDetail {
 	// ID do responsável (preparação para limitação por perfil — issue #121).
 	// `id` + `name` obrigatórios; ambos `null` apenas quando não atribuído.
 	assignee: { id: string | null; name: string | null; email?: string | null } | null;
+	mappingAssignee?: { id: string | null; name: string | null; email?: string | null } | null;
 	correctionAlert?: { count: number; message: string } | null;
 
 	// blocos da solicitação

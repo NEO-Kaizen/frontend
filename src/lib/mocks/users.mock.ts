@@ -321,6 +321,11 @@ export function listUsersMock(query: ListUsersQuery): Promise<PaginatedResponse<
 	}));
 }
 
+export function listAnalystsMock(): Promise<Analyst[]> {
+	const result = (mockUsers as Analyst[]).filter((user) => user.profile === 'Analista');
+	return delay(MOCK_LATENCY_MS).then(() => result);
+}
+
 export function getUserStatsMock(): UserStats {
 	return {
 		total: mockUsers.length,

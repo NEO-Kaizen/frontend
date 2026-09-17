@@ -155,22 +155,30 @@ export async function updateInternalRequest(
 	);
 }
 
+export type AssignResponsibility = 'triagem' | 'mapeamento';
+
 export async function assignAnalyst(
 	protocol: string,
 	analystId: string,
+	responsibility: AssignResponsibility = 'triagem',
 	fetchImpl?: typeof fetch
 ): Promise<InternalRequestDetail> {
 	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.request) {
 		const { assignAnalystMock } = await import('$lib/mocks/requests.mock');
-		return assignAnalystMock(protocol, analystId);
+		return assignAnalystMock(protocol, analystId, responsibility);
 	}
 
 	const encoded = encodeURIComponent(protocol);
+	const body =
+		responsibility === 'mapeamento'
+			? { mappingAssigneeId: analystId }
+			: { assigneeId: analystId };
+
 	return apiClient<InternalRequestDetail>(
 		`${REQUESTS_PATH}/${encoded}/internal/assignee`,
 		{
 			method: 'PATCH',
-			body: JSON.stringify({ analystId })
+			body: JSON.stringify(body)
 		},
 		fetchImpl
 	);

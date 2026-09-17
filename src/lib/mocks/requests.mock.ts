@@ -522,6 +522,7 @@ function registerCreatedRequest(protocol: string, payload: CreateRequestPayload)
 		priority: null,
 		prioritization: { score: null, maxScore: 50, label: null, notes: {} },
 		assignee: null,
+		mappingAssignee: null,
 		correctionAlert: null,
 		requester: payload.requester,
 		demand: payload.demand,
@@ -779,6 +780,7 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 			name: 'Fernando Alves',
 			email: 'fernando.alves@maat.com.br'
 		},
+		mappingAssignee: null,
 		correctionAlert: { count: 2, message: 'Alteração respondida pelo solicitante (2 campos)' },
 		requester: {
 			fullName: 'Maria Oliveira',
@@ -872,6 +874,7 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 			name: 'Fernando Alves',
 			email: 'fernando.alves@maat.com.br'
 		},
+		mappingAssignee: null,
 		correctionAlert: null,
 		requester: {
 			fullName: 'Maria Oliveira',
@@ -930,6 +933,7 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 			name: 'Carlos Mendes',
 			email: 'carlos.mendes@maat.com.br'
 		},
+		mappingAssignee: null,
 		correctionAlert: null,
 		requester: {
 			fullName: 'Ana Souza',
@@ -1074,7 +1078,8 @@ export function updateTriageMock(
 
 export async function assignAnalystMock(
 	protocol: string,
-	analystId: string
+	analystId: string,
+	responsibility: 'triagem' | 'mapeamento' = 'triagem'
 ): Promise<InternalRequestDetail> {
 	const normalized = protocol.toLowerCase().trim();
 	const detail = mockInternalRequestDetails.find(
@@ -1096,19 +1101,25 @@ export async function assignAnalystMock(
 		return Promise.reject(new ApiError(404, 'Analista não encontrado.'));
 	}
 
-	detail.assignee = {
+	const assigneeValue = {
 		id: analyst.id,
 		name: analyst.fullName,
 		email: analyst.email
 	};
-	detail.lastUpdate = new Date().toISOString();
 
-	// Também reflete na fila centralizada para consistência visual
-	const queueItem = mockRequests.find((r) => r.protocol.toLowerCase().trim() === normalized);
-	if (queueItem) {
-		queueItem.assigneeId = analyst.id;
-		queueItem.assignee = analyst.fullName;
+	if (responsibility === 'mapeamento') {
+		detail.mappingAssignee = assigneeValue
 	}
+
+	detail.assignee = assigneeValue;
+		// Também reflete na fila centralizada para consistência visual (triagem)
+		const queueItem = mockRequests.find((r) => r.protocol.toLowerCase().trim() === normalized);
+		if (queueItem) {
+			queueItem.assigneeId = analyst.id;
+			queueItem.assignee = analyst.fullName;
+		}
+
+	detail.lastUpdate = new Date().toISOString();
 
 	return delay(MOCK_LATENCY_MS).then(() => structuredClone(detail));
 }

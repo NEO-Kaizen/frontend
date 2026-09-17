@@ -1,21 +1,15 @@
 import { assignAnalyst as assignAnalystApi } from '$lib/api/request.api';
-import { listUsers as listUsersApi } from '$lib/api/user.api';
-import type { InternalRequestDetail, PaginatedResponse } from '$lib/types/request';
+import { listAnalysts as listAnalystsApi } from '$lib/api/user.api';
+import type { InternalRequestDetail } from '$lib/types/request';
 import { ApiError, type Result } from '$lib/types/result';
-import type { Analyst, ListUsersQuery } from '$lib/types/user';
+import type { Analyst } from '$lib/types/user';
 
-export async function listAnalysts(
-	query: Omit<ListUsersQuery, 'profile'> & { profile?: ListUsersQuery['profile'] },
-	fetchImpl?: typeof fetch
-): Promise<Result<PaginatedResponse<Analyst>>> {
+export async function listAnalysts(fetchImpl?: typeof fetch): Promise<Result<Analyst[]>> {
 	try {
-		const response = await listUsersApi(
-			{ ...query, profile: 'analista' } as ListUsersQuery,
-			fetchImpl
-		);
+		const response = await listAnalystsApi(fetchImpl);
 		return {
 			ok: true,
-			data: response as unknown as PaginatedResponse<Analyst>
+			data: response
 		};
 	} catch (error) {
 		if (error instanceof ApiError) {
@@ -36,9 +30,12 @@ export async function listAnalysts(
 	}
 }
 
+export type AssignResponsibility = 'triagem' | 'mapeamento';
+
 export async function assignAnalyst(
 	protocol: string,
 	analystId: string,
+	responsibility: AssignResponsibility = 'triagem',
 	fetchImpl?: typeof fetch
 ): Promise<Result<InternalRequestDetail>> {
 	if (!analystId || !analystId.trim()) {
@@ -50,8 +47,17 @@ export async function assignAnalyst(
 		};
 	}
 
+	if (responsibility !== 'triagem' && responsibility !== 'mapeamento') {
+		return {
+			ok: false,
+			error: {
+				message: 'Selecione a responsabilidade (Triagem ou Mapeamento).'
+			}
+		};
+	}
+
 	try {
-		const data = await assignAnalystApi(protocol, analystId, fetchImpl);
+		const data = await assignAnalystApi(protocol, analystId, responsibility, fetchImpl);
 		return { ok: true, data };
 	} catch (error) {
 		if (error instanceof ApiError) {

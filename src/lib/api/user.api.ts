@@ -4,6 +4,7 @@ import { MOCK_DOMAINS } from '$lib/mocks';
 import type { PaginatedResponse } from '$lib/types/request';
 
 import type {
+	Analyst,
 	CreateUserPayload,
 	CreateUserResponse,
 	ListUsersQuery,
@@ -51,6 +52,15 @@ export async function listUsers(
 	const path = queryString ? `${USERS_PATH}?${queryString}` : USERS_PATH;
 
 	return apiClient<PaginatedResponse<UserSummary>>(path, {}, fetchImpl);
+}
+
+export async function listAnalysts(fetchImpl?: typeof fetch): Promise<Analyst[]> {
+	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.users) {
+		const { listAnalystsMock } = await import('$lib/mocks/users.mock');
+		return listAnalystsMock();
+	}
+
+	return apiClient<Analyst[]>(`${USERS_PATH}/analysts`, {}, fetchImpl);
 }
 
 export async function getUserStats(fetchImpl?: typeof fetch): Promise<UserStats> {
