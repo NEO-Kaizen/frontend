@@ -147,12 +147,21 @@ As regras de acesso serão implementadas e refinadas conforme a evolução do pr
 
 ### 6. Mocks
 
-Em desenvolvimento, a aplicação funciona integralmente com dados fictícios (mocks), sem depender do backend.
+Em desenvolvimento, a aplicação funciona integralmente sem backend: a API é simulada por um **mock server-side dev-only** (middleware do Vite sob `/__mock/**`), com HTTP fiel ao contrato (cookie de sessão, multipart, paginação/filtros).
 
-- O controle dos mocks fica em `src/lib/mocks/index.ts` — ponto único para ligar/desligar globalmente (`MOCKS_ENABLED`) ou por domínio (`MOCK_DOMAINS`);
-- para testar contra a API real, desligue o interruptor global ou o domínio desejado (mudança local, sem commit);
-- mocks existem apenas em desenvolvimento: no build de produção o código de mock é eliminado do bundle;
-- todo mock novo segue obrigatoriamente este formato (toggle em `src/lib/mocks/index.ts` + import dinâmico nos `*.api.ts`): é o que mantém o frontend desacoplado do backend e o código de mock fora do build.
+**Usar**
+
+1. No `.env`, use `PUBLIC_API_URL=/__mock` e `PUBLIC_REAL_API_URL=http://localhost:3000`.
+2. `npm run dev` (não precisa de backend).
+
+Personas fictícias: `analista@maat.com.br`/`admin`, `admin@maat.com.br`/`admin`, `gestor@maat.com.br`/`admin`, `solicitante@maat.com.br`/`temp123` (os dois últimos exigem troca de senha).
+
+**Regras**
+
+- implementação em `src/lib/server/mocks/`; o plugin é `apply: 'serve'` e **não existe no build de produção** (nenhuma rota `/__mock`, nenhum dado fictício no bundle);
+- para usar a API real, aponte `PUBLIC_API_URL` para a URL absoluta do backend;
+- desligar tudo: `USE_MOCK_API = false`; um domínio: `MOCK_DOMAINS.<domínio> = false` (proxy para `PUBLIC_REAL_API_URL`) — em `src/lib/server/mocks/config.ts`;
+- para criar um domínio/endpoint, siga o passo a passo em [`docs/02-Arquitetura-Frontend.md`](docs/02-Arquitetura-Frontend.md) (§10).
 
 ## Equipe
 
