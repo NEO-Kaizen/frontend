@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { YesNoDetail, InternalRequestDetail } from '$lib/types/request';
+	import type { InternalRequestDetail, YesNoDetail } from '$lib/types/request';
 	import {
 		CATEGORY_OPTIONS,
 		CRITICALITY_OPTIONS,

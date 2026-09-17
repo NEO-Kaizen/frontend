@@ -1,14 +1,14 @@
 <script lang="ts">
-	import Icon from '$lib/components/Icon.svelte';
-	import Button from '$lib/components/Button.svelte';
-	import Modal from '$lib/components/Modal.svelte';
 	import { invalidateAll } from '$app/navigation';
-	import { SvelteMap } from 'svelte/reactivity';
+	import Button from '$lib/components/Button.svelte';
+	import Icon from '$lib/components/Icon.svelte';
+	import Modal from '$lib/components/Modal.svelte';
 	import { requestFieldChange } from '$lib/services/pendency.service';
 	import type { PendingFieldRef } from '$lib/types/pendency';
 	import type { InternalRequestDetail, RequestStatus } from '$lib/types/request';
-	import FieldPendencyModal from './pendency/FieldPendencyModal.svelte';
+	import { SvelteMap } from 'svelte/reactivity';
 	import { buildFieldLookup } from './pendency/field-catalog';
+	import FieldPendencyModal from './pendency/FieldPendencyModal.svelte';
 	import QuickActions from './QuickActions.svelte';
 	import SpecTabs from './SpecTabs.svelte';
 

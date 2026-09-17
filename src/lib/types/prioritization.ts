@@ -3,10 +3,11 @@ export type CriterionNote = 1 | 2 | 3 | 4 | 5;
 export const MIN_NOTE: CriterionNote = 1;
 export const MAX_NOTE: CriterionNote = 5;
 
+// Critério de priorização (tabela `criteria`).
 export interface PrioritizationCriterion {
-	id: string;
+	id: string; // chave oficial snake_case (D-O1)
 	name: string;
-	subtitle: string;
+	weight: number; // fonte única de pesos — D-O3 (Backend nunca lê peso do Frontend)
 }
 
 // Nota por critério (chave = id do critério). O backend é a validação
@@ -21,14 +22,31 @@ export interface PrioritizationResult {
 	level: PrioritizationLevel;
 }
 
-// Resposta do GET — critérios oficiais + notas já existentes (vazias na
-// primeira avaliação; preenchidas numa reavaliação).
-export interface PrioritizationData {
-	criteria: PrioritizationCriterion[];
-	notes: CriterionNotes;
+// ---- Contrato Backend (docs/issue-51.md / priorização) ----
+
+// GET /prioritization/criteria — item de lista
+export interface CriterionResponse {
+	id: string;
+	name: string;
+	weight: number;
 }
 
-// Corpo do POST — apenas as notas por critério.
-export interface SavePrioritizationPayload {
+// GET /prioritization/criteria — envelope de resposta
+export interface ListCriteriaResponse {
+	criteria: CriterionResponse[];
+}
+
+// PUT /prioritization/:protocol/score — corpo da requisição
+export interface EvaluatePrioritizationRequest {
 	notes: CriterionNotes;
+	justification?: string;
+}
+
+// PUT /prioritization/:protocol/score — resposta (cálculo no servidor, RN-007/RN-008)
+export interface EvaluatePrioritizationResponse {
+	protocol: string;
+	score: number; // 10..50, 1 casa decimal
+	classification: PrioritizationLevel;
+	calculatedAt: string;
+	calculatedBy: number;
 }

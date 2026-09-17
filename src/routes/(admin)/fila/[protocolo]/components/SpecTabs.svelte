@@ -1,13 +1,13 @@
 <script lang="ts">
-	import { invalidateAll, goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
-	import { tick } from 'svelte';
-	import { fly } from 'svelte/transition';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import { updateInternalRequest } from '$lib/services/request.service';
 	import type { InternalRequestDetail } from '$lib/types/request';
+	import { onDestroy, tick } from 'svelte';
+	import { fly } from 'svelte/transition';
 	import InfoSection from './solicitation-info/InfoSection.svelte';
 	import {
 		applyFieldChange,
@@ -97,16 +97,15 @@
 
 	// Botão Editar visível apenas para Administrador ou o responsável pela triagem.
 	// Regra definitiva é decidida pela issue #121 (modo de edição).
-	// TODO: comparar por `assignee.id` quando o contrato do backend fornecer o
-	// id do responsável (hoje só há email no mock/contrato).
 	const currentUser = $derived(page.data.user);
 	const canEdit = $derived(
 		currentUser?.role === 'Administrador' ||
-			Boolean(currentUser && solicitation.assignee?.email === currentUser.email)
+			Boolean(currentUser && solicitation.assignee?.id === currentUser.id)
 	);
 
 	function handleTabSelect(tab: SpecTabDefinition) {
 		if (!tab.enabled) return;
+		clearSaveSuccess();
 
 		const url = new URL(page.url);
 		url.searchParams.set('aba', tab.id);
@@ -149,6 +148,19 @@
 	let detailsCard = $state<HTMLElement | null>(null);
 	let wasPendencyMode = false;
 
+	const SAVE_SUCCESS_TIMEOUT_MS = 4000;
+	let saveSuccessTimer: ReturnType<typeof setTimeout> | undefined;
+
+	function clearSaveSuccess(): void {
+		if (saveSuccessTimer !== undefined) {
+			clearTimeout(saveSuccessTimer);
+			saveSuccessTimer = undefined;
+		}
+		saveSuccess = null;
+	}
+
+	onDestroy(clearSaveSuccess);
+
 	const prefersReducedMotion =
 		typeof window !== 'undefined' &&
 		typeof window.matchMedia === 'function' &&
@@ -178,7 +190,7 @@
 		draft = toEditableDraft(solicitation);
 		errors = {};
 		saveError = null;
-		saveSuccess = null;
+		clearSaveSuccess();
 		isEditMode = true;
 		ensureInfoTab();
 		tick().then(() => focusFirstEditable(null));
@@ -241,7 +253,7 @@
 		}
 		isSaving = true;
 		saveError = null;
-		saveSuccess = null;
+		clearSaveSuccess();
 		const result = await updateInternalRequest(
 			solicitation.protocol,
 			toUpdatePayload(draft, solicitation)
@@ -251,7 +263,12 @@
 			isEditMode = false;
 			draft = null;
 			errors = {};
+			clearSaveSuccess();
 			saveSuccess = 'Alterações salvas com sucesso.';
+			saveSuccessTimer = setTimeout(() => {
+				saveSuccess = null;
+				saveSuccessTimer = undefined;
+			}, SAVE_SUCCESS_TIMEOUT_MS);
 			onSaveSuccess?.(result.data);
 			await invalidateAll();
 			tick().then(() => editButton?.focus());
@@ -581,6 +598,13 @@
 		color: var(--gray);
 		padding: var(--spacing-md) 0;
 		margin: 0;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.btn-save,
+		.btn-cancel {
+			transition: none;
+		}
 	}
 
 	@media (max-width: 768px) {
