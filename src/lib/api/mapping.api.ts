@@ -1,37 +1,45 @@
+import { apiClient } from './client';
 import { MOCK_DOMAINS } from '$lib/mocks';
-import type { MappingDetail, SaveMappingPayload } from '$lib/types/mapping';
-import { ApiError } from '$lib/types/result';
+import type { MappingPayload, MappingResponse } from '$lib/types/mapping';
 
-// O backend ainda não expõe contrato para os campos estendidos (duração,
-// modalidade, local, participantes, observações)
-// Quando o contrato existir, as chamadas via `apiClient` entram neste arquivo
-// seguindo o padrão dos demais `*.api.ts`, sem tocar o service.
+const QUEUE_REQUESTS_PATH = '/queue/requests';
+
+// GET /queue/requests/{protocol}/mapping — estado vazio (campos `null` e
+// `participants: []`) é resposta válida, não erro.
 export async function getMapping(
 	protocol: string,
 	fetchImpl?: typeof fetch
-): Promise<MappingDetail | null> {
-
-	void fetchImpl;
-
+): Promise<MappingResponse | null> {
 	// DEV inline no ponto de chamada garante a eliminação do mock no build (DCE).
 	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.mapping) {
 		const { getMappingMock } = await import('$lib/mocks/mapping.mock');
 		return getMappingMock(protocol);
 	}
-	throw new ApiError(501, 'Agendamento de mapeamento ainda não disponível no servidor.');
+
+	const encoded = encodeURIComponent(protocol);
+	return apiClient<MappingResponse>(`${QUEUE_REQUESTS_PATH}/${encoded}/mapping`, {}, fetchImpl);
 }
 
+// PUT /queue/requests/{protocol}/mapping — o frontend envia somente conclusão
+// (`completeMapping: true`; o backend valida, persiste e muda o status).
 export async function saveMapping(
 	protocol: string,
-	payload: SaveMappingPayload,
+	payload: MappingPayload,
 	fetchImpl?: typeof fetch
-): Promise<MappingDetail> {
-	
-	void fetchImpl;
+): Promise<MappingResponse> {
 	// DEV inline no ponto de chamada garante a eliminação do mock no build (DCE).
 	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.mapping) {
 		const { saveMappingMock } = await import('$lib/mocks/mapping.mock');
 		return saveMappingMock(protocol, payload);
 	}
-	throw new ApiError(501, 'Agendamento de mapeamento ainda não disponível no servidor.');
+
+	const encoded = encodeURIComponent(protocol);
+	return apiClient<MappingResponse>(
+		`${QUEUE_REQUESTS_PATH}/${encoded}/mapping`,
+		{
+			method: 'PUT',
+			body: JSON.stringify(payload)
+		},
+		fetchImpl
+	);
 }

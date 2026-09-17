@@ -1,21 +1,27 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
+	import type { Snippet } from 'svelte';
 	import { listUsers } from '$lib/services/user.service';
 	import type { AdminUser } from '$lib/types/user';
 	import Icon from './Icon.svelte';
 
 	// Selecionados: subconjunto estrutural de `AdminUser` (id/nome/e-mail) —
 	// nenhuma estrutura paralela de usuário. A busca retorna `AdminUser` direto.
+	// `id` é opcional para suportar participantes externos (sem cadastro),
+	// identificados pelo e-mail.
 	interface Props {
 		label?: string;
 		placeholder?: string;
-		selected: Pick<AdminUser, 'id' | 'name' | 'email'>[];
+		selected: { id?: string; name: string; email: string }[];
 		onSelect?: (user: AdminUser) => void;
 		onRemove?: (id: string) => void;
 		disabled?: boolean;
 		// Somente leitura: exibe apenas os chips, sem busca nem remoção
 		// (mesmo padrão de visualização do `Field` em modo leitura).
 		readonly?: boolean;
+		// Conteúdo extra entre a busca e a lista de selecionados (ex.:
+		// formulário de participante externo). Só renderiza em modo edição.
+		children?: Snippet;
 	}
 
 	let {
@@ -25,7 +31,8 @@
 		onSelect,
 		onRemove,
 		disabled = false,
-		readonly = false
+		readonly = false,
+		children
 	}: Props = $props();
 
 	// Mesmos parâmetros da busca de usuários da tela administrativa.
@@ -50,8 +57,12 @@
 	let searchTimer: ReturnType<typeof setTimeout> | undefined;
 	let lastRequestId = 0;
 
-	const selectedIds = $derived(new Set(selected.map((item) => item.id)));
-	const available = $derived(results.filter((user) => !selectedIds.has(user.id)));
+	const selectedIds = $derived(
+		new Set(selected.map((item) => (item.id ?? item.email).toLowerCase()))
+	);
+	const available = $derived(
+		results.filter((user) => !selectedIds.has((user.id ?? user.email).toLowerCase()))
+	);
 	const showHint = $derived(term.trim().length > 0 && term.trim().length < MIN_SEARCH_LENGTH);
 
 	onDestroy(() => {
@@ -206,7 +217,7 @@
 			<p class="fallback-text">Nenhum participante incluído.</p>
 		{:else}
 			<ul class="chip-list" aria-labelledby={`${uid}-label`}>
-				{#each selected as user (user.id)}
+				{#each selected as user (user.id ?? user.email)}
 					<li class="chip">
 						<span class="chip-initials" aria-hidden="true">{getInitials(user.name)}</span>
 						<span class="chip-text">
@@ -288,10 +299,12 @@
 			<p class="hint">Digite ao menos {MIN_SEARCH_LENGTH} caracteres para buscar.</p>
 		{/if}
 
+		{@render children?.()}
+
 		{#if selected.length > 0}
 			<p class="selected-title" id={`${uid}-selected`}>Participantes selecionados:</p>
 			<ul class="chip-list" aria-labelledby={`${uid}-selected`}>
-				{#each selected as user (user.id)}
+				{#each selected as user (user.id ?? user.email)}
 					<li class="chip">
 						<span class="chip-initials" aria-hidden="true">{getInitials(user.name)}</span>
 						<span class="chip-text">
@@ -303,7 +316,7 @@
 							class="chip-remove"
 							aria-label={`Remover ${user.name}`}
 							{disabled}
-							onclick={() => onRemove?.(user.id)}
+							onclick={() => onRemove?.(user.id ?? user.email)}
 						>
 							<Icon iconName="close" iconSize="sm" />
 						</button>

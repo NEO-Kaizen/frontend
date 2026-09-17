@@ -1,8 +1,9 @@
 <script lang="ts">
+	import { invalidateAll } from '$app/navigation';
 	import { onDestroy, tick } from 'svelte';
 	import Button from '$lib/components/Button.svelte';
 	import UserMultiSelect from '$lib/components/UserMultiSelect.svelte';
-	import { getMapping, saveMapping } from '$lib/services/mapping.service';
+	import { buildMappingPayload, getMapping, saveMapping } from '$lib/services/mapping.service';
 	import type { InternalRequestDetail } from '$lib/types/request';
 	import type { AdminUser } from '$lib/types/user';
 	import {
@@ -10,19 +11,20 @@
 		MAPPING_LOCATION_MAXLENGTH,
 		MAPPING_MODALITY_OPTIONS,
 		MAPPING_NOTES_MAXLENGTH,
-		type MappingDetail,
-		type MappingDraft
+		type MappingDraft,
+		type MappingResponse
 	} from '$lib/types/mapping';
 	import { formatDateTime } from '$lib/utils/dates';
+	import { isValidEmail } from '$lib/utils/validations';
 	import Field from '../solicitation-info/Field.svelte';
 	import ToggleSection from '../solicitation-info/ToggleSection.svelte';
 	import {
 		applyMappingChange,
 		emptyMappingDraft,
 		isMappingEmpty,
+		modalityLabel,
 		nowLocalMinute,
 		toMappingDraft,
-		toSavePayload,
 		validateMappingDraft,
 		validateMappingField
 	} from './mapping-validation';
@@ -30,6 +32,8 @@
 	// Estrutura única para leitura e edição (mesmo padrão de `editarSolicitacao`):
 	// quem tem permissão (`canEdit`) vê o formulário editável; os demais veem
 	// os mesmos dados em somente leitura através do `Field` com `isEditMode`.
+	// `canEdit` vem do primeiro GET da solicitação + `/auth/me` (via SpecTabs),
+	// nunca do GET do mapeamento.
 	interface Props {
 		solicitation: InternalRequestDetail;
 		canEdit: boolean;
@@ -42,14 +46,19 @@
 
 	let isLoading = $state(true);
 	let loadError = $state<string | null>(null);
-	let saved = $state<MappingDetail | null>(null);
+	let saved = $state<MappingResponse | null>(null);
 	let draft = $state<MappingDraft>(emptyMappingDraft());
 	let errors = $state<Record<string, string>>({});
-	let isSaving = $state(false);
+	let isSubmitting = $state(false);
 	let saveError = $state<string | null>(null);
 	let saveSuccess = $state<string | null>(null);
 	let loadedProtocol = $state<string | null>(null);
 	let formRoot = $state<HTMLElement | null>(null);
+	// Participante externo (sem cadastro): a busca `/users` é só auxiliar de
+	// preenchimento, nunca dependência para enviar um participante.
+	let externalName = $state('');
+	let externalEmail = $state('');
+	let externalError = $state<string | null>(null);
 	// `min` do datetime calculado só no cliente: evita divergência de SSR/hydration.
 	// eslint-disable-next-line svelte/prefer-writable-derived -- "agora" não deriva de nenhum estado; só pode ser lido no cliente.
 	let nowMin = $state('');
@@ -66,11 +75,11 @@
 	}
 
 	onDestroy(clearSaveSuccess);
-
 	let isEmpty = $derived(isMappingEmpty(saved));
 	let scheduledForDisplay = $derived(
 		saved?.scheduledFor ? formatDateTime(saved.scheduledFor) : '---'
 	);
+	let modalityDisplay = $derived(modalityLabel(saved?.modality ?? null));
 	let durationDisplay = $derived.by(() => {
 		const duration = saved?.durationMinutes;
 		if (duration === null || duration === undefined) return '---';
@@ -143,27 +152,74 @@
 		draft.modality = value as MappingDraft['modality'];
 		delete errors['modality'];
 		// O campo oculto pela troca de modalidade não deve manter erro visível.
-		if (value === 'Remoto') delete errors['location'];
-		if (value === 'Presencial') delete errors['meetingLink'];
+		if (value === 'REMOTE') delete errors['location'];
+		if (value === 'IN_PERSON') delete errors['meetingLink'];
+	}
+
+	function isDuplicateEmail(email: string): boolean {
+		const key = email.trim().toLowerCase();
+		return draft.participants.some((participant) => participant.email.trim().toLowerCase() === key);
 	}
 
 	function handleSelectParticipant(user: AdminUser): void {
 		// Duplicados barrados aqui e na busca (ids selecionados são excluídos).
-		if (draft.participants.some((participant) => participant.id === user.id)) return;
+		// Compara por id e por e-mail para cobrir externos já adicionados.
+		if (
+			draft.participants.some(
+				(participant) =>
+					(participant.id && participant.id === user.id) ||
+					participant.email.trim().toLowerCase() === user.email.trim().toLowerCase()
+			)
+		) {
+			return;
+		}
 		draft.participants = [
 			...draft.participants,
 			{ id: user.id, name: user.name, email: user.email }
 		];
+		delete errors['participants'];
 	}
 
-	function handleRemoveParticipant(id: string): void {
-		draft.participants = draft.participants.filter((participant) => participant.id !== id);
+	function handleRemoveParticipant(key: string): void {
+		const normalized = key.toLowerCase();
+		draft.participants = draft.participants.filter(
+			(participant) => (participant.id ?? participant.email).toLowerCase() !== normalized
+		);
+	}
+
+	function handleAddExternal(): void {
+		const name = externalName.trim();
+		const email = externalEmail.trim();
+		if (!name) {
+			externalError = 'Informe o nome do participante.';
+			return;
+		}
+		if (!email) {
+			externalError = 'Informe o e-mail do participante.';
+			return;
+		}
+		if (!isValidEmail(email)) {
+			externalError = 'Informe um e-mail válido.';
+			return;
+		}
+		if (isDuplicateEmail(email)) {
+			externalError = 'Este participante já foi adicionado.';
+			return;
+		}
+		draft.participants = [...draft.participants, { name, email }];
+		externalName = '';
+		externalEmail = '';
+		externalError = null;
+		delete errors['participants'];
 	}
 
 	function handleCancel(): void {
 		draft = toMappingDraft(saved, fallbackScheduledFor(), fallbackLink());
 		errors = {};
 		saveError = null;
+		externalName = '';
+		externalEmail = '';
+		externalError = null;
 		clearSaveSuccess();
 	}
 
@@ -172,30 +228,38 @@
 		target?.focus();
 	}
 
-	async function handleSave(): Promise<void> {
-		if (isSaving) return;
+	// Envio único: concluir o mapeamento (`completeMapping: true`). O backend
+	// valida, persiste e muda o status para "Mapeamento agendado" — o frontend
+	// só reflete via `invalidateAll`.
+	async function handleComplete(): Promise<void> {
+		if (isSubmitting) return;
 		const validation = validateMappingDraft(draft);
 		errors = validation;
 		if (Object.keys(validation).length > 0) {
-			saveError = 'Revise os campos destacados antes de finalizar o mapeamento.';
+			saveError = 'Revise os campos destacados antes de concluir o mapeamento.';
 			tick().then(focusFirstInvalid);
 			return;
 		}
-		isSaving = true;
+		isSubmitting = true;
 		saveError = null;
 		clearSaveSuccess();
-		const result = await saveMapping(protocol, toSavePayload(draft));
-		isSaving = false;
+		const result = await saveMapping(protocol, buildMappingPayload(draft));
+		isSubmitting = false;
 		if (result.ok) {
 			saved = result.data;
 			draft = toMappingDraft(result.data, fallbackScheduledFor(), fallbackLink());
 			errors = {};
+			externalName = '';
+			externalEmail = '';
+			externalError = null;
 			clearSaveSuccess();
-			saveSuccess = 'Mapeamento salvo com sucesso.';
+			saveSuccess = 'Mapeamento concluído com sucesso.';
 			saveSuccessTimer = setTimeout(() => {
 				saveSuccess = null;
 				saveSuccessTimer = undefined;
 			}, SAVE_SUCCESS_TIMEOUT_MS);
+			// O backend alterou o status; recarrega os dados da página.
+			await invalidateAll();
 		} else {
 			saveError = result.error.message;
 		}
@@ -261,12 +325,11 @@
 					isEditMode={editable}
 					kind="datetime-local"
 					required
-					hint="Horário de Brasília (GMT-3)"
 					icon="calendarMonth"
 					min={nowMin}
 					editValue={draft.scheduledFor}
 					error={errors['scheduledFor'] ?? ''}
-					disabled={isSaving}
+					disabled={isSubmitting}
 					onEditInput={(value) => handleChange('scheduledFor', value)}
 					onEditBlur={() => handleBlur('scheduledFor')}
 				/>
@@ -279,7 +342,7 @@
 					options={MAPPING_DURATION_OPTIONS}
 					editValue={draft.durationMinutes}
 					error={errors['durationMinutes'] ?? ''}
-					disabled={isSaving}
+					disabled={isSubmitting}
 					onEditInput={(value) => handleChange('durationMinutes', value)}
 					onEditBlur={() => handleBlur('durationMinutes')}
 				/>
@@ -298,7 +361,7 @@
 											name="mapping-modality"
 											value={option.value}
 											checked={draft.modality === option.value}
-											disabled={isSaving}
+											disabled={isSubmitting}
 											aria-describedby={errors['modality'] ? 'mapping-modality-error' : undefined}
 											onchange={() => handleModalityChange(option.value)}
 										/>
@@ -314,40 +377,40 @@
 							{/if}
 						</fieldset>
 					{:else}
-						<Field label="Modalidade de realização" value={saved?.modality} />
+						<Field label="Modalidade de realização" value={modalityDisplay} />
 					{/if}
 				</div>
 
 				<div class="location-block">
-					{#if editable ? draft.modality === 'Remoto' || !draft.modality : saved?.meetingLink}
+					{#if editable ? draft.modality === 'REMOTE' || !draft.modality : saved?.meetingLink}
 						<Field
 							label="Link da videoconferência"
 							value={saved?.meetingLink}
 							isEditMode={editable}
 							kind="url"
-							required={draft.modality === 'Remoto'}
+							required={draft.modality === 'REMOTE'}
 							placeholder="https://"
 							icon="link"
 							maxlength={500}
 							editValue={draft.meetingLink}
 							error={errors['meetingLink'] ?? ''}
-							disabled={isSaving}
+							disabled={isSubmitting}
 							onEditInput={(value) => handleChange('meetingLink', value)}
 							onEditBlur={() => handleBlur('meetingLink')}
 						/>
 					{/if}
 
-					{#if editable ? draft.modality === 'Presencial' || !draft.modality : saved?.location}
+					{#if editable ? draft.modality === 'IN_PERSON' || !draft.modality : saved?.location}
 						<Field
 							label="Sala ou local presencial"
 							value={saved?.location}
 							isEditMode={editable}
-							required={draft.modality === 'Presencial'}
+							required={draft.modality === 'IN_PERSON'}
 							placeholder="Ex.: Sala 3 — Bloco B"
 							maxlength={MAPPING_LOCATION_MAXLENGTH}
 							editValue={draft.location}
 							error={errors['location'] ?? ''}
-							disabled={isSaving}
+							disabled={isSubmitting}
 							onEditInput={(value) => handleChange('location', value)}
 							onEditBlur={() => handleBlur('location')}
 						/>
@@ -362,9 +425,49 @@
 					selected={draft.participants}
 					onSelect={handleSelectParticipant}
 					onRemove={handleRemoveParticipant}
-					disabled={isSaving}
+					disabled={isSubmitting}
 					readonly={!editable}
-				/>
+				>
+					<div class="external-form">
+						<p class="external-title">Adicionar participante externo</p>
+						<div class="external-row">
+							<label class="external-field">
+								<span>Nome</span>
+								<input
+									type="text"
+									placeholder="Nome completo"
+									bind:value={externalName}
+									disabled={isSubmitting}
+									maxlength={120}
+								/>
+							</label>
+							<label class="external-field">
+								<span>E-mail</span>
+								<input
+									type="email"
+									placeholder="nome@exemplo.com"
+									bind:value={externalEmail}
+									disabled={isSubmitting}
+									maxlength={255}
+								/>
+							</label>
+							<button
+								type="button"
+								class="btn-add-external"
+								disabled={isSubmitting}
+								onclick={handleAddExternal}
+							>
+								Adicionar
+							</button>
+						</div>
+						{#if externalError}
+							<p class="field-error" role="alert">{externalError}</p>
+						{/if}
+					</div>
+				</UserMultiSelect>
+				{#if errors['participants'] && editable}
+					<p class="field-error" role="alert">{errors['participants']}</p>
+				{/if}
 			</div>
 
 			<div class="notes-block">
@@ -378,7 +481,7 @@
 					maxlength={MAPPING_NOTES_MAXLENGTH}
 					editValue={draft.notes}
 					error={errors['notes'] ?? ''}
-					disabled={isSaving}
+					disabled={isSubmitting}
 					onEditInput={(value) => handleChange('notes', value)}
 					onEditBlur={() => handleBlur('notes')}
 				/>
@@ -386,11 +489,11 @@
 
 			{#if editable}
 				<div class="form-actions">
-					<Button variant="outline-neutral" disabled={isSaving} onclick={handleCancel}>
+					<Button variant="outline-neutral" disabled={isSubmitting} onclick={handleCancel}>
 						Cancelar
 					</Button>
-					<Button variant="primary" loading={isSaving} onclick={() => void handleSave()}>
-						+ Finalizar Mapeamento
+					<Button variant="primary" loading={isSubmitting} onclick={() => void handleComplete()}>
+						Concluir mapeamento
 					</Button>
 				</div>
 			{:else if saved?.meetingLink}
@@ -567,6 +670,80 @@
 
 	.participants-block {
 		margin-bottom: var(--spacing-md);
+	}
+
+	.external-form {
+		padding: 12px;
+		background: #fafafa;
+		border: 1px solid var(--white-gray);
+		border-radius: var(--radius-sm);
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	.external-title {
+		margin: 0;
+		font-family: var(--font-inter);
+		font-size: 12px;
+		font-weight: 600;
+		color: var(--black);
+	}
+
+	.external-row {
+		display: flex;
+		gap: 8px;
+		flex-wrap: wrap;
+		align-items: flex-end;
+	}
+
+	.external-field {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		flex: 1;
+		min-width: 160px;
+		font-family: var(--font-inter);
+		font-size: 12px;
+		color: var(--gray);
+	}
+
+	.external-field input {
+		padding: 8px 10px;
+		border: var(--border-default);
+		border-radius: var(--radius-sm);
+		font-family: var(--font-inter);
+		font-size: 13px;
+		color: var(--black);
+		background: var(--white);
+	}
+
+	.external-field input:disabled {
+		cursor: not-allowed;
+		opacity: 0.6;
+	}
+
+	.btn-add-external {
+		padding: 8px 16px;
+		border: 1px solid var(--secondary-color);
+		border-radius: var(--radius-sm);
+		background: transparent;
+		color: var(--secondary-color);
+		font-family: var(--font-inter);
+		font-size: 13px;
+		font-weight: 600;
+		cursor: pointer;
+		white-space: nowrap;
+	}
+
+	.btn-add-external:hover:not(:disabled) {
+		background: var(--secondary-color);
+		color: var(--white);
+	}
+
+	.btn-add-external:disabled {
+		cursor: not-allowed;
+		opacity: 0.6;
 	}
 
 	.fallback-text {

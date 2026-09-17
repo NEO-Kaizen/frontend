@@ -428,6 +428,10 @@ export interface InternalRequestDetail {
 	// ID do responsável (preparação para limitação por perfil — issue #121).
 	// `id` + `name` obrigatórios; ambos `null` apenas quando não atribuído.
 	assignee: { id: string | null; name: string | null; email?: string | null } | null;
+	// Responsável pelo mapeamento (contrato Front ↔ Back — Mapeamento): quando
+	// o backend expô-lo, ele prevalece sobre `assignee` na permissão de edição
+	// da aba Mapeamento. Ausente = usa `assignee`.
+	mappingAssigneeId?: string | null;
 	correctionAlert?: { count: number; message: string } | null;
 
 	// blocos da solicitação

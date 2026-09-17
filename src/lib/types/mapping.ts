@@ -1,57 +1,71 @@
-// Tipos do agendamento de mapeamento (aba Mapeamento).
+// Tipos do mapeamento (aba Mapeamento).
 //
-// O contrato interno (GET /requests/:protocol/internal) cobre hoje apenas
-// `mappingDate`, `meeting.scheduledFor`, `meeting.link` e `schedulePreferences`.
-// Duração, modalidade, local, participantes e observações ainda não possuem
-// suporte no backend: enquanto o contrato não existir, esses campos vivem em
-// mock isolado (`$lib/mocks/mapping.mock.ts`) via `$lib/services/mapping.service.ts`.
+// Contrato Front ↔ Back — Mapeamento:
+// GET /queue/requests/{protocol}/mapping → MappingResponse
+// PUT /queue/requests/{protocol}/mapping → MappingPayload com
+// `completeMapping: true` (o frontend envia somente conclusão; o backend
+// altera o status para "Mapeamento agendado").
 
-export type MappingModality = 'Remoto' | 'Presencial';
+// Valor da API; a interface exibe Remoto/Presencial (ver MODALITY_LABELS).
+export type Modality = 'REMOTE' | 'IN_PERSON';
 
-export interface MappingParticipant {
-	id: string;
+export interface Participant {
+	// Opcional de propósito: cadastrados podem ter `id`, externos não.
+	id?: string;
 	name: string;
 	email: string;
 }
 
-// Agendamento persistido (leitura). Campos estendidos sem backend ficam
-// `null` até o primeiro salvamento pelo mock.
-export interface MappingDetail {
+export interface MappingResponse {
+	protocol: string;
 	scheduledFor: string | null;
 	durationMinutes: number | null;
-	modality: MappingModality | null;
+	modality: Modality | null;
 	meetingLink: string | null;
 	location: string | null;
-	participants: MappingParticipant[];
+	participants: Participant[];
 	notes: string | null;
 }
+
+export interface MappingPayload {
+	scheduledFor: string | null;
+	durationMinutes: number | null;
+	modality: Modality | null;
+	meetingLink: string | null;
+	location: string | null;
+	participants: Participant[];
+	notes: string | null;
+	// `true` conclui (backend valida e muda o status). O frontend envia sempre `true`.
+	completeMapping: boolean;
+}
+
+export type MappingModality = MappingResponse['modality'];
+export type MappingParticipant = MappingResponse['participants'][number];
+
+// Aliases da implementação anterior — mantidos para não churnar imports.
+export type MappingDetail = MappingResponse;
+export type SaveMappingPayload = MappingPayload;
+
+export const MODALITY_LABELS: Record<Modality, string> = {
+	REMOTE: 'Remoto',
+	IN_PERSON: 'Presencial'
+};
 
 // Rascunho do formulário: tudo string para os inputs controlados aceitarem
 // campo vazio (mesmo padrão de `EditableDraft` da edição da solicitação).
 export interface MappingDraft {
 	scheduledFor: string;
 	durationMinutes: string;
-	modality: MappingModality | '';
+	modality: Modality | '';
 	meetingLink: string;
 	location: string;
 	participants: MappingParticipant[];
 	notes: string;
 }
 
-// Payload de salvamento — ponto de integração futura com o backend.
-export interface SaveMappingPayload {
-	scheduledFor: string;
-	durationMinutes: number | null;
-	modality: MappingModality;
-	meetingLink: string | null;
-	location: string | null;
-	participants: MappingParticipant[];
-	notes: string | null;
-}
-
-export const MAPPING_MODALITY_OPTIONS: { value: MappingModality; label: string }[] = [
-	{ value: 'Remoto', label: 'Remoto' },
-	{ value: 'Presencial', label: 'Presencial' }
+export const MAPPING_MODALITY_OPTIONS: { value: Modality; label: string }[] = [
+	{ value: 'REMOTE', label: 'Remoto' },
+	{ value: 'IN_PERSON', label: 'Presencial' }
 ];
 
 export const MAPPING_DURATION_OPTIONS: { value: string; label: string }[] = [

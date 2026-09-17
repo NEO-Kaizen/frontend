@@ -1,11 +1,12 @@
-import type {
-	MappingDetail,
-	MappingDraft,
-	MappingModality,
-	SaveMappingPayload
-} from '$lib/types/mapping';
+import type { MappingDraft, MappingModality, MappingResponse } from '$lib/types/mapping';
 import { MAPPING_LOCATION_MAXLENGTH, MAPPING_NOTES_MAXLENGTH } from '$lib/types/mapping';
-import { isFutureOrToday, isRequired, isValidDate, parseNumber } from '$lib/utils/validations';
+import {
+	isFutureOrToday,
+	isRequired,
+	isValidDate,
+	isValidEmail,
+	parseNumber
+} from '$lib/utils/validations';
 
 // Referência "agora" no formato do `input[datetime-local]` (`yyyy-mm-ddThh:mm`)
 // para a comparação lexicográfica de `isFutureOrToday` funcionar.
@@ -13,8 +14,8 @@ export function nowLocalMinute(): string {
 	return new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 }
 
-// Normaliza o `scheduledFor` do contrato (ISO com segundos/Z ou
-// `datetime-local`) para o valor do `input[type=datetime-local]` (`yyyy-mm-ddThh:mm`).
+// Normaliza o `scheduledFor` do contrato (ISO com offset/Z) para o valor do
+// `input[type=datetime-local]` (`yyyy-mm-ddThh:mm`).
 export function toDatetimeLocalValue(iso: string | null): string {
 	if (!iso) return '';
 	const match = iso.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})/);
@@ -25,7 +26,8 @@ export function emptyMappingDraft(): MappingDraft {
 	return {
 		scheduledFor: '',
 		durationMinutes: '',
-		modality: '',
+		// Modalidade pré-selecionada como remota (padrão da operação).
+		modality: 'REMOTE',
 		meetingLink: '',
 		location: '',
 		participants: [],
@@ -36,7 +38,7 @@ export function emptyMappingDraft(): MappingDraft {
 // Monta o rascunho a partir do agendamento salvo; quando ainda não há nada
 // salvo, aproveita o `meeting` do contrato interno como ponto de partida.
 export function toMappingDraft(
-	saved: MappingDetail | null,
+	saved: MappingResponse | null,
 	fallbackScheduledFor: string | null,
 	fallbackLink: string | null
 ): MappingDraft {
@@ -50,7 +52,7 @@ export function toMappingDraft(
 	return {
 		scheduledFor: toDatetimeLocalValue(saved.scheduledFor),
 		durationMinutes: saved.durationMinutes === null ? '' : String(saved.durationMinutes),
-		modality: saved.modality ?? '',
+		modality: saved.modality ?? 'REMOTE',
 		meetingLink: saved.meetingLink ?? '',
 		location: saved.location ?? '',
 		participants: saved.participants.map((participant) => ({ ...participant })),
@@ -58,14 +60,14 @@ export function toMappingDraft(
 	};
 }
 
-// Estado vazio: nenhum agendamento registrado.
-export function isMappingEmpty(saved: MappingDetail | null): boolean {
+// Estado vazio: nenhum agendamento registrado (resposta ausente ou sem data).
+export function isMappingEmpty(saved: MappingResponse | null): boolean {
 	return !saved || !saved.scheduledFor;
 }
 
 export function applyMappingChange(
 	draft: MappingDraft,
-	path: 'scheduledFor' | 'durationMinutes' | 'modality' | 'meetingLink' | 'location' | 'notes',
+	path: 'scheduledFor' | 'durationMinutes' | 'meetingLink' | 'location' | 'notes',
 	value: string
 ): void {
 	draft[path] = value as never;
@@ -80,8 +82,23 @@ function isValidUrl(value: string): boolean {
 	}
 }
 
-// Validação completa (criação e edição usam as mesmas regras). Chave = nome do
-// campo no draft. `nowRef` permite testar sem depender do relógio.
+function validateParticipants(draft: MappingDraft): string | null {
+	const seen = new Set<string>();
+	for (const participant of draft.participants) {
+		const name = participant.name.trim();
+		const email = participant.email.trim();
+		if (!name) return 'Informe o nome de todos os participantes.';
+		if (!email) return 'Informe o e-mail de todos os participantes.';
+		if (!isValidEmail(email)) return `E-mail inválido: ${email}.`;
+		const key = email.toLowerCase();
+		if (seen.has(key)) return `Participante duplicado: ${email}.`;
+		seen.add(key);
+	}
+	return null;
+}
+
+// Validação completa do formulário de conclusão. Chave = nome
+// do campo no draft. `nowRef` permite testar sem depender do relógio.
 export function validateMappingDraft(
 	draft: MappingDraft,
 	nowRef: string = nowLocalMinute()
@@ -105,13 +122,13 @@ export function validateMappingDraft(
 
 	if (!draft.modality) {
 		errors['modality'] = 'Selecione a modalidade da reunião.';
-	} else if (draft.modality === 'Remoto') {
+	} else if (draft.modality === 'REMOTE') {
 		if (!isRequired(draft.meetingLink)) {
 			errors['meetingLink'] = 'Informe o link da videoconferência para reunião remota.';
 		} else if (!isValidUrl(draft.meetingLink.trim())) {
 			errors['meetingLink'] = 'Informe um link válido (http ou https).';
 		}
-	} else if (draft.modality === 'Presencial') {
+	} else if (draft.modality === 'IN_PERSON') {
 		if (!isRequired(draft.location)) {
 			errors['location'] = 'Informe a sala ou o local para reunião presencial.';
 		} else if (draft.location.trim().length < 3) {
@@ -120,6 +137,11 @@ export function validateMappingDraft(
 			errors['location'] =
 				`A sala ou o local deve ter no máximo ${MAPPING_LOCATION_MAXLENGTH} caracteres.`;
 		}
+	}
+
+	const participantsError = validateParticipants(draft);
+	if (participantsError) {
+		errors['participants'] = participantsError;
 	}
 
 	if (draft.notes.trim().length > MAPPING_NOTES_MAXLENGTH) {
@@ -137,18 +159,9 @@ export function validateMappingField(draft: MappingDraft, path: string): Record<
 	return {};
 }
 
-export function toSavePayload(draft: MappingDraft): SaveMappingPayload {
-	// Pré-condição: `draft` já validado por `validateMappingDraft` (chamado em
-	// `handleSave` antes daqui), logo `modality` nunca é `''` neste ponto.
-	const modality = draft.modality as MappingModality;
-	const duration = parseNumber(draft.durationMinutes.trim());
-	return {
-		scheduledFor: draft.scheduledFor,
-		durationMinutes: duration === null ? null : duration,
-		modality,
-		meetingLink: modality === 'Remoto' ? draft.meetingLink.trim() || null : null,
-		location: modality === 'Presencial' ? draft.location.trim() || null : null,
-		participants: draft.participants.map((participant) => ({ ...participant })),
-		notes: draft.notes.trim() || null
-	};
+// Rótulo da modalidade para leitura (`REMOTE` → Remoto).
+export function modalityLabel(modality: MappingModality): string {
+	if (modality === 'REMOTE') return 'Remoto';
+	if (modality === 'IN_PERSON') return 'Presencial';
+	return '---';
 }
