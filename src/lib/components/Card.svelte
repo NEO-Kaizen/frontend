@@ -6,7 +6,7 @@
 	import IconBadge from './IconBadge.svelte';
 
 	export type CardVariant = 'primary' | 'secondary';
-	export type BadgeVariant = 'green' | 'cyan';
+	export type BadgeVariant = 'brand' | 'neutral';
 	export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'outline-neutral';
 
 	type StaticCardRoute = '/(public)/solicitacao' | '/(public)/login';
@@ -46,7 +46,7 @@
 		iconName = 'addCircle',
 		buttonIconName = 'arrowForward',
 		variant = 'primary',
-		badgeVariant = 'cyan',
+		badgeVariant = 'brand',
 		buttonVariant,
 		href,
 		onAction
@@ -55,17 +55,6 @@
 	let resolvedButtonVariant = $derived(
 		buttonVariant ?? (variant === 'primary' ? 'outline' : 'primary')
 	);
-
-	const badgeStyles: Record<BadgeVariant, { backgroundColor: string; iconColor: string }> = {
-		cyan: {
-			backgroundColor: '#00F1FE33',
-			iconColor: '#00696F'
-		},
-		green: {
-			backgroundColor: '#6DFE9C33',
-			iconColor: '#004721'
-		}
-	};
 </script>
 
 <div class="card {variant}">
@@ -80,13 +69,7 @@
 				border="1px solid rgba(255, 255, 255, 0.2)"
 			/>
 		{:else}
-			<IconBadge
-				{iconName}
-				size="lg"
-				variant="override"
-				backgroundColor={badgeStyles[badgeVariant].backgroundColor}
-				iconColor={badgeStyles[badgeVariant].iconColor}
-			/>
+			<IconBadge {iconName} size="lg" variant={badgeVariant} />
 		{/if}
 
 		<h3>{title}</h3>
