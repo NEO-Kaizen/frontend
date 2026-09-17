@@ -33,7 +33,10 @@ export default defineConfig({
 			adapter: adapter(),
 
 			paths: {
-				base
+				base,
+				// O app é publicado em um subcaminho fixo. Mantém redirects, links e assets
+				// root-relative dentro do base, inclusive nas navegações client-side.
+				relative: false
 			}
 		})
 	]
