@@ -19,6 +19,7 @@
 		MAX_STATUSES,
 		MAX_STATUS_NAME_LENGTH
 	} from '$lib/utils/validations';
+	import { notifySectionSave } from '$lib/utils/feedback';
 	import SectionActions from './SectionActions.svelte';
 	import SettingsCard from './SettingsCard.svelte';
 
@@ -46,7 +47,10 @@
 
 	function setStatuses(statuses: PortalStatus[]) {
 		section.draft = { statuses };
-		section.clearFeedback();
+	}
+
+	async function handleSave() {
+		notifySectionSave(await section.save());
 	}
 
 	function addStatus() {
@@ -154,9 +158,9 @@
 		<SectionActions
 			dirty={section.dirty}
 			saving={section.saving}
+			restorable={section.restorable}
 			{invalid}
-			feedback={section.feedback}
-			onSave={() => section.save()}
+			onSave={handleSave}
 			onCancel={() => section.reset()}
 			onRestoreDefaults={() => section.restoreDefaults()}
 		/>

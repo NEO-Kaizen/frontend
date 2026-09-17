@@ -13,6 +13,13 @@ import faviconAsset from '$lib/assets/favicon.svg';
 import loginImageAsset from '$lib/assets/login.png';
 import loginImageDarkAsset from '$lib/assets/loginDark.png';
 
+// Ordem de campos = contrato de serialização. Estes objetos espelham a ordem
+// reconstruída pelas funções `sanitize*` de `portal-config.service.ts`. O
+// `SectionState` compara defaults × draft com `JSON.stringify` (ver
+// `$lib/states/section.svelte`); como a ordem das chaves faz parte da string,
+// reordenar um campo aqui (ou lá) acusa diferença sem mudança real de valor.
+// Defina os campos na mesma ordem nos dois arquivos.
+
 // Categorias padrão do formulário de solicitação (Card 5). Espelham as antigas
 // opções fixas (CATEGORY_OPTIONS) que passaram a ser configuráveis; servem
 // também de fallback do service e de seed do mock. Dados fictícios.

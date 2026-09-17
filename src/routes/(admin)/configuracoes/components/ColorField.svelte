@@ -15,6 +15,9 @@
 		previewForeground?: string;
 		// Reserva a linha do hint mesmo sem texto, para alinhar campos no grid.
 		reserveHint?: boolean;
+		// Identificador estável para o pai agregar o estado de validade.
+		fieldId?: string;
+		onvaliditychange?: (id: string, invalid: boolean) => void;
 	}
 
 	let {
@@ -25,13 +28,20 @@
 		hint,
 		previewBackground,
 		previewForeground,
-		reserveHint = false
+		reserveHint = false,
+		fieldId,
+		onvaliditychange
 	}: Props = $props();
 
 	// id estável entre SSR e cliente para o aria-describedby.
 	const uid = $props.id();
 	const hintId = `color-field-hint-${uid}`;
+	const errorId = `color-field-error-${uid}`;
 	const hasPreview = $derived(previewBackground !== undefined && previewForeground !== undefined);
+
+	// Texto do erro de validação — estado visual (borda) e mensagem alinhados:
+	// um hex incompleto/ inválido nunca é aceito no draft.
+	const INVALID_COLOR_MESSAGE = 'Cor inválida. Informe um código hexadecimal válido.';
 
 	// O `<input type="color">` só é criado após o mount: a hidratação do Svelte
 	// remove o atributo `value` desses inputs (tratamento de reset de formulário)
@@ -49,6 +59,21 @@
 	const text = $derived(edited ?? value);
 	const isInvalid = $derived(edited !== null);
 
+	// Descrição acessível: hint (uso do token) e erro de cor inválida podem
+	// coexistir.
+	const describedBy = $derived.by(() => {
+		const ids: string[] = [];
+		if (hint) ids.push(hintId);
+		if (isInvalid) ids.push(errorId);
+		return ids.length > 0 ? ids.join(' ') : undefined;
+	});
+
+	// Reporta a validade ao pai (ex.: agrega para bloquear o Salvar). Chamado
+	// nos próprios handlers — sem `$effect`.
+	function reportValidity(invalid: boolean): void {
+		if (fieldId && onvaliditychange) onvaliditychange(fieldId, invalid);
+	}
+
 	// O input nativo de cor só aceita #RRGGBB — o alpha (quando existe) é
 	// preservado ao trocar a cor de base.
 	const rgbValue = $derived(/^#[0-9a-fA-F]{6}/.test(value) ? value.slice(0, 7) : '#000000');
@@ -64,16 +89,19 @@
 		if (isValidHexColor(next)) {
 			onchange(next);
 			edited = null;
+			reportValidity(false);
 			return;
 		}
 
 		edited = next;
+		reportValidity(true);
 	}
 
 	function handleColorInput(event: Event) {
 		const rgb = (event.currentTarget as HTMLInputElement).value;
 		const alpha = value.length === 9 ? value.slice(7) : '';
 		edited = null;
+		reportValidity(false);
 		onchange(`${rgb}${alpha}`);
 	}
 
@@ -81,6 +109,7 @@
 		const percent = Number((event.currentTarget as HTMLInputElement).value);
 		const alpha = Math.round((percent / 100) * 255);
 		edited = null;
+		reportValidity(false);
 		onchange(alpha >= 255 ? rgbValue : `${rgbValue}${alpha.toString(16).padStart(2, '0')}`);
 	}
 </script>
@@ -104,7 +133,7 @@
 				type="color"
 				value={rgbValue}
 				aria-label={`Selecionar cor de ${label}`}
-				aria-describedby={hint ? hintId : undefined}
+				aria-describedby={describedBy}
 				oninput={handleColorInput}
 			/>
 		{:else}
@@ -122,7 +151,7 @@
 			spellcheck="false"
 			aria-label={`Código hexadecimal de ${label}`}
 			aria-invalid={isInvalid}
-			aria-describedby={hint ? hintId : undefined}
+			aria-describedby={describedBy}
 			oninput={handleTextInput}
 		/>
 		{#if hasPreview}
@@ -131,6 +160,9 @@
 			</span>
 		{/if}
 	</span>
+	{#if isInvalid}
+		<span class="color-field-error" id={errorId} role="alert">{INVALID_COLOR_MESSAGE}</span>
+	{/if}
 	{#if allowAlpha}
 		<span class="color-field-alpha">
 			<input
@@ -173,6 +205,12 @@
 	.color-field-hint.placeholder {
 		color: transparent;
 		user-select: none;
+	}
+
+	.color-field-error {
+		font-size: 12px;
+		line-height: 1.3;
+		color: var(--status-error);
 	}
 
 	.color-field-inputs {

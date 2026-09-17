@@ -6,6 +6,7 @@
 	import { saveAccess } from '$lib/config/portal-config.service';
 	import { SectionState } from '$lib/states/section.svelte';
 	import type { AccessSection, SolicitationMode } from '$lib/types/portal-config';
+	import { notifySectionSave } from '$lib/utils/feedback';
 	import SectionActions from './SectionActions.svelte';
 	import SettingsCard from './SettingsCard.svelte';
 
@@ -17,11 +18,10 @@
 
 	function setMode(mode: SolicitationMode) {
 		section.draft = { solicitationMode: mode };
-		section.clearFeedback();
 	}
 
 	async function handleSave() {
-		if (await section.save()) {
+		if (notifySectionSave(await section.save())) {
 			await invalidateAll();
 		}
 	}
@@ -36,7 +36,7 @@
 		<SectionActions
 			dirty={section.dirty}
 			saving={section.saving}
-			feedback={section.feedback}
+			restorable={section.restorable}
 			onSave={handleSave}
 			onCancel={() => section.reset()}
 			onRestoreDefaults={() => section.restoreDefaults()}

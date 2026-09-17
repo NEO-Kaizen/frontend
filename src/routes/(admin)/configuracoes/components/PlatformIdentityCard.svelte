@@ -11,6 +11,7 @@
 		isValidProtocolMask,
 		MAX_PROTOCOL_MASK_LENGTH
 	} from '$lib/utils/validations';
+	import { notifySectionSave } from '$lib/utils/feedback';
 	import SectionActions from './SectionActions.svelte';
 	import SettingsCard from './SettingsCard.svelte';
 
@@ -59,7 +60,6 @@
 
 	function setPlatformName(value: string) {
 		section.draft = { ...section.draft, platformName: value };
-		section.clearFeedback();
 	}
 
 	function getProtocolMask() {
@@ -71,11 +71,10 @@
 			...section.draft,
 			protocolMask: value.replace(/[^A-Za-z0-9]/g, '').slice(0, MAX_PROTOCOL_MASK_LENGTH)
 		};
-		section.clearFeedback();
 	}
 
 	async function handleSave() {
-		if (await section.save()) {
+		if (notifySectionSave(await section.save())) {
 			await invalidateAll();
 		}
 	}
@@ -90,8 +89,8 @@
 		<SectionActions
 			dirty={section.dirty}
 			saving={section.saving}
+			restorable={section.restorable}
 			{invalid}
-			feedback={section.feedback}
 			onSave={handleSave}
 			onCancel={() => section.reset()}
 			onRestoreDefaults={() => section.restoreDefaults()}

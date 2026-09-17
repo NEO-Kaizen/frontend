@@ -63,6 +63,12 @@ import type {
 	UpdateThemeRequest
 } from '$lib/types/portal-config';
 
+// Invariante de ordem de chaves: as funções `sanitize*` reconstroem os objetos
+// na mesma ordem de campos de `portal-defaults.ts`. O `SectionState` compara
+// `draft` × `pristine`/defaults com `JSON.stringify` (ver
+// `$lib/states/section.svelte`), e a ordem das chaves faz parte da serialização
+// — reordenar um campo aqui (ou nos defaults) acusa diferença sem mudança de
+// valor. Ao adicionar/mover campos, mantenha as duas ordens alinhadas.
 // Carrega a configuração do portal com fallback. Nunca joga exceção para o
 // layout: qualquer falha de rede ou valor inválido cai no default local por
 // campo — a aplicação permanece utilizável (critério #89/#96).
@@ -77,7 +83,8 @@ export async function loadPortalConfig(fetchImpl?: typeof fetch): Promise<Portal
 }
 
 // Converte a chamada de escrita em `Result` — nunca expõe exceção à UI. A
-// mensagem é genérica por seção; o card exibe o feedback.
+// mensagem da API é preservada quando existe (ex.: regra de negócio com 409);
+// só cai no texto genérico por seção quando a resposta não traz mensagem.
 async function persist<T>(section: string, fn: () => Promise<T>): Promise<Result<T>> {
 	try {
 		return { ok: true, data: await fn() };
@@ -87,7 +94,7 @@ async function persist<T>(section: string, fn: () => Promise<T>): Promise<Result
 				ok: false,
 				error: {
 					status: error.status,
-					message: `Não foi possível salvar ${section}.`
+					message: error.message || `Não foi possível salvar ${section}.`
 				}
 			};
 		}
@@ -271,8 +278,8 @@ function sanitizeThemeTokens(raw: unknown, fallback: ThemeTokens): ThemeTokens {
 		onPrimary: sanitizeHexColor(source.onPrimary, fallback.onPrimary),
 		onDark: sanitizeHexColor(source.onDark, fallback.onDark),
 		onGradient: sanitizeHexColor(source.onGradient, fallback.onGradient),
-		statuses: sanitizeStatusToneTokens(source.statuses, fallback.statuses),
-		gradient: sanitizeGradient(source.gradient, fallback.gradient)
+		gradient: sanitizeGradient(source.gradient, fallback.gradient),
+		statuses: sanitizeStatusToneTokens(source.statuses, fallback.statuses)
 	};
 }
 

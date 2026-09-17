@@ -2,16 +2,18 @@ import type { Result } from '$lib/types/result';
 
 // Estado de uma seção editável da tela de Configurações. Cada card cria a sua
 // instância a partir de `page.data.portalConfig`: mantém `pristine` (o que está
-// salvo) e `draft` (o que está em edição), calcula `dirty`, expõe o feedback e
+// salvo) e `draft` (o que está em edição), calcula `dirty`/`restorable` e
 // executa o save da sua própria rota PATCH. Não é um singleton de módulo — a
 // instância vive no card.
-export interface SectionFeedback {
-	type: 'success' | 'error';
-	message: string;
-}
+//
+// O feedback de salvar (sucesso/erro) não vive aqui: `save()` devolve o
+// resultado e o card publica no Toast global (`notifySectionSave`). Erros de
+// campo continuam inline no próprio campo.
+export type SaveOutcome = { ok: true } | { ok: false; message: string };
 
-// Serialização canônica para comparar draft × pristine (objetos pequenos e
-// planos, sem proxies).
+// Serialização canônica para comparar draft × pristine/defaults. Depende da
+// ordem das chaves: os defaults (`portal-defaults`) e o objeto sanitizado
+// (`portal-config.service`) precisam manter a mesma ordem de campos.
 function serialize(value: unknown): string {
 	return JSON.stringify(value);
 }
@@ -23,7 +25,7 @@ function clone<T>(value: T): T {
 }
 
 // `persist` recebe o draft e o pristine: cada seção decide o payload (ex.:
-// identidade envia só os campos alterados; tema/lcategorias enviam a seção
+// identidade envia só os campos alterados; tema/categorias enviam a seção
 // inteira). Retorna a seção consolidada pelo backend.
 export type SectionPersist<T> = (draft: T, pristine: T) => Promise<Result<T>>;
 
@@ -31,7 +33,6 @@ export class SectionState<T> {
 	pristine = $state() as T;
 	draft = $state() as T;
 	saving = $state(false);
-	feedback = $state<SectionFeedback | null>(null);
 
 	#defaults: T;
 	#persist: SectionPersist<T>;
@@ -45,29 +46,30 @@ export class SectionState<T> {
 
 	dirty: boolean = $derived(serialize(this.draft) !== serialize(this.pristine));
 
-	clearFeedback(): void {
-		this.feedback = null;
+	// O draft difere dos valores padrão do portal? Habilita "Restaurar padrão"
+	// mesmo sem alteração local (a configuração salva pode já estar fora do
+	// padrão). Getter (e não `$derived`) porque `#defaults` só é atribuído no
+	// construtor.
+	get restorable(): boolean {
+		return serialize(this.draft) !== serialize(this.#defaults);
 	}
 
 	// Reverte o draft para o último estado salvo (Cancelar).
 	reset(): void {
 		this.draft = clone(this.pristine);
-		this.clearFeedback();
 	}
 
 	// Reverte o draft para os valores padrão do portal (Restaurar padrão).
 	restoreDefaults(): void {
 		this.draft = clone(this.#defaults);
-		this.clearFeedback();
 	}
 
-	// Salva a seção. Devolve `true` em sucesso — o card usa isso para limpar
-	// estado local (ex.: arquivos pendentes de assets).
-	async save(): Promise<boolean> {
-		if (this.saving) return false;
+	// Salva a seção. Devolve `{ ok: true }` em sucesso — o card usa isso para
+	// limpar estado local (ex.: arquivos pendentes de assets) e para o Toast.
+	async save(): Promise<SaveOutcome> {
+		if (this.saving) return { ok: false, message: 'Aguarde o salvamento em andamento.' };
 
 		this.saving = true;
-		this.clearFeedback();
 
 		try {
 			const result = await this.#persist(this.draft, this.pristine);
@@ -75,12 +77,10 @@ export class SectionState<T> {
 			if (result.ok) {
 				this.pristine = clone(result.data);
 				this.draft = clone(result.data);
-				this.feedback = { type: 'success', message: 'Alterações salvas com sucesso.' };
-				return true;
+				return { ok: true };
 			}
 
-			this.feedback = { type: 'error', message: result.error.message };
-			return false;
+			return { ok: false, message: result.error.message };
 		} finally {
 			this.saving = false;
 		}

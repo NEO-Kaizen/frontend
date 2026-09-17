@@ -2,13 +2,14 @@
 	import Button from '$lib/components/Button.svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import type { SectionFeedback } from '$lib/states/section.svelte';
 
 	interface Props {
 		dirty: boolean;
 		saving: boolean;
+		// O draft difere dos defaults do portal (habilita "Restaurar padrão"
+		// mesmo sem alteração local).
+		restorable: boolean;
 		invalid?: boolean;
-		feedback: SectionFeedback | null;
 		onSave: () => void;
 		onCancel: () => void;
 		onRestoreDefaults: () => void;
@@ -18,8 +19,8 @@
 	let {
 		dirty,
 		saving,
+		restorable,
 		invalid = false,
-		feedback,
 		onSave,
 		onCancel,
 		onRestoreDefaults,
@@ -32,23 +33,11 @@
 </script>
 
 <div class="section-actions">
-	{#if feedback}
-		<p
-			class="section-feedback"
-			class:success={feedback.type === 'success'}
-			class:error={feedback.type === 'error'}
-			role="status"
-			aria-live="polite"
-		>
-			{feedback.message}
-		</p>
-	{/if}
-
 	<div class="section-buttons">
 		<Button
 			variant="outline-neutral"
 			onclick={() => (confirmRestore = true)}
-			disabled={!dirty || saving}
+			disabled={!restorable || saving}
 		>
 			<Icon iconName="autorenew" iconSize="sm" />
 			Restaurar padrão
@@ -93,18 +82,5 @@
 		flex-wrap: wrap;
 		justify-content: flex-end;
 		gap: var(--spacing-sm);
-	}
-
-	.section-feedback {
-		font: var(--paragrafo);
-		font-size: 14px;
-	}
-
-	.section-feedback.success {
-		color: var(--status-green);
-	}
-
-	.section-feedback.error {
-		color: var(--status-red);
 	}
 </style>

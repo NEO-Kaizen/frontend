@@ -16,6 +16,7 @@
 		MAX_CATEGORY_DESCRIPTION_LENGTH,
 		MAX_CATEGORY_NAME_LENGTH
 	} from '$lib/utils/validations';
+	import { notifySectionSave } from '$lib/utils/feedback';
 	import SectionActions from './SectionActions.svelte';
 	import SettingsCard from './SettingsCard.svelte';
 
@@ -49,7 +50,10 @@
 
 	function setCategories(categories: PortalCategory[]) {
 		section.draft = { categories };
-		section.clearFeedback();
+	}
+
+	async function handleSave() {
+		notifySectionSave(await section.save());
 	}
 
 	function addCategory() {
@@ -174,9 +178,9 @@
 		<SectionActions
 			dirty={section.dirty}
 			saving={section.saving}
+			restorable={section.restorable}
 			{invalid}
-			feedback={section.feedback}
-			onSave={() => section.save()}
+			onSave={handleSave}
 			onCancel={() => section.reset()}
 			onRestoreDefaults={() => section.restoreDefaults()}
 		/>

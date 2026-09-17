@@ -15,6 +15,7 @@
 		type PortalAssetsPatch
 	} from '$lib/types/portal-config';
 	import { ASSET_FILE_RULES } from '$lib/utils/validations';
+	import { notifySectionSave } from '$lib/utils/feedback';
 	import SectionActions from './SectionActions.svelte';
 	import SettingsCard from './SettingsCard.svelte';
 
@@ -146,12 +147,10 @@
 		pendingFiles = { ...pendingFiles, [asset]: file };
 		previewUrls = { ...previewUrls, [asset]: url };
 		section.draft = { assets: { ...section.draft.assets, [asset]: url } };
-		section.clearFeedback();
 	}
 
 	function setLogoUsePrimaryColor(value: boolean) {
 		section.draft = { assets: { ...section.draft.assets, logoUsePrimaryColor: value } };
-		section.clearFeedback();
 	}
 
 	function clearPendingFiles() {
@@ -163,7 +162,7 @@
 	}
 
 	async function handleSave() {
-		if (await section.save()) {
+		if (notifySectionSave(await section.save())) {
 			clearPendingFiles();
 			await invalidateAll();
 		}
@@ -191,7 +190,7 @@
 		<SectionActions
 			dirty={section.dirty}
 			saving={section.saving}
-			feedback={section.feedback}
+			restorable={section.restorable}
 			onSave={handleSave}
 			onCancel={handleCancel}
 			onRestoreDefaults={handleRestoreDefaults}

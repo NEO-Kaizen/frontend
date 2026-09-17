@@ -29,6 +29,7 @@
 		MIN_AA_NORMAL,
 		MIN_NON_TEXT
 	} from '$lib/utils/contrast';
+	import { notifySectionSave } from '$lib/utils/feedback';
 	import ColorField from './ColorField.svelte';
 	import SectionActions from './SectionActions.svelte';
 	import SettingsCard from './SettingsCard.svelte';
@@ -66,11 +67,23 @@
 	const surface = $derived(palette.surface);
 	const pageBackground = $derived(palette.background);
 
+	// Validade dos campos de cor: cada ColorField reporta o seu estado e o card
+	// agrega para bloquear o Salvar. A mensagem de erro permanece inline.
+	let invalidColorFields = $state<Record<string, boolean>>({});
+	const invalid = $derived(Object.values(invalidColorFields).some(Boolean));
+
+	function handleColorValidity(id: string, isInvalid: boolean): void {
+		invalidColorFields = { ...invalidColorFields, [id]: isInvalid };
+	}
+
+	async function handleSave(): Promise<void> {
+		notifySectionSave(await section.save());
+	}
+
 	// Mutações do tema — o draft é atômico (as duas paletas), então cada
 	// alteração substitui a paleta em edição dentro do objeto.
 	function setThemeTokens(paletteKey: ThemePalette, tokens: ThemeTokens): void {
 		section.draft = { theme: { ...section.draft.theme, [paletteKey]: tokens } };
-		section.clearFeedback();
 	}
 
 	function setThemeToken(paletteKey: ThemePalette, key: ThemeTokenKey, value: string): void {
@@ -258,6 +271,7 @@
 
 	function setEditingPalette(next: ThemePalette) {
 		editingPalette = next;
+		invalidColorFields = {};
 	}
 </script>
 
@@ -295,8 +309,9 @@
 		<SectionActions
 			dirty={section.dirty}
 			saving={section.saving}
-			feedback={section.feedback}
-			onSave={() => section.save()}
+			restorable={section.restorable}
+			{invalid}
+			onSave={handleSave}
 			onCancel={() => section.reset()}
 			onRestoreDefaults={() => section.restoreDefaults()}
 		/>
@@ -317,6 +332,8 @@
 							value={field.value}
 							previewBackground={field.previewBackground}
 							previewForeground={field.previewForeground}
+							fieldId={`${editingPalette}:${field.key}`}
+							onvaliditychange={handleColorValidity}
 							onchange={(value) => setThemeToken(editingPalette, field.key, value)}
 						/>
 					{/each}
@@ -343,16 +360,22 @@
 				<ColorField
 					label="De"
 					value={palette.gradient.from}
+					fieldId={`${editingPalette}:gradient.from`}
+					onvaliditychange={handleColorValidity}
 					onchange={(value) => setThemeGradient(editingPalette, { from: value })}
 				/>
 				<ColorField
 					label="Até"
 					value={palette.gradient.to}
+					fieldId={`${editingPalette}:gradient.to`}
+					onvaliditychange={handleColorValidity}
 					onchange={(value) => setThemeGradient(editingPalette, { to: value })}
 				/>
 				<ColorField
 					label={TOKEN_LABELS.onGradient}
 					value={palette.onGradient}
+					fieldId={`${editingPalette}:onGradient`}
+					onvaliditychange={handleColorValidity}
 					onchange={(value) => setThemeToken(editingPalette, 'onGradient', value)}
 				/>
 				<label class="gradient-angle">
@@ -445,12 +468,16 @@
 						<ColorField
 							label="Detalhe"
 							value={advisory.tokens.color}
+							fieldId={`${editingPalette}:status.${advisory.tone}.color`}
+							onvaliditychange={handleColorValidity}
 							onchange={(value) => updateStatusToneColor(editingPalette, advisory.tone, value)}
 						/>
 						<ColorField
 							label="Fundo"
 							value={advisory.tokens.background}
 							allowAlpha
+							fieldId={`${editingPalette}:status.${advisory.tone}.background`}
+							onvaliditychange={handleColorValidity}
 							onchange={(value) => setStatusToneBackground(editingPalette, advisory.tone, value)}
 						/>
 					</div>
