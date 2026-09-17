@@ -1,9 +1,20 @@
 <script lang="ts">
 	import Icon from '$lib/components/Icon.svelte';
+	import type { InternalRequestDetail } from '$lib/types/request';
 	import { fly } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
+	import PendingItemsModal from './pendency/PendingItemsModal.svelte';
+
+	interface Props {
+		solicitation: InternalRequestDetail;
+		onSaved?: () => void;
+		onRequestChange?: () => void;
+	}
+
+	let { solicitation, onSaved, onRequestChange }: Props = $props();
 
 	let isOpen = $state(false);
+	let showPendingModal = $state(false);
 
 	let containerEl: HTMLDivElement | undefined = $state(undefined);
 	let fabEl: HTMLButtonElement | undefined = $state(undefined);
@@ -58,6 +69,15 @@
 		}
 	}
 
+	function handleAction(actionKey: string): void {
+		isOpen = false;
+		if (actionKey === 'requestChange') {
+			onRequestChange?.();
+		} else if (actionKey === 'informPending') {
+			showPendingModal = true;
+		}
+	}
+
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape' && isOpen) {
 			isOpen = false;
@@ -89,7 +109,7 @@
 						class="action-row"
 						style:animation-delay={`${prefersReducedMotion ? '0ms' : `${index * 30}ms`}`}
 					>
-						<button type="button" class="action-item">
+						<button type="button" class="action-item" onclick={() => handleAction(action.key)}>
 							<span class="action-icon" aria-hidden="true">
 								<Icon iconName={action.icon} iconSize="sm" />
 							</span>
@@ -119,6 +139,14 @@
 		</span>
 	</button>
 </div>
+
+{#if showPendingModal}
+	<PendingItemsModal
+		protocol={solicitation.protocol}
+		onclose={() => (showPendingModal = false)}
+		{onSaved}
+	/>
+{/if}
 
 <style>
 	.quick-actions {
