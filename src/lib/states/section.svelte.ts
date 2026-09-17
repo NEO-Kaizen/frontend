@@ -46,12 +46,12 @@ export class SectionState<T> {
 
 	dirty: boolean = $derived(serialize(this.draft) !== serialize(this.pristine));
 
-	// O draft difere dos valores padrão do portal? Habilita "Restaurar padrão"
-	// mesmo sem alteração local (a configuração salva pode já estar fora do
-	// padrão). Getter (e não `$derived`) porque `#defaults` só é atribuído no
-	// construtor.
+	// A configuração SALVA difere dos padrões do portal? Habilita "Restaurar
+	// padrão" mesmo sem alteração local (dirty=false), mas impede a ação de
+	// servir como "Cancelar" quando nada foi salvo fora do padrão. Getter (e não
+	// `$derived`) porque `#defaults` só é atribuído no construtor.
 	get restorable(): boolean {
-		return serialize(this.draft) !== serialize(this.#defaults);
+		return serialize(this.pristine) !== serialize(this.#defaults);
 	}
 
 	// Reverte o draft para o último estado salvo (Cancelar).
