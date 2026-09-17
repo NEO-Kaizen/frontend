@@ -58,7 +58,8 @@ export const iconDictionary = {
 	content_copy: 'content_copy',
 	category: 'category',
 	assignment: 'assignment_ind',
-	stacks: 'stacks'
+	stacks: 'stacks',
+	warning: 'warning'
 } as const;
 
 export type IconName = keyof typeof iconDictionary;
