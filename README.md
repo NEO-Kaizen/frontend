@@ -10,6 +10,7 @@ A aplicação possui diferentes níveis de acesso, permitindo que **solicitantes
 
 - [Tecnologias](#tecnologias)
 - [Instalação](#instalação)
+- [Deploy](#deploy)
 - [Funcionalidades](#funcionalidades)
 - [Considerações Técnicas](#considerações-técnicas)
 
@@ -65,6 +66,12 @@ Para iniciar e abrir automaticamente no navegador:
 ```bash
 npm run dev -- --open
 ```
+
+## Deploy
+
+O procedimento para publicar a aplicação atrás de um proxy reverso e em um subcaminho,
+incluindo variáveis de ambiente e verificações pós-deploy, está em
+[docs/04-Deploy.md](docs/04-Deploy.md).
 
 ## Funcionalidades
 
