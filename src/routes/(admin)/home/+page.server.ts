@@ -15,5 +15,5 @@ export const load: PageServerLoad = async ({ fetch, locals }) => {
 		fetch
 	);
 
-	return { result, pageSize: PAGE_SIZE };
+	return { result, pageSize: PAGE_SIZE, assigneeId };
 };

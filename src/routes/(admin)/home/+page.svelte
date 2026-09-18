@@ -17,9 +17,6 @@
 
 	let result = $derived(fetchedResult ?? data.result);
 	let userName = $derived(data.user?.name ?? 'Usuário');
-	let userRole = $derived(data.user?.role ?? '');
-
-	let assigneeId = $derived(isAnalyst && data.user ? String(data.user.id) : 'unassigned');
 
 	let sectionTitle = $derived(
 		isAnalyst ? 'Solicitações sob minha responsabilidade' : 'Solicitações sem responsável'
@@ -48,7 +45,7 @@
 		const noun = total === 1 ? 'solicitação' : 'solicitações';
 
 		if (isAnalyst) {
-			return `${userRole} · Você tem ${total} ${noun} sob sua responsabilidade.`;
+			return `Você tem ${total} ${noun} sob sua responsabilidade.`;
 		}
 
 		return `Há ${total} ${noun} sem responsável.`;
@@ -62,7 +59,7 @@
 		const next = await listQueueRequests({
 			page: pageNumber,
 			pageSize: data.pageSize,
-			assigneeId
+			assigneeId: data.assigneeId
 		});
 
 		if (token !== requestToken) {
