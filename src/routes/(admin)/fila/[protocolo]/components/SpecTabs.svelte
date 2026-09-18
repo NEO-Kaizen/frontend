@@ -6,8 +6,21 @@
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Modal from '$lib/components/Modal.svelte';
+	import {
+		getConversation,
+		selectUnvalidatedPendencies,
+		sendConversationMessage
+	} from '$lib/services/conversation.service';
 	import { updateInternalRequest } from '$lib/services/request.service';
+	import { toastState } from '$lib/states/toast.svelte';
+	import type {
+		ConversationAttachmentInput,
+		ConversationHistory,
+		ConversationMessage
+	} from '$lib/types/conversation';
 	import type { InternalRequestDetail } from '$lib/types/request';
+	import type { Result } from '$lib/types/result';
+	import ConversationHistoryView from './conversation/ConversationHistory.svelte';
 	import InfoSection from './solicitation-info/InfoSection.svelte';
 	import {
 		applyFieldChange,
@@ -21,11 +34,12 @@
 
 	interface Props {
 		solicitation: InternalRequestDetail;
+		conversationResult: Result<ConversationHistory>;
 		onSaveSuccess?: (updated: InternalRequestDetail) => void;
 		onSaveError?: (message: string) => void;
 	}
 
-	let { solicitation, onSaveSuccess, onSaveError }: Props = $props();
+	let { solicitation, conversationResult, onSaveSuccess, onSaveError }: Props = $props();
 
 	type SpecTabId = 'informacoes' | 'triagem' | 'mapeamento' | 'historico' | 'observacoes';
 
@@ -53,8 +67,7 @@
 			id: 'historico',
 			label: 'Histórico de Conversa',
 			icon: 'history',
-			enabled: false,
-			badge: 1
+			enabled: true
 		},
 		{ id: 'observacoes', label: 'Observações Internas', icon: 'info', enabled: false }
 	];
@@ -74,6 +87,43 @@
 			SPEC_TABS.find((tab) => tab.id === DEFAULT_TAB_ID)?.label ??
 			DEFAULT_TAB_ID
 	);
+
+	const conversationHistory = $derived(conversationResult.ok ? conversationResult.data : null);
+
+	// Fonte única do número exibido: mesmo cálculo alimenta o badge da aba e o
+	// banner de alterações respondidas dentro do histórico.
+	const unvalidatedPendencyCount = $derived(
+		conversationHistory ? selectUnvalidatedPendencies(conversationHistory.items) : 0
+	);
+
+	const tabs = $derived(
+		SPEC_TABS.map((tab) =>
+			tab.id === 'historico'
+				? { ...tab, badge: unvalidatedPendencyCount > 0 ? unvalidatedPendencyCount : undefined }
+				: tab
+		)
+	);
+
+	async function handleRetryConversation(): Promise<Result<ConversationHistory>> {
+		return getConversation(solicitation.protocol);
+	}
+
+	async function handleSendConversationMessage(input: {
+		content: string;
+		attachments: ConversationAttachmentInput[];
+	}): Promise<Result<ConversationMessage>> {
+		return sendConversationMessage(solicitation.protocol, input.content, input.attachments);
+	}
+
+	// Ações da PendencyCard sem regra de negócio nesta entrega (issue #123):
+	// apenas sinalizam que o fluxo ainda será habilitado.
+	function handleValidatePendency(): void {
+		toastState.add('A validação de pendências estará disponível em breve.', 'info');
+	}
+
+	function handleRequestAgainPendency(): void {
+		toastState.add('Solicitar a pendência novamente estará disponível em breve.', 'info');
+	}
 
 	// Botão Editar visível apenas para Administrador ou o responsável pela triagem.
 	// Regra definitiva é decidida pela issue #121 (modo de edição).
@@ -252,7 +302,7 @@
 <section class="details-card" aria-label="Detalhes da solicitação" bind:this={detailsCard}>
 	<div class="tabs-bar" role="tablist" aria-label="Abas da solicitação">
 		<div class="tabs-left">
-			{#each SPEC_TABS as tab (tab.id)}
+			{#each tabs as tab (tab.id)}
 				<button
 					type="button"
 					role="tab"
@@ -269,7 +319,11 @@
 					<Icon iconName={tab.icon} iconSize="sm" />
 					<span>{tab.label}</span>
 					{#if tab.badge}
-						<span class="tab-badge" aria-label={`${tab.badge} notificação`}>{tab.badge}</span>
+						<span
+							class="tab-badge"
+							aria-label={`${tab.badge} ${tab.badge === 1 ? 'notificação' : 'notificações'}`}
+							>{tab.badge}</span
+						>
 					{/if}
 				</button>
 			{/each}
@@ -343,6 +397,17 @@
 				{errors}
 				onFieldChange={handleFieldChange}
 				onFieldBlur={handleFieldBlur}
+			/>
+		{:else if activeTab === 'historico'}
+			<ConversationHistoryView
+				initialHistory={conversationResult.ok ? conversationResult.data : null}
+				initialLoading={false}
+				initialError={conversationResult.ok ? null : conversationResult.error.message}
+				correctionAlertMessage={solicitation.correctionAlert?.message ?? null}
+				onRetry={handleRetryConversation}
+				onSendMessage={handleSendConversationMessage}
+				onValidatePendency={handleValidatePendency}
+				onRequestAgainPendency={handleRequestAgainPendency}
 			/>
 		{:else}
 			<p class="placeholder">Conteúdo de {activeTabLabel} — implementação futura</p>

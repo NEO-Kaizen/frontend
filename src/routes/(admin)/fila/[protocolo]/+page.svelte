@@ -10,6 +10,7 @@
 	const protocol = $derived(data.protocol);
 	const solicitation = $derived(data.solicitation);
 	const error = $derived(data.error);
+	const conversationResult = $derived(data.conversationResult);
 </script>
 
 <svelte:head>
@@ -32,7 +33,7 @@
 			</div>
 		{/if}
 	{:else if solicitation}
-		<SolicitationSpecs {solicitation} />
+		<SolicitationSpecs {solicitation} {conversationResult} />
 	{:else if error && error.status === 404}
 		<NotFoundState
 			title="Solicitação não encontrada"

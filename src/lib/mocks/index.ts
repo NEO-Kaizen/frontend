@@ -12,5 +12,6 @@ export const MOCK_DOMAINS =
 		auth: true,
 		request: true,
 		users: true,
-		prioritization: true
+		prioritization: true,
+		conversation: true
 	} as const);

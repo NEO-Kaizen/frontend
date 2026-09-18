@@ -1,16 +1,19 @@
 <script lang="ts">
 	import Icon from '$lib/components/Icon.svelte';
+	import type { ConversationHistory } from '$lib/types/conversation';
 	import type { InternalRequestDetail, RequestStatus } from '$lib/types/request';
+	import type { Result } from '$lib/types/result';
 	import QuickActions from './QuickActions.svelte';
 	import SpecTabs from './SpecTabs.svelte';
 
 	interface Props {
 		solicitation: InternalRequestDetail;
+		conversationResult: Result<ConversationHistory>;
 		onSaveSuccess?: (updated: InternalRequestDetail) => void;
 		onSaveError?: (message: string) => void;
 	}
 
-	let { solicitation, onSaveSuccess, onSaveError }: Props = $props();
+	let { solicitation, conversationResult, onSaveSuccess, onSaveError }: Props = $props();
 
 	function getStatusTheme(status: RequestStatus): { bg: string; color: string; border: string } {
 		switch (status) {
@@ -148,7 +151,7 @@
 <div class="solicitation-specs-page">
 	{@render headerSnippet()}
 
-	<SpecTabs {solicitation} {onSaveSuccess} {onSaveError} />
+	<SpecTabs {solicitation} {conversationResult} {onSaveSuccess} {onSaveError} />
 
 	<QuickActions />
 </div>

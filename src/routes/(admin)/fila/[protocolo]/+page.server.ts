@@ -1,3 +1,4 @@
+import { getConversation } from '$lib/services/conversation.service';
 import { getInternalRequest } from '$lib/services/request.service';
 import type { PageServerLoad } from './$types';
 
@@ -7,19 +8,24 @@ import type { PageServerLoad } from './$types';
 export const load: PageServerLoad = async ({ params, fetch }) => {
 	const protocol = params.protocolo;
 
-	const result = await getInternalRequest(protocol, fetch);
+	const [requestResult, conversationResult] = await Promise.all([
+		getInternalRequest(protocol, fetch),
+		getConversation(protocol, fetch)
+	]);
 
-	if (result.ok) {
+	if (requestResult.ok) {
 		return {
 			protocol,
-			solicitation: result.data,
-			error: null
+			solicitation: requestResult.data,
+			error: null,
+			conversationResult
 		};
 	}
 
 	return {
 		protocol,
 		solicitation: null,
-		error: result.error
+		error: requestResult.error,
+		conversationResult
 	};
 };
