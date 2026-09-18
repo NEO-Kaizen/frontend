@@ -90,12 +90,11 @@
 	// Botão Editar visível apenas para quem pode editar o conteúdo interno
 	// (Administrador ou responsável atribuído — regra em `access.service`).
 	// Gestor e demais perfis visualizam em somente leitura.
-	// A permissão do mapeamento usa o responsável do mapeamento quando o
-	// backend o expõe (`mappingAssigneeId`), senão o responsável geral.
-	// Em ambos os casos a fonte é o primeiro GET da solicitação + `/auth/me`
+	// A permissão do mapeamento usa exclusivamente o responsável do mapeamento
+	// (`mappingAssigneeId`). A fonte é o primeiro GET da solicitação + `/auth/me`
 	// (via `page.data.user`) — nunca o GET do mapeamento.
 	const currentUser = $derived(page.data.user);
-	const mappingAssigneeId = $derived(solicitation.mappingAssigneeId ?? solicitation.assignee?.id);
+	const mappingAssigneeId = $derived(solicitation.mappingAssigneeId);
 	const canEdit = $derived(canEditSolicitation(solicitation.assignee?.id, currentUser ?? null));
 	const canEditMapping = $derived(canEditSolicitation(mappingAssigneeId, currentUser ?? null));
 

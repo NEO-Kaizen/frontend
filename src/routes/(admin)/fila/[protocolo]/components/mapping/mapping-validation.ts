@@ -70,7 +70,23 @@ export function applyMappingChange(
 	path: 'scheduledFor' | 'durationMinutes' | 'meetingLink' | 'location' | 'notes',
 	value: string
 ): void {
-	draft[path] = value as never;
+	switch (path) {
+		case 'scheduledFor':
+			draft.scheduledFor = value;
+			break;
+		case 'durationMinutes':
+			draft.durationMinutes = value;
+			break;
+		case 'meetingLink':
+			draft.meetingLink = value;
+			break;
+		case 'location':
+			draft.location = value;
+			break;
+		case 'notes':
+			draft.notes = value;
+			break;
+	}
 }
 
 function isValidUrl(value: string): boolean {
