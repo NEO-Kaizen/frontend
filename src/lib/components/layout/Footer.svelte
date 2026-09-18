@@ -17,11 +17,11 @@
 		<p class="footer__brand">{platformName}</p>
 
 		<div class="footer__center">
+			<p class="footer__copyright">© 2026 {platformName}. Todos os direitos reservados.</p>
+
 			{#if isRebranded}
 				<p class="footer__powered">Powered by {PRODUCT_NAME}</p>
 			{/if}
-
-			<p class="footer__copyright">© 2026 {platformName}. Todos os direitos reservados.</p>
 		</div>
 
 		<p class="footer__credits">Desenvolvido pela Turma 8 Kaizen — Alpha EdTech</p>
@@ -62,9 +62,10 @@
 
 	.footer__center {
 		display: flex;
-		flex-direction: column;
+		flex-direction: row;
 		align-items: center;
-		gap: var(--spacing-xs);
+		justify-content: center;
+		gap: var(--spacing-md);
 	}
 
 	.footer__powered {
@@ -92,6 +93,10 @@
 		.footer__brand,
 		.footer__credits {
 			justify-self: center;
+		}
+
+		.footer__center {
+			flex-wrap: wrap;
 		}
 
 		.footer__brand,
