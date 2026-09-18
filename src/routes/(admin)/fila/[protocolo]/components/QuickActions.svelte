@@ -155,6 +155,8 @@
 {#if showPendingModal}
 	<PendingItemsModal
 		protocol={solicitation.protocol}
+		{currentUser}
+		assigneeId={solicitation.assignee?.id ?? null}
 		onclose={() => (showPendingModal = false)}
 		{onSaved}
 	/>

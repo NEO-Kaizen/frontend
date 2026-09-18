@@ -8,7 +8,7 @@
 	import type { PendingFieldRef } from '$lib/types/pendency';
 	import type { InternalRequestDetail, RequestStatus } from '$lib/types/request';
 	import { SvelteMap } from 'svelte/reactivity';
-	import { buildFieldLookup } from './pendency/field-catalog';
+	import { buildFieldLookup } from '$lib/pendency/field-catalog';
 	import FieldPendencyModal from './pendency/FieldPendencyModal.svelte';
 	import QuickActions from './QuickActions.svelte';
 	import SpecTabs from './SpecTabs.svelte';
@@ -104,7 +104,12 @@
 
 	async function handlePendencySubmit(): Promise<void> {
 		if (pendingDraft.size === 0 || isPendencySaving) return;
-		const items = [...pendingDraft.values()].map(({ field, comment }) => ({ field, comment }));
+		// Contrato §1: o front envia apenas `fieldKey` + `comment`; o backend
+		// deriva `fieldLabel`/`currentValue` do catálogo.
+		const items = [...pendingDraft.values()].map(({ field, comment }) => ({
+			fieldKey: field.fieldKey,
+			comment
+		}));
 		isPendencySaving = true;
 		pendencyError = null;
 		pendingSuccess = null;

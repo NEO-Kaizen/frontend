@@ -1,21 +1,31 @@
 <script lang="ts">
-	import { listPendencies } from '$lib/services/pendency.service';
+	import { listPendencies, reviewPendingItems } from '$lib/services/pendency.service';
 	import { PENDENCY_STATUS_LABELS, type PendingItem } from '$lib/types/pendency';
+	import type { SessionUser } from '$lib/types/auth';
 	import { formatDateTime } from '$lib/utils/dates';
+	import { SvelteMap } from 'svelte/reactivity';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Modal from '$lib/components/Modal.svelte';
-	import PendencyResponseModal from './PendencyResponseModal.svelte';
+	import Textarea from '$lib/components/Textarea.svelte';
 
 	type TabStatus = 'requested' | 'responded' | 'validated';
+	type DecisionChoice = 'validate' | 'reopen';
 
 	interface Props {
 		protocol: string;
+		currentUser?: SessionUser | null;
+		assigneeId?: string | null;
 		onclose: () => void;
 		onSaved?: () => void;
 	}
 
-	let { protocol, onclose, onSaved }: Props = $props();
+	let { protocol, currentUser = null, assigneeId = null, onclose, onSaved }: Props = $props();
+
+	// §3: revisar exige Administrador ou o responsável atribuído à tratativa.
+	const canReview = $derived(
+		currentUser?.role === 'Administrador' || Boolean(currentUser && currentUser.id === assigneeId)
+	);
 
 	const tabs: { id: TabStatus; label: string }[] = [
 		{ id: 'requested', label: 'Solicitadas' },
@@ -27,7 +37,10 @@
 	let items = $state<PendingItem[]>([]);
 	let isLoading = $state(true);
 	let errorMessage = $state('');
-	let selectedItem = $state<PendingItem | null>(null);
+	let isSubmitting = $state(false);
+	let reviewError = $state('');
+	let reviewDecisions = new SvelteMap<string, DecisionChoice>();
+	let reopenComments = $state<Record<string, string>>({});
 
 	const counts = $derived.by(() => {
 		const result: Record<TabStatus, number> = { requested: 0, responded: 0, validated: 0 };
@@ -44,6 +57,18 @@
 	});
 
 	const visibleItems = $derived(items.filter((item) => item.status === activeTab));
+
+	// A revisão decide cada item `responded` de um LOTE (§3) — agrupa por batchId.
+	const respondedBatches = $derived.by(() => {
+		const batches: { batchId: string; items: PendingItem[] }[] = [];
+		for (const item of items) {
+			if (item.status !== 'responded') continue;
+			const group = batches.find((candidate) => candidate.batchId === item.batchId);
+			if (group) group.items.push(item);
+			else batches.push({ batchId: item.batchId, items: [item] });
+		}
+		return batches;
+	});
 
 	async function load(): Promise<void> {
 		isLoading = true;
@@ -63,12 +88,65 @@
 		onSaved?.();
 	}
 
-	function openItem(item: PendingItem): void {
-		selectedItem = item;
+	function setDecision(itemId: string, choice: DecisionChoice): void {
+		reviewDecisions.set(itemId, choice);
+		if (choice === 'reopen' && reopenComments[itemId] === undefined) {
+			reopenComments[itemId] = '';
+		}
 	}
 
-	function closeResponseModal(): void {
-		selectedItem = null;
+	function decisionFor(itemId: string): DecisionChoice {
+		return reviewDecisions.get(itemId) ?? 'validate';
+	}
+
+	function reviewComplete(batchItems: PendingItem[]): boolean {
+		return batchItems.every((item) => {
+			const decision = reviewDecisions.get(item.id);
+			if (!decision) return false;
+			if (decision === 'validate') return true;
+			return (reopenComments[item.id] ?? '').trim() !== '';
+		});
+	}
+
+	async function handleReviewSubmit(batchId: string): Promise<void> {
+		if (isSubmitting) return;
+		reviewError = '';
+		const batch = respondedBatches.find((group) => group.batchId === batchId);
+		if (!batch || !reviewComplete(batch.items)) return;
+
+		const decisions = batch.items.map((item) => {
+			const decision = reviewDecisions.get(item.id) ?? 'validate';
+			return decision === 'reopen'
+				? {
+						id: item.id,
+						decision: 'reopen' as const,
+						comment: (reopenComments[item.id] ?? '').trim()
+					}
+				: { id: item.id, decision: 'validate' as const };
+		});
+
+		isSubmitting = true;
+		const result = await reviewPendingItems(protocol, { batchId, items: decisions });
+		isSubmitting = false;
+
+		if (result.ok) {
+			reviewDecisions.clear();
+			reopenComments = {};
+			await reload();
+		} else {
+			reviewError = result.error.message;
+		}
+	}
+
+	function formatBytes(bytes: number): string {
+		if (bytes < 1024) return `${bytes} B`;
+		if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+		return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+	}
+
+	function displayValue(value: string | number | boolean | null | undefined): string {
+		if (value === null || value === undefined) return '---';
+		return String(value);
 	}
 
 	$effect(() => {
@@ -104,51 +182,151 @@
 			<p>{errorMessage}</p>
 			<Button variant="outline" onclick={load}>Tentar novamente</Button>
 		</div>
-	{:else if visibleItems.length === 0}
-		<div class="state-box">
-			<Icon iconName="inbox" iconSize="lg" />
-			<p>Nenhuma pendência {PENDENCY_STATUS_LABELS[activeTab].toLowerCase()}.</p>
-		</div>
-	{:else}
-		<ul class="item-list">
-			{#each visibleItems as item (item.id)}
-				<li class="item-row">
-					{#if item.status === 'responded'}
-						<button type="button" class="item-button" onclick={() => openItem(item)}>
-							<span class="item-main">
-								<span class="item-label">{item.field.fieldLabel}</span>
-								<span class="item-value">{item.correctedValue}</span>
-							</span>
-							<span class="item-meta">
-								<span class="item-date">
-									Respondido em {formatDateTime(item.respondedAt ?? item.createdAt)}
-								</span>
-								<span class="responded-hint">
-									Abrir para validar
-									<Icon iconName="arrowForward" iconSize="sm" />
-								</span>
-							</span>
-						</button>
-					{:else}
+	{:else if activeTab !== 'responded'}
+		{#if visibleItems.length === 0}
+			<div class="state-box">
+				<Icon iconName="inbox" iconSize="lg" />
+				<p>Nenhuma pendência {PENDENCY_STATUS_LABELS[activeTab].toLowerCase()}.</p>
+			</div>
+		{:else}
+			<ul class="item-list">
+				{#each visibleItems as item (item.id)}
+					<li class="item-row">
 						<div class="item-content">
 							<span class="item-main">
 								<span class="item-label">{item.field.fieldLabel}</span>
-								<span class="item-value">{item.field.currentValue}</span>
+								<span class="item-value">
+									{displayValue(
+										item.status === 'validated' ? item.correctedValue : item.field.currentValue
+									)}
+								</span>
 							</span>
 							<span class="item-meta">
-								<span class="item-date">Solicitada em {formatDateTime(item.createdAt)}</span>
+								<span class="item-date">
+									{item.status === 'validated'
+										? `Validada em ${formatDateTime(item.validatedAt ?? item.createdAt)}`
+										: `Solicitada em ${formatDateTime(item.createdAt)}`}
+								</span>
 							</span>
 						</div>
-					{/if}
-				</li>
-			{/each}
-		</ul>
+					</li>
+				{/each}
+			</ul>
+		{/if}
+	{:else}
+		{#if respondedBatches.length === 0}
+			<div class="state-box">
+				<Icon iconName="inbox" iconSize="lg" />
+				<p>Nenhuma pendência respondida.</p>
+			</div>
+		{:else}
+			<div class="batches">
+				{#each respondedBatches as batch (batch.batchId)}
+					<section class="batch">
+						{#each batch.items as item (item.id)}
+							<article class="item-card">
+								<header class="card-head">
+									<span class="item-label">{item.field.fieldLabel}</span>
+									<span class="item-date">
+										Respondida em {formatDateTime(item.respondedAt ?? item.createdAt)}
+									</span>
+								</header>
+
+								<div class="diff" aria-label="Comparação do valor">
+									<div class="diff-line diff-old">
+										<span class="diff-glyph" aria-hidden="true">−</span>
+										<span class="diff-value">{displayValue(item.field.currentValue)}</span>
+									</div>
+									<div class="diff-line diff-new">
+										<span class="diff-glyph" aria-hidden="true">＋</span>
+										<span class="diff-value">{displayValue(item.correctedValue)}</span>
+									</div>
+								</div>
+
+								{#if item.responseComment}
+									<p class="response-note">{item.responseComment}</p>
+								{/if}
+
+								{#if item.responseAttachments.length > 0}
+									<ul class="attachments-list">
+										{#each item.responseAttachments as attachment (attachment.fileName)}
+											<li class="attachment-item">
+												<Icon iconName="description" iconSize="sm" />
+												<span class="attachment-name">{attachment.fileName}</span>
+												<span class="attachment-meta">{formatBytes(attachment.sizeBytes)}</span>
+											</li>
+										{/each}
+									</ul>
+								{/if}
+
+								{#if canReview}
+									<div class="decision">
+										<div
+											class="decision-toggle"
+											role="group"
+											aria-label={`Decisão para ${item.field.fieldLabel}`}
+										>
+											<button
+												type="button"
+												class="decision-option"
+												class:selected={decisionFor(item.id) === 'validate'}
+												onclick={() => setDecision(item.id, 'validate')}
+											>
+												<Icon iconName="validate" iconSize="sm" />
+												Validar
+											</button>
+											<button
+												type="button"
+												class="decision-option"
+												class:selected={decisionFor(item.id) === 'reopen'}
+												onclick={() => setDecision(item.id, 'reopen')}
+											>
+												<Icon iconName="reopen" iconSize="sm" />
+												Solicitar novamente
+											</button>
+										</div>
+
+										{#if decisionFor(item.id) === 'reopen'}
+											<div class="reopen-input">
+												<Textarea
+													label="Motivo para solicitar novamente"
+													placeholder="O solicitante precisa corrigir este campo novamente."
+													bind:value={reopenComments[item.id]}
+													rows={2}
+													maxlength={1000}
+												/>
+											</div>
+										{/if}
+									</div>
+								{:else}
+									<p class="no-action">
+										Apenas o responsável pela tratativa ou um Administrador pode revisar.
+									</p>
+								{/if}
+							</article>
+						{/each}
+
+						{#if canReview}
+							<div class="batch-actions">
+								{#if reviewError}
+									<p class="form-error" role="alert">{reviewError}</p>
+								{/if}
+								<Button
+									variant="primary"
+									loading={isSubmitting}
+									disabled={!reviewComplete(batch.items)}
+									onclick={() => handleReviewSubmit(batch.batchId)}
+								>
+									Enviar revisão
+								</Button>
+							</div>
+						{/if}
+					</section>
+				{/each}
+			</div>
+		{/if}
 	{/if}
 </Modal>
-
-{#if selectedItem}
-	<PendencyResponseModal item={selectedItem} onclose={closeResponseModal} onSaved={reload} />
-{/if}
 
 <style>
 	.tabs {
@@ -251,29 +429,6 @@
 		overflow: hidden;
 	}
 
-	.item-button {
-		display: flex;
-		width: 100%;
-		align-items: center;
-		justify-content: space-between;
-		gap: var(--spacing-md);
-		padding: 12px;
-		background: var(--white);
-		border: none;
-		text-align: left;
-		cursor: pointer;
-		transition: var(--transition-default);
-	}
-
-	.item-button:hover {
-		background: var(--status-blue-bg);
-	}
-
-	.item-button:focus-visible {
-		outline: 2px solid var(--secondary-color);
-		outline-offset: -2px;
-	}
-
 	.item-content {
 		display: flex;
 		align-items: center;
@@ -320,18 +475,211 @@
 		white-space: nowrap;
 	}
 
-	.responded-hint {
-		display: inline-flex;
+	.batches {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-md);
+		max-height: 460px;
+		overflow-y: auto;
+	}
+
+	.batch {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		padding-bottom: var(--spacing-sm);
+		border-bottom: var(--border-default);
+	}
+
+	.batch:last-child {
+		border-bottom: none;
+	}
+
+	.item-card {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		padding: 12px;
+		border: var(--border-default);
+		border-radius: var(--radius-sm);
+		background: var(--white);
+	}
+
+	.card-head {
+		display: flex;
 		align-items: center;
+		justify-content: space-between;
+		gap: var(--spacing-sm);
+	}
+
+	.diff {
+		display: flex;
+		flex-direction: column;
 		gap: 4px;
+	}
+
+	.diff-line {
+		display: flex;
+		gap: var(--spacing-sm);
+		padding: 6px 8px;
+		border-radius: var(--radius-sm);
+		align-items: baseline;
+	}
+
+	.diff-old {
+		background: var(--status-red-bg);
+	}
+
+	.diff-new {
+		background: var(--status-green-bg);
+	}
+
+	.diff-glyph {
+		font-weight: 700;
+		flex-shrink: 0;
+	}
+
+	.diff-old .diff-glyph {
+		color: var(--status-red);
+	}
+
+	.diff-new .diff-glyph {
+		color: var(--status-green);
+	}
+
+	.diff-value {
+		font-family: var(--font-inter);
+		font-size: 13px;
+		font-weight: 600;
+		word-break: break-word;
+		overflow-wrap: anywhere;
+	}
+
+	.diff-old .diff-value {
+		text-decoration: line-through;
+		color: var(--status-red);
+	}
+
+	.diff-new .diff-value {
+		color: var(--status-green);
+	}
+
+	.response-note {
+		margin: 0;
+		font-family: var(--font-inter);
+		font-size: 13px;
+		color: var(--black);
+		line-height: 1.5;
+		white-space: pre-wrap;
+	}
+
+	.attachments-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+	}
+
+	.attachment-item {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-sm);
+		padding: 6px 10px;
+		background: var(--background-color);
+		border-radius: var(--radius-sm);
+		color: var(--gray);
+	}
+
+	.attachment-name {
+		font-family: var(--font-inter);
+		font-size: 13px;
+		color: var(--black);
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.attachment-meta {
 		font-family: var(--font-inter);
 		font-size: 12px;
-		font-weight: 700;
+		margin-left: auto;
+		flex-shrink: 0;
+	}
+
+	.decision {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	.decision-toggle {
+		display: flex;
+		gap: 8px;
+		flex-wrap: wrap;
+	}
+
+	.decision-option {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		padding: 6px 12px;
+		border: var(--border-default);
+		border-radius: var(--radius-sm);
+		background: var(--white);
+		font-family: var(--font-inter);
+		font-size: 12px;
+		font-weight: 600;
+		color: var(--gray);
+		cursor: pointer;
+		transition: var(--transition-default);
+	}
+
+	.decision-option:hover {
+		color: var(--black);
+	}
+
+	.decision-option:focus-visible {
+		outline: 2px solid var(--secondary-color);
+		outline-offset: 2px;
+	}
+
+	.decision-option.selected {
+		border-color: var(--secondary-color);
 		color: var(--secondary-color);
+		background: var(--status-blue-bg);
+	}
+
+	.reopen-input :global(textarea) {
+		min-height: 64px;
+	}
+
+	.no-action {
+		margin: 0;
+		font-family: var(--font-inter);
+		font-size: 12px;
+		color: var(--gray);
+	}
+
+	.batch-actions {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-end;
+		gap: var(--spacing-sm);
+	}
+
+	.form-error {
+		margin: 0;
+		padding: var(--spacing-sm) var(--spacing-md);
+		background-color: var(--status-red-bg);
+		border-radius: var(--radius-sm);
+		color: var(--status-red);
+		font: var(--label);
 	}
 
 	@media (max-width: 600px) {
-		.item-button,
 		.item-content {
 			flex-direction: column;
 			align-items: flex-start;
@@ -339,6 +687,15 @@
 
 		.item-meta {
 			align-items: flex-start;
+		}
+
+		.card-head {
+			flex-direction: column;
+			align-items: flex-start;
+		}
+
+		.batch-actions {
+			align-items: stretch;
 		}
 	}
 </style>
