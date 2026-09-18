@@ -36,26 +36,12 @@
 		assigneeId = page.url.searchParams.get('assigneeId') ?? 'all';
 	});
 
-	const statusOptions = [
+	const statusOptions = $derived.by(() => [
 		{ value: 'all', label: 'Todos' },
-		{ value: 'Solicitação enviada', label: 'Solicitação enviada' },
-		{ value: 'Aguardando triagem', label: 'Aguardando triagem' },
-		{ value: 'Em triagem', label: 'Em triagem' },
-		{ value: 'Pendente de informações', label: 'Pendente de informações' },
-		{ value: 'Aguardando mapeamento', label: 'Aguardando mapeamento' },
-		{ value: 'Mapeamento agendado', label: 'Mapeamento agendado' },
-		{ value: 'Em mapeamento', label: 'Em mapeamento' },
-		{ value: 'Em análise de viabilidade', label: 'Em análise de viabilidade' },
-		{ value: 'Elegível', label: 'Elegível' },
-		{ value: 'Não elegível', label: 'Não elegível' },
-		{ value: 'Priorizado', label: 'Priorizado' },
-		{ value: 'Backlog', label: 'Backlog' },
-		{ value: 'Direcionado para outra área', label: 'Direcionado para outra área' },
-		{ value: 'Em desenvolvimento', label: 'Em desenvolvimento' },
-		{ value: 'Em homologação', label: 'Em homologação' },
-		{ value: 'Concluído', label: 'Concluído' },
-		{ value: 'Cancelado', label: 'Cancelado' }
-	];
+		...data.portalConfig.statuses
+			.filter((item) => item.isActive)
+			.map((item) => ({ value: item.name, label: item.name }))
+	]);
 
 	const priorityOptions = [
 		{ value: 'all', label: 'Todas' },
