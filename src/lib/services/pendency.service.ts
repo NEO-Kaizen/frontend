@@ -1,8 +1,7 @@
 import {
 	createPendingItems as createPendingItemsApi,
 	getPendingItems as getPendingItemsApi,
-	reopenPendingItem as reopenPendingItemApi,
-	validatePendingItem as validatePendingItemApi
+	reviewPendingItems as reviewPendingItemsApi
 } from '$lib/api/pending-item.api';
 
 import type {
@@ -12,18 +11,17 @@ import type {
 	ListPendenciesResponse,
 	PendencyGroup,
 	PendingItem,
-	ReopenPendencyPayload,
-	ValidatePendencyPayload
+	ReviewPendingItemsBody,
+	ReviewPendingItemsResponse
 } from '$lib/types/pendency';
 import { ApiError, type Result } from '$lib/types/result';
 
 export async function listPendencies(
 	protocol: string,
-	query: ListPendenciesQuery = {},
-	fetchImpl?: typeof fetch
+	query: ListPendenciesQuery = {}
 ): Promise<Result<ListPendenciesResponse>> {
 	try {
-		const data = await getPendingItemsApi(protocol, query, fetchImpl);
+		const data = await getPendingItemsApi(protocol, query);
 		return { ok: true, data };
 	} catch (error) {
 		if (error instanceof ApiError) {
@@ -39,7 +37,7 @@ export async function listPendencies(
 	}
 }
 
-// Envia a solicitação de alteração por campo e muda o status para
+// §1 — envia a solicitação de alteração por campo (lote) e muda o status para
 // "Pendente de informações". Validação espelhada no mock/backend.
 export async function requestFieldChange(
 	protocol: string,
@@ -57,62 +55,43 @@ export async function requestFieldChange(
 	} catch (error) {
 		if (error instanceof ApiError) {
 			const message =
-				error.status === 404
-					? 'Solicitação não encontrada.'
-					: 'Não foi possível solicitar a alteração.';
+				error.status === 403
+					? 'Você não tem permissão para solicitar alterações nesta tratativa.'
+					: error.status === 409
+						? 'Esta solicitação não permite novas pendências no estado atual.'
+						: error.status === 404
+							? 'Solicitação não encontrada.'
+							: 'Não foi possível solicitar a alteração.';
 			return { ok: false, error: { status: error.status, message } };
 		}
 		return { ok: false, error: { message: 'Não foi possível conectar ao servidor.' } };
 	}
 }
 
-// "Validar alteração": aplica o valor corrigido e fecha o ciclo (respondida → validada).
-export async function validatePendency(
+// §3 — "Revisar alterações": decide CADA item `responded` de um lote em uma
+// única chamada atômica (validar fecha; reabrir solicita novamente).
+export async function reviewPendingItems(
 	protocol: string,
-	id: string,
-	payload: ValidatePendencyPayload = {},
+	payload: ReviewPendingItemsBody,
 	fetchImpl?: typeof fetch
-): Promise<Result<PendingItem>> {
-	try {
-		const data = await validatePendingItemApi(protocol, id, payload, fetchImpl);
-		return { ok: true, data };
-	} catch (error) {
-		if (error instanceof ApiError) {
-			return {
-				ok: false,
-				error: {
-					status: error.status,
-					message: 'Não foi possível validar a alteração.'
-				}
-			};
-		}
-		return { ok: false, error: { message: 'Não foi possível conectar ao servidor.' } };
-	}
-}
-
-// "Solicitar novamente": reabre o ciclo com novo comentário (respondida → solicitada).
-export async function requestAgain(
-	protocol: string,
-	id: string,
-	payload: ReopenPendencyPayload,
-	fetchImpl?: typeof fetch
-): Promise<Result<PendingItem>> {
-	if (!payload.comment.trim()) {
-		return { ok: false, error: { message: 'Informe o motivo para solicitar novamente.' } };
+): Promise<Result<ReviewPendingItemsResponse>> {
+	const validation = validateReviewPayload(payload);
+	if (validation) {
+		return { ok: false, error: { message: validation } };
 	}
 
 	try {
-		const data = await reopenPendingItemApi(protocol, id, payload, fetchImpl);
+		const data = await reviewPendingItemsApi(protocol, payload, fetchImpl);
 		return { ok: true, data };
 	} catch (error) {
 		if (error instanceof ApiError) {
-			return {
-				ok: false,
-				error: {
-					status: error.status,
-					message: 'Não foi possível reabrir a pendência.'
-				}
-			};
+			const message =
+				error.status === 403
+					? 'Você não tem permissão para revisar pendências nesta tratativa.'
+					: error.status === 409
+						? 'Algum item desta revisão não está aguardando resposta.'
+						: 'Não foi possível concluir a revisão.';
+			return { ok: false, error: { status: error.status, message } };
 		}
 		return { ok: false, error: { message: 'Não foi possível conectar ao servidor.' } };
 	}
@@ -142,6 +121,16 @@ function validateCreatePayload(payload: CreatePendencyPayload): string | null {
 	}
 	if (payload.items.some((item) => !item.comment.trim())) {
 		return 'Informe o motivo da alteração para todos os campos marcados.';
+	}
+	return null;
+}
+
+function validateReviewPayload(payload: ReviewPendingItemsBody): string | null {
+	if (payload.items.length === 0) {
+		return 'Decida ao menos um campo para concluir a revisão.';
+	}
+	if (payload.items.some((item) => item.decision === 'reopen' && !item.comment.trim())) {
+		return 'Informe o motivo para os itens reabertos.';
 	}
 	return null;
 }

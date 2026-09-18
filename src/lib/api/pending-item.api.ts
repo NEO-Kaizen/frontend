@@ -1,26 +1,27 @@
 import { apiClient } from './client';
 import { MOCK_DOMAINS } from '$lib/mocks';
+import { ApiError } from '$lib/types/result';
 
 import type {
 	CreatePendencyPayload,
 	CreatePendencyResponse,
 	ListPendenciesQuery,
 	ListPendenciesResponse,
-	PendingItem,
-	ReopenPendencyPayload,
-	ValidatePendencyPayload
+	ReviewPendingItemsBody,
+	ReviewPendingItemsResponse
 } from '$lib/types/pendency';
 
-// Contrato proposto para o ciclo de pendências por campo (backend em definição).
+// Contrato BACKEND-CONTRATO-PENDENCIAS-POR-CAMPO-0_2.md.
 function pendingItemsPath(protocol: string): string {
 	const encoded = encodeURIComponent(protocol);
 	return `/requests/${encoded}/pending-items`;
 }
 
+// §4: o contrato não define GET dedicado — a leitura real vem do canal/detalhe
+// interno (#125) e do `correctionAlert`. Disponível apenas via mock em DEV.
 export async function getPendingItems(
 	protocol: string,
-	query: ListPendenciesQuery = {},
-	fetchImpl?: typeof fetch
+	query: ListPendenciesQuery = {}
 ): Promise<ListPendenciesResponse> {
 	// DEV inline no ponto de chamada garante a eliminação do mock no build (DCE).
 	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.pendingItems) {
@@ -28,21 +29,10 @@ export async function getPendingItems(
 		return listPendingItemsMock(protocol, query);
 	}
 
-	const params = new URLSearchParams();
-
-	if (query.status) params.set('status', query.status);
-	if (query.page !== undefined) params.set('page', String(query.page));
-	if (query.pageSize !== undefined) params.set('pageSize', String(query.pageSize));
-
-	const qs = params.toString();
-	const path = qs ? `${pendingItemsPath(protocol)}?${qs}` : pendingItemsPath(protocol);
-
-	return apiClient<ListPendenciesResponse>(path, {}, fetchImpl);
+	throw new ApiError(501, 'Listagem de pendências indisponível fora do mock.');
 }
 
-// POST /requests/:protocol/pending-items — cria as pendências por campo e muda o
-// status da solicitação para "Pendente de informações" (transação no backend).
-// O corpo é JSON: somente justificativas (sem anexos no fluxo atual).
+// §1 — POST /requests/:protocol/pending-items.
 export async function createPendingItems(
 	protocol: string,
 	payload: CreatePendencyPayload,
@@ -63,42 +53,19 @@ export async function createPendingItems(
 	);
 }
 
-// POST /pending-items/:id/validate — aplica o valor corrigido e fecha o ciclo.
-export async function validatePendingItem(
+// §3 — POST /requests/:protocol/pending-items/review (revisão em lote).
+export async function reviewPendingItems(
 	protocol: string,
-	id: string,
-	payload: ValidatePendencyPayload = {},
+	payload: ReviewPendingItemsBody,
 	fetchImpl?: typeof fetch
-): Promise<PendingItem> {
+): Promise<ReviewPendingItemsResponse> {
 	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.pendingItems) {
-		const { validatePendingItemMock } = await import('$lib/mocks/pendency.mock');
-		return validatePendingItemMock(protocol, id);
+		const { reviewPendingItemsMock } = await import('$lib/mocks/pendency.mock');
+		return reviewPendingItemsMock(protocol, payload);
 	}
 
-	return apiClient<PendingItem>(
-		`${pendingItemsPath(protocol)}/${encodeURIComponent(id)}/validate`,
-		{
-			method: 'POST',
-			body: JSON.stringify(payload)
-		},
-		fetchImpl
-	);
-}
-
-// POST /pending-items/:id/reopen — "Solicitar novamente": reabre o ciclo.
-export async function reopenPendingItem(
-	protocol: string,
-	id: string,
-	payload: ReopenPendencyPayload,
-	fetchImpl?: typeof fetch
-): Promise<PendingItem> {
-	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.pendingItems) {
-		const { reopenPendingItemMock } = await import('$lib/mocks/pendency.mock');
-		return reopenPendingItemMock(protocol, id, payload);
-	}
-
-	return apiClient<PendingItem>(
-		`${pendingItemsPath(protocol)}/${encodeURIComponent(id)}/reopen`,
+	return apiClient<ReviewPendingItemsResponse>(
+		`${pendingItemsPath(protocol)}/review`,
 		{
 			method: 'POST',
 			body: JSON.stringify(payload)
