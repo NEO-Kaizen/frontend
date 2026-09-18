@@ -1,4 +1,6 @@
 <script lang="ts">
+	import ToastHost from '$lib/components/layout/ToastHost.svelte';
+
 	let { data, children } = $props();
 </script>
 
@@ -15,6 +17,7 @@
 	style:--background-color={data.portalConfig.theme.backgroundColor}
 >
 	{@render children()}
+	<ToastHost />
 </div>
 
 <style>

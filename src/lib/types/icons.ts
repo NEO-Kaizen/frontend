@@ -60,7 +60,8 @@ export const iconDictionary = {
 	error: 'error',
 	inbox: 'inbox',
 	flag: 'flag',
-	content_copy: 'content_copy'
+	content_copy: 'content_copy',
+	warning: 'warning'
 } as const;
 
 export type IconName = keyof typeof iconDictionary;
