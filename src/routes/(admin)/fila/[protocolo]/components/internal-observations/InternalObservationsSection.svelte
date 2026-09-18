@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
@@ -12,10 +13,9 @@
 
 	interface Props {
 		solicitation: InternalRequestDetail;
-		onCountChange?: (count: number) => void;
 	}
 
-	let { solicitation, onCountChange }: Props = $props();
+	let { solicitation }: Props = $props();
 
 	let observations = $state<InternalObservation[]>([]);
 	let draft = $state('');
@@ -52,9 +52,11 @@
 			.join('')
 			.toUpperCase();
 	}
+	
+	const currentUserId = $derived(page.data.user?.id);
 
-	function isAnalyst(observation: InternalObservation): boolean {
-		return observation.author.role.toLowerCase().includes('analista');
+	function isOwnObservation(observation: InternalObservation): boolean {
+		return observation.author.id === currentUserId;
 	}
 	async function load() {
 		loading = true;
@@ -64,7 +66,6 @@
 
 		if (result.ok) {
 			observations = result.data.observations;
-			onCountChange?.(observations.length);
 		} else {
 			loadError = result.error.message;
 		}
@@ -82,7 +83,6 @@
 
 		if (result.ok) {
 			observations = [...observations, result.data];
-			onCountChange?.(observations.length);
 			draft = '';
 		} else {
 			submitError = result.error.message;
@@ -112,10 +112,6 @@
 			<div class="empty-state">
 				<p>Carregando observações internas...</p>
 			</div>
-		{:else if loadError}
-			<div class="empty-state" role="alert">
-				<p>{loadError}</p>
-			</div>
 		{:else if observations.length > 0}
 			<div class="timeline-event">
 				<span>▣ Demanda registrada no portal em {formatDateTime(solicitation.openedAt)}</span>
@@ -125,17 +121,17 @@
 				{#each observations as observation (observation.id)}
 					<article
 						class="observation-entry"
-						class:observation-entry--right={isAnalyst(observation)}
+						class:observation-entry--right={isOwnObservation(observation)}
 					>
 						<div class="observation-header">
-							{#if !isAnalyst(observation)}
+							{#if !isOwnObservation(observation)}
 								<div class="author-avatar author-avatar--light" aria-hidden="true">
 									{getInitials(observation.author.name)}
 								</div>
 							{/if}
 
-							<div class="observation-meta" class:observation-meta--right={isAnalyst(observation)}>
-								{#if isAnalyst(observation)}
+							<div class="observation-meta" class:observation-meta--right={isOwnObservation(observation)}>
+								{#if isOwnObservation(observation)}
 									<time datetime={observation.createdAt}>
 										{formatDateTime(observation.createdAt)}
 									</time>
@@ -145,14 +141,14 @@
 									{observation.author.name} ({observation.author.role})
 								</strong>
 
-								{#if !isAnalyst(observation)}
+								{#if !isOwnObservation(observation)}
 									<time datetime={observation.createdAt}>
 										{formatDateTime(observation.createdAt)}
 									</time>
 								{/if}
 							</div>
 
-							{#if isAnalyst(observation)}
+							{#if isOwnObservation(observation)}
 								<div class="author-avatar author-avatar--primary" aria-hidden="true">
 									{getInitials(observation.author.name)}
 								</div>
@@ -161,7 +157,7 @@
 
 						<div
 							class="observation-bubble"
-							class:observation-bubble--primary={isAnalyst(observation)}
+							class:observation-bubble--primary={isOwnObservation(observation)}
 						>
 							<p>{observation.content}</p>
 						</div>
@@ -169,8 +165,15 @@
 				{/each}
 			</div>
 		{:else if legacyObservation}
+			{#if loadError}
+				<p class="timeline-warning" role="alert">{loadError}</p>
+			{/if}
 			<div class="legacy-observation">
 				<p>{legacyObservation}</p>
+			</div>
+		{:else if loadError}
+			<div class="empty-state" role="alert">
+				<p>{loadError}</p>
 			</div>
 		{:else}
 			<div class="empty-state">
@@ -250,6 +253,13 @@
 		flex-direction: column;
 		min-height: 360px;
 		padding: 0 var(--spacing-md) var(--spacing-md);
+	}
+
+	.timeline-warning {
+		margin: 12px 0;
+		color: var(--gray);
+		font-size: 12px;
+		line-height: 1.4;
 	}
 
 	.timeline-event {

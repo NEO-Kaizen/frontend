@@ -6,7 +6,6 @@
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Modal from '$lib/components/Modal.svelte';
-	import { loadInternalObservations } from '$lib/services/internal-observations.service';
 	import { updateInternalRequest } from '$lib/services/request.service';
 	import type { InternalRequestDetail } from '$lib/types/request';
 	import InternalObservationsSection from './internal-observations/InternalObservationsSection.svelte';
@@ -28,16 +27,6 @@
 	}
 
 	let { solicitation, onSaveSuccess, onSaveError }: Props = $props();
-
-	let internalObservationsCount = $state(0);
-
-	async function loadInternalObservationsCount(): Promise<void> {
-		const result = await loadInternalObservations(solicitation.protocol);
-
-		if (result.ok) {
-			internalObservationsCount = result.data.observations.length;
-		}
-	}
 
 	type SpecTabId = 'informacoes' | 'triagem' | 'mapeamento' | 'historico' | 'observacoes';
 
@@ -72,8 +61,7 @@
 			id: 'observacoes',
 			label: 'Observações Internas',
 			icon: 'info',
-			enabled: true,
-			badge: internalObservationsCount
+			enabled: true
 		}
 	]);
 
@@ -290,8 +278,6 @@
 			onSaveError?.(result.error.message);
 		}
 	}
-
-	void loadInternalObservationsCount();
 </script>
 
 <section class="details-card" aria-label="Detalhes da solicitação" bind:this={detailsCard}>
@@ -314,14 +300,7 @@
 					<Icon iconName={tab.icon} iconSize="sm" />
 					<span>{tab.label}</span>
 
-					{#if tab.id === 'observacoes' && internalObservationsCount > 0}
-						<span
-							class="tab-badge"
-							aria-label={`${internalObservationsCount} observações internas`}
-						>
-							{internalObservationsCount}
-						</span>
-					{:else if tab.badge}
+					{#if tab.badge}
 						<span class="tab-badge" aria-label={`${tab.badge} notificação`}>
 							{tab.badge}
 						</span>
@@ -403,10 +382,7 @@
 				onFieldBlur={handleFieldBlur}
 			/>
 		{:else if activeTab === 'observacoes'}
-			<InternalObservationsSection
-				{solicitation}
-				onCountChange={(count) => (internalObservationsCount = count)}
-			/>
+			<InternalObservationsSection {solicitation} />
 		{:else}
 			<p class="placeholder">Conteúdo de {activeTabLabel} — implementação futura</p>
 		{/if}

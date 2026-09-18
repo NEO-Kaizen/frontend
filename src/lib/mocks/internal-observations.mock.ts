@@ -3,6 +3,7 @@ import type {
 	InternalObservation,
 	InternalObservationsData
 } from '$lib/types/internal-observation';
+import { getMeMock } from './auth.mock';
 
 const observationsByProtocol = new Map<string, InternalObservation[]>([
 	[
@@ -28,6 +29,16 @@ const observationsByProtocol = new Map<string, InternalObservation[]>([
 					role: 'Gestora'
 				},
 				createdAt: '2026-10-08T10:15:00'
+			},
+			{
+				id: 'obs-003',
+				content: 'Impacto confirmado com a área responsável. Podemos avançar para a priorização.',
+				author: {
+					id: '1',
+					name: 'Ana Souza',
+					role: 'Analista'
+				},
+				createdAt: '2026-10-08T11:05:00'
 			}
 		]
 	],
@@ -47,20 +58,22 @@ export function getInternalObservationsMock(protocol: string): Promise<InternalO
 	});
 }
 
-export function createInternalObservationMock(
+export async function createInternalObservationMock(
 	protocol: string,
 	payload: CreateInternalObservationPayload
 ): Promise<InternalObservation> {
 	const normalized = normalizeProtocol(protocol);
 	const observations = observationsByProtocol.get(normalized) ?? [];
 
+	const sessionUser = await getMeMock();
+
 	const observation: InternalObservation = {
 		id: `obs-${Date.now()}`,
 		content: payload.content.trim(),
 		author: {
-			id: 'current-user',
-			name: 'Usuário Atual',
-			role: 'Analista'
+			id: sessionUser.id,
+			name: sessionUser.name,
+			role: sessionUser.role
 		},
 		createdAt: new Date().toISOString()
 	};
