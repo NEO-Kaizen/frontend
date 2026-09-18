@@ -86,31 +86,33 @@ export const DEFAULT_CATEGORIES: PortalCategory[] = [
 	}
 ];
 
-// Status padrão do ciclo de vida das solicitações (Card 6). Espelham os
-// status exibidos no card de configuração; `closesRequest` indica encerramento
-// e `tone`/`visibility` são enums allowlist do contrato. `isActive` é a
-// ativação/inativação (não há exclusão). Servem de fallback do service e de
-// seed do mock. Dados fictícios.
+// Status padrão do ciclo de vida das solicitações (Card 6) — matriz pública de
+// 17 valores (`RequestStatus`, contrato de solicitações). `closesRequest`
+// indica encerramento; `tone`/`visibility` são enums allowlist do contrato;
+// `isActive` é a ativação/inativação (não há exclusão). Servem de fallback do
+// service e de seed do backend/mock. Validado com produto
+// (`plans/validacao-status-defaults.md`); `PRIVATE` do produto corresponde a
+// `INTERNAL` no contrato.
 export const DEFAULT_STATUSES: PortalStatus[] = [
 	{
 		id: 1,
-		name: 'Em aberto',
+		name: 'Solicitação enviada',
+		visibility: 'PUBLIC',
+		closesRequest: false,
+		tone: 'neutral',
+		isActive: true
+	},
+	{
+		id: 2,
+		name: 'Aguardando triagem',
 		visibility: 'PUBLIC',
 		closesRequest: false,
 		tone: 'info',
 		isActive: true
 	},
 	{
-		id: 2,
-		name: 'Em análise',
-		visibility: 'PUBLIC',
-		closesRequest: false,
-		tone: 'warning',
-		isActive: true
-	},
-	{
 		id: 3,
-		name: 'Em andamento',
+		name: 'Em triagem',
 		visibility: 'PUBLIC',
 		closesRequest: false,
 		tone: 'info',
@@ -118,7 +120,7 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 	},
 	{
 		id: 4,
-		name: 'Aguardando cliente',
+		name: 'Pendente de informações',
 		visibility: 'PUBLIC',
 		closesRequest: false,
 		tone: 'warning',
@@ -126,6 +128,94 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 	},
 	{
 		id: 5,
+		name: 'Aguardando mapeamento',
+		visibility: 'PUBLIC',
+		closesRequest: false,
+		tone: 'info',
+		isActive: true
+	},
+	{
+		id: 6,
+		name: 'Mapeamento agendado',
+		visibility: 'PUBLIC',
+		closesRequest: false,
+		tone: 'info',
+		isActive: true
+	},
+	{
+		id: 7,
+		name: 'Em mapeamento',
+		visibility: 'PUBLIC',
+		closesRequest: false,
+		tone: 'info',
+		isActive: true
+	},
+	{
+		id: 8,
+		name: 'Em análise de viabilidade',
+		visibility: 'INTERNAL',
+		closesRequest: false,
+		tone: 'info',
+		isActive: true
+	},
+	{
+		id: 9,
+		name: 'Elegível',
+		visibility: 'INTERNAL',
+		closesRequest: false,
+		tone: 'success',
+		isActive: true
+	},
+	{
+		id: 10,
+		name: 'Não elegível',
+		visibility: 'INTERNAL',
+		closesRequest: false,
+		tone: 'error',
+		isActive: true
+	},
+	{
+		id: 11,
+		name: 'Priorizado',
+		visibility: 'INTERNAL',
+		closesRequest: false,
+		tone: 'warning',
+		isActive: true
+	},
+	{
+		id: 12,
+		name: 'Backlog',
+		visibility: 'INTERNAL',
+		closesRequest: false,
+		tone: 'neutral',
+		isActive: true
+	},
+	{
+		id: 13,
+		name: 'Direcionado para outra área',
+		visibility: 'INTERNAL',
+		closesRequest: false,
+		tone: 'neutral',
+		isActive: true
+	},
+	{
+		id: 14,
+		name: 'Em desenvolvimento',
+		visibility: 'INTERNAL',
+		closesRequest: false,
+		tone: 'info',
+		isActive: true
+	},
+	{
+		id: 15,
+		name: 'Em homologação',
+		visibility: 'INTERNAL',
+		closesRequest: false,
+		tone: 'info',
+		isActive: true
+	},
+	{
+		id: 16,
 		name: 'Concluído',
 		visibility: 'PUBLIC',
 		closesRequest: true,
@@ -133,9 +223,9 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 		isActive: true
 	},
 	{
-		id: 6,
+		id: 17,
 		name: 'Cancelado',
-		visibility: 'INTERNAL',
+		visibility: 'PUBLIC',
 		closesRequest: true,
 		tone: 'error',
 		isActive: true
