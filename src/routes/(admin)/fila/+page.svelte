@@ -181,7 +181,7 @@
 </script>
 
 <svelte:head>
-	<title>Fila Centralizada | MAAT Flow</title>
+	<title>Fila Centralizada | {data.portalConfig.platformName}</title>
 </svelte:head>
 
 <section class="queue-page">
