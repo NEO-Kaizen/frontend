@@ -4,10 +4,7 @@ import type { PageServerLoad } from './$types';
 const PAGE_SIZE = 10;
 
 export const load: PageServerLoad = async ({ fetch, locals }) => {
-	const assigneeId =
-		locals.user?.role === 'Analista'
-			? String(locals.user.id)
-			: 'unassigned';
+	const assigneeId = locals.user?.role === 'Analista' ? String(locals.user.id) : 'unassigned';
 
 	const result = await listQueueRequests(
 		{
