@@ -1,23 +1,28 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
 
-	// Marca do produto de base (não configuravel) — copyright e atribuição.
+	// Marca do produto de base (não configurável) — atribuição "powered by".
 	const PRODUCT_NAME = 'MAAT Flow';
 
+	// Plataforma da marca base: quando o portal usa este nome, não é um rebrand
+	// e a atribuição não é exibida.
+	const BASE_PLATFORM_NAME = 'MAAT';
+
 	const platformName = $derived(page.data.portalConfig.platformName);
-	const isRebranded = $derived(platformName !== DEFAULT_PORTAL_CONFIG.platformName);
+	const isRebranded = $derived(platformName !== BASE_PLATFORM_NAME);
 </script>
 
 <footer class="footer">
 	<div class="footer__content">
 		<p class="footer__brand">{platformName}</p>
 
-		{#if isRebranded}
-			<p class="footer__powered">Powered by {PRODUCT_NAME}</p>
-		{/if}
+		<div class="footer__center">
+			{#if isRebranded}
+				<p class="footer__powered">Powered by {PRODUCT_NAME}</p>
+			{/if}
 
-		<p class="footer__copyright">© 2026 {PRODUCT_NAME}. Todos os direitos reservados.</p>
+			<p class="footer__copyright">© 2026 {platformName}. Todos os direitos reservados.</p>
+		</div>
 
 		<p class="footer__credits">Desenvolvido pela Turma 8 Kaizen — Alpha EdTech</p>
 	</div>
@@ -33,9 +38,9 @@
 	.footer__content {
 		width: 100%;
 		padding: var(--spacing-md) var(--spacing-xl);
-		display: flex;
+		display: grid;
+		grid-template-columns: 1fr auto 1fr;
 		align-items: center;
-		justify-content: space-between;
 		gap: var(--spacing-lg);
 	}
 
@@ -49,9 +54,17 @@
 	}
 
 	.footer__brand {
+		justify-self: start;
 		color: var(--primary-color);
 		font-weight: 700;
 		text-align: left;
+	}
+
+	.footer__center {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: var(--spacing-xs);
 	}
 
 	.footer__powered {
@@ -65,14 +78,20 @@
 	}
 
 	.footer__credits {
+		justify-self: end;
 		color: var(--black);
 		text-align: right;
 	}
 
 	@media (max-width: 768px) {
 		.footer__content {
-			flex-direction: column;
+			grid-template-columns: 1fr;
 			gap: var(--spacing-sm);
+		}
+
+		.footer__brand,
+		.footer__credits {
+			justify-self: center;
 		}
 
 		.footer__brand,
