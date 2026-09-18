@@ -26,11 +26,16 @@ export function toTriageDraft(source: TriageAssessment | null | undefined): Tria
 }
 
 export function toTriagePayload(draft: TriageAssessment): TriageAssessment {
+	// Omite valores condicionais obsoletos: não envia justificativa quando
+	// aderente nem nova categoria quando não há troca — evita persistência
+	// de seleção anterior após toggle do controlador.
+	const adherent = draft.adherentToScope === 'Não' ? trim(draft.adherentJustification) : '';
+	const newCategory = draft.changeCategory === 'Sim' ? draft.newCategory : '';
 	return {
 		adherentToScope: draft.adherentToScope,
-		adherentJustification: trim(draft.adherentJustification),
+		adherentJustification: adherent,
 		changeCategory: draft.changeCategory,
-		newCategory: draft.newCategory,
+		newCategory,
 		preliminaryComplexity: trim(draft.preliminaryComplexity),
 		perceivedRisks: trim(draft.perceivedRisks),
 		suggestedResponsible: trim(draft.suggestedResponsible),
