@@ -14,6 +14,7 @@
 		saveDraftToSession,
 		saveTriageToSession
 	} from '$lib/services/triage-draft.service';
+	import { loadPrioritizationFinal } from '$lib/services/prioritization-draft.service';
 	import { toastState } from '$lib/states/toast.svelte';
 	import { CATEGORY_OPTIONS, YES_NO_OPTIONS } from '$lib/types/request';
 	import type { InternalRequestDetail } from '$lib/types/request';
@@ -83,6 +84,26 @@
 	let showConfirm = $state(false);
 	let sectionRoot = $state<HTMLElement | null>(null);
 
+	const PRIORITY_REQUIRED_MESSAGE = 'Calcule a prioridade antes de finalizar a triagem.';
+
+	function hasCalculatedPriority(): boolean {
+		// Fonte de verdade: score no objeto da solicitação (atualizado via
+		// onSave/onsave da calculadora) OU resultado final em sessionStorage
+		// (sobrevive a reload quando o mock servidor reverte).
+		if (
+			solicitation.prioritization?.score !== null &&
+			solicitation.prioritization?.score !== undefined
+		) {
+			return true;
+		}
+		try {
+			const persisted = loadPrioritizationFinal(solicitation.protocol);
+			return !!persisted?.result && typeof persisted.result.score === 'number';
+		} catch {
+			return false;
+		}
+	}
+
 	function isJustificationDisabled(): boolean {
 		return draft.adherentToScope !== 'Não';
 	}
@@ -106,15 +127,17 @@
 	function handleFieldChange(path: keyof TriageAssessment, value: string) {
 		// @ts-expect-error dynamic
 		draft[path] = value;
-		clearFieldError(path);
-		persistDraft();
 		if (path === 'adherentToScope' && value !== 'Não') {
-			// quando muda para Sim ou vazio, limpa justificativa não requerida
-			// mas mantém valor para não perder digitação caso volte a Não
+			// Limpa valor condicional obsoleto para não enviar/persistir
+			// justificativa anterior ao alternar para Sim/vazio.
+			draft.adherentJustification = '';
 		}
 		if (path === 'changeCategory' && value !== 'Sim') {
-			// mantém newCategory no draft mas desabilita campo
+			// Limpa categoria selecionada anteriormente ao alternar para Não/vazio.
+			draft.newCategory = '';
 		}
+		clearFieldError(path);
+		persistDraft();
 	}
 
 	function handleBlur(path: string) {
@@ -137,7 +160,11 @@
 		const root = sectionRoot;
 		if (!root) return;
 		const invalid = root.querySelector<HTMLElement>('[aria-invalid="true"]');
-		invalid?.focus();
+		if (invalid) {
+			invalid.focus();
+			return;
+		}
+		root.querySelector<HTMLElement>('[data-priority-gate]')?.focus();
 	}
 
 	function handleCancel() {
@@ -148,14 +175,22 @@
 	}
 
 	function handleCalculatePriority() {
+		if (errors['prioritization']) delete errors['prioritization'];
 		onOpenCalculator?.();
 	}
 
 	function handleFinalizeClick() {
 		const validation = validateTriageDraft(draft);
+		if (!hasCalculatedPriority()) {
+			validation['prioritization'] = PRIORITY_REQUIRED_MESSAGE;
+		}
 		errors = validation;
 		if (Object.keys(validation).length > 0) {
-			toastState.add('Revise os campos destacados antes de finalizar.', 'error');
+			if (validation['prioritization'] && Object.keys(validation).length === 1) {
+				toastState.add(PRIORITY_REQUIRED_MESSAGE, 'error');
+			} else {
+				toastState.add('Revise os campos destacados antes de finalizar.', 'error');
+			}
 			tick().then(() => focusFirstInvalid());
 			return;
 		}
@@ -165,10 +200,17 @@
 	async function handleConfirm() {
 		if (isSaving) return;
 		const validation = validateTriageDraft(draft);
+		if (!hasCalculatedPriority()) {
+			validation['prioritization'] = PRIORITY_REQUIRED_MESSAGE;
+		}
 		if (Object.keys(validation).length > 0) {
 			errors = validation;
 			showConfirm = false;
-			toastState.add('Revise os campos destacados antes de finalizar.', 'error');
+			if (validation['prioritization'] && Object.keys(validation).length === 1) {
+				toastState.add(PRIORITY_REQUIRED_MESSAGE, 'error');
+			} else {
+				toastState.add('Revise os campos destacados antes de finalizar.', 'error');
+			}
 			tick().then(() => focusFirstInvalid());
 			return;
 		}
@@ -355,6 +397,15 @@
 		/>
 	</div>
 
+	{#if errors['prioritization']}
+		<p class="priority-gate-error" role="alert" tabindex="-1" data-priority-gate>
+			{errors['prioritization']}
+			<button type="button" class="priority-gate-link" onclick={handleCalculatePriority}>
+				Abrir calculadora
+			</button>
+		</p>
+	{/if}
+
 	<div class="footer-actions">
 		<Button variant="outline-neutral" disabled={isSaving} onclick={handleCancel}>Cancelar</Button>
 		<Button variant="secondary" disabled={isSaving} onclick={handleCalculatePriority}>
@@ -531,6 +582,36 @@
 		margin-top: var(--spacing-sm);
 		width: 75%;
 		justify-content: flex-start;
+	}
+
+	.priority-gate-error {
+		margin: 0;
+		width: 75%;
+		padding: var(--spacing-sm) var(--spacing-md);
+		border-radius: var(--radius-sm);
+		background: var(--status-red-bg);
+		color: var(--status-red);
+		font: var(--label);
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-sm);
+		flex-wrap: wrap;
+	}
+
+	.priority-gate-error:focus {
+		outline: 2px solid var(--status-red);
+		outline-offset: 2px;
+	}
+
+	.priority-gate-link {
+		border: none;
+		background: none;
+		padding: 0;
+		color: inherit;
+		font: inherit;
+		font-weight: 700;
+		text-decoration: underline;
+		cursor: pointer;
 	}
 
 	.confirm-body {
