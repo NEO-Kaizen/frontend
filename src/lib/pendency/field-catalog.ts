@@ -24,23 +24,38 @@ function formatYesNo(value: YesNoDetail | undefined): string {
 	return trimmed === '' ? 'Sim' : `Sim — ${trimmed}`;
 }
 
-// Devolve os campos editáveis da solicitação com o valor atual exibido na
-// seleção. Imutáveis (fullName/corporateEmail) ficam de fora.
+// Devolve os campos marcáveis da solicitação com o valor atual exibido na
+// seleção. `requester.fullName`/`corporateEmail` seguem a regra do contrato §5:
+// só são marcáveis quando a solicitação NÃO tem usuário de origem. Como o
+// detalhe interno ainda não expõe esse id da origem, ficam fora por padrão;
+// ligar `includeIdentityFields` quando o backend prover o flag.
 export function toFieldCandidateSections(
-	solicitation: InternalRequestDetail
+	solicitation: InternalRequestDetail,
+	options: { includeIdentityFields?: boolean } = {}
 ): FieldCandidateSection[] {
 	const { requester, demand, operational, complementary } = solicitation;
 	const sections: FieldCandidateSection[] = [];
 
+	const requesterFields: PendingFieldRef[] = [];
+
+	if (options.includeIdentityFields) {
+		requesterFields.push(
+			toRef('requester.fullName', 'Nome', requester.fullName),
+			toRef('requester.corporateEmail', 'E-mail Corporativo', requester.corporateEmail)
+		);
+	}
+
+	requesterFields.push(
+		toRef('requester.area', 'Área do solicitante', requester.area),
+		toRef('requester.department', 'Departamento', requester.department),
+		toRef('requester.manager', 'Gestor Responsável', requester.manager),
+		toRef('requester.additionalContact', 'Contato adicional', requester.additionalContact)
+	);
+
 	sections.push({
 		id: 'requester',
 		title: 'Identificação do solicitante',
-		fields: [
-			toRef('requester.area', 'Área do solicitante', requester.area),
-			toRef('requester.department', 'Departamento', requester.department),
-			toRef('requester.manager', 'Gestor Responsável', requester.manager),
-			toRef('requester.additionalContact', 'Contato adicional', requester.additionalContact)
-		]
+		fields: requesterFields
 	});
 
 	sections.push({
@@ -142,10 +157,11 @@ export function toFieldCandidateSections(
 
 // Índice flat por fieldKey — resolve o campo a partir do path clicado na tela.
 export function buildFieldLookup(
-	solicitation: InternalRequestDetail
+	solicitation: InternalRequestDetail,
+	options: { includeIdentityFields?: boolean } = {}
 ): Map<string, PendingFieldRef> {
 	const lookup = new Map<string, PendingFieldRef>();
-	for (const section of toFieldCandidateSections(solicitation)) {
+	for (const section of toFieldCandidateSections(solicitation, options)) {
 		for (const field of section.fields) {
 			lookup.set(field.fieldKey, field);
 		}
