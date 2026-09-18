@@ -1094,11 +1094,21 @@ export async function assignAnalystMock(
 	}
 
 	const analyst = (
-		mockUsers as unknown as Array<{ id: string; fullName: string; email: string; profile: string }>
+		mockUsers as unknown as Array<{
+			id: string;
+			fullName: string;
+			email: string;
+			profile: string;
+			isActive: boolean;
+		}>
 	).find((u) => u.id === analystId && u.profile === 'Analista');
 
 	if (!analyst) {
 		return Promise.reject(new ApiError(404, 'Analista não encontrado.'));
+	}
+
+	if (!analyst.isActive) {
+		return Promise.reject(new ApiError(403, 'Analista inativo.'));
 	}
 
 	const assigneeValue = {
@@ -1108,16 +1118,16 @@ export async function assignAnalystMock(
 	};
 
 	if (responsibility === 'mapeamento') {
-		detail.mappingAssignee = assigneeValue
+		detail.mappingAssignee = assigneeValue;
 	}
 
 	detail.assignee = assigneeValue;
-		// Também reflete na fila centralizada para consistência visual (triagem)
-		const queueItem = mockRequests.find((r) => r.protocol.toLowerCase().trim() === normalized);
-		if (queueItem) {
-			queueItem.assigneeId = analyst.id;
-			queueItem.assignee = analyst.fullName;
-		}
+	// Também reflete na fila centralizada para consistência visual (triagem)
+	const queueItem = mockRequests.find((r) => r.protocol.toLowerCase().trim() === normalized);
+	if (queueItem) {
+		queueItem.assigneeId = analyst.id;
+		queueItem.assignee = analyst.fullName;
+	}
 
 	detail.lastUpdate = new Date().toISOString();
 

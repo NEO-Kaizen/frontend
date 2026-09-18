@@ -30,7 +30,9 @@ export interface UserSummary {
 	createdAt: string;
 }
 
-export interface Analyst extends UserSummary {
+// Assignment DTO: backend `GET /users/analysts` retorna só ativos,
+// então `isActive` não faz parte do contrato (ver contratos/contract-assign-action.md).
+export interface Analyst extends Omit<UserSummary, 'isActive'> {
 	specialty: string;
 	categories: RequestCategory[];
 	notes: string | null;

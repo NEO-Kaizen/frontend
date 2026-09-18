@@ -96,8 +96,8 @@
 		loadError = null;
 		const result = await listAnalysts();
 		if (result.ok) {
-			// Apenas ativos na listagem de atribuição — lista direta sem paginação, filtros no front
-			analysts = (result.data as Analyst[]).filter((a) => a.isActive);
+			// Backend retorna só ativos — lista direta sem paginação, filtros no front
+			analysts = result.data as Analyst[];
 			isLoading = false;
 		} else {
 			loadError = result.error.message ?? 'Não foi possível carregar os analistas.';

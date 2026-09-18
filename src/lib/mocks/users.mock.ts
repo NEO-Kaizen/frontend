@@ -322,7 +322,14 @@ export function listUsersMock(query: ListUsersQuery): Promise<PaginatedResponse<
 }
 
 export function listAnalystsMock(): Promise<Analyst[]> {
-	const result = (mockUsers as Analyst[]).filter((user) => user.profile === 'Analista');
+	// Espelha o backend: `GET /users/analysts` retorna só ativos, sem `isActive` no DTO.
+	const result = mockUsers
+		.filter((user) => user.profile === 'Analista' && user.isActive)
+		.map((user) => {
+			const { isActive: _active, ...rest } = user;
+			void _active;
+			return rest as Analyst;
+		});
 	return delay(MOCK_LATENCY_MS).then(() => result);
 }
 
