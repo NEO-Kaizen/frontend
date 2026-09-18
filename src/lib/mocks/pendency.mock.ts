@@ -1,5 +1,6 @@
 import { mockInternalRequestDetails } from './requests.mock';
 import { ApiError } from '$lib/types/result';
+import { buildFieldLookup } from '$lib/pendency/field-catalog';
 
 import type { RequestStatus } from '$lib/types/request';
 import type {
@@ -7,25 +8,27 @@ import type {
 	CreatePendencyResponse,
 	ListPendenciesQuery,
 	ListPendenciesResponse,
+	PendingFieldValue,
 	PendingItem,
-	ReopenPendencyPayload
+	ReviewPendingItemsBody,
+	ReviewPendingItemsResponse
 } from '$lib/types/pendency';
 
 const PENDING_STATUS: RequestStatus = 'Pendente de informações';
 
 // Fixtures do ciclo na tratativa MAAT-8K3P-9X2M (Em triagem). Uma pendência em
-// cada status para demonstrar o agrupamento por status e o desfecho da validação.
+// cada status para demonstrar o agrupamento por status e a revisão em lote.
 const seedItems: PendingItem[] = [
 	{
 		id: 'pnd-res-001',
 		protocol: 'MAAT-8K3P-9X2M',
+		batchId: 'batch-res-2026-001',
 		field: {
 			fieldKey: 'operational.systemsUsed',
 			fieldLabel: 'Sistemas Utilizados',
 			currentValue: 'E-mail corporativo, planilhas Excel'
 		},
 		comment: 'O processo de conferência passou a rodar no SAP. Atualize os sistemas utilizados.',
-		attachments: [],
 		status: 'responded',
 		responseComment: 'Confirmado. O controle de diárias agora é feito no SAP.',
 		correctedValue: 'SAP, planilhas Excel',
@@ -37,13 +40,13 @@ const seedItems: PendingItem[] = [
 	{
 		id: 'pnd-req-001',
 		protocol: 'MAAT-8K3P-9X2M',
+		batchId: 'batch-req-2026-002',
 		field: {
 			fieldKey: 'operational.volumetry',
 			fieldLabel: 'Volumetria Aproximada',
 			currentValue: '120'
 		},
 		comment: 'Informe a volumetria aproximada de comprovantes tratados por mês.',
-		attachments: [],
 		status: 'requested',
 		responseComment: null,
 		correctedValue: null,
@@ -55,13 +58,13 @@ const seedItems: PendingItem[] = [
 	{
 		id: 'pnd-val-001',
 		protocol: 'MAAT-8K3P-9X2M',
+		batchId: 'batch-val-2026-003',
 		field: {
 			fieldKey: 'demand.processName',
 			fieldLabel: 'Nome do Processo Atual',
 			currentValue: 'Pagamento de diárias'
 		},
 		comment: 'Ajuste o nome para refletir o escopo completo do processo.',
-		attachments: [],
 		status: 'validated',
 		responseComment: 'Corrigido conforme solicitado.',
 		correctedValue: 'Pagamento e reembolso de diárias',
@@ -72,15 +75,21 @@ const seedItems: PendingItem[] = [
 	}
 ];
 
-// Estado em memória por sessão: novos itens criados e ciclos validados via modal
+// Estado em memória por sessão: novos itens criados e ciclos decididos via modal
 // persistem durante o uso da aplicação (mesmo padrão dos fixtures de requests).
 const store: PendingItem[] = [...seedItems];
 
 let idCounter = 0;
+let batchCounter = 0;
 
 function nextId(): string {
 	idCounter += 1;
 	return `pnd-gen-${String(idCounter).padStart(3, '0')}`;
+}
+
+function nextBatchId(): string {
+	batchCounter += 1;
+	return `batch-${Date.now().toString(36)}-${String(batchCounter).padStart(3, '0')}`;
 }
 
 function delay(ms: number): Promise<void> {
@@ -89,19 +98,6 @@ function delay(ms: number): Promise<void> {
 
 function findByProtocol(protocol: string): string {
 	return protocol.toLowerCase().trim();
-}
-
-function findInStore(protocol: string, id: string): PendingItem {
-	const normalized = findByProtocol(protocol);
-	const item = store.find(
-		(candidate) => candidate.protocol.toLowerCase().trim() === normalized && candidate.id === id
-	);
-
-	if (!item) {
-		throw new ApiError(404, 'Pendência não encontrada.');
-	}
-
-	return item;
 }
 
 function findSolicitation(protocol: string) {
@@ -147,86 +143,129 @@ export async function listPendingItemsMock(
 	}));
 }
 
+// §1 — criação: resolve `fieldLabel`/`currentValue` a partir do catálogo (o
+// mesmo papel que o backend terá), gera um `batchId` e muda o status.
 export async function createPendingItemsMock(
 	protocol: string,
 	payload: CreatePendencyPayload
 ): Promise<CreatePendencyResponse> {
 	const solicitation = findSolicitation(protocol);
+	const lookup = buildFieldLookup(solicitation);
+	const batchId = nextBatchId();
 	const now = new Date().toISOString();
 
-	const items = payload.items.map<PendingItem>((item) => ({
-		id: nextId(),
-		protocol: solicitation.protocol,
-		field: { ...item.field },
-		comment: item.comment.trim(),
-		attachments: [],
-		status: 'requested',
-		responseComment: null,
-		correctedValue: null,
-		responseAttachments: [],
-		createdAt: now,
-		respondedAt: null,
-		validatedAt: null
-	}));
+	const items = payload.items.map<PendingItem>((entry) => {
+		const field = lookup.get(entry.fieldKey);
+		if (!field) {
+			throw new ApiError(400, 'Campo não marcável nesta solicitação.');
+		}
+		return {
+			id: nextId(),
+			protocol: solicitation.protocol,
+			batchId,
+			field: { ...field },
+			comment: entry.comment.trim(),
+			status: 'requested',
+			responseComment: null,
+			correctedValue: null,
+			responseAttachments: [],
+			createdAt: now,
+			respondedAt: null,
+			validatedAt: null
+		};
+	});
 
 	store.unshift(...items);
 
-	// Envio da pendência por campo muda o status da solicitação.
+	// Envio da pendência por campo muda o status da solicitação (transação §1).
 	solicitation.status = PENDING_STATUS;
 	solicitation.lastUpdate = now;
 
 	return delay(500).then(() => ({
+		batchId,
+		requestAttachment: payload.requestAttachment ?? false,
 		items: items.map((item) => structuredClone(item)),
 		solicitationStatus: solicitation.status
 	}));
 }
 
-export async function validatePendingItemMock(protocol: string, id: string): Promise<PendingItem> {
-	const solicitation = findSolicitation(protocol);
-	const item = findInStore(protocol, id);
-
-	if (item.status !== 'responded') {
-		throw new ApiError(409, 'A pendência precisa estar respondida para ser validada.');
-	}
-
-	item.status = 'validated';
-	item.validatedAt = new Date().toISOString();
-
-	if (item.correctedValue !== null) {
-		applyFieldValue(solicitation, item.field.fieldKey, item.correctedValue);
-	}
-	solicitation.lastUpdate = item.validatedAt;
-
-	return delay(500).then(() => structuredClone(item));
-}
-
-export async function reopenPendingItemMock(
+// §3 — revisão em lote: valida todas as decisões antes de aplicar (atômico);
+// validação fecha o item; reabertura sobrescreve e volta para `requested`.
+export async function reviewPendingItemsMock(
 	protocol: string,
-	id: string,
-	payload: ReopenPendencyPayload
-): Promise<PendingItem> {
-	const item = findInStore(protocol, id);
+	payload: ReviewPendingItemsBody
+): Promise<ReviewPendingItemsResponse> {
+	const solicitation = findSolicitation(protocol);
+	const batchItems = store.filter(
+		(item) =>
+			item.batchId === payload.batchId &&
+			item.protocol.toLowerCase().trim() === findByProtocol(protocol)
+	);
 
-	if (item.status !== 'responded') {
-		throw new ApiError(409, 'A pendência precisa estar respondida para ser reaberta.');
+	if (batchItems.length === 0) {
+		throw new ApiError(404, 'Lote de pendências não encontrado.');
 	}
 
-	item.status = 'requested';
-	item.comment = payload.comment.trim();
-	item.responseComment = null;
-	item.correctedValue = null;
-	item.responseAttachments = [];
-	item.respondedAt = null;
+	const respondedItems = batchItems.filter((item) => item.status === 'responded');
 
-	return delay(500).then(() => structuredClone(item));
+	if (respondedItems.some((item) => !payload.items.some((decision) => decision.id === item.id))) {
+		throw new ApiError(400, 'Decida todos os itens respondidos do lote.');
+	}
+
+	// Valida tudo antes de mutar (transação atômica).
+	for (const decision of payload.items) {
+		const item = store.find((candidate) => candidate.id === decision.id);
+		if (!item || item.batchId !== payload.batchId) {
+			throw new ApiError(409, 'Item não pertence ao lote revisado.');
+		}
+		if (item.status !== 'responded') {
+			throw new ApiError(409, 'Apenas itens respondidos podem ser revisados.');
+		}
+	}
+
+	const now = new Date().toISOString();
+
+	for (const decision of payload.items) {
+		// Já validado acima (existe e pertence ao lote) — guarda de narrowing.
+		const item = store.find((candidate) => candidate.id === decision.id);
+		if (!item) continue;
+
+		if (decision.decision === 'validate') {
+			if (item.correctedValue !== null) {
+				applyFieldValue(solicitation, item.field.fieldKey, item.correctedValue);
+			}
+			item.status = 'validated';
+			item.validatedAt = now;
+		} else {
+			// Reabertura sobrescreve o item: volta a `requested` com novo comentário.
+			item.status = 'requested';
+			item.comment = decision.comment.trim();
+			item.responseComment = null;
+			item.correctedValue = null;
+			item.responseAttachments = [];
+			item.respondedAt = null;
+			item.validatedAt = null;
+			item.createdAt = now;
+		}
+	}
+
+	solicitation.lastUpdate = now;
+
+	const hasReopen = payload.items.some((decision) => decision.decision === 'reopen');
+
+	return delay(500).then(() => ({
+		batchId: payload.batchId,
+		items: batchItems.map((item) => structuredClone(item)),
+		solicitationStatus: hasReopen ? PENDING_STATUS : solicitation.status
+	}));
 }
 
 // Aplica o valor corrigido (diff aprovado) no campo da solicitação — no contrato
-// real o backend faz isso dentro da transação do validate.
+// real o backend faz isso dentro da transação da revisão (§3).
 function applyFieldValue(
 	detail: (typeof mockInternalRequestDetails)[number],
 	fieldKey: string,
-	value: string
+	value: PendingFieldValue
 ): void {
 	const keys = fieldKey.split('.');
 	let node: Record<string, unknown> = detail as unknown as Record<string, unknown>;
@@ -240,10 +279,14 @@ function applyFieldValue(
 	const leaf = keys[keys.length - 1];
 	const current = node[leaf];
 
+	if (current === undefined) return;
+
 	if (typeof current === 'number') {
-		const parsed = Number(value);
+		const parsed = value === null || value === '' ? current : Number(value);
 		node[leaf] = Number.isFinite(parsed) ? parsed : current;
-	} else {
+	} else if (typeof value === 'boolean') {
 		node[leaf] = value;
+	} else {
+		node[leaf] = value === null || value === undefined ? '' : String(value);
 	}
 }
