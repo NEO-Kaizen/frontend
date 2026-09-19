@@ -2,8 +2,8 @@
 	import { invalidateAll } from '$app/navigation';
 	import Icon from '$lib/components/Icon.svelte';
 	import NotFoundState from '$lib/components/NotFoundState.svelte';
-	import type { RequestStatus } from '$lib/types/request';
 	import { formatDate, formatDateTime } from '$lib/utils/dates';
+	import { isClosingStatus, statusThemeVars } from '$lib/utils/status';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -12,54 +12,13 @@
 	const solicitation = $derived(data.solicitation);
 	const error = $derived(data.error);
 
-	const TERMINAL_STATUSES: RequestStatus[] = ['Concluído', 'Cancelado', 'Não elegível'];
+	const statuses = $derived(data.portalConfig.statuses);
 
 	const badgeLabel = $derived(
-		solicitation && TERMINAL_STATUSES.includes(solicitation.status)
+		solicitation && isClosingStatus(solicitation.status, statuses)
 			? 'SOLICITAÇÃO ENCERRADA'
 			: 'SOLICITAÇÃO ATIVA'
 	);
-
-	function getStatusTheme(status: RequestStatus): { bg: string; color: string; border: string } {
-		switch (status) {
-			case 'Concluído':
-			case 'Elegível':
-				return {
-					bg: 'var(--status-green-bg)',
-					color: 'var(--status-green)',
-					border: 'var(--status-green)'
-				};
-			case 'Pendente de informações':
-			case 'Aguardando triagem':
-			case 'Aguardando mapeamento':
-				return {
-					bg: 'var(--status-yellow-bg)',
-					color: 'var(--status-yellow)',
-					border: 'var(--status-yellow)'
-				};
-			case 'Cancelado':
-			case 'Não elegível':
-				return {
-					bg: 'var(--status-red-bg)',
-					color: 'var(--status-red)',
-					border: 'var(--status-red)'
-				};
-			case 'Solicitação enviada':
-			case 'Backlog':
-			case 'Direcionado para outra área':
-				return {
-					bg: 'var(--status-neutral-bg)',
-					color: 'var(--status-neutral)',
-					border: 'var(--status-neutral)'
-				};
-			default:
-				return {
-					bg: 'var(--status-blue-bg)',
-					color: 'var(--status-blue)',
-					border: 'var(--status-blue)'
-				};
-		}
-	}
 </script>
 
 <svelte:head>
@@ -74,7 +33,7 @@
 		</button>
 	</div>
 {:else if solicitation}
-	{@const statusStyle = getStatusTheme(solicitation.status)}
+	{@const statusStyle = statusThemeVars(solicitation.status, statuses)}
 	<div class="solicitation-card">
 		<!-- Cabeçalho -->
 		<div class="card-header-top">

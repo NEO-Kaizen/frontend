@@ -13,7 +13,7 @@
 </script>
 
 <svelte:head>
-	<title>Especificação {protocol ?? ''} - MAAT</title>
+	<title>Especificação {protocol ?? ''} - {data.portalConfig.platformName}</title>
 </svelte:head>
 
 <div class="page-container">

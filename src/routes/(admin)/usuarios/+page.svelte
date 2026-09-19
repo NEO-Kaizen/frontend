@@ -297,7 +297,9 @@
 	<header class="page-header">
 		<h1>Gerenciamento de Usuários</h1>
 
-		<p class="page-subtitle">Controle o acesso e permissões dos colaboradores no MAAT Flow.</p>
+		<p class="page-subtitle">
+			Controle o acesso e permissões dos colaboradores no {data.portalConfig.platformName}.
+		</p>
 	</header>
 
 	<!-- =========================

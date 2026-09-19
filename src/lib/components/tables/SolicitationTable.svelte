@@ -5,29 +5,13 @@
 	import Button from '$lib/components/Button.svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { formatShortDate, formatShortTime } from '$lib/utils/dates';
-	import type { PaginatedResponse, RequestStatus, RequestSummary } from '$lib/types/request';
+	import { statusToneClass } from '$lib/utils/status';
+	import type { PaginatedResponse, RequestSummary } from '$lib/types/request';
 	import type { Result } from '$lib/types/result';
 	import { resolve } from '$app/paths';
+	import { page as appPage } from '$app/state';
 
-	const mapStatusToClass: Record<RequestStatus, string> = {
-		'Aguardando triagem': 'status-blue',
-		'Aguardando mapeamento': 'status-blue',
-		'Em triagem': 'status-blue',
-		'Em desenvolvimento': 'status-blue',
-		'Direcionado para outra área': 'status-neutral',
-		'Em análise de viabilidade': 'status-blue',
-		'Em homologação': 'status-blue',
-		'Em mapeamento': 'status-blue',
-		'Não elegível': 'status-red',
-		'Pendente de informações': 'status-yellow',
-		'Solicitação enviada': 'status-neutral',
-		'Mapeamento agendado': 'status-blue',
-		Elegível: 'status-green',
-		Concluído: 'status-green',
-		Priorizado: 'status-yellow',
-		Cancelado: 'status-red',
-		Backlog: 'status-neutral'
-	};
+	const statuses = $derived(appPage.data.portalConfig.statuses);
 
 	// União literal estreita: evita o falso-positivo RouteId × resolve() documentado.
 	type DetailRoute = '/(public)/acompanhar/[protocolo]' | '/(admin)/fila/[protocolo]';
@@ -156,7 +140,7 @@
 							</td>
 
 							<td>
-								<span class="status {mapStatusToClass[request.status] ?? 'status-neutral'}">
+								<span class="status {statusToneClass(request.status, statuses)}">
 									<span class="status-dot"></span>
 									{request.status}
 								</span>
