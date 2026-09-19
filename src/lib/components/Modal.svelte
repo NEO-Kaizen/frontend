@@ -140,7 +140,7 @@
 	.modal-header h3 {
 		margin: 0;
 		font: var(--h3);
-		color: var(--primary-color);
+		color: var(--heading-color);
 	}
 
 	.modal-close {

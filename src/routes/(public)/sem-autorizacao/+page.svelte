@@ -47,7 +47,7 @@
 	.action-link {
 		padding: var(--spacing-sm) var(--spacing-lg);
 		background-color: var(--primary-color);
-		color: var(--white);
+		color: var(--on-primary);
 		border-radius: var(--radius-md);
 		text-decoration: none;
 		font-weight: 500;

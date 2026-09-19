@@ -13,16 +13,42 @@
 	let isFetching = $state(false);
 	let requestToken = 0;
 
+	const isAnalyst = $derived(data.user?.role === 'Analista');
+
 	let result = $derived(fetchedResult ?? data.result);
 	let userName = $derived(data.user?.name ?? 'Usuário');
+
+	let sectionTitle = $derived(
+		isAnalyst ? 'Solicitações sob minha responsabilidade' : 'Solicitações sem responsável'
+	);
+
+	let emptyTitle = $derived(
+		isAnalyst
+			? 'Nenhuma solicitação sob sua responsabilidade'
+			: 'Nenhuma solicitação sem responsável'
+	);
+
+	let emptyMessage = $derived(
+		isAnalyst
+			? 'Não há solicitações atribuídas a você no momento.'
+			: 'Não há solicitações pendentes de atribuição no momento.'
+	);
+
 	let bannerDescription = $derived.by(() => {
 		if (!result.ok) {
-			return 'Não foi possível carregar o total de solicitações sem responsável.';
+			return isAnalyst
+				? 'Não foi possível carregar o total de solicitações sob sua responsabilidade.'
+				: 'Não foi possível carregar o total de solicitações sem responsável.';
 		}
 
 		const total = result.data.total;
+		const noun = total === 1 ? 'solicitação' : 'solicitações';
 
-		return `Há ${total} ${total === 1 ? 'solicitação' : 'solicitações'} sem responsável.`;
+		if (isAnalyst) {
+			return `Você tem ${total} ${noun} sob sua responsabilidade.`;
+		}
+
+		return `Há ${total} ${noun} sem responsável.`;
 	});
 
 	async function fetchTable(pageNumber: number) {
@@ -33,7 +59,7 @@
 		const next = await listQueueRequests({
 			page: pageNumber,
 			pageSize: data.pageSize,
-			assigneeId: 'unassigned'
+			assigneeId: data.assigneeId
 		});
 
 		if (token !== requestToken) {
@@ -47,22 +73,22 @@
 </script>
 
 <svelte:head>
-	<title>Home Administrativa - MAAT</title>
+	<title>Home Administrativa - {data.portalConfig.platformName}</title>
 </svelte:head>
 
 <div class="content-container dashboard">
 	<Banner titulo={`Bem-vindo de volta, ${userName}`} descricao={bannerDescription} />
 
 	<section class="table-section">
-		<h2>Solicitações sem responsável</h2>
+		<h2>{sectionTitle}</h2>
 
 		<SolicitationTable
 			page={currentPage}
 			{result}
 			{isFetching}
 			detailRoute="/(admin)/fila/[protocolo]"
-			emptyTitle="Nenhuma solicitação sem responsável"
-			emptyMessage="Não há solicitações pendentes de atribuição no momento."
+			{emptyTitle}
+			{emptyMessage}
 			onretry={() => void fetchTable(currentPage)}
 			onpagechange={(nextPage) => void fetchTable(nextPage)}
 		/>
@@ -86,7 +112,7 @@
 
 	.table-section h2 {
 		font: var(--h3);
-		color: var(--rich-black);
+		color: var(--heading-color);
 		margin: 0;
 	}
 </style>

@@ -227,7 +227,7 @@
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		background: var(--status-blue-bg);
+		background: var(--tint);
 		color: var(--secondary-color);
 		border-radius: var(--radius-sm);
 		flex-shrink: 0;
@@ -260,7 +260,7 @@
 		height: 52px;
 		border-radius: 50%;
 		background: var(--secondary-color);
-		color: var(--white);
+		color: var(--on-primary);
 		border: none;
 		display: inline-flex;
 		align-items: center;

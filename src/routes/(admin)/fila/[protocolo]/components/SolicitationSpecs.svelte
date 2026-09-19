@@ -3,7 +3,8 @@
 	import { page } from '$app/state';
 	import { untrack } from 'svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import type { InternalRequestDetail, RequestStatus } from '$lib/types/request';
+	import { statusThemeVars } from '$lib/utils/status';
+	import type { InternalRequestDetail } from '$lib/types/request';
 	import type { CriterionNotes, PrioritizationResult } from '$lib/types/prioritization';
 	import { loadPrioritizationFinal } from '$lib/services/prioritization-draft.service';
 	import { canAssignAnalyst, canCalculatePriority } from '$lib/services/access.service';
@@ -21,40 +22,7 @@
 
 	let { solicitation, onSaveSuccess, onSaveError, onTriageSuccess }: Props = $props();
 
-	function getStatusTheme(status: RequestStatus): { bg: string; color: string; border: string } {
-		switch (status) {
-			case 'Concluído':
-			case 'Elegível':
-				return {
-					bg: 'var(--status-green-bg)',
-					color: 'var(--status-green)',
-					border: 'var(--status-green)'
-				};
-			case 'Pendente de informações':
-			case 'Aguardando triagem':
-			case 'Aguardando mapeamento':
-				return {
-					bg: 'var(--status-yellow-bg)',
-					color: 'var(--status-yellow)',
-					border: 'var(--status-yellow)'
-				};
-			case 'Cancelado':
-			case 'Não elegível':
-				return {
-					bg: 'var(--status-red-bg)',
-					color: 'var(--status-red)',
-					border: 'var(--status-red)'
-				};
-			default:
-				return {
-					bg: 'var(--status-blue-bg)',
-					color: 'var(--status-blue)',
-					border: 'var(--status-blue)'
-				};
-		}
-	}
-
-	let statusTheme = $derived(getStatusTheme(solicitation.status));
+	let statusTheme = $derived(statusThemeVars(solicitation.status, page.data.portalConfig.statuses));
 	let displayScore = $derived(
 		solicitation.prioritization.score === null ? '-' : String(solicitation.prioritization.score)
 	);
@@ -66,8 +34,13 @@
 		label: string | null,
 		hasScore: boolean
 	): { bg: string; color: string; border: string } {
+		// Sem pontuação/label: neutro (antes: `#f3f4f6` hardcoded).
 		if (!hasScore || !label) {
-			return { bg: '#f3f4f6', color: 'var(--gray)', border: 'var(--white-gray)' };
+			return {
+				bg: 'var(--status-neutral-bg)',
+				color: 'var(--status-neutral)',
+				border: 'var(--status-neutral)'
+			};
 		}
 		switch (label) {
 			case 'Crítica':
@@ -89,10 +62,11 @@
 					border: 'var(--status-blue)'
 				};
 			default:
+				// Baixa: neutro (antes: verde).
 				return {
-					bg: 'var(--status-green-bg)',
-					color: 'var(--status-green)',
-					border: 'var(--status-green)'
+					bg: 'var(--status-neutral-bg)',
+					color: 'var(--status-neutral)',
+					border: 'var(--status-neutral)'
 				};
 		}
 	}

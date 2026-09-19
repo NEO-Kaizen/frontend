@@ -200,12 +200,12 @@
 
 	.dropzone:hover:not(.disabled) {
 		border-color: var(--secondary-color);
-		background-color: var(--status-blue-bg);
+		background-color: var(--tint);
 	}
 
 	.dropzone.dragging {
 		border-color: var(--secondary-color);
-		background-color: var(--status-blue-bg);
+		background-color: var(--tint);
 	}
 
 	.dropzone.error {

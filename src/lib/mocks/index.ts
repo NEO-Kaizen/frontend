@@ -11,7 +11,9 @@ export const MOCK_DOMAINS =
 	({
 		auth: true,
 		request: true,
+		portalConfig: true,
 		users: true,
 		prioritization: true,
-		triage: true
+		triage: true,
+		mapping: true
 	} as const);

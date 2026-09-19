@@ -52,26 +52,6 @@ export type RequestCategory =
 	| 'Estudo de viabilidade'
 	| 'Outros';
 
-export const REQUEST_STATUS_OPTIONS: RequestStatus[] = [
-	'Solicitação enviada',
-	'Aguardando triagem',
-	'Em triagem',
-	'Pendente de informações',
-	'Aguardando mapeamento',
-	'Mapeamento agendado',
-	'Em mapeamento',
-	'Em análise de viabilidade',
-	'Elegível',
-	'Não elegível',
-	'Priorizado',
-	'Backlog',
-	'Direcionado para outra área',
-	'Em desenvolvimento',
-	'Em homologação',
-	'Concluído',
-	'Cancelado'
-];
-
 // Bloco 1 — dados do solicitante.
 export interface RequesterBlock {
 	fullName: string;
@@ -432,6 +412,8 @@ export interface InternalRequestDetail {
 	// ID do responsável (preparação para limitação por perfil — issue #121).
 	// `id` + `name` obrigatórios; ambos `null` apenas quando não atribuído.
 	assignee: { id: string | null; name: string | null; email?: string | null } | null;
+	// Responsável pelo mapeamento (contrato Front ↔ Back — Mapeamento): o
+	// backend devolve o objeto ao receber `mappingAssigneeId` no PATCH.
 	mappingAssignee?: { id: string | null; name: string | null; email?: string | null } | null;
 	correctionAlert?: { count: number; message: string } | null;
 

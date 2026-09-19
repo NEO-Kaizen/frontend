@@ -6,9 +6,11 @@
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Modal from '$lib/components/Modal.svelte';
+	import { canEditSolicitation } from '$lib/services/access.service';
 	import { updateInternalRequest } from '$lib/services/request.service';
 	import { toastState } from '$lib/states/toast.svelte';
 	import type { InternalRequestDetail } from '$lib/types/request';
+	import MappingSection from './mapping/MappingSection.svelte';
 	import InfoSection from './solicitation-info/InfoSection.svelte';
 	import TriageSection from './triagem/TriageSection.svelte';
 	import {
@@ -44,6 +46,13 @@
 		badge?: number;
 	};
 
+	// ---- Modo de edição (issue #121) ----
+	// `isEditMode` fica no topo porque a aba ativa deriva dele (edição trava
+	// a aba em `informacoes` para não perder o rascunho).
+	let isEditMode = $state(false);
+
+	// Mapeamento habilitado sem badge: não há contagem disponível (sem backend
+	// de notificações da aba). As demais abas futuras seguem desabilitadas.
 	const SPEC_TABS: readonly SpecTabDefinition[] = [
 		{ id: 'informacoes', label: 'Informações', icon: 'description', enabled: true },
 		{ id: 'triagem', label: 'Triagem', icon: 'filter', enabled: true },
@@ -51,8 +60,7 @@
 			id: 'mapeamento',
 			label: 'Mapeamento',
 			icon: 'calendarCheck',
-			enabled: false,
-			badge: 1
+			enabled: true
 		},
 		{
 			id: 'historico',
@@ -64,14 +72,18 @@
 		{ id: 'observacoes', label: 'Observações Internas', icon: 'info', enabled: false }
 	];
 
-	// Botão Editar visível apenas para Administrador ou o responsável pela triagem.
-	// Regra definitiva é decidida pela issue #121 (modo de edição).
+	// Botão Editar visível apenas para quem pode editar o conteúdo interno
+	// (Administrador ou responsável atribuído — regra em `access.service`).
+	// Gestor e demais perfis visualizam em somente leitura.
 	const currentUser = $derived(page.data.user);
-	const canEdit = $derived(
-		currentUser?.role === 'Administrador' ||
-			Boolean(currentUser && solicitation.assignee?.id === currentUser.id)
-	);
+	const canEdit = $derived(canEditSolicitation(solicitation.assignee?.id, currentUser ?? null));
 	const canTriage = $derived(canEdit);
+
+	// A permissão do mapeamento usa o responsável do mapeamento
+	// (`mappingAssignee`) do primeiro GET da solicitação + `/auth/me`
+	// (via `page.data.user`) — nunca o GET do mapeamento.
+	const mappingAssigneeId = $derived(solicitation.mappingAssignee?.id ?? null);
+	const canEditMapping = $derived(canEditSolicitation(mappingAssigneeId, currentUser ?? null));
 
 	const displayTabs = $derived(SPEC_TABS.filter((tab) => tab.id !== 'triagem' || canTriage));
 
@@ -84,7 +96,11 @@
 		return DEFAULT_TAB_ID;
 	}
 
-	const activeTab = $derived(resolveActiveTab(page.url.searchParams.get('aba')));
+	// Durante a edição das informações a aba fica travada em `informacoes`
+	// para não perder o rascunho (o mapeamento tem fluxo próprio de edição).
+	const activeTab = $derived(
+		isEditMode ? DEFAULT_TAB_ID : resolveActiveTab(page.url.searchParams.get('aba'))
+	);
 
 	const activeTabLabel = $derived(
 		SPEC_TABS.find((tab) => tab.id === activeTab)?.label ??
@@ -93,7 +109,7 @@
 	);
 
 	function handleTabSelect(tab: SpecTabDefinition) {
-		if (!tab.enabled) return;
+		if (!tab.enabled || isEditMode) return;
 		if (tab.id === 'triagem' && !canTriage) return;
 		clearSaveSuccess();
 
@@ -118,7 +134,6 @@
 
 	// ---- Modo de edição (issue #121) ----
 
-	let isEditMode = $state(false);
 	let draft = $state<EditableDraft | null>(null);
 	let errors = $state<Record<string, string>>({});
 	let isSaving = $state(false);
@@ -275,12 +290,14 @@
 					role="tab"
 					id={`spec-tab-${tab.id}`}
 					aria-selected={activeTab === tab.id}
-					aria-disabled={!tab.enabled ? 'true' : undefined}
+					aria-disabled={!tab.enabled || (isEditMode && tab.id !== 'informacoes')
+						? 'true'
+						: undefined}
 					aria-controls="spec-panel"
-					disabled={!tab.enabled}
+					disabled={!tab.enabled || (isEditMode && tab.id !== 'informacoes')}
 					class="tab-item"
 					class:active={activeTab === tab.id}
-					class:disabled={!tab.enabled}
+					class:disabled={!tab.enabled || (isEditMode && tab.id !== 'informacoes')}
 					onclick={() => handleTabSelect(tab)}
 				>
 					<Icon iconName={tab.icon} iconSize="sm" />
@@ -322,7 +339,7 @@
 						<span>Cancelar</span>
 					</button>
 				</div>
-			{:else if canEdit}
+			{:else if canEdit && activeTab === 'informacoes'}
 				<button
 					type="button"
 					bind:this={editButton}
@@ -367,6 +384,8 @@
 						}}
 						{onOpenCalculator}
 					/>
+				{:else if activeTab === 'mapeamento'}
+					<MappingSection {solicitation} canEdit={canEditMapping} />
 				{:else}
 					<p class="placeholder">Conteúdo de {activeTabLabel} — implementação futura</p>
 				{/if}
@@ -460,7 +479,7 @@
 
 	.tab-item.active {
 		background: var(--primary-color);
-		color: var(--white);
+		color: var(--on-primary);
 		border-color: var(--primary-color);
 	}
 
@@ -486,7 +505,7 @@
 		padding: 0 5px;
 		border-radius: 999px;
 		background: var(--secondary-color);
-		color: var(--white);
+		color: var(--on-primary);
 		font-size: 11px;
 		font-weight: 700;
 		line-height: 1;
