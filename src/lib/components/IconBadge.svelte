@@ -98,7 +98,7 @@
 	}
 
 	.icon-badge.neutral {
-		background-color: #e5e7eb;
+		background-color: var(--white-gray);
 		color: #4b5563;
 	}
 
