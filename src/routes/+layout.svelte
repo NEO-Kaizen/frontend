@@ -1,4 +1,5 @@
 <script lang="ts">
+	import NavigationProgress from '$lib/components/layout/NavigationProgress.svelte';
 	import ToastHost from '$lib/components/layout/ToastHost.svelte';
 
 	let { data, children } = $props();
@@ -16,6 +17,7 @@
 	style:--secondary-color={data.portalConfig.theme.secondaryColor}
 	style:--background-color={data.portalConfig.theme.backgroundColor}
 >
+	<NavigationProgress />
 	{@render children()}
 	<ToastHost />
 </div>
