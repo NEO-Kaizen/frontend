@@ -200,6 +200,14 @@ export type CategoriesSection = Pick<PortalConfig, 'categories'>;
 export type StatusesSection = Pick<PortalConfig, 'statuses'>;
 export type PrioritizationWeightsSection = Pick<PortalConfig, 'prioritizationWeights'>;
 
+// Falha autoritativa do GET /portal-config na tela de configurações. Estado de
+// "falha ao carregar" precisa ser diferente de "configuração carregada": nunca
+// é confundido com uma configuração válida (ver `portal-config-load.ts`).
+export interface PortalConfigLoadError {
+	status?: number;
+	message: string;
+}
+
 // Chave de rota de cada seção — usada pela camada de dados e pelos cards.
 export type PortalConfigSection =
 	'access' | 'identity' | 'theme' | 'assets' | 'categories' | 'statuses' | 'prioritization-weights';

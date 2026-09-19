@@ -4,6 +4,7 @@
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import InfoTip from '$lib/components/InfoTip.svelte';
 	import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
+	import { isPortalConfigLoadBlocked } from '$lib/config/portal-config-load';
 	import { saveAccess } from '$lib/config/portal-config.service';
 	import { SectionState } from '$lib/states/section.svelte';
 	import type { AccessSection, SolicitationMode } from '$lib/types/portal-config';
@@ -16,6 +17,10 @@
 		{ solicitationMode: DEFAULT_PORTAL_CONFIG.solicitationMode },
 		(draft) => saveAccess({ solicitationMode: draft.solicitationMode })
 	);
+
+	// Leitura autoritativa falhou: o draft pode ser o fallback local — bloqueia
+	// edição e salvamento até a revalidação.
+	const loadFailed = $derived(isPortalConfigLoadBlocked(page.data));
 
 	// O modo de abertura muda quem pode acessar o portal nos dois sentidos, então
 	// toda mudança pede confirmação antes de aplicar. Não bloqueia — apenas
@@ -34,12 +39,14 @@
 	}
 
 	async function persistSave(): Promise<void> {
+		if (loadFailed) return;
 		if (notifySectionSave(await section.save())) {
 			await invalidateAll();
 		}
 	}
 
 	async function handleSave(): Promise<void> {
+		if (loadFailed) return;
 		confirmChange = true;
 	}
 </script>
@@ -54,13 +61,14 @@
 			dirty={section.dirty}
 			saving={section.saving}
 			restorable={section.restorable}
+			{loadFailed}
 			onSave={handleSave}
 			onCancel={() => section.reset()}
 			onRestoreDefaults={() => section.restoreDefaults()}
 		/>
 	{/snippet}
 
-	<fieldset class="access-group">
+	<fieldset class="access-group" disabled={loadFailed}>
 		<legend class="access-legend">
 			<span class="access-legend-text">Modo de abertura do portal</span>
 			<InfoTip

@@ -7,8 +7,7 @@
 		value: string;
 		onchange: (value: string) => void;
 		// Exibe o slider de opacidade (alpha) — usado só onde a cor aceita alpha.
-		allowAlpha?: boolean;
-		// Texto auxiliar de uso, exibido sob o rótulo e ligado via aria-describedby.
+		allowAlpha?: boolean; // Texto auxiliar de uso, exibido sob o rótulo e ligado via aria-describedby.
 		hint?: string;
 		// Amostra "Aa": fundo (cor ou gradiente) + cor do texto.
 		previewBackground?: string;
@@ -18,6 +17,8 @@
 		// Identificador estável para o pai agregar o estado de validade.
 		fieldId?: string;
 		onvaliditychange?: (id: string, invalid: boolean) => void;
+		// Bloqueia edição (ex.: leitura autoritativa falhou) sem esconder valores.
+		disabled?: boolean;
 	}
 
 	let {
@@ -30,7 +31,8 @@
 		previewForeground,
 		reserveHint = false,
 		fieldId,
-		onvaliditychange
+		onvaliditychange,
+		disabled = false
 	}: Props = $props();
 
 	// id estável entre SSR e cliente para o aria-describedby.
@@ -134,6 +136,7 @@
 				value={rgbValue}
 				aria-label={`Selecionar cor de ${label}`}
 				aria-describedby={describedBy}
+				{disabled}
 				oninput={handleColorInput}
 			/>
 		{:else}
@@ -152,6 +155,7 @@
 			aria-label={`Código hexadecimal de ${label}`}
 			aria-invalid={isInvalid}
 			aria-describedby={describedBy}
+			{disabled}
 			oninput={handleTextInput}
 		/>
 		{#if hasPreview}

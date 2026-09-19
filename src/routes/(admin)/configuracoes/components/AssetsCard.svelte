@@ -6,6 +6,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import AssetImage from '$lib/components/AssetImage.svelte';
 	import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
+	import { isPortalConfigLoadBlocked } from '$lib/config/portal-config-load';
 	import { saveAssets } from '$lib/config/portal-config.service';
 	import { SectionState } from '$lib/states/section.svelte';
 	import {
@@ -86,6 +87,10 @@
 	let pendingFiles = $state<Partial<Record<AssetKey, File>>>({});
 	let previewUrls = $state<Partial<Record<AssetKey, string>>>({});
 
+	// Leitura autoritativa falhou: o draft pode ser o fallback local — bloqueia
+	// edição e salvamento até a revalidação.
+	const loadFailed = $derived(isPortalConfigLoadBlocked(page.data));
+
 	const section = new SectionState<AssetsSection>(
 		{ assets: page.data.portalConfig.assets },
 		{ assets: DEFAULT_PORTAL_CONFIG.assets },
@@ -135,6 +140,7 @@
 	// Preview local até o Salvar: guarda o arquivo e troca a URL do draft pela
 	// object URL imediata. O binário só sobe no PATCH multipart de assets.
 	function handleAssetChange(event: Event, asset: AssetKey) {
+		if (loadFailed) return;
 		const input = event.currentTarget as HTMLInputElement;
 		const file = input.files?.[0];
 		input.value = '';
@@ -162,6 +168,7 @@
 	}
 
 	async function handleSave() {
+		if (loadFailed) return;
 		if (notifySectionSave(await section.save())) {
 			clearPendingFiles();
 			await invalidateAll();
@@ -191,6 +198,7 @@
 			dirty={section.dirty}
 			saving={section.saving}
 			restorable={section.restorable}
+			{loadFailed}
 			onSave={handleSave}
 			onCancel={handleCancel}
 			onRestoreDefaults={handleRestoreDefaults}
@@ -204,11 +212,11 @@
 					<span class="asset-label">{asset.label}</span>
 
 					{#if asset.primaryFlag}
-						<label class="asset-flag" class:disabled={section.saving || !logoSvg}>
+						<label class="asset-flag" class:disabled={section.saving || loadFailed || !logoSvg}>
 							<input
 								type="checkbox"
 								checked={section.draft.assets.logoUsePrimaryColor}
-								disabled={section.saving || !logoSvg}
+								disabled={section.saving || loadFailed || !logoSvg}
 								onchange={(event) => setLogoUsePrimaryColor(event.currentTarget.checked)}
 							/>
 							Usar cor primária
@@ -238,7 +246,7 @@
 							<div class="asset-actions">
 								<Button
 									variant="outline-neutral"
-									disabled={section.saving}
+									disabled={section.saving || loadFailed}
 									onclick={() => fileInputs[variant.key]?.click()}
 								>
 									<Icon iconName="edit" iconSize="sm" />

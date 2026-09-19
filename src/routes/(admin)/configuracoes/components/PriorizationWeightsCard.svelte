@@ -4,6 +4,7 @@
 		DEFAULT_PORTAL_CONFIG,
 		PRIORITIZATION_CRITERIA_LABELS
 	} from '$lib/config/portal-defaults';
+	import { isPortalConfigLoadBlocked } from '$lib/config/portal-config-load';
 	import { savePrioritizationWeights } from '$lib/config/portal-config.service';
 	import { SectionState } from '$lib/states/section.svelte';
 	import {
@@ -27,6 +28,10 @@
 		(draft) => savePrioritizationWeights({ prioritizationWeights: draft.prioritizationWeights })
 	);
 
+	// Leitura autoritativa falhou: o draft pode ser o fallback local — bloqueia
+	// edição e salvamento até a revalidação.
+	const loadFailed = $derived(isPortalConfigLoadBlocked(page.data));
+
 	// Qualquer peso fora de 1..10 (inteiro) bloqueia o salvamento.
 	const weightsError: string | null = $derived.by(() => {
 		const weights = section.draft.prioritizationWeights;
@@ -45,6 +50,7 @@
 	}
 
 	async function handleSave() {
+		if (loadFailed) return;
 		notifySectionSave(await section.save());
 	}
 
@@ -72,6 +78,7 @@
 			saving={section.saving}
 			restorable={section.restorable}
 			{invalid}
+			{loadFailed}
 			onSave={handleSave}
 			onCancel={() => section.reset()}
 			onRestoreDefaults={() => section.restoreDefaults()}
@@ -105,7 +112,7 @@
 										step={PRIORITIZATION_WEIGHT_STEP}
 										value={section.draft.prioritizationWeights[criterion]}
 										aria-label={`Peso de ${PRIORITIZATION_CRITERIA_LABELS[criterion]}`}
-										disabled={section.saving}
+										disabled={section.saving || loadFailed}
 										oninput={(event) => handleSliderInput(event, criterion)}
 									/>
 								</div>
@@ -115,6 +122,7 @@
 										type="button"
 										aria-label={`Diminuir peso de ${PRIORITIZATION_CRITERIA_LABELS[criterion]}`}
 										disabled={section.saving ||
+											loadFailed ||
 											section.draft.prioritizationWeights[criterion] <= PRIORITIZATION_WEIGHT_MIN}
 										onclick={() => adjustWeight(criterion, -1)}
 									>
@@ -128,6 +136,7 @@
 										type="button"
 										aria-label={`Aumentar peso de ${PRIORITIZATION_CRITERIA_LABELS[criterion]}`}
 										disabled={section.saving ||
+											loadFailed ||
 											section.draft.prioritizationWeights[criterion] >= PRIORITIZATION_WEIGHT_MAX}
 										onclick={() => adjustWeight(criterion, 1)}
 									>

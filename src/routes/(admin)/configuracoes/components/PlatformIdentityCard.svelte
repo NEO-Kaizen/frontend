@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import Input from '$lib/components/Input.svelte';
 	import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
+	import { isPortalConfigLoadBlocked } from '$lib/config/portal-config-load';
 	import { saveIdentity } from '$lib/config/portal-config.service';
 	import { SectionState } from '$lib/states/section.svelte';
 	import type { IdentitySection, UpdateIdentityRequest } from '$lib/types/portal-config';
@@ -32,6 +33,10 @@
 			return saveIdentity(payload);
 		}
 	);
+
+	// Leitura autoritativa falhou: o draft pode ser o fallback local — bloqueia
+	// edição e salvamento até a revalidação.
+	const loadFailed = $derived(isPortalConfigLoadBlocked(page.data));
 
 	// Vazio também é inválido para impedir salvar sem valor.
 	const fieldErrors: { platformName?: string; protocolMask?: string } = $derived({
@@ -74,6 +79,7 @@
 	}
 
 	async function handleSave() {
+		if (loadFailed) return;
 		if (notifySectionSave(await section.save())) {
 			await invalidateAll();
 		}
@@ -91,6 +97,7 @@
 			saving={section.saving}
 			restorable={section.restorable}
 			{invalid}
+			{loadFailed}
 			onSave={handleSave}
 			onCancel={() => section.reset()}
 			onRestoreDefaults={() => section.restoreDefaults()}
@@ -104,7 +111,7 @@
 			placeholder="Ex.: MAAT"
 			bind:value={getPlatformName, setPlatformName}
 			error={fieldErrors.platformName}
-			disabled={section.saving}
+			disabled={section.saving || loadFailed}
 		/>
 		<Input
 			label="Máscara de protocolo"
@@ -113,7 +120,7 @@
 			hint={protocolExample ? `Exemplo: ${protocolExample}` : undefined}
 			bind:value={getProtocolMask, setProtocolMask}
 			error={fieldErrors.protocolMask}
-			disabled={section.saving}
+			disabled={section.saving || loadFailed}
 		/>
 	</div>
 </SettingsCard>

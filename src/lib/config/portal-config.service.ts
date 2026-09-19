@@ -83,6 +83,24 @@ export async function loadPortalConfig(fetchImpl?: typeof fetch): Promise<Portal
 	}
 }
 
+// Leitura autoritativa para a tela de configurações: distingue "falha ao
+// carregar" de "configuração carregada". Nunca cai nos defaults — em erro
+// devolve `Result` com falha para que a UI bloqueie edição/salvamento e não
+// reconstrua o payload a partir dos defaults (sobrescrita acidental do backend).
+export async function loadPortalConfigStrict(
+	fetchImpl?: typeof fetch
+): Promise<Result<PortalConfig>> {
+	try {
+		return { ok: true, data: sanitizePortalConfig(await fetchPortalConfig(fetchImpl)) };
+	} catch (error) {
+		console.warn('[portal-config] Falha autoritativa ao carregar configuração.', error);
+		if (error instanceof ApiError) {
+			return { ok: false, error: { status: error.status, message: error.message } };
+		}
+		return { ok: false, error: { message: 'Não foi possível carregar a configuração.' } };
+	}
+}
+
 // Converte a chamada de escrita em `Result` — nunca expõe exceção à UI. A
 // mensagem da API é preservada quando existe (ex.: regra de negócio com 409);
 // só cai no texto genérico por seção quando a resposta não traz mensagem.

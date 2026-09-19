@@ -4,6 +4,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import ToggleButton from '$lib/components/ToggleButton.svelte';
 	import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
+	import { isPortalConfigLoadBlocked } from '$lib/config/portal-config-load';
 	import { saveStatuses } from '$lib/config/portal-config.service';
 	import { SectionState } from '$lib/states/section.svelte';
 	import {
@@ -29,6 +30,10 @@
 		{ statuses: DEFAULT_PORTAL_CONFIG.statuses },
 		(draft) => saveStatuses({ statuses: draft.statuses })
 	);
+
+	// Leitura autoritativa falhou: o draft pode ser o fallback local — bloqueia
+	// edição e salvamento até a revalidação.
+	const loadFailed = $derived(isPortalConfigLoadBlocked(page.data));
 
 	// Erro global da lista (Card 6) — lista vazia, limite de itens, nome
 	// inválido ou nome duplicado.
@@ -69,6 +74,7 @@
 	}
 
 	async function handleSave() {
+		if (loadFailed) return;
 		notifySectionSave(await section.save());
 	}
 
@@ -215,6 +221,7 @@
 			saving={section.saving}
 			restorable={section.restorable}
 			{invalid}
+			{loadFailed}
 			onSave={handleSave}
 			onCancel={() => section.reset()}
 			onRestoreDefaults={() => section.restoreDefaults()}
@@ -224,7 +231,10 @@
 	<div class="status-toolbar">
 		<Button
 			variant="secondary"
-			disabled={section.saving || section.draft.statuses.length >= MAX_STATUSES || hasPendingStatus}
+			disabled={section.saving ||
+				loadFailed ||
+				section.draft.statuses.length >= MAX_STATUSES ||
+				hasPendingStatus}
 			onclick={handleAdd}
 		>
 			<Icon iconName="addCircle" iconSize="sm" />
@@ -349,7 +359,7 @@
 									class="icon-btn"
 									type="button"
 									aria-label="Editar status"
-									disabled={section.saving}
+									disabled={section.saving || loadFailed}
 									onclick={() => handleEdit(status)}
 								>
 									<Icon iconName="edit" iconSize="sm" />
@@ -359,7 +369,7 @@
 									type="button"
 									aria-label={status.isActive ? 'Inativar status' : 'Ativar status'}
 									title={status.isActive ? 'Inativar status' : 'Ativar status'}
-									disabled={section.saving || !canToggleInactive(status)}
+									disabled={section.saving || loadFailed || !canToggleInactive(status)}
 									onclick={() => toggleActive(status)}
 								>
 									<Icon iconName={status.isActive ? 'block' : 'check'} iconSize="sm" />

@@ -4,6 +4,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import ToggleButton from '$lib/components/ToggleButton.svelte';
 	import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
+	import { isPortalConfigLoadBlocked } from '$lib/config/portal-config-load';
 	import { saveCategories } from '$lib/config/portal-config.service';
 	import { SectionState } from '$lib/states/section.svelte';
 	import type { CategoriesSection, PortalCategory } from '$lib/types/portal-config';
@@ -26,6 +27,10 @@
 		{ categories: DEFAULT_PORTAL_CONFIG.categories },
 		(draft) => saveCategories({ categories: draft.categories })
 	);
+
+	// Leitura autoritativa falhou: o draft pode ser o fallback local — bloqueia
+	// edição e salvamento até a revalidação.
+	const loadFailed = $derived(isPortalConfigLoadBlocked(page.data));
 
 	// Erro global da lista (Card 5) — nome vazio, duplicado, nenhuma ativa ou
 	// limite de itens. Sem erro, fica null e o campo não bloqueia o salvamento.
@@ -78,6 +83,7 @@
 	}
 
 	async function handleSave() {
+		if (loadFailed) return;
 		notifySectionSave(await section.save());
 	}
 
@@ -232,6 +238,7 @@
 			saving={section.saving}
 			restorable={section.restorable}
 			{invalid}
+			{loadFailed}
 			onSave={handleSave}
 			onCancel={() => section.reset()}
 			onRestoreDefaults={() => section.restoreDefaults()}
@@ -243,6 +250,7 @@
 			<Button
 				variant="secondary"
 				disabled={section.saving ||
+					loadFailed ||
 					section.draft.categories.length >= MAX_CATEGORIES ||
 					hasPendingCategory}
 				onclick={handleAdd}
@@ -301,7 +309,9 @@
 										tabindex="0"
 										title="Arraste para reordenar (ou use as setas para cima/baixo)"
 										aria-label="Reordenar categoria"
-										draggable={!section.saving && !(editing && editing.id === category.id)}
+										draggable={!section.saving &&
+											!loadFailed &&
+											!(editing && editing.id === category.id)}
 										ondragstart={(event) => handleDragStart(event, category.id)}
 										ondragend={handleDragEnd}
 										onkeydown={(event) => {
@@ -391,7 +401,7 @@
 										class="icon-btn"
 										type="button"
 										aria-label="Editar categoria"
-										disabled={section.saving}
+										disabled={section.saving || loadFailed}
 										onclick={() => handleEdit(category)}
 									>
 										<Icon iconName="edit" iconSize="sm" />
@@ -401,7 +411,7 @@
 										type="button"
 										aria-label={category.isActive ? 'Inativar categoria' : 'Ativar categoria'}
 										title={category.isActive ? 'Inativar categoria' : 'Ativar categoria'}
-										disabled={section.saving || !canToggleInactive(category)}
+										disabled={section.saving || loadFailed || !canToggleInactive(category)}
 										onclick={() => toggleActive(category)}
 									>
 										<Icon iconName={category.isActive ? 'block' : 'check'} iconSize="sm" />

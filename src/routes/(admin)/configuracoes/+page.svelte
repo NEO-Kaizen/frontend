@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { page } from '$app/state';
+	import { invalidateAll } from '$app/navigation';
+	import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
 	import AccessCard from './components/AccessCard.svelte';
 	import AssetsCard from './components/AssetsCard.svelte';
 	import CategoriesCard from './components/CategoriesCard.svelte';
@@ -8,17 +9,37 @@
 	import SettingsPageHeader from './components/SettingsPageHeader.svelte';
 	import StatusCard from './components/StatusCard.svelte';
 	import VisualIdentityCard from './components/VisualIdentityCard.svelte';
+	import type { PageProps } from './$types';
+
+	let { data }: PageProps = $props();
 
 	// Cada card é independente: mantém o próprio draft/pristine, validação e
 	// botões Salvar/Cancelar, e persiste a sua seção via PATCH próprio.
+	// Se a leitura autoritativa falhou, `portalConfig` é o fallback do layout
+	// (defaults) e os cards bloqueiam edição/salvamento até a revalidação.
+	const loadFailed = $derived(data.portalConfigLoadError !== null);
 </script>
 
 <svelte:head>
-	<title>Configurações - {page.data.portalConfig.platformName}</title>
+	<title
+		>Configurações - {data.portalConfig?.platformName ?? DEFAULT_PORTAL_CONFIG.platformName}</title
+	>
 </svelte:head>
 
 <main class="content-container settings-page">
 	<SettingsPageHeader />
+
+	{#if loadFailed}
+		<div class="load-error" role="alert">
+			<p>
+				<strong>Não foi possível carregar a configuração.</strong>
+				A edição e o salvamento estão bloqueados para evitar sobrescrever os dados salvos.
+			</p>
+			<button class="retry-button" type="button" onclick={() => invalidateAll()}>
+				Tentar novamente
+			</button>
+		</div>
+	{/if}
 
 	<div class="settings-grid">
 		<div class="settings-col">
@@ -40,6 +61,41 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--spacing-lg);
+	}
+
+	.load-error {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--spacing-md);
+		flex-wrap: wrap;
+		padding: var(--spacing-md) var(--spacing-lg);
+		border: 1px solid var(--status-error);
+		border-radius: var(--radius-sm);
+		background-color: var(--status-error-bg);
+		color: var(--rich-black);
+	}
+
+	.load-error p {
+		margin: 0;
+		font-size: 14px;
+	}
+
+	.retry-button {
+		padding: var(--spacing-sm) var(--spacing-md);
+		border: 1px solid var(--status-error);
+		border-radius: var(--radius-sm);
+		background-color: var(--white);
+		color: var(--rich-black);
+		font: var(--label);
+		font-size: 13px;
+		cursor: pointer;
+		white-space: nowrap;
+	}
+
+	.retry-button:hover {
+		background-color: var(--status-error);
+		color: var(--white);
 	}
 
 	.settings-grid {

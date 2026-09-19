@@ -11,6 +11,9 @@
 		// mesmo sem alteração local).
 		restorable: boolean;
 		invalid?: boolean;
+		// Leitura autoritativa falhou: a configuração em tela pode ser o fallback
+		// local — Salvar/Restaurar ficam bloqueados até a revalidação.
+		loadFailed?: boolean;
 		onSave: () => void;
 		onCancel: () => void;
 		onRestoreDefaults: () => void;
@@ -22,6 +25,7 @@
 		saving,
 		restorable,
 		invalid = false,
+		loadFailed = false,
 		onSave,
 		onCancel,
 		onRestoreDefaults,
@@ -38,7 +42,7 @@
 		<Button
 			variant="outline-neutral"
 			onclick={() => (confirmRestore = true)}
-			disabled={!restorable || saving}
+			disabled={!restorable || saving || loadFailed}
 		>
 			<Icon iconName="autorenew" iconSize="sm" />
 			Restaurar padrão
@@ -50,7 +54,7 @@
 			variant="primary"
 			onclick={onSave}
 			loading={saving}
-			disabled={!dirty || saving || invalid}
+			disabled={!dirty || saving || invalid || loadFailed}
 		>
 			Salvar
 		</Button>
