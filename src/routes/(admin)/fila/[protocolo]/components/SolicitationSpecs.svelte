@@ -58,7 +58,7 @@
 		hasScore: boolean
 	): { bg: string; color: string; border: string } {
 		if (!hasScore || !label) {
-			return { bg: '#f3f4f6', color: 'var(--gray)', border: 'var(--white-gray)' };
+			return { bg: 'var(--white)', color: 'var(--gray)', border: 'var(--white-gray)' };
 		}
 		switch (label) {
 			case 'Crítica':

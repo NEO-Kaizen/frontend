@@ -6,8 +6,10 @@
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Modal from '$lib/components/Modal.svelte';
+	import { canEditSolicitation } from '$lib/services/access.service';
 	import { updateInternalRequest } from '$lib/services/request.service';
 	import type { InternalRequestDetail } from '$lib/types/request';
+	import MappingSection from './mapping/MappingSection.svelte';
 	import InfoSection from './solicitation-info/InfoSection.svelte';
 	import {
 		applyFieldChange,
@@ -39,6 +41,13 @@
 		badge?: number;
 	};
 
+	// ---- Modo de edição (issue #121) ----
+	// `isEditMode` fica no topo porque a aba ativa deriva dele (edição trava
+	// a aba em `informacoes` para não perder o rascunho).
+	let isEditMode = $state(false);
+
+	// Mapeamento habilitado sem badge: não há contagem disponível (sem backend
+	// de notificações da aba). As demais abas futuras seguem desabilitadas.
 	const SPEC_TABS: readonly SpecTabDefinition[] = [
 		{ id: 'informacoes', label: 'Informações', icon: 'description', enabled: true },
 		{ id: 'triagem', label: 'Triagem', icon: 'filter', enabled: false },
@@ -46,8 +55,7 @@
 			id: 'mapeamento',
 			label: 'Mapeamento',
 			icon: 'calendarCheck',
-			enabled: false,
-			badge: 1
+			enabled: true
 		},
 		{
 			id: 'historico',
@@ -67,7 +75,11 @@
 		return DEFAULT_TAB_ID;
 	}
 
-	const activeTab = $derived(resolveActiveTab(page.url.searchParams.get('aba')));
+	// Durante a edição das informações a aba fica travada em `informacoes`
+	// para não perder o rascunho (o mapeamento tem fluxo próprio de edição).
+	const activeTab = $derived(
+		isEditMode ? DEFAULT_TAB_ID : resolveActiveTab(page.url.searchParams.get('aba'))
+	);
 
 	const activeTabLabel = $derived(
 		SPEC_TABS.find((tab) => tab.id === activeTab)?.label ??
@@ -75,16 +87,19 @@
 			DEFAULT_TAB_ID
 	);
 
-	// Botão Editar visível apenas para Administrador ou o responsável pela triagem.
-	// Regra definitiva é decidida pela issue #121 (modo de edição).
+	// Botão Editar visível apenas para quem pode editar o conteúdo interno
+	// (Administrador ou responsável atribuído — regra em `access.service`).
+	// Gestor e demais perfis visualizam em somente leitura.
+	// A permissão do mapeamento usa exclusivamente o responsável do mapeamento
+	// (`mappingAssigneeId`). A fonte é o primeiro GET da solicitação + `/auth/me`
+	// (via `page.data.user`) — nunca o GET do mapeamento.
 	const currentUser = $derived(page.data.user);
-	const canEdit = $derived(
-		currentUser?.role === 'Administrador' ||
-			Boolean(currentUser && solicitation.assignee?.id === currentUser.id)
-	);
+	const mappingAssigneeId = $derived(solicitation.mappingAssigneeId);
+	const canEdit = $derived(canEditSolicitation(solicitation.assignee?.id, currentUser ?? null));
+	const canEditMapping = $derived(canEditSolicitation(mappingAssigneeId, currentUser ?? null));
 
 	function handleTabSelect(tab: SpecTabDefinition) {
-		if (!tab.enabled) return;
+		if (!tab.enabled || isEditMode) return;
 		clearSaveSuccess();
 
 		const url = new URL(page.url);
@@ -108,7 +123,6 @@
 
 	// ---- Modo de edição (issue #121) ----
 
-	let isEditMode = $state(false);
 	let draft = $state<EditableDraft | null>(null);
 	let errors = $state<Record<string, string>>({});
 	let isSaving = $state(false);
@@ -258,12 +272,14 @@
 					role="tab"
 					id={`spec-tab-${tab.id}`}
 					aria-selected={activeTab === tab.id}
-					aria-disabled={!tab.enabled ? 'true' : undefined}
+					aria-disabled={!tab.enabled || (isEditMode && tab.id !== 'informacoes')
+						? 'true'
+						: undefined}
 					aria-controls="spec-panel"
-					disabled={!tab.enabled}
+					disabled={!tab.enabled || (isEditMode && tab.id !== 'informacoes')}
 					class="tab-item"
 					class:active={activeTab === tab.id}
-					class:disabled={!tab.enabled}
+					class:disabled={!tab.enabled || (isEditMode && tab.id !== 'informacoes')}
 					onclick={() => handleTabSelect(tab)}
 				>
 					<Icon iconName={tab.icon} iconSize="sm" />
@@ -305,7 +321,7 @@
 						<span>Cancelar</span>
 					</button>
 				</div>
-			{:else if canEdit}
+			{:else if canEdit && activeTab === 'informacoes'}
 				<button
 					type="button"
 					bind:this={editButton}
@@ -344,6 +360,8 @@
 				onFieldChange={handleFieldChange}
 				onFieldBlur={handleFieldBlur}
 			/>
+		{:else if activeTab === 'mapeamento'}
+			<MappingSection {solicitation} canEdit={canEditMapping} />
 		{:else}
 			<p class="placeholder">Conteúdo de {activeTabLabel} — implementação futura</p>
 		{/if}
