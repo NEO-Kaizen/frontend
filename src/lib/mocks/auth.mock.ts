@@ -23,7 +23,7 @@ const MOCK_USERS: MockUser[] = [
 		name: 'Marcos Lima',
 		email: 'gestor@maat.com.br',
 		role: 'Gestor',
-		mustChangePassword: true,
+		mustChangePassword: false,
 		password: 'admin'
 	},
 	{
@@ -31,7 +31,7 @@ const MOCK_USERS: MockUser[] = [
 		name: 'Adriana Castro',
 		email: 'admin@maat.com.br',
 		role: 'Administrador',
-		mustChangePassword: true,
+		mustChangePassword: false,
 		password: 'admin'
 	},
 	{
@@ -39,7 +39,7 @@ const MOCK_USERS: MockUser[] = [
 		name: 'Carlos Mendes',
 		email: 'solicitante@maat.com.br',
 		role: 'Solicitante',
-		mustChangePassword: true,
+		mustChangePassword: false,
 		password: 'temp123'
 	}
 ];
