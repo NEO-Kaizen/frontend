@@ -26,7 +26,12 @@
 	});
 </script>
 
-<div class="toast-item {toast.type}">
+<div
+	class="toast-item {toast.type}"
+	role={toast.type === 'error' ? 'alert' : 'status'}
+	aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
+	aria-atomic="true"
+>
 	<div class="toast-content">
 		<Icon {iconName} iconSize="sm" />
 		<span class="toast-message">{toast.message}</span>
@@ -53,7 +58,7 @@
 		box-shadow: var(--regular-shadow);
 		pointer-events: auto;
 		transition: var(--transition-default);
-		color: var(--white);
+		color: var(--on-dark);
 	}
 
 	.toast-item.success {
@@ -80,7 +85,7 @@
 
 	.toast-message {
 		font: var(--paragrafo);
-		color: var(--white);
+		color: var(--on-dark);
 		font-weight: 500;
 	}
 
@@ -89,7 +94,7 @@
 		border: none;
 		color: inherit;
 		cursor: pointer;
-		padding: 4px;
+		padding: var(--spacing-xs);
 		border-radius: 4px;
 		display: flex;
 		align-items: center;
@@ -98,11 +103,11 @@
 	}
 
 	.toast-close-btn:hover {
-		background-color: rgba(0, 0, 0, 0.1);
+		background-color: color-mix(in srgb, var(--rich-black) 10%, transparent);
 	}
 
 	.toast-close-btn:focus-visible {
-		outline: 2px solid var(--white);
+		outline: 2px solid var(--on-dark);
 		outline-offset: 2px;
 	}
 </style>
