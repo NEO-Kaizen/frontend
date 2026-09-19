@@ -1,5 +1,6 @@
 import { apiClient } from '$lib/api/client';
 import { MOCK_DOMAINS } from '$lib/mocks';
+import { ApiError } from '$lib/types/result';
 import type {
 	AccessSection,
 	AssetKey,
@@ -77,10 +78,16 @@ export async function updateTheme(payload: UpdateThemeRequest): Promise<ThemeSec
 // URL e as partes nomeadas por chave trazem os binários novos. A parte JSON só é
 // enviada quando há URLs/flag a definir — um upload apenas de binário omite o
 // `assets`, evitando o 400 de "ao menos uma chave de asset". Commit atômico.
+// Guard em dev/prod evita enviar multipart vazio (paridade com mock).
 export async function updateAssets(
 	patch: PortalAssetsPatch,
 	files: Partial<Record<AssetKey, File>>
 ): Promise<AssetsSection> {
+	const hasFiles = Object.values(files).some(Boolean);
+	if (Object.keys(patch).length === 0 && !hasFiles) {
+		throw new ApiError(400, 'Envie ao menos uma chave de asset (JSON ou arquivo).');
+	}
+
 	const body = new FormData();
 	if (Object.keys(patch).length > 0) {
 		body.append('assets', JSON.stringify(patch));
