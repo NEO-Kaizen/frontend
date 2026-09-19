@@ -1,4 +1,5 @@
 import { getInternalRequest } from '$lib/services/request.service';
+import { getInternalNotes } from '$lib/services/internal-note.service';
 import type { PageServerLoad } from './$types';
 
 // Server load (não universal): o fetch sai do servidor sem o modelo CORS do
@@ -7,19 +8,26 @@ import type { PageServerLoad } from './$types';
 export const load: PageServerLoad = async ({ params, fetch }) => {
 	const protocol = params.protocolo;
 
-	const result = await getInternalRequest(protocol, fetch);
+	const [result, internalNotesResult] = await Promise.all([
+		getInternalRequest(protocol, fetch),
+		getInternalNotes(protocol, fetch)
+	]);
 
 	if (result.ok) {
 		return {
 			protocol,
 			solicitation: result.data,
-			error: null
+			error: null,
+			internalNotes: internalNotesResult.ok ? internalNotesResult.data : null,
+			internalNotesError: internalNotesResult.ok ? null : internalNotesResult.error.message
 		};
 	}
 
 	return {
 		protocol,
 		solicitation: null,
-		error: result.error
+		error: result.error,
+		internalNotes: null,
+		internalNotesError: null
 	};
 };

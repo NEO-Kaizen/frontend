@@ -8,7 +8,9 @@
 	import Modal from '$lib/components/Modal.svelte';
 	import { canEditSolicitation } from '$lib/services/access.service';
 	import { updateInternalRequest } from '$lib/services/request.service';
+	import type { InternalNote, InternalNotesResponse } from '$lib/types/internal-note';
 	import type { InternalRequestDetail } from '$lib/types/request';
+	import InternalNotesSection from './InternalNotesSection.svelte';
 	import MappingSection from './mapping/MappingSection.svelte';
 	import InfoSection from './solicitation-info/InfoSection.svelte';
 	import {
@@ -23,11 +25,31 @@
 
 	interface Props {
 		solicitation: InternalRequestDetail;
+		internalNotes: InternalNotesResponse | null;
+		internalNotesError: string | null;
 		onSaveSuccess?: (updated: InternalRequestDetail) => void;
 		onSaveError?: (message: string) => void;
 	}
 
-	let { solicitation, onSaveSuccess, onSaveError }: Props = $props();
+	let { solicitation, internalNotes, internalNotesError, onSaveSuccess, onSaveError }: Props =
+		$props();
+
+	function getInitialInternalNotesState(): {
+		items: InternalNote[];
+		unseenCount: number;
+		loadError: string | null;
+	} {
+		return {
+			items: [...(internalNotes?.items ?? [])],
+			unseenCount: internalNotes?.unseenCount ?? 0,
+			loadError: internalNotesError
+		};
+	}
+
+	const initialInternalNotesState = getInitialInternalNotesState();
+	let internalNoteItems = $state<InternalNote[]>(initialInternalNotesState.items);
+	let internalNotesUnseenCount = $state(initialInternalNotesState.unseenCount);
+	let internalNotesLoadError = $state<string | null>(initialInternalNotesState.loadError);
 
 	type SpecTabId = 'informacoes' | 'triagem' | 'mapeamento' | 'historico' | 'observacoes';
 
@@ -46,9 +68,9 @@
 	// a aba em `informacoes` para não perder o rascunho).
 	let isEditMode = $state(false);
 
-	// Mapeamento habilitado sem badge: não há contagem disponível (sem backend
-	// de notificações da aba). As demais abas futuras seguem desabilitadas.
-	const SPEC_TABS: readonly SpecTabDefinition[] = [
+	// O badge de observações representa itens ainda não visualizados pelo usuário,
+	// não notificações. Histórico permanece desabilitado até seu domínio existir.
+	let specTabs = $derived<readonly SpecTabDefinition[]>([
 		{ id: 'informacoes', label: 'Informações', icon: 'description', enabled: true },
 		{ id: 'triagem', label: 'Triagem', icon: 'filter', enabled: false },
 		{
@@ -61,14 +83,19 @@
 			id: 'historico',
 			label: 'Histórico de Conversa',
 			icon: 'history',
-			enabled: false,
-			badge: 1
+			enabled: false
 		},
-		{ id: 'observacoes', label: 'Observações Internas', icon: 'info', enabled: false }
-	];
+		{
+			id: 'observacoes',
+			label: 'Observações Internas',
+			icon: 'info',
+			enabled: true,
+			badge: internalNotesUnseenCount > 0 ? internalNotesUnseenCount : undefined
+		}
+	]);
 
 	function resolveActiveTab(param: string | null): SpecTabId {
-		const tab = SPEC_TABS.find((item) => item.id === param);
+		const tab = specTabs.find((item) => item.id === param);
 		if (tab && tab.enabled) {
 			return tab.id;
 		}
@@ -82,8 +109,8 @@
 	);
 
 	const activeTabLabel = $derived(
-		SPEC_TABS.find((tab) => tab.id === activeTab)?.label ??
-			SPEC_TABS.find((tab) => tab.id === DEFAULT_TAB_ID)?.label ??
+		specTabs.find((tab) => tab.id === activeTab)?.label ??
+			specTabs.find((tab) => tab.id === DEFAULT_TAB_ID)?.label ??
 			DEFAULT_TAB_ID
 	);
 
@@ -116,7 +143,7 @@
 
 	function ensureInfoTab(): void {
 		if (activeTab !== DEFAULT_TAB_ID) {
-			const tab = SPEC_TABS.find((item) => item.id === DEFAULT_TAB_ID);
+			const tab = specTabs.find((item) => item.id === DEFAULT_TAB_ID);
 			if (tab) handleTabSelect(tab);
 		}
 	}
@@ -261,12 +288,30 @@
 			onSaveError?.(result.error.message);
 		}
 	}
+
+	function handleInternalNotesLoaded(response: InternalNotesResponse): void {
+		internalNoteItems = response.items;
+		internalNotesUnseenCount = response.unseenCount;
+		internalNotesLoadError = null;
+	}
+
+	function handleInternalNotesLoadError(message: string): void {
+		internalNotesLoadError = message;
+	}
+
+	function handleInternalNoteCreated(note: InternalNote): void {
+		internalNoteItems = [...internalNoteItems, note];
+	}
+
+	function handleInternalNotesMarkedRead(): void {
+		internalNotesUnseenCount = 0;
+	}
 </script>
 
 <section class="details-card" aria-label="Detalhes da solicitação" bind:this={detailsCard}>
 	<div class="tabs-bar" role="tablist" aria-label="Abas da solicitação">
 		<div class="tabs-left">
-			{#each SPEC_TABS as tab (tab.id)}
+			{#each specTabs as tab (tab.id)}
 				<button
 					type="button"
 					role="tab"
@@ -285,7 +330,9 @@
 					<Icon iconName={tab.icon} iconSize="sm" />
 					<span>{tab.label}</span>
 					{#if tab.badge}
-						<span class="tab-badge" aria-label={`${tab.badge} notificação`}>{tab.badge}</span>
+						<span class="tab-badge" aria-label={`${tab.badge} observações ainda não visualizadas`}>
+							{tab.badge}
+						</span>
 					{/if}
 				</button>
 			{/each}
@@ -362,6 +409,17 @@
 			/>
 		{:else if activeTab === 'mapeamento'}
 			<MappingSection {solicitation} canEdit={canEditMapping} />
+		{:else if activeTab === 'observacoes'}
+			<InternalNotesSection
+				protocol={solicitation.protocol}
+				notes={internalNoteItems}
+				loadError={internalNotesLoadError}
+				currentUserId={currentUser?.id ?? ''}
+				onNotesLoaded={handleInternalNotesLoaded}
+				onLoadError={handleInternalNotesLoadError}
+				onNoteCreated={handleInternalNoteCreated}
+				onMarkedRead={handleInternalNotesMarkedRead}
+			/>
 		{:else}
 			<p class="placeholder">Conteúdo de {activeTabLabel} — implementação futura</p>
 		{/if}

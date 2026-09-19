@@ -13,5 +13,6 @@ export const MOCK_DOMAINS =
 		request: true,
 		users: true,
 		prioritization: true,
-		mapping: true
+		mapping: true,
+		internalNotes: true
 	} as const);
