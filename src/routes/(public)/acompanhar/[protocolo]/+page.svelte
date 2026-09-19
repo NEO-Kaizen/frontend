@@ -44,6 +44,14 @@
 					color: 'var(--status-red)',
 					border: 'var(--status-red)'
 				};
+			case 'Solicitação enviada':
+			case 'Backlog':
+			case 'Direcionado para outra área':
+				return {
+					bg: 'var(--status-neutral-bg)',
+					color: 'var(--status-neutral)',
+					border: 'var(--status-neutral)'
+				};
 			default:
 				return {
 					bg: 'var(--status-blue-bg)',
@@ -203,7 +211,7 @@
 		justify-content: center;
 		padding: 8px 16px;
 		background: var(--primary-color);
-		color: var(--white);
+		color: var(--on-primary);
 		border: none;
 		border-radius: var(--radius-sm);
 		font: var(--button);
@@ -330,7 +338,7 @@
 		width: 40px;
 		height: 40px;
 		background: var(--secondary-color);
-		color: var(--white);
+		color: var(--on-primary);
 		border-radius: var(--radius-sm);
 		display: flex;
 		align-items: center;
@@ -366,7 +374,7 @@
 		gap: 8px;
 		padding: 10px 18px;
 		background: var(--secondary-color);
-		color: var(--white);
+		color: var(--on-primary);
 		border-radius: var(--radius-sm);
 		text-decoration: none;
 		font-weight: 600;

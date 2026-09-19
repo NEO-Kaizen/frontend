@@ -24,6 +24,7 @@
 		maxlength?: number;
 		icon?: IconName;
 		prefix?: string;
+		hint?: string;
 	}
 
 	type ActionProps =
@@ -58,6 +59,7 @@
 		actionIcon,
 		actionLabel,
 		onAction,
+		hint,
 		...restProps
 	}: Props = $props();
 
@@ -75,7 +77,12 @@
 
 <div class="input-field">
 	{#if label}
-		<label for={inputId}>{label}</label>
+		<label for={inputId}>
+			{label}
+			{#if hint}
+				<span class="label-hint">{hint}</span>
+			{/if}
+		</label>
 	{/if}
 
 	<div class="input-wrapper">
@@ -152,6 +159,12 @@
 	label {
 		font: var(--label);
 		color: var(--black);
+	}
+
+	.label-hint {
+		margin-left: var(--spacing-sm);
+		color: var(--gray);
+		font-family: monospace;
 	}
 
 	input {

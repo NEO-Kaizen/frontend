@@ -3,7 +3,7 @@
 	import type { IconName, IconSize } from '$lib/types/icons';
 
 	export type IconBadgeVariant =
-		'indigo' | 'green' | 'orange' | 'blue' | 'neutral' | 'danger' | 'override';
+		'indigo' | 'green' | 'orange' | 'blue' | 'brand' | 'neutral' | 'danger' | 'override';
 	export type IconBadgeSize = 'sm' | 'lg';
 
 	interface BaseProps {
@@ -88,6 +88,13 @@
 	.icon-badge.blue {
 		background-color: rgba(219, 234, 254, 1);
 		color: rgba(29, 78, 216, 1);
+	}
+
+	/* Tom da marca: deriva de `--primary-color` (acompanha a paleta do portal),
+		aceitando override explícito por `--badge-bg`/`--badge-fg` (tokens de badge). */
+	.icon-badge.brand {
+		background-color: var(--badge-bg, color-mix(in srgb, var(--primary-color) 12%, var(--surface)));
+		color: var(--badge-fg, color-mix(in srgb, var(--primary-color) 75%, var(--text-color-primary)));
 	}
 
 	.icon-badge.neutral {

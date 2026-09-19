@@ -876,7 +876,7 @@
 	.page-button.active {
 		background-color: var(--primary-color);
 
-		color: var(--white);
+		color: var(--on-primary);
 	}
 
 	.nav-button {

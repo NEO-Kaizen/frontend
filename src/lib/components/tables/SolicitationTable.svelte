@@ -14,19 +14,19 @@
 		'Aguardando mapeamento': 'status-blue',
 		'Em triagem': 'status-blue',
 		'Em desenvolvimento': 'status-blue',
-		'Direcionado para outra área': 'status-gray',
+		'Direcionado para outra área': 'status-neutral',
 		'Em análise de viabilidade': 'status-blue',
 		'Em homologação': 'status-blue',
 		'Em mapeamento': 'status-blue',
 		'Não elegível': 'status-red',
 		'Pendente de informações': 'status-yellow',
-		'Solicitação enviada': 'status-gray',
+		'Solicitação enviada': 'status-neutral',
 		'Mapeamento agendado': 'status-blue',
 		Elegível: 'status-green',
 		Concluído: 'status-green',
 		Priorizado: 'status-yellow',
 		Cancelado: 'status-red',
-		Backlog: 'status-gray'
+		Backlog: 'status-neutral'
 	};
 
 	// União literal estreita: evita o falso-positivo RouteId × resolve() documentado.
@@ -156,7 +156,7 @@
 							</td>
 
 							<td>
-								<span class="status {mapStatusToClass[request.status] ?? 'status-gray'}">
+								<span class="status {mapStatusToClass[request.status] ?? 'status-neutral'}">
 									<span class="status-dot"></span>
 									{request.status}
 								</span>
@@ -281,8 +281,8 @@
 	}
 
 	.prioridade.baixa {
-		color: var(--gray);
-		background: var(--white-gray);
+		color: var(--status-neutral);
+		background: var(--status-neutral-bg);
 	}
 
 	.responsavel,
@@ -335,11 +335,11 @@
 		background: var(--status-yellow);
 	}
 
-	.status.status-gray {
-		color: var(--gray);
+	.status.status-neutral {
+		color: var(--status-neutral);
 	}
-	.status.status-gray .status-dot {
-		background: var(--gray);
+	.status.status-neutral .status-dot {
+		background: var(--status-neutral);
 	}
 
 	.empty-state {

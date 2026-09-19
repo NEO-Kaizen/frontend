@@ -225,7 +225,7 @@
 		height: 52px;
 		border-radius: 50%;
 		background: var(--secondary-color);
-		color: var(--white);
+		color: var(--on-primary);
 		border: none;
 		display: inline-flex;
 		align-items: center;

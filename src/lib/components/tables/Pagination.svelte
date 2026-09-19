@@ -137,7 +137,7 @@
 
 	.page-btn.active {
 		background: var(--secondary-color); /* Fundo azul */
-		color: var(--white);
+		color: var(--on-primary);
 	}
 
 	.ellipsis {

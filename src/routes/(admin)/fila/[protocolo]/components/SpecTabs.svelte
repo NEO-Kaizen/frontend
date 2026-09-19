@@ -453,7 +453,7 @@
 
 	.tab-item.active {
 		background: var(--primary-color);
-		color: var(--white);
+		color: var(--on-primary);
 		border-color: var(--primary-color);
 	}
 
@@ -479,7 +479,7 @@
 		padding: 0 5px;
 		border-radius: 999px;
 		background: var(--secondary-color);
-		color: var(--white);
+		color: var(--on-primary);
 		font-size: 11px;
 		font-weight: 700;
 		line-height: 1;

@@ -32,7 +32,7 @@ Nosso fluxo guiado ajudará você a fornecer os detalhes necessários."
 			iconName="adminPanel"
 			buttonIconName="arrowForward"
 			variant="secondary"
-			badgeVariant="cyan"
+			badgeVariant="brand"
 			href="/(public)/login"
 		/>
 
@@ -43,7 +43,7 @@ Nosso fluxo guiado ajudará você a fornecer os detalhes necessários."
 			iconName="search"
 			buttonIconName="history"
 			variant="secondary"
-			badgeVariant="green"
+			badgeVariant="neutral"
 			buttonVariant="outline"
 			onAction={openTracking}
 		/>

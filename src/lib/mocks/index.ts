@@ -11,6 +11,7 @@ export const MOCK_DOMAINS =
 	({
 		auth: true,
 		request: true,
+		portalConfig: true,
 		users: true,
 		prioritization: true,
 		mapping: true
