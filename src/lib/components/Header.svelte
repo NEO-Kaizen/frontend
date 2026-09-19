@@ -161,13 +161,18 @@
 		<div class="top_bar-interactables">
 			<form role="search" class="search-container" onsubmit={handleSearchSubmit}>
 				<Input
-					icon="search"
 					type="search"
-					placeholder="Buscar chamados"
-					aria-label="Buscar chamados"
+					placeholder="Buscar por protocolo ou e-mail"
+					aria-label="Buscar por protocolo ou e-mail"
 					name="pesquisar-chamados"
 					value={activeSearch}
 					disabled={isSearching}
+					actionIcon="search"
+					actionLabel="Buscar"
+					onAction={() => {
+						const form = document.querySelector('form[role="search"]') as HTMLFormElement | null;
+						form?.requestSubmit();
+					}}
 				/>
 			</form>
 
@@ -216,10 +221,14 @@
 							<span>{item.name}</span>
 						</div>
 					{:else}
-						<div class="nav-item" class:active={isActive(item, page.url.pathname)}>
+						<a
+							class="nav-item"
+							class:active={isActive(item, page.url.pathname)}
+							href={resolve(item.href!)}
+						>
 							<Icon iconName={item.icon} />
-							<a href={item.href ? resolve(item.href) : undefined}>{item.name}</a>
-						</div>
+							<span>{item.name}</span>
+						</a>
 					{/if}
 				{/each}
 			</div>
@@ -257,9 +266,9 @@
 	header {
 		display: flex;
 		flex-direction: column;
-		width: 90vw;
-		gap: var(--spacing-md);
-		padding: var(--spacing-md) var(--spacing-lg);
+		width: 100%;
+		gap: var(--spacing-sm);
+		padding: var(--spacing-sm) var(--spacing-md);
 		background-color: var(--white);
 		border-radius: var(--radius-xl);
 		max-width: var(--largura-maxima-header);
@@ -277,7 +286,7 @@
 	}
 	.top_bar-interactables {
 		display: flex;
-		gap: var(--spacing-lg);
+		gap: var(--spacing-md);
 		align-items: center;
 	}
 	.search-container {
@@ -315,7 +324,7 @@
 	}
 	.nav-items-group {
 		display: flex;
-		gap: var(--spacing-md);
+		gap: var(--spacing-sm);
 	}
 	button.nav-item {
 		background: none;
@@ -333,8 +342,7 @@
 		border-radius: var(--radius-md);
 	}
 	.nav-item:not(.inactive):hover,
-	.nav-item:has(a:focus-visible),
-	.nav-item:not(.inactive):focus-visible,
+	.nav-item:focus-visible,
 	.nav-item.active {
 		background-color: var(--primary-color);
 		color: var(--white);
