@@ -13,7 +13,7 @@
 </script>
 
 <svelte:head>
-	<title>Especificação {protocol ?? ''} - MAAT</title>
+	<title>Especificação {protocol ?? ''} - {data.portalConfig.platformName}</title>
 </svelte:head>
 
 <div class="page-container">
@@ -86,7 +86,7 @@
 		justify-content: center;
 		padding: 8px 16px;
 		background: var(--primary-color);
-		color: var(--white);
+		color: var(--on-primary);
 		border: none;
 		border-radius: var(--radius-sm);
 		font: var(--button);
@@ -108,9 +108,9 @@
 	.skeleton {
 		background: linear-gradient(
 			90deg,
-			var(--white-gray) 25%,
-			var(--white) 50%,
-			var(--white-gray) 75%
+			var(--border-color) 25%,
+			var(--surface) 50%,
+			var(--border-color) 75%
 		);
 		background-size: 200% 100%;
 		animation: shimmer 1.5s infinite;

@@ -114,7 +114,7 @@
 		font: var(--label);
 		font-size: 20px;
 		letter-spacing: 0.05em;
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 		word-break: break-all;
 	}
 
