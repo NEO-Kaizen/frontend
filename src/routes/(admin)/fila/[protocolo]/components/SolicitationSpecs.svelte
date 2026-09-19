@@ -2,17 +2,21 @@
 	import { page } from '$app/state';
 	import Icon from '$lib/components/Icon.svelte';
 	import { statusThemeVars } from '$lib/utils/status';
+	import type { InternalNotesResponse } from '$lib/types/internal-note';
 	import type { InternalRequestDetail } from '$lib/types/request';
 	import QuickActions from './QuickActions.svelte';
 	import SpecTabs from './SpecTabs.svelte';
 
 	interface Props {
 		solicitation: InternalRequestDetail;
+		internalNotes: InternalNotesResponse | null;
+		internalNotesError: string | null;
 		onSaveSuccess?: (updated: InternalRequestDetail) => void;
 		onSaveError?: (message: string) => void;
 	}
 
-	let { solicitation, onSaveSuccess, onSaveError }: Props = $props();
+	let { solicitation, internalNotes, internalNotesError, onSaveSuccess, onSaveError }: Props =
+		$props();
 
 	let statusTheme = $derived(statusThemeVars(solicitation.status, page.data.portalConfig.statuses));
 	let displayScore = $derived(
@@ -123,7 +127,7 @@
 <div class="solicitation-specs-page">
 	{@render headerSnippet()}
 
-	<SpecTabs {solicitation} {onSaveSuccess} {onSaveError} />
+	<SpecTabs {solicitation} {internalNotes} {internalNotesError} {onSaveSuccess} {onSaveError} />
 
 	<QuickActions />
 </div>
