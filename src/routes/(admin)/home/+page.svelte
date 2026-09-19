@@ -73,7 +73,7 @@
 </script>
 
 <svelte:head>
-	<title>Home Administrativa - MAAT</title>
+	<title>Home Administrativa - {data.portalConfig.platformName}</title>
 </svelte:head>
 
 <div class="content-container dashboard">
@@ -112,7 +112,7 @@
 
 	.table-section h2 {
 		font: var(--h3);
-		color: var(--rich-black);
+		color: var(--heading-color);
 		margin: 0;
 	}
 </style>

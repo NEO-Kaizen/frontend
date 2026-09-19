@@ -3,7 +3,7 @@
 	import type { IconName, IconSize } from '$lib/types/icons';
 
 	export type IconBadgeVariant =
-		'indigo' | 'green' | 'orange' | 'blue' | 'neutral' | 'danger' | 'override';
+		'indigo' | 'green' | 'orange' | 'blue' | 'brand' | 'neutral' | 'danger' | 'override';
 	export type IconBadgeSize = 'sm' | 'lg';
 
 	interface BaseProps {
@@ -70,33 +70,43 @@
 		border-radius: var(--radius-md);
 	}
 
+	/* Tons derivados dos tokens de status: o fundo é uma mistura suave sobre a
+		superfície e o ícone mistura o acento com o texto, garantindo contraste
+		nos dois temas (base clara e escura). */
 	.icon-badge.indigo {
-		background-color: rgba(182, 196, 255, 0.2);
+		background-color: var(--tint);
 		color: var(--primary-color);
 	}
 
 	.icon-badge.green {
-		background-color: rgba(220, 252, 231, 1);
-		color: #15803d;
+		background-color: color-mix(in srgb, var(--status-success) 16%, var(--surface));
+		color: color-mix(in srgb, var(--status-success) 60%, var(--text-color-primary));
 	}
 
 	.icon-badge.orange {
-		background-color: rgba(255, 237, 213, 1);
-		color: #c2410c;
+		background-color: color-mix(in srgb, var(--status-warning) 16%, var(--surface));
+		color: color-mix(in srgb, var(--status-warning) 72%, var(--text-color-primary));
 	}
 
 	.icon-badge.blue {
-		background-color: rgba(219, 234, 254, 1);
-		color: rgba(29, 78, 216, 1);
+		background-color: color-mix(in srgb, var(--status-info) 16%, var(--surface));
+		color: color-mix(in srgb, var(--status-info) 72%, var(--text-color-primary));
+	}
+
+	/* Tom da marca: deriva de `--primary-color` (acompanha a paleta do portal),
+		aceitando override explícito por `--badge-bg`/`--badge-fg` (tokens de badge). */
+	.icon-badge.brand {
+		background-color: var(--badge-bg, color-mix(in srgb, var(--primary-color) 12%, var(--surface)));
+		color: var(--badge-fg, color-mix(in srgb, var(--primary-color) 75%, var(--text-color-primary)));
 	}
 
 	.icon-badge.neutral {
-		background-color: #e5e7eb;
-		color: #4b5563;
+		background-color: var(--white-gray);
+		color: var(--text-color-secondary);
 	}
 
 	.icon-badge.danger {
-		background-color: #fee2e2;
-		color: #b91c1c;
+		background-color: color-mix(in srgb, var(--status-error) 18%, var(--surface));
+		color: color-mix(in srgb, var(--status-error) 72%, var(--text-color-primary));
 	}
 </style>

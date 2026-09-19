@@ -8,6 +8,25 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="text-scale" content="scale" />
+		<script>
+			// Anti-FOUC: define `data-theme` antes do primeiro paint. Lê a
+			// preferência salva (`maat:theme`, mesma chave de theme.svelte.ts) e,
+			// sem preferência, segue o sistema.
+			(function () {
+				try {
+					var stored = localStorage.getItem('maat:theme');
+					var mode =
+						stored === 'light' || stored === 'dark'
+							? stored
+							: window.matchMedia('(prefers-color-scheme: dark)').matches
+								? 'dark'
+								: 'light';
+					document.documentElement.setAttribute('data-theme', mode);
+				} catch (error) {
+					/* localStorage indisponível: mantém o tema claro */
+				}
+			})();
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

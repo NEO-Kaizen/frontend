@@ -2,8 +2,8 @@
 	import { invalidateAll } from '$app/navigation';
 	import Icon from '$lib/components/Icon.svelte';
 	import NotFoundState from '$lib/components/NotFoundState.svelte';
-	import type { RequestStatus } from '$lib/types/request';
 	import { formatDate, formatDateTime } from '$lib/utils/dates';
+	import { isClosingStatus, statusThemeVars } from '$lib/utils/status';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -12,46 +12,13 @@
 	const solicitation = $derived(data.solicitation);
 	const error = $derived(data.error);
 
-	const TERMINAL_STATUSES: RequestStatus[] = ['Concluído', 'Cancelado', 'Não elegível'];
+	const statuses = $derived(data.portalConfig.statuses);
 
 	const badgeLabel = $derived(
-		solicitation && TERMINAL_STATUSES.includes(solicitation.status)
+		solicitation && isClosingStatus(solicitation.status, statuses)
 			? 'SOLICITAÇÃO ENCERRADA'
 			: 'SOLICITAÇÃO ATIVA'
 	);
-
-	function getStatusTheme(status: RequestStatus): { bg: string; color: string; border: string } {
-		switch (status) {
-			case 'Concluído':
-			case 'Elegível':
-				return {
-					bg: 'var(--status-green-bg)',
-					color: 'var(--status-green)',
-					border: 'var(--status-green)'
-				};
-			case 'Pendente de informações':
-			case 'Aguardando triagem':
-			case 'Aguardando mapeamento':
-				return {
-					bg: 'var(--status-yellow-bg)',
-					color: 'var(--status-yellow)',
-					border: 'var(--status-yellow)'
-				};
-			case 'Cancelado':
-			case 'Não elegível':
-				return {
-					bg: 'var(--status-red-bg)',
-					color: 'var(--status-red)',
-					border: 'var(--status-red)'
-				};
-			default:
-				return {
-					bg: 'var(--status-blue-bg)',
-					color: 'var(--status-blue)',
-					border: 'var(--status-blue)'
-				};
-		}
-	}
 </script>
 
 <svelte:head>
@@ -66,7 +33,7 @@
 		</button>
 	</div>
 {:else if solicitation}
-	{@const statusStyle = getStatusTheme(solicitation.status)}
+	{@const statusStyle = statusThemeVars(solicitation.status, statuses)}
 	<div class="solicitation-card">
 		<!-- Cabeçalho -->
 		<div class="card-header-top">
@@ -203,7 +170,7 @@
 		justify-content: center;
 		padding: 8px 16px;
 		background: var(--primary-color);
-		color: var(--white);
+		color: var(--on-primary);
 		border: none;
 		border-radius: var(--radius-sm);
 		font: var(--button);
@@ -236,7 +203,7 @@
 		font-size: 11px;
 		font-weight: 700;
 		color: var(--secondary-color);
-		background: var(--status-blue-bg);
+		background: var(--tint);
 		padding: 3px 10px;
 		border-radius: var(--radius-md);
 		margin-bottom: var(--spacing-sm);
@@ -248,7 +215,7 @@
 		margin: 4px 0;
 		font-size: 20px;
 		font-weight: 700;
-		color: var(--primary-color);
+		color: var(--heading-color);
 		line-height: 1.3;
 		font-family: var(--font-montserrat);
 	}
@@ -330,7 +297,7 @@
 		width: 40px;
 		height: 40px;
 		background: var(--secondary-color);
-		color: var(--white);
+		color: var(--on-primary);
 		border-radius: var(--radius-sm);
 		display: flex;
 		align-items: center;
@@ -366,7 +333,7 @@
 		gap: 8px;
 		padding: 10px 18px;
 		background: var(--secondary-color);
-		color: var(--white);
+		color: var(--on-primary);
 		border-radius: var(--radius-sm);
 		text-decoration: none;
 		font-weight: 600;
@@ -386,7 +353,7 @@
 	.history-section h2 {
 		font-size: 14px;
 		font-weight: 700;
-		color: var(--black);
+		color: var(--heading-color);
 		margin: 0 0 10px 0;
 		font-family: var(--font-montserrat);
 	}

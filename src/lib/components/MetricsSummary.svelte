@@ -54,14 +54,14 @@
 		font-size: 0.75rem;
 		font-weight: 500;
 		text-transform: uppercase;
-		color: var(--text-secondary);
+		color: var(--text-color-secondary);
 	}
 
 	.metric-value {
 		font-size: 1.25rem;
 		font-weight: 700;
 		line-height: 1.2;
-		color: var(--text-color);
+		color: var(--text-color-primary);
 	}
 
 	@media (max-width: 900px) {
