@@ -189,7 +189,7 @@
 		white-space: pre-wrap;
 		word-break: break-word;
 		overflow-wrap: anywhere;
-		background: #fafafa;
+		background: var(--white);
 		border: 1px solid var(--white-gray);
 		border-radius: var(--radius-sm);
 		padding: var(--spacing-sm) 12px;
@@ -204,7 +204,6 @@
 			transform 180ms ease,
 			box-shadow 180ms ease;
 		margin-bottom: var(--spacing-md);
-
 	}
 
 	.field-editor:focus-within {

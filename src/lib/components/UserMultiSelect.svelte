@@ -500,7 +500,7 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: 8px;
-		background: #fafafa;
+		background: var(--white);
 		border: 1px solid var(--white-gray);
 		border-radius: var(--radius-sm);
 	}
