@@ -231,7 +231,7 @@
 	td {
 		padding: var(--spacing-lg);
 		border-bottom: var(--border-default);
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 		vertical-align: middle;
 	}
 
@@ -361,7 +361,7 @@
 	.empty-state h3 {
 		margin: 0 0 var(--spacing-xs);
 		font: var(--h3);
-		color: var(--primary-color);
+		color: var(--heading-color);
 	}
 
 	.empty-state p {

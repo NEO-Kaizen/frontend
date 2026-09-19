@@ -61,7 +61,7 @@
 		padding: var(--spacing-sm) var(--spacing-md);
 		border-radius: var(--radius-sm);
 		background-color: var(--rich-black);
-		color: var(--on-primary);
+		color: var(--on-dark);
 		font: var(--paragrafo);
 		font-size: 13px;
 		line-height: 1.4;

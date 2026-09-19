@@ -244,7 +244,7 @@
 		font-size: 11px;
 		font-weight: 700;
 		color: var(--secondary-color);
-		background: var(--status-blue-bg);
+		background: var(--tint);
 		padding: 3px 10px;
 		border-radius: var(--radius-md);
 		margin-bottom: var(--spacing-sm);
@@ -256,7 +256,7 @@
 		margin: 4px 0;
 		font-size: 20px;
 		font-weight: 700;
-		color: var(--primary-color);
+		color: var(--heading-color);
 		line-height: 1.3;
 		font-family: var(--font-montserrat);
 	}
@@ -394,7 +394,7 @@
 	.history-section h2 {
 		font-size: 14px;
 		font-weight: 700;
-		color: var(--black);
+		color: var(--heading-color);
 		margin: 0 0 10px 0;
 		font-family: var(--font-montserrat);
 	}

@@ -30,6 +30,10 @@
 	/* Texto sobre cores de marca (botões, badges, nav ativo): separado de
 		`--white` para que a superfície possa escurecer no dark sem quebrar. */
 	--on-primary: #ffffff;
+
+	/* Texto sobre superfícies sempre escuras (gradiente/hero, tooltips em
+		`--rich-black`): permanece claro nos dois temas. */
+	--on-dark: #ffffff;
 	--surface: #fafafa;
 	--tint: #d6e7fb;
 
@@ -109,12 +113,27 @@ html[data-theme='dark'] {
 	--white: var(--light-surface, #fafafa);
 	--border-color: var(--light-border, #e5e7eb);
 	--white-gray: var(--light-border, #e5e7eb);
+	/* Redefinido aqui (e não só no :root) porque o `var()` de uma custom
+		property resolve no elemento da declaração — no :root ele congelaria a
+		cor light e não acompanharia o tema. */
+	--border-default: 1px solid var(--white-gray);
 	--black: var(--light-text-primary, #3c3e47);
 	--text-color-primary: var(--light-text-primary, #3c3e47);
 	--gray: var(--light-text-secondary, #757682);
 	--text-color-secondary: var(--light-text-secondary, #757682);
 	--rich-black: var(--light-rich-black, #0f1a2a);
 	--tint: var(--light-tint, #d6e7fb);
+	/* Gradiente de destaque (hero/cards): o valor composto vem de
+		`--light-gradient` (theme.ts via +layout.svelte); o fallback preserva o
+		visual anterior quando a paleta não é injetada. */
+	--gradient: var(--light-gradient, linear-gradient(143deg, #002068, #003399));
+	--on-gradient: var(--light-on-gradient, #ffffff);
+	/* `onPrimary`/`onDark`/`heading` também vêm da paleta injetada: sem este
+		bridge, editar esses tokens no Portal não chega à UI (o valor ficaria
+		preso no fallback). */
+	--on-primary: var(--light-on-primary, #ffffff);
+	--on-dark: var(--light-on-dark, #ffffff);
+	--heading-color: var(--light-heading, #00236f);
 
 	--status-error: var(--light-status-error, #ef4444);
 	--status-error-bg: var(--light-status-error-bg, #ef444410);
@@ -153,6 +172,13 @@ html[data-theme='dark'] {
 	--text-color-secondary: var(--dark-text-secondary, #9aa3b2);
 	--rich-black: var(--dark-rich-black, #0f1a2a);
 	--tint: var(--dark-tint, #1b2942);
+	--gradient: var(--dark-gradient, linear-gradient(143deg, #0b0f1a, #1b2942));
+	--on-gradient: var(--dark-on-gradient, #ffffff);
+	/* Sobre o azul vivo do dark (#4c7dff/#5b9bff), texto escuro passa AA;
+		branco reprovaria (3.69/2.77) — daí o fallback de `--dark-on-primary`. */
+	--on-primary: var(--dark-on-primary, #0b0f1a);
+	--on-dark: var(--dark-on-dark, #ffffff);
+	--heading-color: var(--dark-heading, #4c7dff);
 
 	--status-error: var(--dark-status-error, #f87171);
 	--status-error-bg: var(--dark-status-error-bg, #4c0f0a);
@@ -214,7 +240,7 @@ h3,
 h4,
 h5,
 h6 {
-	color: var(--primary-color);
+	color: var(--heading-color);
 }
 
 h1 {

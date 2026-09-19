@@ -175,7 +175,7 @@
 		border-radius: var(--radius-sm);
 		font: var(--paragrafo);
 		background-color: var(--white);
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 		outline: none;
 		transition: var(--transition-default);
 	}
@@ -280,7 +280,7 @@
 	input.readonly {
 		cursor: default;
 		background-color: var(--white-gray);
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 	}
 
 	input[type='password']::-ms-reveal {

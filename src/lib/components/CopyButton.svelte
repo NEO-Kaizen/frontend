@@ -41,7 +41,7 @@
 		align-items: center;
 		gap: var(--spacing-xs, 4px);
 		padding: var(--spacing-xs, 4px) var(--spacing-sm, 8px);
-		border: 1px solid var(--border-default);
+		border: var(--border-default);
 		border-radius: var(--radius-sm);
 		background-color: var(--white);
 		color: var(--primary-color);

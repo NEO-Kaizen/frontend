@@ -84,7 +84,7 @@
 
 	.outline-neutral {
 		background-color: var(--white);
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 		border: var(--border-default);
 	}
 

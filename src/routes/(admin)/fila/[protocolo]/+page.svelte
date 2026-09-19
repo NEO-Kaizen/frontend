@@ -104,9 +104,9 @@
 	.skeleton {
 		background: linear-gradient(
 			90deg,
-			var(--white-gray) 25%,
-			var(--white) 50%,
-			var(--white-gray) 75%
+			var(--border-color) 25%,
+			var(--surface) 50%,
+			var(--border-color) 75%
 		);
 		background-size: 200% 100%;
 		animation: shimmer 1.5s infinite;

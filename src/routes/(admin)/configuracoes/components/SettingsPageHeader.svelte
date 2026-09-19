@@ -26,7 +26,7 @@
 		width: 48px;
 		height: 48px;
 		border-radius: var(--radius-sm);
-		background-color: var(--status-blue-bg);
+		background-color: var(--tint);
 		color: var(--secondary-color);
 		flex-shrink: 0;
 	}
@@ -39,7 +39,7 @@
 	.text h1 {
 		margin: 0;
 		font: var(--h1);
-		color: var(--primary-color);
+		color: var(--heading-color);
 	}
 
 	.text p {

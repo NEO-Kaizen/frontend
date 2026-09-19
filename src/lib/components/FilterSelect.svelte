@@ -316,7 +316,7 @@
 		padding: 0;
 		border: 0;
 		background-color: transparent;
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 		font: var(--paragrafo);
 		outline: none;
 		cursor: pointer;
@@ -408,7 +408,7 @@
 		padding: var(--spacing-sm);
 		border-radius: var(--radius-sm);
 		font: var(--paragrafo);
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 		cursor: pointer;
 	}
 

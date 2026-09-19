@@ -75,7 +75,7 @@
 		width: 40px;
 		height: 40px;
 		border-radius: var(--radius-sm);
-		background-color: var(--status-blue-bg);
+		background-color: var(--tint);
 		color: var(--secondary-color);
 		flex-shrink: 0;
 	}
@@ -101,7 +101,7 @@
 	h2 {
 		margin: 0;
 		font: var(--h4);
-		color: var(--rich-black);
+		color: var(--heading-color);
 	}
 
 	p {
