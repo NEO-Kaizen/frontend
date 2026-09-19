@@ -5,6 +5,7 @@
 	import MetricsSummary from '$lib/components/MetricsSummary.svelte';
 	import DashboardChart from '$lib/components/dashboard/DashboardChart.svelte';
 	import DashboardPanel from '$lib/components/dashboard/DashboardPanel.svelte';
+	import { getThemeMode } from '$lib/states/theme.svelte';
 	import type { DashboardPriorityMetric, DashboardStatusTone } from '$lib/types/dashboard';
 	import type { MetricItem } from '$lib/types/metrics';
 	import type { PageProps } from './$types';
@@ -12,6 +13,7 @@
 	let { data }: PageProps = $props();
 
 	const dashboard = $derived(data.result.ok ? data.result.data : null);
+	const activePalette = $derived(data.portalConfig.theme[getThemeMode()]);
 
 	const metrics = $derived.by<MetricItem[]>(() => {
 		if (!dashboard) return [];
@@ -50,21 +52,30 @@
 		];
 	});
 
-	const statusColors: Record<DashboardStatusTone, string> = {
-		error: '#ef4444',
-		success: '#10b981',
-		info: '#0058be',
-		warning: '#f59e0b',
-		neutral: '#757682'
-	};
+	const statusColors = $derived.by<Record<DashboardStatusTone, string>>(() => ({
+		error: activePalette.statuses.error.color,
+		success: activePalette.statuses.success.color,
+		info: activePalette.statuses.info.color,
+		warning: activePalette.statuses.warning.color,
+		neutral: activePalette.statuses.neutral.color
+	}));
 
-	const priorityColors: Record<DashboardPriorityMetric['label'], string> = {
-		Crítica: '#ef4444',
-		Alta: '#f59e0b',
-		Média: '#0058be',
-		Baixa: '#10b981',
-		'Não priorizada': '#757682'
-	};
+	const priorityColors = $derived.by<Record<DashboardPriorityMetric['label'], string>>(() => ({
+		Crítica: statusColors.error,
+		Alta: statusColors.warning,
+		Média: statusColors.info,
+		Baixa: statusColors.success,
+		'Não priorizada': statusColors.neutral
+	}));
+
+	const categoryColors = $derived([
+		activePalette.secondary,
+		statusColors.success,
+		statusColors.warning,
+		statusColors.error,
+		activePalette.primary,
+		statusColors.neutral
+	]);
 
 	const priorityOrder: Record<DashboardPriorityMetric['label'], number> = {
 		Crítica: 0,
@@ -136,8 +147,8 @@
 		return filters;
 	});
 
-	function repeatColor(color: string, count: number): string[] {
-		return Array.from({ length: count }, () => color);
+	function repeatPalette(palette: string[], count: number): string[] {
+		return Array.from({ length: count }, (_, index) => palette[index % palette.length]);
 	}
 
 	function formatPeriod(period: string): string {
@@ -267,7 +278,9 @@
 					height={300}
 					labels={dashboard.openedOverTime.map((metric) => formatPeriod(metric.period))}
 					values={dashboard.openedOverTime.map((metric) => metric.count)}
-					colors={['#0058be']}
+					colors={[activePalette.secondary]}
+					textColor={activePalette.textSecondary}
+					gridColor={activePalette.border}
 					ariaLabel="Quantidade de solicitações abertas por mês"
 				/>
 			</DashboardPanel>
@@ -283,6 +296,8 @@
 					labels={dashboard.byStatus.map((metric) => metric.name)}
 					values={dashboard.byStatus.map((metric) => metric.count)}
 					colors={dashboard.byStatus.map((metric) => statusColors[metric.tone])}
+					textColor={activePalette.textSecondary}
+					gridColor={activePalette.border}
 					ariaLabel="Quantidade de solicitações por status"
 				/>
 			</DashboardPanel>
@@ -298,7 +313,9 @@
 						height={Math.max(340, categoriesByVolume.length * 36)}
 						labels={categoriesByVolume.map((metric) => metric.name)}
 						values={categoriesByVolume.map((metric) => metric.count)}
-						colors={repeatColor('#0058be', categoriesByVolume.length)}
+						colors={repeatPalette(categoryColors, categoriesByVolume.length)}
+						textColor={activePalette.textSecondary}
+						gridColor={activePalette.border}
 						ariaLabel="Quantidade de solicitações por categoria"
 					/>
 				</DashboardPanel>
@@ -313,6 +330,8 @@
 						labels={prioritiesBySeverity.map((metric) => metric.label)}
 						values={prioritiesBySeverity.map((metric) => metric.count)}
 						colors={prioritiesBySeverity.map((metric) => priorityColors[metric.label])}
+						textColor={activePalette.textSecondary}
+						gridColor={activePalette.border}
 						ariaLabel="Quantidade de solicitações por prioridade"
 					/>
 				</DashboardPanel>
@@ -340,7 +359,7 @@
 	}
 
 	.page-heading h1 {
-		color: var(--rich-black);
+		color: var(--heading-color);
 	}
 
 	.page-heading p:not(.eyebrow) {
@@ -371,7 +390,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 4px;
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 	}
 
 	.filters input,
@@ -380,7 +399,7 @@
 		min-height: 42px;
 		padding: var(--spacing-sm);
 		font: var(--paragrafo);
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 		background: var(--white);
 		border: var(--border-default);
 		border-radius: var(--radius-sm);
@@ -464,7 +483,7 @@
 
 	.state-card h2 {
 		font: var(--h3);
-		color: var(--rich-black);
+		color: var(--heading-color);
 	}
 
 	.state-card.error {

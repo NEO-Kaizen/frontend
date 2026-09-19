@@ -9,6 +9,8 @@
 		labels: string[];
 		values: number[];
 		colors: string[];
+		textColor: string;
+		gridColor: string;
 		ariaLabel: string;
 		horizontal?: boolean;
 		height?: number;
@@ -19,6 +21,8 @@
 		labels,
 		values,
 		colors,
+		textColor,
+		gridColor,
 		ariaLabel,
 		horizontal = false,
 		height = 320
@@ -46,17 +50,31 @@
 			options: {
 				responsive: true,
 				maintainAspectRatio: false,
+				color: textColor,
+				borderColor: gridColor,
 				indexAxis: horizontal ? 'y' : 'x',
 				plugins: {
-					legend: { display: type === 'doughnut', position: 'bottom' },
+					legend: {
+						display: type === 'doughnut',
+						position: 'bottom',
+						labels: { color: textColor }
+					},
 					tooltip: { enabled: true }
 				},
 				scales:
 					type === 'doughnut'
 						? undefined
 						: {
-								x: { beginAtZero: true, ticks: { precision: 0 } },
-								y: { beginAtZero: true, ticks: { precision: 0 } }
+								x: {
+									beginAtZero: true,
+									grid: { color: gridColor },
+									ticks: { color: textColor, precision: 0 }
+								},
+								y: {
+									beginAtZero: true,
+									grid: { color: gridColor },
+									ticks: { color: textColor, precision: 0 }
+								}
 							}
 			}
 		};
@@ -79,6 +97,17 @@
 			dataset.data = values;
 			dataset.backgroundColor = colors;
 			dataset.borderColor = colors;
+		}
+		chart.options.color = textColor;
+		chart.options.borderColor = gridColor;
+
+		const legend = chart.options.plugins?.legend;
+		if (legend?.labels) legend.labels.color = textColor;
+
+		for (const scale of Object.values(chart.options.scales ?? {})) {
+			if (!scale) continue;
+			if (scale.ticks) scale.ticks.color = textColor;
+			if (scale.grid) scale.grid.color = gridColor;
 		}
 		chart.update();
 	});
