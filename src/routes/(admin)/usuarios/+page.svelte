@@ -781,6 +781,12 @@
 		}
 	}
 
+	@media (prefers-reduced-motion: reduce) {
+		.spinner {
+			animation: none;
+		}
+	}
+
 	/* =========================
 	   RODAPÉ
 	========================= */

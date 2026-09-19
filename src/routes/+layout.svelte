@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { themeStyleVars } from '$lib/utils/theme';
 	import { getThemeMode } from '$lib/states/theme.svelte';
+	import NavigationProgress from '$lib/components/layout/NavigationProgress.svelte';
 	import ToastHost from '$lib/components/layout/ToastHost.svelte';
 
 	let { data, children } = $props();
@@ -33,6 +34,7 @@
 </svelte:head>
 
 <div class="app-root" style={themeVars}>
+	<NavigationProgress />
 	{@render children()}
 	<ToastHost />
 </div>
