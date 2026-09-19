@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte';
+	import { onMount } from 'svelte';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Textarea from '$lib/components/Textarea.svelte';
+	import { toastState } from '$lib/states/toast.svelte';
 	import {
 		createInternalNote,
 		getInternalNotes,
@@ -40,27 +41,12 @@
 
 	let content = $state('');
 	let contentError = $state<string | null>(null);
-	let submitError = $state<string | null>(null);
-	let submitSuccess = $state<string | null>(null);
 	let readError = $state<string | null>(null);
 	let isSubmitting = $state(false);
 	let isReloading = $state(false);
 	let isMarkingRead = $state(false);
 	let lastMarkedNoteId = $state<string | null>(null);
 	let latestNoteId = $derived(notes.at(-1)?.id ?? null);
-
-	const SUCCESS_TIMEOUT_MS = 4000;
-	let successTimer: ReturnType<typeof setTimeout> | undefined;
-
-	function clearSubmitSuccess(): void {
-		if (successTimer !== undefined) {
-			clearTimeout(successTimer);
-			successTimer = undefined;
-		}
-		submitSuccess = null;
-	}
-
-	onDestroy(clearSubmitSuccess);
 
 	function getInitials(name: string): string {
 		const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -116,8 +102,6 @@
 
 	function handleContentInput(): void {
 		contentError = null;
-		submitError = null;
-		clearSubmitSuccess();
 	}
 
 	async function handleSubmit(event: SubmitEvent): Promise<void> {
@@ -128,24 +112,18 @@
 		if (contentError) return;
 
 		isSubmitting = true;
-		submitError = null;
-		clearSubmitSuccess();
 		const result = await createInternalNote(protocol, content);
 		isSubmitting = false;
 
 		if (!result.ok) {
-			submitError = result.error.message;
+			toastState.add(result.error.message, 'error');
 			return;
 		}
 
 		onNoteCreated(result.data);
 		content = '';
 		contentError = null;
-		submitSuccess = 'Observação adicionada com sucesso.';
-		successTimer = setTimeout(() => {
-			submitSuccess = null;
-			successTimer = undefined;
-		}, SUCCESS_TIMEOUT_MS);
+		toastState.add('Observação adicionada com sucesso.', 'success');
 	}
 </script>
 
@@ -220,10 +198,6 @@
 			/>
 
 			<div class="composer-footer">
-				<div class="submit-feedback" aria-live="polite">
-					{#if submitError}<p class="feedback-error" role="alert">{submitError}</p>{/if}
-					{#if submitSuccess}<p class="feedback-success" role="status">{submitSuccess}</p>{/if}
-				</div>
 				<Button type="submit" loading={isSubmitting} disabled={!content.trim()}>
 					<Icon iconName="send" iconSize="sm" />
 					{isSubmitting ? 'Publicando…' : 'Adicionar observação'}
@@ -329,7 +303,7 @@
 
 	.current-user .avatar {
 		background: var(--primary-color);
-		color: var(--white);
+		color: var(--on-primary);
 	}
 
 	.note-entry {
@@ -371,7 +345,7 @@
 		border-radius: 4px 14px 14px 14px;
 		border: var(--border-default);
 		background: var(--background-color);
-		color: var(--rich-black);
+		color: var(--black);
 		font-family: var(--font-inter);
 		font-size: 13px;
 		line-height: 1.6;
@@ -383,7 +357,7 @@
 		border-color: var(--primary-color);
 		border-radius: 14px 4px 14px 14px;
 		background: var(--primary-color);
-		color: var(--white);
+		color: var(--on-primary);
 	}
 
 	.load-state {
@@ -457,23 +431,8 @@
 	.composer-footer {
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
+		justify-content: flex-end;
 		gap: var(--spacing-md);
-	}
-
-	.submit-feedback {
-		min-height: 20px;
-		font-family: var(--font-inter);
-		font-size: 12px;
-		font-weight: 600;
-	}
-
-	.feedback-error {
-		color: var(--status-red);
-	}
-
-	.feedback-success {
-		color: var(--status-green);
 	}
 
 	@media (max-width: 640px) {
