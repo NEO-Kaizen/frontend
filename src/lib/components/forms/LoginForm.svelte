@@ -10,7 +10,8 @@
 	import type { LoginCredentials } from '$lib/types/auth';
 
 	const platformName = $derived(page.data.portalConfig.platformName);
-	const loginImageUrl = $derived(page.data.portalConfig.assets.loginImageUrl);
+	const loginImageLight = $derived(page.data.portalConfig.assets.loginImageLightUrl);
+	const loginImageDark = $derived(page.data.portalConfig.assets.loginImageDarkUrl);
 	const returnTo = $derived(page.url.searchParams.get('returnTo'));
 
 	let email = $state('');
@@ -81,7 +82,11 @@
 </script>
 
 <form method="post" onsubmit={handleSubmit} novalidate>
-	<div class="container-banner" style:background-image={`url('${loginImageUrl}')`}>
+	<div
+		class="container-banner"
+		style:--login-image-light={`url('${loginImageLight}')`}
+		style:--login-image-dark={`url('${loginImageDark}')`}
+	>
 		<h2>Potencializando a Gestão Inteligente.</h2>
 		<span style="display: flex; align-items: center; gap: var(--spacing-sm);">
 			<svg xmlns="http://www.w3.org/2000/svg" width="48" height="2" viewBox="0 0 48 2" fill="none">
@@ -161,13 +166,17 @@
 		justify-content: flex-end;
 		width: 50%;
 		gap: var(--spacing-xl);
+		background-image: var(--login-image-light);
 		background-size: cover;
 		background-position: center;
 		padding: var(--spacing-xl);
 	}
+	:global([data-theme='dark']) .container-banner {
+		background-image: var(--login-image-dark);
+	}
 	.container-banner h2,
 	.container-banner p {
-		color: var(--white);
+		color: var(--on-dark);
 	}
 	.container-form {
 		width: 50%;

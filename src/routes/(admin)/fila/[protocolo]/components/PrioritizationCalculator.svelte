@@ -419,7 +419,7 @@
 	.note-option.selected {
 		background: var(--primary-color);
 		border-color: var(--primary-color);
-		color: var(--white);
+		color: var(--on-primary);
 	}
 
 	.note-option:has(input:disabled) {

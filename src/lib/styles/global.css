@@ -15,7 +15,9 @@
 	--label: 600 14px/1.5 var(--font-inter);
 	--button: 600 16px/1.5 var(--font-inter);
 
-	/* Cores */
+	/* Cores — fallbacks do tema claro. As paletas do portal são mapeadas em
+		`.app-root` (ver bloco de tema); estes valores valem para o que estiver
+		fora do wrapper e como fallback. */
 	--primary-color: #00236f;
 	--secondary-color: #0058be;
 	--background-color: #f0f4f8;
@@ -25,14 +27,41 @@
 	--white-gray: #e5e7eb;
 	--rich-black: #0f1a2a;
 
-	--status-red: #ef4444;
-	--status-red-bg: #ef444410;
-	--status-green: #10b981;
-	--status-green-bg: #10b98110;
-	--status-blue: #0058be;
-	--status-blue-bg: #0058be10;
-	--status-yellow: #956006;
-	--status-yellow-bg: #f59e0b10;
+	/* Texto sobre cores de marca (botões, badges, nav ativo): separado de
+		`--white` para que a superfície possa escurecer no dark sem quebrar. */
+	--on-primary: #ffffff;
+
+	/* Texto sobre superfícies sempre escuras (gradiente/hero, tooltips em
+		`--rich-black`): permanece claro nos dois temas. */
+	--on-dark: #ffffff;
+	--surface: #fafafa;
+	--tint: #d6e7fb;
+
+	/* Aliases semânticos — nomes estáveis usados pela UI e pelo card de tokens */
+	--border-color: var(--white-gray);
+	--text-color-primary: var(--black);
+	--text-color-secondary: var(--gray);
+
+	/* Cores de status (nomes semânticos); os nomes antigos ficam como alias */
+	--status-error: #ef4444;
+	--status-error-bg: #ef444410;
+	--status-success: #10b981;
+	--status-success-bg: #10b98110;
+	--status-info: #0058be;
+	--status-info-bg: #0058be10;
+	--status-warning: #956006;
+	--status-warning-bg: #f59e0b10;
+	--status-neutral: #4b5563;
+	--status-neutral-bg: #e5e7eb;
+
+	--status-red: var(--status-error);
+	--status-red-bg: var(--status-error-bg);
+	--status-green: var(--status-success);
+	--status-green-bg: var(--status-success-bg);
+	--status-blue: var(--status-info);
+	--status-blue-bg: var(--status-info-bg);
+	--status-yellow: var(--status-warning);
+	--status-yellow-bg: var(--status-warning-bg);
 
 	--gradient: linear-gradient(143deg, #002068 0%, #039 100%);
 
@@ -46,6 +75,7 @@
 	--border-default: 1px solid var(--white-gray);
 
 	/* Espaçamento */
+	--spacing-xs: 4px;
 	--spacing-sm: 8px;
 	--spacing-md: 16px;
 	--spacing-lg: 24px;
@@ -58,6 +88,119 @@
 
 	/* Transições */
 	--transition-default: all 0.3s ease-in-out;
+}
+
+/* `color-scheme` faz os controles nativos (ex.: ícone do `<input type="date">`)
+   seguirem o tema. O `data-theme` é definido no `<html>` pelo app.html. */
+html {
+	color-scheme: light;
+}
+
+html[data-theme='dark'] {
+	color-scheme: dark;
+}
+
+/* Tema do portal. O layout injeta as duas paletas como custom properties no
+	`.app-root` (`--light-*` / `--dark-*`); aqui elas são mapeadas para os nomes
+	canônicos consumidos pela UI. O tema escuro é selecionado pelo atributo
+	`data-theme` no `<html>` (script anti-FOUC no app.html). Os aliases antigos
+	de status são redefinidos no mesmo escopo para não ficarem defasados. */
+.app-root {
+	--primary-color: var(--light-primary, #00236f);
+	--secondary-color: var(--light-secondary, #0058be);
+	--background-color: var(--light-background, #f0f4f8);
+	--surface: var(--light-surface, #fafafa);
+	--white: var(--light-surface, #fafafa);
+	--border-color: var(--light-border, #e5e7eb);
+	--white-gray: var(--light-border, #e5e7eb);
+	/* Redefinido aqui (e não só no :root) porque o `var()` de uma custom
+		property resolve no elemento da declaração — no :root ele congelaria a
+		cor light e não acompanharia o tema. */
+	--border-default: 1px solid var(--white-gray);
+	--black: var(--light-text-primary, #3c3e47);
+	--text-color-primary: var(--light-text-primary, #3c3e47);
+	--gray: var(--light-text-secondary, #757682);
+	--text-color-secondary: var(--light-text-secondary, #757682);
+	--rich-black: var(--light-rich-black, #0f1a2a);
+	--tint: var(--light-tint, #d6e7fb);
+	/* Gradiente de destaque (hero/cards): o valor composto vem de
+		`--light-gradient` (theme.ts via +layout.svelte); o fallback preserva o
+		visual anterior quando a paleta não é injetada. */
+	--gradient: var(--light-gradient, linear-gradient(143deg, #002068, #003399));
+	--on-gradient: var(--light-on-gradient, #ffffff);
+	/* `onPrimary`/`onDark`/`heading` também vêm da paleta injetada: sem este
+		bridge, editar esses tokens no Portal não chega à UI (o valor ficaria
+		preso no fallback). */
+	--on-primary: var(--light-on-primary, #ffffff);
+	--on-dark: var(--light-on-dark, #ffffff);
+	--heading-color: var(--light-heading, #00236f);
+
+	--status-error: var(--light-status-error, #ef4444);
+	--status-error-bg: var(--light-status-error-bg, #ef444410);
+	--status-success: var(--light-status-success, #10b981);
+	--status-success-bg: var(--light-status-success-bg, #10b98110);
+	--status-info: var(--light-status-info, #0058be);
+	--status-info-bg: var(--light-status-info-bg, #0058be10);
+	--status-warning: var(--light-status-warning, #956006);
+	--status-warning-bg: var(--light-status-warning-bg, #f59e0b10);
+	--status-neutral: var(--light-status-neutral, #4b5563);
+	--status-neutral-bg: var(--light-status-neutral-bg, #e5e7eb);
+
+	--status-red: var(--status-error);
+	--status-red-bg: var(--status-error-bg);
+	--status-green: var(--status-success);
+	--status-green-bg: var(--status-success-bg);
+	--status-blue: var(--status-info);
+	--status-blue-bg: var(--status-info-bg);
+	--status-yellow: var(--status-warning);
+	--status-yellow-bg: var(--status-warning-bg);
+
+	color: var(--black);
+}
+
+[data-theme='dark'] .app-root {
+	--primary-color: var(--dark-primary, #4c7dff);
+	--secondary-color: var(--dark-secondary, #5b9bff);
+	--background-color: var(--dark-background, #0b0f1a);
+	--surface: var(--dark-surface, #141b2e);
+	--white: var(--dark-surface, #141b2e);
+	--border-color: var(--dark-border, #2a3346);
+	--white-gray: var(--dark-border, #2a3346);
+	--black: var(--dark-text-primary, #e5e7eb);
+	--text-color-primary: var(--dark-text-primary, #e5e7eb);
+	--gray: var(--dark-text-secondary, #9aa3b2);
+	--text-color-secondary: var(--dark-text-secondary, #9aa3b2);
+	--rich-black: var(--dark-rich-black, #0f1a2a);
+	--tint: var(--dark-tint, #1b2942);
+	--gradient: var(--dark-gradient, linear-gradient(143deg, #0b0f1a, #1b2942));
+	--on-gradient: var(--dark-on-gradient, #ffffff);
+	/* Sobre o azul vivo do dark (#4c7dff/#5b9bff), texto escuro passa AA;
+		branco reprovaria (3.69/2.77) — daí o fallback de `--dark-on-primary`. */
+	--on-primary: var(--dark-on-primary, #0b0f1a);
+	--on-dark: var(--dark-on-dark, #ffffff);
+	--heading-color: var(--dark-heading, #4c7dff);
+
+	--status-error: var(--dark-status-error, #f87171);
+	--status-error-bg: var(--dark-status-error-bg, #4c0f0a);
+	--status-success: var(--dark-status-success, #4ade80);
+	--status-success-bg: var(--dark-status-success-bg, #0f2e1d);
+	--status-info: var(--dark-status-info, #5b9bff);
+	--status-info-bg: var(--dark-status-info-bg, #1b2942);
+	--status-warning: var(--dark-status-warning, #fbbf24);
+	--status-warning-bg: var(--dark-status-warning-bg, #4a2e0f);
+	--status-neutral: var(--dark-status-neutral, #9aa3b2);
+	--status-neutral-bg: var(--dark-status-neutral-bg, #2a3346);
+
+	--status-red: var(--status-error);
+	--status-red-bg: var(--status-error-bg);
+	--status-green: var(--status-success);
+	--status-green-bg: var(--status-success-bg);
+	--status-blue: var(--status-info);
+	--status-blue-bg: var(--status-info-bg);
+	--status-yellow: var(--status-warning);
+	--status-yellow-bg: var(--status-warning-bg);
+
+	color: var(--black);
 }
 
 * {
@@ -73,8 +216,8 @@ body {
 
 /* Container de layout do app: centraliza o conteúdo, define o fundo e a
 	altura mínima para o footer fixar embaixo. As custom properties de tema
-	(--primary-color etc.) são injetadas inline pelo +layout.svelte via
-	diretivas `style:--*`. */
+	(--primary-color etc.) vêm do bloco de tema acima, alimentadas pelas paletas
+	injetadas pelo +layout.svelte via diretivas `style`. */
 .app-root {
 	display: flex;
 	flex-direction: column;
@@ -97,7 +240,7 @@ h3,
 h4,
 h5,
 h6 {
-	color: var(--primary-color);
+	color: var(--heading-color);
 }
 
 h1 {
