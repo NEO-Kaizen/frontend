@@ -52,6 +52,8 @@ export const iconDictionary = {
 	calculate: 'calculate',
 	link: 'link',
 	info: 'info',
+	warning: 'warning',
+	error: 'error',
 	check: 'check',
 	person: 'person',
 	description: 'description',
@@ -63,10 +65,8 @@ export const iconDictionary = {
 	lightMode: 'light_mode',
 	darkMode: 'dark_mode',
 	content_copy: 'content_copy',
-	category: 'category',
 	assignment: 'assignment_ind',
-	stacks: 'stacks',
-	warning: 'warning'
+	stacks: 'stacks'
 } as const;
 
 export type IconName = keyof typeof iconDictionary;

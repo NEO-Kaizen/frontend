@@ -4,6 +4,7 @@
 	import { untrack } from 'svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import { statusThemeVars } from '$lib/utils/status';
+	import type { InternalNotesResponse } from '$lib/types/internal-note';
 	import type { InternalRequestDetail } from '$lib/types/request';
 	import type { CriterionNotes, PrioritizationResult } from '$lib/types/prioritization';
 	import { loadPrioritizationFinal } from '$lib/services/prioritization-draft.service';
@@ -15,12 +16,21 @@
 
 	interface Props {
 		solicitation: InternalRequestDetail;
+		internalNotes: InternalNotesResponse | null;
+		internalNotesError: string | null;
 		onSaveSuccess?: (updated: InternalRequestDetail) => void;
 		onSaveError?: (message: string) => void;
 		onTriageSuccess?: (updated: InternalRequestDetail) => void;
 	}
 
-	let { solicitation, onSaveSuccess, onSaveError, onTriageSuccess }: Props = $props();
+	let {
+		solicitation,
+		internalNotes,
+		internalNotesError,
+		onSaveSuccess,
+		onSaveError,
+		onTriageSuccess
+	}: Props = $props();
 
 	let statusTheme = $derived(statusThemeVars(solicitation.status, page.data.portalConfig.statuses));
 	let displayScore = $derived(
@@ -253,6 +263,8 @@
 
 	<SpecTabs
 		{solicitation}
+		{internalNotes}
+		{internalNotesError}
 		{onSaveSuccess}
 		{onSaveError}
 		{onTriageSuccess}

@@ -15,5 +15,6 @@ export const MOCK_DOMAINS =
 		users: true,
 		prioritization: true,
 		triage: true,
-		mapping: true
+		mapping: true,
+		internalNotes: true
 	} as const);

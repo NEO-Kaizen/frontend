@@ -7,6 +7,7 @@
 		loadPrioritizationCriteria,
 		submitPrioritization
 	} from '$lib/services/prioritization.service';
+	import { toastState } from '$lib/states/toast.svelte';
 	import {
 		clearPrioritizationDraft,
 		loadPrioritizationDraft,
@@ -21,7 +22,6 @@
 		type PrioritizationCriterion,
 		type PrioritizationResult
 	} from '$lib/types/prioritization';
-	import { toastState } from '$lib/states/toast.svelte';
 
 	interface Props {
 		protocol: string;
@@ -61,8 +61,6 @@
 	let isLoading = $state(true);
 	let loadError = $state('');
 	let isSaving = $state(false);
-	let saveError = $state('');
-	let validationError = $state('');
 	let missingCriterionIds = $state<string[]>([]);
 	let result = $state<PrioritizationResult | null>(null);
 	let justification = $state('');
@@ -77,6 +75,8 @@
 	async function loadCriteria() {
 		isLoading = true;
 		loadError = '';
+		missingCriterionIds = [];
+		result = null;
 
 		const loaded = await loadPrioritizationCriteria();
 
@@ -142,9 +142,7 @@
 		notes = {};
 		result = null;
 		justification = '';
-		validationError = '';
 		missingCriterionIds = [];
-		saveError = '';
 		loadError = '';
 		isSaving = false;
 		isLoading = false;
@@ -163,9 +161,6 @@
 		// Remove o critério do conjunto de faltantes/erro de validação.
 		if (missingCriterionIds.length > 0) {
 			missingCriterionIds = missingCriterionIds.filter((id) => id !== criterionId);
-			if (missingCriterionIds.length === 0) {
-				validationError = '';
-			}
 		}
 	}
 
@@ -174,9 +169,7 @@
 
 		if (isSaving) return;
 
-		validationError = '';
 		missingCriterionIds = [];
-		saveError = '';
 
 		isSaving = true;
 
@@ -195,14 +188,15 @@
 					justification: '',
 					result: submission.data
 				});
-				toastState.add('Notas salvas com sucesso.', 'success');
 				onsave?.(submission.data, notes as CriterionNotes);
+				toastState.add(
+					`Prioridade salva: ${submission.data.score}/${submission.data.maxScore} — ${submission.data.level}`,
+					'success'
+				);
 			} else if (submission.error.missingCriterionIds?.length) {
 				missingCriterionIds = submission.error.missingCriterionIds;
-				validationError = submission.error.message;
 				toastState.add(submission.error.message, 'error');
 			} else {
-				saveError = submission.error.message;
 				toastState.add(submission.error.message, 'error');
 			}
 		} finally {
@@ -260,13 +254,6 @@
 		{/if}
 
 		<form onsubmit={handleSubmit} novalidate>
-			{#if validationError}
-				<p class="form-error" role="alert">{validationError}</p>
-			{/if}
-			{#if saveError}
-				<p class="form-error" role="alert">{saveError}</p>
-			{/if}
-
 			<div class="criteria-list">
 				{#each criteria as criterion (criterion.id)}
 					<fieldset class="criterion" class:has-error={criterionErrors.has(criterion.id)}>
@@ -274,15 +261,7 @@
 							<span class="criterion-name">{criterion.name}</span>
 						</legend>
 
-						<div
-							class="notes-group"
-							role="radiogroup"
-							aria-label="Nota para {criterion.name}"
-							aria-invalid={criterionErrors.has(criterion.id) ? true : undefined}
-							aria-describedby={criterionErrors.has(criterion.id)
-								? `criterion-error-${criterion.id}`
-								: undefined}
-						>
+						<div class="notes-group">
 							{#each notesOptions as note (note)}
 								<label class="note-option" class:selected={notes[criterion.id] === note}>
 									<input
@@ -292,16 +271,20 @@
 										bind:group={notes[criterion.id]}
 										onchange={() => handleNoteChange(criterion.id)}
 										disabled={isSaving}
+										aria-describedby={criterionErrors.has(criterion.id)
+											? `criterion-error-${criterion.id}`
+											: undefined}
 									/>
 									<span aria-hidden="true">{note}</span>
-									<span class="sr-only">Nota {note}</span>
+									<span class="sr-only">Nota {note} para {criterion.name}</span>
 								</label>
 							{/each}
 						</div>
 
 						{#if criterionErrors.has(criterion.id)}
-							<p id={`criterion-error-${criterion.id}`} class="sr-only" role="alert">
-								Critério obrigatório: selecione uma nota de 1 a 5.
+							<p id={`criterion-error-${criterion.id}`} class="criterion-error">
+								<Icon iconName="warning" iconSize="sm" />
+								Selecione uma nota de 1 a 5 para {criterion.name}.
 							</p>
 						{/if}
 					</fieldset>
@@ -391,7 +374,7 @@
 		justify-content: space-between;
 		gap: var(--spacing-md);
 		background: var(--white);
-		border-bottom: 1px solid rgb(220, 220, 220);
+		border-bottom: 1px solid var(--border-color);
 		margin-bottom: 20px;
 	}
 
@@ -453,16 +436,6 @@
 		color: var(--gray);
 	}
 
-	.form-error {
-		margin: 0 0 var(--spacing-md);
-		padding: var(--spacing-sm) var(--spacing-md);
-		overflow-wrap: anywhere; /* não deixa a frase alargar o cartão (largura segue a dos critérios) */
-		background: var(--status-red-bg);
-		color: var(--status-red);
-		border-radius: var(--radius-sm);
-		font: var(--label);
-	}
-
 	.criteria-list {
 		display: flex;
 		flex-direction: column;
@@ -478,6 +451,18 @@
 
 	.criterion.has-error {
 		border-color: var(--status-red);
+	}
+
+	.criterion-error {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-sm);
+		margin: var(--spacing-sm) 0 0;
+		color: var(--status-red);
+		font-size: 13px;
+		font-weight: 600;
+		line-height: 1.4;
+		overflow-wrap: anywhere;
 	}
 
 	.criterion-legend {

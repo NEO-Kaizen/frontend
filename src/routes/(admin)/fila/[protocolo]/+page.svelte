@@ -73,7 +73,12 @@
 			</div>
 		{/if}
 	{:else if solicitation}
-		<SolicitationSpecs {solicitation} onTriageSuccess={handleTriageSuccess} />
+		<SolicitationSpecs
+			{solicitation}
+			internalNotes={data.internalNotes}
+			internalNotesError={data.internalNotesError}
+			onTriageSuccess={handleTriageSuccess}
+		/>
 	{:else if error && error.status === 404}
 		<NotFoundState
 			title="Solicitação não encontrada"
