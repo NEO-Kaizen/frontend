@@ -277,7 +277,7 @@
 		justify-content: space-between;
 		gap: var(--spacing-md);
 		background: var(--white);
-		border-bottom: 1px solid rgb(220, 220, 220);
+		border-bottom: 1px solid var(--border-color);
 		margin-bottom: 20px;
 	}
 
