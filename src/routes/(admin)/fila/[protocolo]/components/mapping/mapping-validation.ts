@@ -15,11 +15,14 @@ export function nowLocalMinute(): string {
 }
 
 // Normaliza o `scheduledFor` do contrato (ISO com offset/Z) para o valor do
-// `input[type=datetime-local]` (`yyyy-mm-ddThh:mm`).
+// `input[type=datetime-local]` (`yyyy-mm-ddThh:mm` em hora local).
+// O contrato devolve UTC/Z (ex.: "2026-10-15T13:30:00Z"); o input espera hora
+// local, então convertemos UTC → local (inverso de datetimeLocalToIso).
 export function toDatetimeLocalValue(iso: string | null): string {
 	if (!iso) return '';
-	const match = iso.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})/);
-	return match ? match[1] : '';
+	const date = new Date(iso);
+	if (Number.isNaN(date.getTime())) return '';
+	return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 }
 
 export function emptyMappingDraft(): MappingDraft {
