@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import { page } from '$app/state';
 	import { untrack } from 'svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import type { InternalRequestDetail, RequestStatus } from '$lib/types/request';
 	import type { CriterionNotes, PrioritizationResult } from '$lib/types/prioritization';
 	import { loadPrioritizationFinal } from '$lib/services/prioritization-draft.service';
+	import { canAssignAnalyst, canCalculatePriority } from '$lib/services/access.service';
 	import AssignAction from './AssignAction.svelte';
 	import FloatingPrioritizationPanel from './prioritization/FloatingPrioritizationPanel.svelte';
 	import QuickActions from './QuickActions.svelte';
@@ -99,6 +101,27 @@
 		priorityBadgeTheme(solicitation.prioritization.label, isPriorityCalculated)
 	);
 
+	const currentUser = $derived(page.data.user as import('$lib/types/auth').SessionUser | null);
+	const canAssign = $derived(canAssignAnalyst(currentUser));
+	const canCalculate = $derived(
+		canCalculatePriority(currentUser, solicitation.assignee?.id ?? null)
+	);
+	const hiddenQuickActionKeys = $derived.by(() => {
+		const hidden: string[] = [];
+		if (!canAssign) hidden.push('assignResponsible');
+		if (!canCalculate) hidden.push('priorityCalculator');
+		return hidden;
+	});
+	const existingPriorityResult = $derived<PrioritizationResult | null>(
+		isPriorityCalculated && solicitation.prioritization.label
+			? {
+					score: solicitation.prioritization.score as number,
+					maxScore,
+					level: solicitation.prioritization.label as PrioritizationResult['level']
+				}
+			: null
+	);
+
 	// ---- Calculadora flutuante (R1-R9) ----
 	let isCalculatorOpen = $state(false);
 	let isCalculatorMinimized = $state(false);
@@ -136,6 +159,7 @@
 	});
 
 	function handleOpenCalculator() {
+		if (!canCalculate) return;
 		isCalculatorOpen = true;
 		isCalculatorMinimized = false;
 	}
@@ -176,8 +200,10 @@
 
 	function handleQuickAction(key: string) {
 		if (key === 'priorityCalculator') {
+			if (!canCalculate) return;
 			handleOpenCalculator();
 		} else if (key === 'assignResponsible') {
+			if (!canAssign) return;
 			isAssignModalOpen = true;
 		}
 	}
@@ -259,21 +285,33 @@
 		onOpenCalculator={handleOpenCalculator}
 	/>
 
-	<QuickActions onAction={handleQuickAction} />
+	<QuickActions
+		hiddenActionKeys={hiddenQuickActionKeys}
+		hasExistingPriority={isPriorityCalculated}
+		existingPriorityDisplay={isPriorityCalculated
+			? `${displayScore}/${maxScore} — ${priorityLabel}`
+			: null}
+		onAction={handleQuickAction}
+	/>
 
 	<FloatingPrioritizationPanel
 		protocol={solicitation.protocol}
 		initialNotes={solicitation.prioritization.notes}
-		isOpen={isCalculatorOpen}
+		existingResult={existingPriorityResult}
+		isOpen={isCalculatorOpen && canCalculate}
 		isMinimized={isCalculatorMinimized}
 		position={calculatorPos}
+		hasExistingPriority={isPriorityCalculated}
+		existingPriorityDisplay={isPriorityCalculated
+			? `${displayScore}/${maxScore} — ${priorityLabel}`
+			: null}
 		onClose={handleCloseCalculator}
 		onMinimize={handleToggleMinimize}
 		onPositionChange={handleCalculatorPositionChange}
 		onSave={handleCalculatorSave}
 	/>
 
-	{#if isAssignModalOpen}
+	{#if isAssignModalOpen && canAssign}
 		<AssignAction
 			protocol={solicitation.protocol}
 			currentAssigneeId={solicitation.assignee?.id ?? null}

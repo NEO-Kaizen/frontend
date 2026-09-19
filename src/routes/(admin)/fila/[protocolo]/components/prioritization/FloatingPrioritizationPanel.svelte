@@ -9,9 +9,12 @@
 	interface Props {
 		protocol: string;
 		initialNotes?: CriterionNotes;
+		existingResult?: PrioritizationResult | null;
 		isOpen: boolean;
 		isMinimized: boolean;
 		position?: { x: number; y: number } | null;
+		hasExistingPriority?: boolean;
+		existingPriorityDisplay?: string | null;
 		onClose: () => void;
 		onMinimize: () => void;
 		onPositionChange?: (pos: { x: number; y: number }) => void;
@@ -21,9 +24,12 @@
 	let {
 		protocol,
 		initialNotes = {},
+		existingResult = null,
 		isOpen,
 		isMinimized,
 		position = null,
+		hasExistingPriority = false,
+		existingPriorityDisplay = null,
 		onClose,
 		onMinimize,
 		onPositionChange,
@@ -193,7 +199,14 @@
 			<div class="panel-title">
 				<span class="drag-handle" aria-hidden="true">⋮⋮</span>
 				<Icon iconName="calculate" iconSize="sm" />
-				<h2 id="floating-prioritization-title" class="title-text">Cálculo de Priorização</h2>
+				<h2 id="floating-prioritization-title" class="title-text">
+					{hasExistingPriority ? 'Alterar Priorização' : 'Cálculo de Priorização'}
+				</h2>
+				{#if hasExistingPriority && existingPriorityDisplay}
+					<span class="title-current" aria-label={`Prioridade atual: ${existingPriorityDisplay}`}
+						>{existingPriorityDisplay}</span
+					>
+				{/if}
 			</div>
 			<div class="panel-header-actions">
 				<button
@@ -226,7 +239,13 @@
 				inert={isMinimized ? true : undefined}
 			>
 				{#key protocol}
-					<PrioritizationCalculator {protocol} {initialNotes} floating={true} onsave={onSave} />
+					<PrioritizationCalculator
+						{protocol}
+						{initialNotes}
+						{existingResult}
+						floating={true}
+						onsave={onSave}
+					/>
 				{/key}
 			</div>
 		</div>
@@ -297,6 +316,17 @@
 		font-family: var(--font-montserrat);
 		font-size: 15px;
 		font-weight: 700;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.title-current {
+		margin-left: 6px;
+		font-family: var(--font-inter);
+		font-size: 11px;
+		font-weight: 600;
+		color: var(--gray);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;

@@ -410,7 +410,7 @@
 		<Button variant="outline-neutral" disabled={isSaving} onclick={handleCancel}>Cancelar</Button>
 		<Button variant="secondary" disabled={isSaving} onclick={handleCalculatePriority}>
 			<Icon iconName="calculate" iconSize="sm" />
-			Calcular Prioridade
+			{hasCalculatedPriority() ? 'Alterar Prioridade' : 'Calcular Prioridade'}
 		</Button>
 		<Button variant="primary" disabled={isSaving} loading={isSaving} onclick={handleFinalizeClick}>
 			<Icon iconName="check" iconSize="sm" />

@@ -28,6 +28,9 @@
 		// Notas já existentes da última avaliação (reavaliação); vêm do
 		// /requests/:protocol/internal via prop do componente pai.
 		initialNotes?: CriterionNotes;
+		// Resultado já persistido no servidor — permite que a UI reflita
+		// "alterar prioridade" (botão/sumário) mesmo sem rascunho local.
+		existingResult?: PrioritizationResult | null;
 		// Renderização sem cartão próprio (ex.: dentro de aba ou modal).
 		embedded?: boolean;
 		// Modo flutuante: remove chrome do cartão (borda/sombra/margin) e
@@ -44,6 +47,7 @@
 	let {
 		protocol,
 		initialNotes = {},
+		existingResult = null,
 		embedded = false,
 		floating = false,
 		onsave,
@@ -93,8 +97,9 @@
 					result = final.result ?? null;
 				} else {
 					notes = { ...initialNotes };
-					// Se há notas iniciais vindas do servidor (reavaliação), tenta restaurar score via sessionStorage de header?
-					// O score inicial da reavaliação será carregado via final se já calculado anteriormente.
+					// Sem rascunho/final local, usa o resultado já persistido no
+					// servidor para a UI refletir alteração em vez de cálculo novo.
+					result = existingResult ?? null;
 				}
 			}
 		} else {
