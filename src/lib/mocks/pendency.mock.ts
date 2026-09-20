@@ -4,8 +4,8 @@ import { buildFieldLookup } from '$lib/pendency/field-catalog';
 
 import type { RequestStatus } from '$lib/types/request';
 import type {
-	CreatePendencyPayload,
-	CreatePendencyResponse,
+	CreatePendingItemsBody,
+	CreatePendingItemsResponse,
 	ListPendenciesQuery,
 	ListPendenciesResponse,
 	PendingFieldValue,
@@ -18,11 +18,13 @@ const PENDING_STATUS: RequestStatus = 'Pendente de informações';
 
 // Fixtures do ciclo na tratativa MAAT-8K3P-9X2M (Em triagem). Uma pendência em
 // cada status para demonstrar o agrupamento por status e a revisão em lote.
+// Formato v0.4: `type` + `field` anulável + `responseText` + `deadline`.
 const seedItems: PendingItem[] = [
 	{
 		id: 'pnd-res-001',
 		protocol: 'MAAT-8K3P-9X2M',
 		batchId: 'batch-res-2026-001',
+		type: 'field_edit',
 		field: {
 			fieldKey: 'operational.systemsUsed',
 			fieldLabel: 'Sistemas Utilizados',
@@ -30,9 +32,10 @@ const seedItems: PendingItem[] = [
 		},
 		comment: 'O processo de conferência passou a rodar no SAP. Atualize os sistemas utilizados.',
 		status: 'responded',
-		responseComment: 'Confirmado. O controle de diárias agora é feito no SAP.',
 		correctedValue: 'SAP, planilhas Excel',
+		responseText: 'Confirmado. O controle de diárias agora é feito no SAP.',
 		responseAttachments: [],
+		deadline: null,
 		createdAt: '2026-09-01T09:12:00.000Z',
 		respondedAt: '2026-09-04T15:40:00.000Z',
 		validatedAt: null
@@ -41,6 +44,7 @@ const seedItems: PendingItem[] = [
 		id: 'pnd-req-001',
 		protocol: 'MAAT-8K3P-9X2M',
 		batchId: 'batch-req-2026-002',
+		type: 'field_edit',
 		field: {
 			fieldKey: 'operational.volumetry',
 			fieldLabel: 'Volumetria Aproximada',
@@ -48,9 +52,10 @@ const seedItems: PendingItem[] = [
 		},
 		comment: 'Informe a volumetria aproximada de comprovantes tratados por mês.',
 		status: 'requested',
-		responseComment: null,
 		correctedValue: null,
+		responseText: null,
 		responseAttachments: [],
+		deadline: null,
 		createdAt: '2026-09-02T10:05:00.000Z',
 		respondedAt: null,
 		validatedAt: null
@@ -59,6 +64,7 @@ const seedItems: PendingItem[] = [
 		id: 'pnd-val-001',
 		protocol: 'MAAT-8K3P-9X2M',
 		batchId: 'batch-val-2026-003',
+		type: 'field_edit',
 		field: {
 			fieldKey: 'demand.processName',
 			fieldLabel: 'Nome do Processo Atual',
@@ -66,9 +72,10 @@ const seedItems: PendingItem[] = [
 		},
 		comment: 'Ajuste o nome para refletir o escopo completo do processo.',
 		status: 'validated',
-		responseComment: 'Corrigido conforme solicitado.',
 		correctedValue: 'Pagamento e reembolso de diárias',
+		responseText: 'Corrigido conforme solicitado.',
 		responseAttachments: [],
+		deadline: null,
 		createdAt: '2026-08-28T14:22:00.000Z',
 		respondedAt: '2026-09-01T11:30:00.000Z',
 		validatedAt: '2026-09-02T09:15:00.000Z'
@@ -143,49 +150,83 @@ export async function listPendingItemsMock(
 	}));
 }
 
-// §1 — criação: resolve `fieldLabel`/`currentValue` a partir do catálogo (o
-// mesmo papel que o backend terá), gera um `batchId` e muda o status.
+// §1 (v0.4) — criação em lote único: aceita `observation` e/ou `items` +
+// `requestAttachment` do lote. Resolve `fieldLabel`/`currentValue` a partir
+// do catálogo (o mesmo papel que o backend terá), gera um `batchId` e muda
+// o status. Cenários suportados: somente observação, somente campo(s),
+// observação + campos, com `requestAttachment: true`.
 export async function createPendingItemsMock(
 	protocol: string,
-	payload: CreatePendencyPayload
-): Promise<CreatePendencyResponse> {
+	payload: CreatePendingItemsBody
+): Promise<CreatePendingItemsResponse> {
 	const solicitation = findSolicitation(protocol);
 	const lookup = buildFieldLookup(solicitation);
+	const observation = payload.observation?.trim() ?? '';
+	const entries = payload.items ?? [];
+
+	if (!observation && entries.length === 0) {
+		throw new ApiError(400, 'Informe uma observação ou selecione ao menos um campo.');
+	}
+	if (entries.some((entry) => !entry.comment.trim())) {
+		throw new ApiError(400, 'Informe o motivo da alteração para todos os campos marcados.');
+	}
+
 	const batchId = nextBatchId();
 	const now = new Date().toISOString();
+	const created: PendingItem[] = [];
 
-	const items = payload.items.map<PendingItem>((entry) => {
+	if (observation) {
+		created.push({
+			id: nextId(),
+			protocol: solicitation.protocol,
+			batchId,
+			type: 'observation',
+			field: null,
+			comment: observation,
+			status: 'requested',
+			correctedValue: null,
+			responseText: null,
+			responseAttachments: [],
+			deadline: null,
+			createdAt: now,
+			respondedAt: null,
+			validatedAt: null
+		});
+	}
+
+	for (const entry of entries) {
 		const field = lookup.get(entry.fieldKey);
 		if (!field) {
 			throw new ApiError(400, 'Campo não marcável nesta solicitação.');
 		}
-		return {
+		created.push({
 			id: nextId(),
 			protocol: solicitation.protocol,
 			batchId,
+			type: 'field_edit',
 			field: { ...field },
 			comment: entry.comment.trim(),
 			status: 'requested',
-			responseComment: null,
 			correctedValue: null,
+			responseText: null,
 			responseAttachments: [],
+			deadline: null,
 			createdAt: now,
 			respondedAt: null,
 			validatedAt: null
-		};
-	});
+		});
+	}
 
-	store.unshift(...items);
+	store.unshift(...created);
 
-	// Envio da pendência por campo muda o status da solicitação (transação §1).
+	// Envio da pendência muda o status da solicitação (transação §1).
 	solicitation.status = PENDING_STATUS;
 	solicitation.lastUpdate = now;
 
 	return delay(500).then(() => ({
 		batchId,
-		requestAttachment: payload.requestAttachment ?? false,
-		items: items.map((item) => structuredClone(item)),
-		solicitationStatus: solicitation.status
+		requestAttachment: payload.requestAttachment === true,
+		items: created.map((item) => structuredClone(item))
 	}));
 }
 
@@ -231,7 +272,7 @@ export async function reviewPendingItemsMock(
 		if (!item) continue;
 
 		if (decision.decision === 'validate') {
-			if (item.correctedValue !== null) {
+			if (item.correctedValue !== null && item.field) {
 				applyFieldValue(solicitation, item.field.fieldKey, item.correctedValue);
 			}
 			item.status = 'validated';
@@ -240,7 +281,7 @@ export async function reviewPendingItemsMock(
 			// Reabertura sobrescreve o item: volta a `requested` com novo comentário.
 			item.status = 'requested';
 			item.comment = decision.comment.trim();
-			item.responseComment = null;
+			item.responseText = null;
 			item.correctedValue = null;
 			item.responseAttachments = [];
 			item.respondedAt = null;

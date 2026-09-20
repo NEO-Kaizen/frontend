@@ -5,8 +5,9 @@ import {
 } from '$lib/api/pending-item.api';
 
 import type {
-	CreatePendencyPayload,
-	CreatePendencyResponse,
+	CreatePendingItemsBody,
+	CreatePendingItemsResponse,
+	CreatePendingItemField,
 	ListPendenciesQuery,
 	ListPendenciesResponse,
 	PendencyGroup,
@@ -37,13 +38,14 @@ export async function listPendencies(
 	}
 }
 
-// §1 — envia a solicitação de alteração por campo (lote) e muda o status para
+// §1 — envia a solicitação de pendência em lote único (observação e/ou
+// campos + pedido opcional de anexo) e muda o status para
 // "Pendente de informações". Validação espelhada no mock/backend.
 export async function requestFieldChange(
 	protocol: string,
-	payload: CreatePendencyPayload,
+	payload: CreatePendingItemsBody,
 	fetchImpl?: typeof fetch
-): Promise<Result<CreatePendencyResponse>> {
+): Promise<Result<CreatePendingItemsResponse>> {
 	const validation = validateCreatePayload(payload);
 	if (validation) {
 		return { ok: false, error: { message: validation } };
@@ -97,7 +99,42 @@ export async function reviewPendingItems(
 	}
 }
 
-// ---- Regras puras do ciclo (consumidas também pela camada visual de #125) ----
+// Draft do lote no frontend — espelha o que o modal de solicitação edita.
+// Reaproveitado por SolicitationSpecs: `items` vem do pendingDraft (campo +
+// comentário), `observation`/`requestAttachment` vêm do modal do lote.
+export interface PendingBatchDraft {
+	observation?: string;
+	requestAttachment?: boolean;
+	items?: CreatePendingItemField[];
+}
+
+// Monta o payload final do POST em uma única chamada (um lote). Normaliza:
+// - `observation` com trim; vazia é omitida;
+// - `items` com comentários em trim; itens sem comentário são descartados aqui
+//   (a validação barra o envio — nunca enviamos `comment: ""`);
+// - `requestAttachment: true` só quando marcado; caso contrário omitido.
+export function buildCreatePendingItemsPayload(draft: PendingBatchDraft): CreatePendingItemsBody {
+	const payload: CreatePendingItemsBody = {};
+
+	const observation = draft.observation?.trim() ?? '';
+	if (observation) {
+		payload.observation = observation;
+	}
+
+	const items = (draft.items ?? [])
+		.map((item) => ({ fieldKey: item.fieldKey, comment: item.comment.trim() }))
+		.filter((item) => item.fieldKey.trim() !== '' && item.comment !== '');
+
+	if (items.length > 0) {
+		payload.items = items;
+	}
+
+	if (draft.requestAttachment) {
+		payload.requestAttachment = true;
+	}
+
+	return payload;
+}
 
 export function groupPendenciesByStatus(items: PendingItem[]): PendencyGroup {
 	const group: PendencyGroup = { requested: [], responded: [], validated: [] };
@@ -115,11 +152,13 @@ export function canReopen(item: PendingItem): boolean {
 	return item.status === 'responded';
 }
 
-function validateCreatePayload(payload: CreatePendencyPayload): string | null {
-	if (payload.items.length === 0) {
-		return 'Selecione ao menos um campo para solicitar a alteração.';
+function validateCreatePayload(payload: CreatePendingItemsBody): string | null {
+	const hasObservation = (payload.observation?.trim() ?? '') !== '';
+	const items = payload.items ?? [];
+	if (!hasObservation && items.length === 0) {
+		return 'Informe uma observação ou selecione ao menos um campo para solicitar a pendência.';
 	}
-	if (payload.items.some((item) => !item.comment.trim())) {
+	if (items.some((item) => !item.fieldKey.trim() || !item.comment.trim())) {
 		return 'Informe o motivo da alteração para todos os campos marcados.';
 	}
 	return null;

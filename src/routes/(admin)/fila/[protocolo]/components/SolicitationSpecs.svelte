@@ -4,14 +4,19 @@
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Modal from '$lib/components/Modal.svelte';
-	import { requestFieldChange } from '$lib/services/pendency.service';
+	import {
+		requestFieldChange,
+		buildCreatePendingItemsPayload
+	} from '$lib/services/pendency.service';
 	import type { PendingFieldRef } from '$lib/types/pendency';
+	import { toastState } from '$lib/states/toast.svelte';
 	import { statusThemeVars } from '$lib/utils/status';
 	import type { InternalNotesResponse } from '$lib/types/internal-note';
-	import type { InternalRequestDetail } from '$lib/types/request';
+	import type { InternalRequestDetail, RequestStatus } from '$lib/types/request';
 	import { SvelteMap } from 'svelte/reactivity';
 	import { buildFieldLookup } from '$lib/pendency/field-catalog';
 	import FieldPendencyModal from './pendency/FieldPendencyModal.svelte';
+	import PendencyRequestModal from './pendency/PendencyRequestModal.svelte';
 	import QuickActions from './QuickActions.svelte';
 	import SpecTabs from './SpecTabs.svelte';
 
@@ -46,6 +51,11 @@
 	let pendencyError = $state<string | null>(null);
 	let pendingSuccess = $state<string | null>(null);
 	let showPendencyCancelConfirm = $state(false);
+	// Lote v0.4: observação geral + pedido de anexo (do lote) + campos do draft.
+	// Preenchidos no modal de solicitação; enviados em um único POST.
+	let pendingObservation = $state('');
+	let pendingRequestAttachment = $state(false);
+	let showPendencyRequestModal = $state(false);
 
 	const fieldLookup = $derived(buildFieldLookup(solicitation));
 	const markedFieldKeys = $derived(new Set(pendingDraft.keys()));
@@ -56,6 +66,10 @@
 	const pendingFieldEntry = $derived(
 		pendingFieldPath ? (pendingDraft.get(pendingFieldPath) ?? null) : null
 	);
+	// Entradas do lote para o modal de confirmação (reaproveita o draft).
+	const pendingEntries = $derived(
+		[...pendingDraft.values()].map(({ field, comment }) => ({ field, comment }))
+	);
 
 	function enterPendencyMode(): void {
 		if (isPendencyMode) return;
@@ -63,6 +77,9 @@
 		pendingFieldPath = null;
 		pendencyError = null;
 		pendingSuccess = null;
+		pendingObservation = '';
+		pendingRequestAttachment = false;
+		showPendencyRequestModal = false;
 		showPendencyCancelConfirm = false;
 		isPendencyMode = true;
 	}
@@ -72,6 +89,9 @@
 		pendingDraft.clear();
 		pendingFieldPath = null;
 		pendencyError = null;
+		pendingObservation = '';
+		pendingRequestAttachment = false;
+		showPendencyRequestModal = false;
 		showPendencyCancelConfirm = false;
 	}
 
@@ -100,29 +120,50 @@
 	}
 
 	function handlePendencyCancelRequest(): void {
-		if (pendingDraft.size === 0) {
+		if (pendingDraft.size === 0 && !pendingObservation.trim() && !pendingRequestAttachment) {
 			exitPendencyMode();
 			return;
 		}
 		showPendencyCancelConfirm = true;
 	}
 
-	async function handlePendencySubmit(): Promise<void> {
-		if (pendingDraft.size === 0 || isPendencySaving) return;
-		// Contrato §1: o front envia apenas `fieldKey` + `comment`; o backend
-		// deriva `fieldLabel`/`currentValue` do catálogo.
-		const items = [...pendingDraft.values()].map(({ field, comment }) => ({
-			fieldKey: field.fieldKey,
-			comment
-		}));
+	// Abre o modal do lote (observação + anexo + resumo dos campos). Permite
+	// lote só com observação (sem campo marcado) — a validação final fica no
+	// modal + service antes do POST único.
+	function handlePendencySaveRequest(): void {
+		if (isPendencySaving) return;
+		pendencyError = null;
+		showPendencyRequestModal = true;
+	}
+
+	// Confirmação do modal: um único POST com o lote inteiro (observação e/ou
+	// campos + requestAttachment do lote). Após sucesso: fecha o modal, limpa
+	// o draft e mostra feedback — sem tela de histórico (etapas futuras).
+	async function handlePendencyRequestConfirm(value: {
+		observation: string;
+		requestAttachment: boolean;
+	}): Promise<void> {
+		if (isPendencySaving) return;
+		pendingObservation = value.observation;
+		pendingRequestAttachment = value.requestAttachment;
+		const payload = buildCreatePendingItemsPayload({
+			observation: pendingObservation,
+			requestAttachment: pendingRequestAttachment,
+			items: [...pendingDraft.values()].map(({ field, comment }) => ({
+				fieldKey: field.fieldKey,
+				comment
+			}))
+		});
 		isPendencySaving = true;
 		pendencyError = null;
 		pendingSuccess = null;
-		const result = await requestFieldChange(solicitation.protocol, { items });
+		const result = await requestFieldChange(solicitation.protocol, payload);
 		isPendencySaving = false;
 		if (result.ok) {
-			pendingSuccess = 'Alterações solicitadas ao solicitante.';
+			showPendencyRequestModal = false;
 			exitPendencyMode();
+			pendingSuccess = 'Pendência solicitada ao solicitante.';
+			toastState.add('Pendência solicitada com sucesso.', 'success');
 			await invalidateAll();
 		} else {
 			pendencyError = result.error.message;
@@ -276,7 +317,9 @@
 	{/if}
 
 	<SpecTabs
-		{solicitation} {internalNotes} {internalNotesError}
+		{solicitation}
+		{internalNotes}
+		{internalNotesError}
 		{onSaveSuccess}
 		{onSaveError}
 		{isPendencyMode}
@@ -286,7 +329,7 @@
 		{markedFieldKeys}
 		onFieldPendencyClick={handleFieldPendencyClick}
 		onFieldPendencyRemove={handlePendencyRemove}
-		onPendencySave={handlePendencySubmit}
+		onPendencySave={handlePendencySaveRequest}
 		onPendencyCancel={handlePendencyCancelRequest}
 	/>
 
@@ -310,13 +353,26 @@
 	/>
 {/if}
 
+{#if showPendencyRequestModal}
+	<PendencyRequestModal
+		entries={pendingEntries}
+		initialObservation={pendingObservation}
+		initialRequestAttachment={pendingRequestAttachment}
+		isSaving={isPendencySaving}
+		serverError={pendencyError}
+		onConfirm={handlePendencyRequestConfirm}
+		onRemoveItem={handlePendencyRemove}
+		onclose={() => (showPendencyRequestModal = false)}
+	/>
+{/if}
+
 {#if showPendencyCancelConfirm}
 	<Modal
 		title="Cancelar solicitação de alteração?"
 		onclose={() => (showPendencyCancelConfirm = false)}
 	>
 		<div class="pendency-cancel-body">
-			<p>Há justificativas não enviadas. Deseja descartá-las e cancelar?</p>
+			<p>Há uma solicitação de pendência não enviada. Deseja descartá-la e cancelar?</p>
 			<div class="pendency-cancel-actions">
 				<Button variant="outline-neutral" onclick={() => (showPendencyCancelConfirm = false)}>
 					Continuar marcando

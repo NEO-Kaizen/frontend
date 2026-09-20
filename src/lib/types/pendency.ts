@@ -24,44 +24,55 @@ export interface PendingFieldRef {
 	currentValue: PendingFieldValue;
 }
 
-// Pendência de um campo. Cada criação gera UM item; os itens criados juntos
-// compartilham o mesmo `batchId` (o pedido de anexo é do LOTE, não do item).
-// O item é mutável: a revisão valida ou sobrescreve (reopen) — o registro
-// imutável de cada pedido/resposta/decisão fica no log de auditoria (backend).
+// Pendência de um campo/observação. Cada criação gera UM OU MAIS itens; os
+// itens criados juntos compartilham o mesmo `batchId` (o pedido de anexo é
+// do LOTE, não do item). Contrato v0.4 — POST /requests/:protocol/pending-items.
+export type PendingItemType = 'field_edit' | 'observation';
+
 export interface PendingItem {
 	id: string;
 	protocol: string;
 	batchId: string;
-	field: PendingFieldRef;
+	type: PendingItemType;
+	field: PendingFieldRef | null;
 	comment: string;
 	status: PendencyStatus;
-	responseComment: string | null;
 	correctedValue: PendingFieldValue;
+	responseText: string | null;
 	responseAttachments: InternalAttachment[];
+	deadline?: string | null;
 	createdAt: string;
 	respondedAt: string | null;
 	validatedAt: string | null;
 }
 
-// Body de POST /requests/:protocol/pending-items (§1 do contrato). O front
-// envia apenas `fieldKey` + `comment`; `requestAttachment` vale para o lote.
-export interface CreatePendingItemEntry {
+// Body de POST /requests/:protocol/pending-items (contrato v0.4). Lote único:
+// `observation` geral (trim não vazio) e/ou `items` com ao menos um campo.
+// `requestAttachment` é do lote inteiro — nunca dentro de `items`.
+export interface CreatePendingItemField {
 	fieldKey: string;
 	comment: string;
 }
 
-export interface CreatePendencyPayload {
+export interface CreatePendingItemsBody {
+	observation?: string;
 	requestAttachment?: boolean;
-	items: CreatePendingItemEntry[];
+	items?: CreatePendingItemField[];
 }
 
-// Resposta de POST .../pending-items (§1).
-export interface CreatePendencyResponse {
+// Aliases do contrato anterior — mantidos para não quebrar imports existentes.
+export type CreatePendingItemEntry = CreatePendingItemField;
+export type CreatePendencyPayload = CreatePendingItemsBody;
+
+// Resposta de POST .../pending-items (contrato v0.4).
+export interface CreatePendingItemsResponse {
 	batchId: string;
 	requestAttachment: boolean;
 	items: PendingItem[];
-	solicitationStatus: RequestStatus;
 }
+
+// Alias do contrato anterior.
+export type CreatePendencyResponse = CreatePendingItemsResponse;
 
 // Decisão do analista por item na revisão em lote (§3).
 export type ReviewPendingItemDecision =

@@ -3,8 +3,8 @@ import { MOCK_DOMAINS } from '$lib/mocks';
 import { ApiError } from '$lib/types/result';
 
 import type {
-	CreatePendencyPayload,
-	CreatePendencyResponse,
+	CreatePendingItemsBody,
+	CreatePendingItemsResponse,
 	ListPendenciesQuery,
 	ListPendenciesResponse,
 	ReviewPendingItemsBody,
@@ -35,15 +35,15 @@ export async function getPendingItems(
 // §1 — POST /requests/:protocol/pending-items.
 export async function createPendingItems(
 	protocol: string,
-	payload: CreatePendencyPayload,
+	payload: CreatePendingItemsBody,
 	fetchImpl?: typeof fetch
-): Promise<CreatePendencyResponse> {
+): Promise<CreatePendingItemsResponse> {
 	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.pendingItems) {
 		const { createPendingItemsMock } = await import('$lib/mocks/pendency.mock');
 		return createPendingItemsMock(protocol, payload);
 	}
 
-	return apiClient<CreatePendencyResponse>(
+	return apiClient<CreatePendingItemsResponse>(
 		pendingItemsPath(protocol),
 		{
 			method: 'POST',

@@ -41,7 +41,9 @@
 	}
 
 	let {
-		solicitation, internalNotes, internalNotesError,
+		solicitation,
+		internalNotes,
+		internalNotesError,
 		onSaveSuccess,
 		onSaveError,
 		isPendencyMode = false,
@@ -53,8 +55,7 @@
 		onFieldPendencyRemove,
 		onPendencySave,
 		onPendencyCancel
-	}: Props =
-		$props();
+	}: Props = $props();
 
 	function getInitialInternalNotesState(): {
 		items: InternalNote[];
@@ -425,18 +426,22 @@
 				>
 					<Button
 						variant="primary"
-						disabled={isPendencySaving || pendencyCount === 0}
+						disabled={isPendencySaving}
 						loading={isPendencySaving}
 						title={isPendencySaving
-							? 'Enviando solicitações…'
+							? 'Enviando solicitação…'
 							: pendencyCount === 0
-								? 'Marque ao menos um campo'
-								: 'Enviar solicitações de alteração'}
+								? 'Solicitar pendência (observação e/ou campos)'
+								: 'Revisar e solicitar pendência'}
 						onclick={onPendencySave}
 					>
 						<Icon iconName="flag" iconSize="sm" />
 						<span>
-							{isPendencySaving ? 'Enviando…' : `Salvar alterações (${pendencyCount})`}
+							{isPendencySaving
+								? 'Enviando…'
+								: pendencyCount === 0
+									? 'Solicitar pendência'
+									: `Solicitar pendência (${pendencyCount})`}
 						</span>
 					</Button>
 					<Button

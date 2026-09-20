@@ -154,186 +154,197 @@
 	});
 </script>
 
-<Modal title="Pendências por campo" {onclose}>
-	<div class="tabs" role="tablist" aria-label="Status das pendências">
-		{#each tabs as tab (tab.id)}
-			<button
-				type="button"
-				class="tab"
-				class:active={activeTab === tab.id}
-				role="tab"
-				aria-selected={activeTab === tab.id}
-				onclick={() => (activeTab = tab.id)}
-			>
-				{tab.label}
-				<span class="tab-count">{counts[tab.id]}</span>
-			</button>
-		{/each}
-	</div>
+<Modal title="Pendências por campo" size="large" {onclose}>
+	<div class="pendency-view">
+		<div class="tabs" role="tablist" aria-label="Status das pendências">
+			{#each tabs as tab (tab.id)}
+				<button
+					type="button"
+					class="tab"
+					class:active={activeTab === tab.id}
+					role="tab"
+					aria-selected={activeTab === tab.id}
+					onclick={() => (activeTab = tab.id)}
+				>
+					{tab.label}
+					<span class="tab-count">{counts[tab.id]}</span>
+				</button>
+			{/each}
+		</div>
 
-	{#if isLoading}
-		<div class="state-box" role="status">
-			<span class="spinner" aria-hidden="true"></span>
-			<p>Carregando pendências...</p>
-		</div>
-	{:else if errorMessage}
-		<div class="state-box" role="alert">
-			<Icon iconName="error" iconSize="lg" />
-			<p>{errorMessage}</p>
-			<Button variant="outline" onclick={load}>Tentar novamente</Button>
-		</div>
-	{:else if activeTab !== 'responded'}
-		{#if visibleItems.length === 0}
-			<div class="state-box">
-				<Icon iconName="inbox" iconSize="lg" />
-				<p>Nenhuma pendência {PENDENCY_STATUS_LABELS[activeTab].toLowerCase()}.</p>
-			</div>
-		{:else}
-			<ul class="item-list">
-				{#each visibleItems as item (item.id)}
-					<li class="item-row">
-						<div class="item-content">
-							<span class="item-main">
-								<span class="item-label">{item.field.fieldLabel}</span>
-								<span class="item-value">
-									{displayValue(
-										item.status === 'validated' ? item.correctedValue : item.field.currentValue
-									)}
-								</span>
-							</span>
-							<span class="item-meta">
-								<span class="item-date">
-									{item.status === 'validated'
-										? `Validada em ${formatDateTime(item.validatedAt ?? item.createdAt)}`
-										: `Solicitada em ${formatDateTime(item.createdAt)}`}
-								</span>
-							</span>
-						</div>
-					</li>
-				{/each}
-			</ul>
-		{/if}
-	{:else}
-		{#if respondedBatches.length === 0}
-			<div class="state-box">
-				<Icon iconName="inbox" iconSize="lg" />
-				<p>Nenhuma pendência respondida.</p>
-			</div>
-		{:else}
-			<div class="batches">
-				{#each respondedBatches as batch (batch.batchId)}
-					<section class="batch">
-						{#each batch.items as item (item.id)}
-							<article class="item-card">
-								<header class="card-head">
-									<span class="item-label">{item.field.fieldLabel}</span>
-									<span class="item-date">
-										Respondida em {formatDateTime(item.respondedAt ?? item.createdAt)}
+		<div class="scroll-area">
+			{#if isLoading}
+				<div class="state-box" role="status">
+					<span class="spinner" aria-hidden="true"></span>
+					<p>Carregando pendências...</p>
+				</div>
+			{:else if errorMessage}
+				<div class="state-box" role="alert">
+					<Icon iconName="error" iconSize="lg" />
+					<p>{errorMessage}</p>
+					<Button variant="outline" onclick={load}>Tentar novamente</Button>
+				</div>
+			{:else if activeTab !== 'responded'}
+				{#if visibleItems.length === 0}
+					<div class="state-box">
+						<Icon iconName="inbox" iconSize="lg" />
+						<p>Nenhuma pendência {PENDENCY_STATUS_LABELS[activeTab].toLowerCase()}.</p>
+					</div>
+				{:else}
+					<ul class="item-list">
+						{#each visibleItems as item (item.id)}
+							<li class="item-row">
+								<div class="item-content">
+									<span class="item-main">
+										<span class="item-label">{item.field?.fieldLabel ?? 'Observação geral'}</span>
+										<span class="item-value">
+											{displayValue(
+												item.status === 'validated' ? item.correctedValue : item.field?.currentValue
+											)}
+										</span>
 									</span>
-								</header>
-
-								<div class="diff" aria-label="Comparação do valor">
-									<div class="diff-line diff-old">
-										<span class="diff-glyph" aria-hidden="true">−</span>
-										<span class="diff-value">{displayValue(item.field.currentValue)}</span>
-									</div>
-									<div class="diff-line diff-new">
-										<span class="diff-glyph" aria-hidden="true">＋</span>
-										<span class="diff-value">{displayValue(item.correctedValue)}</span>
-									</div>
+									<span class="item-meta">
+										<span class="item-date">
+											{item.status === 'validated'
+												? `Validada em ${formatDateTime(item.validatedAt ?? item.createdAt)}`
+												: `Solicitada em ${formatDateTime(item.createdAt)}`}
+										</span>
+									</span>
 								</div>
+							</li>
+						{/each}
+					</ul>
+				{/if}
+			{:else}
+				{#if respondedBatches.length === 0}
+					<div class="state-box">
+						<Icon iconName="inbox" iconSize="lg" />
+						<p>Nenhuma pendência respondida.</p>
+					</div>
+				{:else}
+					<div class="batches">
+						{#each respondedBatches as batch (batch.batchId)}
+							<section class="batch">
+								{#each batch.items as item (item.id)}
+									<article class="item-card">
+										<header class="card-head">
+											<span class="item-label">{item.field?.fieldLabel ?? 'Observação geral'}</span>
+											<span class="item-date">
+												Respondida em {formatDateTime(item.respondedAt ?? item.createdAt)}
+											</span>
+										</header>
 
-								{#if item.responseComment}
-									<p class="response-note">{item.responseComment}</p>
-								{/if}
-
-								{#if item.responseAttachments.length > 0}
-									<ul class="attachments-list">
-										{#each item.responseAttachments as attachment (attachment.fileName)}
-											<li class="attachment-item">
-												<Icon iconName="description" iconSize="sm" />
-												<span class="attachment-name">{attachment.fileName}</span>
-												<span class="attachment-meta">{formatBytes(attachment.sizeBytes)}</span>
-											</li>
-										{/each}
-									</ul>
-								{/if}
-
-								{#if canReview}
-									<div class="decision">
-										<div
-											class="decision-toggle"
-											role="group"
-											aria-label={`Decisão para ${item.field.fieldLabel}`}
-										>
-											<button
-												type="button"
-												class="decision-option"
-												class:selected={decisionFor(item.id) === 'validate'}
-												onclick={() => setDecision(item.id, 'validate')}
-											>
-												<Icon iconName="validate" iconSize="sm" />
-												Validar
-											</button>
-											<button
-												type="button"
-												class="decision-option"
-												class:selected={decisionFor(item.id) === 'reopen'}
-												onclick={() => setDecision(item.id, 'reopen')}
-											>
-												<Icon iconName="reopen" iconSize="sm" />
-												Solicitar novamente
-											</button>
+										<div class="diff" aria-label="Comparação do valor">
+											<div class="diff-line diff-old">
+												<span class="diff-glyph" aria-hidden="true">−</span>
+												<span class="diff-value">{displayValue(item.field?.currentValue)}</span>
+											</div>
+											<div class="diff-line diff-new">
+												<span class="diff-glyph" aria-hidden="true">＋</span>
+												<span class="diff-value">{displayValue(item.correctedValue)}</span>
+											</div>
 										</div>
 
-										{#if decisionFor(item.id) === 'reopen'}
-											<div class="reopen-input">
-												<Textarea
-													label="Motivo para solicitar novamente"
-													placeholder="O solicitante precisa corrigir este campo novamente."
-													bind:value={reopenComments[item.id]}
-													rows={2}
-													maxlength={1000}
-												/>
-											</div>
+										{#if item.responseText}
+											<p class="response-note">{item.responseText}</p>
 										{/if}
-									</div>
-								{:else}
-									<p class="no-action">
-										Apenas o responsável pela tratativa ou um Administrador pode revisar.
-									</p>
-								{/if}
-							</article>
-						{/each}
 
-						{#if canReview}
-							<div class="batch-actions">
-								{#if reviewError}
-									<p class="form-error" role="alert">{reviewError}</p>
+										{#if item.responseAttachments.length > 0}
+											<ul class="attachments-list">
+												{#each item.responseAttachments as attachment (attachment.fileName)}
+													<li class="attachment-item">
+														<Icon iconName="description" iconSize="sm" />
+														<span class="attachment-name">{attachment.fileName}</span>
+														<span class="attachment-meta">{formatBytes(attachment.sizeBytes)}</span>
+													</li>
+												{/each}
+											</ul>
+										{/if}
+
+										{#if canReview}
+											<div class="decision">
+												<div
+													class="decision-toggle"
+													role="group"
+													aria-label={`Decisão para ${item.field?.fieldLabel ?? 'observação'}`}
+												>
+													<button
+														type="button"
+														class="decision-option"
+														class:selected={decisionFor(item.id) === 'validate'}
+														onclick={() => setDecision(item.id, 'validate')}
+													>
+														<Icon iconName="validate" iconSize="sm" />
+														Validar
+													</button>
+													<button
+														type="button"
+														class="decision-option"
+														class:selected={decisionFor(item.id) === 'reopen'}
+														onclick={() => setDecision(item.id, 'reopen')}
+													>
+														<Icon iconName="reopen" iconSize="sm" />
+														Solicitar novamente
+													</button>
+												</div>
+
+												{#if decisionFor(item.id) === 'reopen'}
+													<div class="reopen-input">
+														<Textarea
+															label="Motivo para solicitar novamente"
+															placeholder="O solicitante precisa corrigir este campo novamente."
+															bind:value={reopenComments[item.id]}
+															rows={2}
+															maxlength={1000}
+														/>
+													</div>
+												{/if}
+											</div>
+										{:else}
+											<p class="no-action">
+												Apenas o responsável pela tratativa ou um Administrador pode revisar.
+											</p>
+										{/if}
+									</article>
+								{/each}
+
+								{#if canReview}
+									<div class="batch-actions">
+										{#if reviewError}
+											<p class="form-error" role="alert">{reviewError}</p>
+										{/if}
+										<Button
+											variant="primary"
+											loading={isSubmitting}
+											disabled={!reviewComplete(batch.items)}
+											onclick={() => handleReviewSubmit(batch.batchId)}
+										>
+											Enviar revisão
+										</Button>
+									</div>
 								{/if}
-								<Button
-									variant="primary"
-									loading={isSubmitting}
-									disabled={!reviewComplete(batch.items)}
-									onclick={() => handleReviewSubmit(batch.batchId)}
-								>
-									Enviar revisão
-								</Button>
-							</div>
-						{/if}
-					</section>
-				{/each}
-			</div>
-		{/if}
-	{/if}
+							</section>
+						{/each}
+					</div>
+				{/if}
+			{/if}
+		</div>
+	</div>
 </Modal>
 
 <style>
+	.pendency-view {
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
+	}
+
 	.tabs {
 		display: flex;
 		gap: var(--spacing-xs);
 		margin-bottom: var(--spacing-md);
 		border-bottom: var(--border-default);
+		flex-shrink: 0;
 	}
 
 	.tab {
@@ -350,6 +361,7 @@
 		color: var(--gray);
 		cursor: pointer;
 		transition: var(--transition-default);
+		white-space: nowrap;
 	}
 
 	.tab:hover {
@@ -412,15 +424,20 @@
 		}
 	}
 
+	.scroll-area {
+		overflow-y: auto;
+		min-height: 0;
+		max-height: min(60dvh, 600px);
+		padding-right: 2px;
+	}
+
 	.item-list {
 		list-style: none;
 		margin: 0;
 		padding: 0;
 		display: flex;
 		flex-direction: column;
-		gap: 8px;
-		max-height: 360px;
-		overflow-y: auto;
+		gap: 12px;
 	}
 
 	.item-row {
@@ -434,14 +451,14 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: var(--spacing-md);
-		padding: 12px;
+		padding: 14px 16px;
 		background: var(--white);
 	}
 
 	.item-main {
 		display: flex;
 		flex-direction: column;
-		gap: 2px;
+		gap: 4px;
 		min-width: 0;
 	}
 
@@ -478,28 +495,27 @@
 	.batches {
 		display: flex;
 		flex-direction: column;
-		gap: var(--spacing-md);
-		max-height: 460px;
-		overflow-y: auto;
+		gap: var(--spacing-lg);
 	}
 
 	.batch {
 		display: flex;
 		flex-direction: column;
-		gap: 8px;
-		padding-bottom: var(--spacing-sm);
+		gap: 12px;
+		padding-bottom: var(--spacing-md);
 		border-bottom: var(--border-default);
 	}
 
 	.batch:last-child {
 		border-bottom: none;
+		padding-bottom: 0;
 	}
 
 	.item-card {
 		display: flex;
 		flex-direction: column;
-		gap: 8px;
-		padding: 12px;
+		gap: 12px;
+		padding: 16px;
 		border: var(--border-default);
 		border-radius: var(--radius-sm);
 		background: var(--white);
@@ -668,6 +684,11 @@
 		flex-direction: column;
 		align-items: flex-end;
 		gap: var(--spacing-sm);
+		position: sticky;
+		bottom: 0;
+		background: var(--white);
+		padding: 12px 0 4px;
+		border-top: var(--border-default);
 	}
 
 	.form-error {
@@ -680,9 +701,18 @@
 	}
 
 	@media (max-width: 600px) {
+		.tabs {
+			overflow-x: auto;
+		}
+
+		.scroll-area {
+			max-height: min(64dvh, 560px);
+		}
+
 		.item-content {
 			flex-direction: column;
 			align-items: flex-start;
+			padding: 12px 14px;
 		}
 
 		.item-meta {
@@ -692,6 +722,10 @@
 		.card-head {
 			flex-direction: column;
 			align-items: flex-start;
+		}
+
+		.item-card {
+			padding: 14px;
 		}
 
 		.batch-actions {
