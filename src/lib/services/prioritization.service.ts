@@ -35,10 +35,7 @@ export async function loadPrioritizationCriteria(): Promise<Result<Prioritizatio
 	}
 }
 
-function buildValidationMessage(
-	criteria: PrioritizationCriterion[],
-	missingIds: string[]
-): string {
+function buildValidationMessage(criteria: PrioritizationCriterion[], missingIds: string[]): string {
 	const missingNames = missingIds
 		.map((id) => criteria.find((criterion) => criterion.id === id)?.name ?? id)
 		.filter(Boolean);
