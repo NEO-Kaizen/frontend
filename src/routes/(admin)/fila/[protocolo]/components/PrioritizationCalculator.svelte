@@ -114,7 +114,10 @@
 				// vazia na próxima (o backend só devolve as notas, não o texto).
 				justification = '';
 				onsave?.(submission.data, notes);
-				toastState.add(`Prioridade salva: ${result.score}/${result.maxScore} — ${result.level}`, 'success');
+				toastState.add(
+					`Prioridade salva: ${result.score}/${result.maxScore} — ${result.level}`,
+					'success'
+				);
 			} else if (submission.error.missingCriterionIds?.length) {
 				missingCriterionIds = submission.error.missingCriterionIds;
 				toastState.add(submission.error.message, 'error');
@@ -167,10 +170,7 @@
 		<form onsubmit={handleSubmit} novalidate>
 			<div class="criteria-list">
 				{#each criteria as criterion (criterion.id)}
-					<fieldset
-						class="criterion"
-						class:has-error={criterionErrors.has(criterion.id)}
-					>
+					<fieldset class="criterion" class:has-error={criterionErrors.has(criterion.id)}>
 						<legend class="criterion-legend">
 							<span class="criterion-name">{criterion.name}</span>
 						</legend>
