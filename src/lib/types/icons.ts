@@ -64,7 +64,7 @@ export const iconDictionary = {
 	calendarMonth: 'calendar_month',
 	lightMode: 'light_mode',
 	darkMode: 'dark_mode',
-	content_copy: 'content_copy',
+	content_copy: 'content_copy'
 } as const;
 
 export type IconName = keyof typeof iconDictionary;
