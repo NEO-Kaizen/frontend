@@ -15,7 +15,11 @@ function draftKey(protocol: string): string {
 function isValidTriage(value: unknown): value is TriageAssessment {
 	if (typeof value !== 'object' || value === null) return false;
 	const v = value as Record<string, unknown>;
+	// `id` é opcional aqui (drafts legados não têm); `exitStatus` aceita número
+	// (FK) ou "" (não selecionado) — literal legado (string não-vazia) é
+	// inválido e descartado pelo `load*` (migração v2.3).
 	return (
+		(v.id === undefined || typeof v.id === 'string') &&
 		typeof v.adherentToScope === 'string' &&
 		typeof v.changeCategory === 'string' &&
 		typeof v.newCategory === 'string' &&
@@ -24,7 +28,7 @@ function isValidTriage(value: unknown): value is TriageAssessment {
 		typeof v.perceivedRisks === 'string' &&
 		typeof v.suggestedResponsible === 'string' &&
 		typeof v.suggestedResponsibleJustification === 'string' &&
-		typeof v.exitStatus === 'string' &&
+		(v.exitStatus === '' || typeof v.exitStatus === 'number') &&
 		typeof v.result === 'string' &&
 		typeof v.conclusionJustification === 'string'
 	);

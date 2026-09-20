@@ -1,4 +1,10 @@
-import { createEmptyTriageAssessment, type TriageAssessment } from '$lib/types/triage';
+import {
+	createEmptyTriageAssessment,
+	type CreateTriagePayload,
+	type TriageAssessment
+} from '$lib/types/triage';
+import type { PortalCategory, PortalStatus } from '$lib/types/portal-config';
+import { isTriageExitStatus } from '$lib/utils/status';
 
 function trim(value: string): string {
 	return value.trim();
@@ -8,9 +14,15 @@ function isRequired(value: string): boolean {
 	return trim(value).length > 0;
 }
 
+export interface TriageValidationContext {
+	statuses?: PortalStatus[];
+	categories?: PortalCategory[];
+}
+
 export function toTriageDraft(source: TriageAssessment | null | undefined): TriageAssessment {
 	if (!source) return createEmptyTriageAssessment();
 	return {
+		id: source.id ?? '',
 		adherentToScope: source.adherentToScope ?? '',
 		adherentJustification: source.adherentJustification ?? '',
 		changeCategory: source.changeCategory ?? '',
@@ -25,10 +37,11 @@ export function toTriageDraft(source: TriageAssessment | null | undefined): Tria
 	};
 }
 
-export function toTriagePayload(draft: TriageAssessment): TriageAssessment {
+export function toTriagePayload(draft: TriageAssessment): CreateTriagePayload {
 	// Omite valores condicionais obsoletos: não envia justificativa quando
 	// aderente nem nova categoria quando não há troca — evita persistência
-	// de seleção anterior após toggle do controlador.
+	// de seleção anterior após toggle do controlador. Nunca envia `id`
+	// (uuid do registro, gerado pelo backend no POST).
 	const adherent = draft.adherentToScope === 'Não' ? trim(draft.adherentJustification) : '';
 	const newCategory = draft.changeCategory === 'Sim' ? draft.newCategory : '';
 	return {
@@ -46,7 +59,10 @@ export function toTriagePayload(draft: TriageAssessment): TriageAssessment {
 	};
 }
 
-export function validateTriageDraft(draft: TriageAssessment): Record<string, string> {
+export function validateTriageDraft(
+	draft: TriageAssessment,
+	context: TriageValidationContext = {}
+): Record<string, string> {
 	const errors: Record<string, string> = {};
 
 	if (!draft.adherentToScope) {
@@ -61,8 +77,17 @@ export function validateTriageDraft(draft: TriageAssessment): Record<string, str
 		errors['changeCategory'] = 'Selecione uma opção.';
 	}
 
-	if (draft.changeCategory === 'Sim' && !draft.newCategory) {
-		errors['newCategory'] = 'Selecione a nova categoria.';
+	if (draft.changeCategory === 'Sim') {
+		if (!draft.newCategory) {
+			errors['newCategory'] = 'Selecione a nova categoria.';
+		} else if (context.categories) {
+			const active = context.categories.some(
+				(category) => category.isActive && category.name === draft.newCategory
+			);
+			if (!active) {
+				errors['newCategory'] = 'Categoria deve estar ativa no cadastro.';
+			}
+		}
 	}
 
 	if (draft.adherentToScope === 'Sim') {
@@ -74,8 +99,10 @@ export function validateTriageDraft(draft: TriageAssessment): Record<string, str
 		}
 	}
 
-	if (!draft.exitStatus) {
+	if (draft.exitStatus === '' || draft.exitStatus === null || draft.exitStatus === undefined) {
 		errors['exitStatus'] = 'Selecione o status de saída.';
+	} else if (context.statuses && !isTriageExitStatus(draft.exitStatus, context.statuses)) {
+		errors['exitStatus'] = 'Status de saída deve ser um status ativo elegível para triagem.';
 	}
 
 	if (!isRequired(draft.result)) {
@@ -108,19 +135,16 @@ export function validateTriageDraft(draft: TriageAssessment): Record<string, str
 	if (trim(draft.conclusionJustification).length > 4000) {
 		errors['conclusionJustification'] = 'Limite de 4000 caracteres excedido.';
 	}
-	if (
-		draft.newCategory &&
-		typeof draft.newCategory === 'string' &&
-		trim(draft.newCategory).length > 100
-	) {
-		// category label max, defensive
-	}
 
 	return errors;
 }
 
-export function validateTriageField(draft: TriageAssessment, path: string): Record<string, string> {
-	const all = validateTriageDraft(draft);
+export function validateTriageField(
+	draft: TriageAssessment,
+	path: string,
+	context: TriageValidationContext = {}
+): Record<string, string> {
+	const all = validateTriageDraft(draft, context);
 	const picked: Record<string, string> = {};
 	if (all[path]) picked[path] = all[path];
 	// Para campos condicionais, ao validar o controlador também validar dependente e vice-versa

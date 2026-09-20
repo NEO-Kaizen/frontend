@@ -1,6 +1,7 @@
-import type { RequestCategory, TriageResult } from './request';
+import type { RequestCategory } from './request';
 
 export interface TriageAssessment {
+	id: string;
 	adherentToScope: 'Sim' | 'Não' | '';
 	changeCategory: 'Sim' | 'Não' | '';
 	newCategory: RequestCategory | '';
@@ -9,23 +10,17 @@ export interface TriageAssessment {
 	perceivedRisks: string;
 	suggestedResponsible: string;
 	suggestedResponsibleJustification: string;
-	exitStatus: TriageResult | '';
+	exitStatus: number | '';
 	result: string;
 	conclusionJustification: string;
 }
 
-export const TRIAGE_EXIT_OPTIONS: { value: TriageResult; label: string }[] = [
-	{ value: 'Elegível para avaliação', label: 'Elegível para avaliação' },
-	{ value: 'Pendente de informações', label: 'Pendente de informações' },
-	{ value: 'Fora do escopo', label: 'Fora do escopo' },
-	{ value: 'Direcionada para outra área', label: 'Direcionada para outra área' },
-	{ value: 'Duplicada', label: 'Duplicada' },
-	{ value: 'Cancelada', label: 'Cancelada' },
-	{ value: 'Backlog', label: 'Backlog' }
-];
+// Criação — body do POST (sem id, gerado pelo backend como uuid do registro)
+export type CreateTriagePayload = Omit<TriageAssessment, 'id'>;
 
 export function createEmptyTriageAssessment(): TriageAssessment {
 	return {
+		id: '',
 		adherentToScope: '',
 		changeCategory: '',
 		newCategory: '',
