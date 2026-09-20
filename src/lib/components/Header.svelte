@@ -4,7 +4,6 @@
 	import type { IconName } from '$lib/types/icons';
 	import { page } from '$app/state';
 	import Button from '$lib/components/Button.svelte';
-	import type { RouteId } from '$app/types';
 	import type { UserType } from '$lib/types/user';
 	import Input from './Input.svelte';
 	import { goto } from '$app/navigation';
@@ -16,16 +15,11 @@
 	import { onMount } from 'svelte';
 	import { getThemeMode, toggleTheme } from '$lib/states/theme.svelte';
 
-	// KNOWN ISSUE (svelte-check) — não estreitar este tipo sem entender a causa:
-	// `resolve(item.href)` (no helper `isActive` e abaixo, no markup) acusa erro
-	// porque o `RouteId` gerado inclui ids de diretórios sem página (ex.: pastas
-	// `components/` da colocação de componentes) e `resolve()` usa tipo
-	// condicional distributivo.
-	// Falso-positivo: runtime e build passam; só o `check` fica vermelho.
 	interface NavButton {
 		name: string;
 		icon: IconName;
-		href?: RouteId;
+		// A rota é resolvida na declaração do item para já incluir o base path.
+		href?: string;
 		// Sem rota associada: item exibido como indisponível, sem link.
 		disabled?: boolean;
 	}
@@ -45,20 +39,19 @@
 
 	function isActive(item: NavButton, pathname: string): boolean {
 		if (!item.href) return false;
-		const resolved = resolve(item.href);
-		return pathname === resolved || pathname.startsWith(`${resolved}/`);
+		return pathname === item.href || pathname.startsWith(`${item.href}/`);
 	}
 
 	const analistaNav: NavButton[] = [
 		{
 			name: 'Home',
 			icon: 'home',
-			href: '/(admin)/home'
+			href: resolve('/(admin)/home')
 		},
 		{
 			name: 'Fila Centralizada',
 			icon: 'centralQueue',
-			href: '/(admin)/fila'
+			href: resolve('/(admin)/fila')
 		}
 	];
 
@@ -78,12 +71,12 @@
 		{
 			name: 'Gerenciar Usuários',
 			icon: 'manageUsers',
-			href: '/(admin)/usuarios'
+			href: resolve('/(admin)/usuarios')
 		},
 		{
 			name: 'Configurações',
 			icon: 'settings',
-			href: '/(admin)/configuracoes'
+			href: resolve('/(admin)/configuracoes')
 		}
 	];
 
@@ -265,7 +258,9 @@
 					{:else}
 						<div class="nav-item" class:active={isActive(item, page.url.pathname)}>
 							<Icon iconName={item.icon} />
-							<a href={item.href ? resolve(item.href) : undefined}>{item.name}</a>
+							<!-- A URL do item já foi resolvida na declaração da navegação. -->
+							<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+							<a href={item.href}>{item.name}</a>
 						</div>
 					{/if}
 				{/each}

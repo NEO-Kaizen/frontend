@@ -2,10 +2,18 @@ import { browser } from '$app/environment';
 import { env } from '$env/dynamic/public';
 import { ApiError } from '$lib/types/result';
 
-const PUBLIC_API_URL = env.PUBLIC_API_URL;
+const PUBLIC_API_URL = env.PUBLIC_API_URL?.replace(/\/$/, '');
 
 if (!PUBLIC_API_URL) {
 	throw new Error('PUBLIC_API_URL não está definida no ambiente.');
+}
+
+export function resolvePublicApiUrl(path: string): string {
+	if (!path.startsWith('/')) {
+		throw new Error('O caminho da API deve começar com "/".');
+	}
+
+	return `${PUBLIC_API_URL}${path}`;
 }
 
 // No servidor, o fetch global não carrega o cookie da página: o fetch
@@ -36,7 +44,7 @@ export async function apiClient<T>(
 	const doFetch = resolveFetch(fetchImpl);
 	const isMultipart = options.body instanceof FormData;
 
-	const response = await doFetch(`${PUBLIC_API_URL}${path}`, {
+	const response = await doFetch(resolvePublicApiUrl(path), {
 		credentials: 'include',
 		...options,
 		headers: {
