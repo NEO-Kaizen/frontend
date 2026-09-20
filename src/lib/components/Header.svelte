@@ -162,8 +162,8 @@
 			<form role="search" class="search-container" onsubmit={handleSearchSubmit}>
 				<Input
 					type="search"
-					placeholder="Buscar por protocolo ou e-mail"
-					aria-label="Buscar por protocolo ou e-mail"
+					placeholder="Buscar protocolo ou e-mail"
+					aria-label="Buscar protocolo ou e-mail"
 					name="pesquisar-chamados"
 					value={activeSearch}
 					disabled={isSearching}
