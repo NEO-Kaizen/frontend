@@ -28,10 +28,16 @@
 			const serverStr = JSON.stringify(data.solicitation.triage);
 			const persistedStr = JSON.stringify(persisted);
 			if (serverStr !== persistedStr) {
+				// `exitStatus` é FK numérica: deriva o nome via cadastro ativo.
+				const exitName = data.portalConfig.statuses.find(
+					(status) => status.id === persisted.exitStatus
+				)?.name;
 				solicitation = {
 					...data.solicitation,
 					triage: persisted,
-					status: persisted.exitStatus as unknown as typeof data.solicitation.status,
+					status: exitName
+						? (exitName as typeof data.solicitation.status)
+						: data.solicitation.status,
 					demand: {
 						...data.solicitation.demand,
 						category:

@@ -1,12 +1,15 @@
 <script lang="ts">
 	import { tick } from 'svelte';
+	import { page } from '$app/state';
 	import Button from '$lib/components/Button.svelte';
 	import FilterSelect from '$lib/components/FilterSelect.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import Textarea from '$lib/components/Textarea.svelte';
-	import { updateTriage } from '$lib/services/triage.service';
+	import { canEditSolicitation } from '$lib/services/access.service';
+	import { getInternalRequest } from '$lib/services/request.service';
+	import { createTriage, getTriage } from '$lib/services/triage.service';
 	import {
 		clearDraftFromSession,
 		loadDraftFromSession,
@@ -16,14 +19,16 @@
 	} from '$lib/services/triage-draft.service';
 	import { loadPrioritizationFinal } from '$lib/services/prioritization-draft.service';
 	import { toastState } from '$lib/states/toast.svelte';
-	import { CATEGORY_OPTIONS, YES_NO_OPTIONS } from '$lib/types/request';
+	import { triageExitOptions } from '$lib/utils/status';
+	import { YES_NO_OPTIONS } from '$lib/types/request';
 	import type { InternalRequestDetail } from '$lib/types/request';
-	import { TRIAGE_EXIT_OPTIONS, type TriageAssessment } from '$lib/types/triage';
+	import type { TriageAssessment } from '$lib/types/triage';
 	import {
 		toTriageDraft,
 		toTriagePayload,
 		validateTriageDraft,
-		validateTriageField
+		validateTriageField,
+		type TriageValidationContext
 	} from './triage-validation';
 
 	interface Props {
@@ -34,21 +39,36 @@
 
 	let { solicitation, onTriageSuccess, onOpenCalculator }: Props = $props();
 
-	function resolveInitialDraft(): TriageAssessment {
+	// Opções derivadas do cadastro ativo (contrato de triagem §4) — nunca
+	// enums fixos: `exitStatus` filtra `isActive && isTriageExit` (value = id
+	// numérico serializado como string para o FilterSelect), categoria lista
+	// nomes ativos.
+	const portalStatuses = $derived(page.data.portalConfig.statuses ?? []);
+	const portalCategories = $derived(page.data.portalConfig.categories ?? []);
+	const exitOptions = $derived(triageExitOptions(portalStatuses));
+	const categoryOptions = $derived(
+		portalCategories
+			.filter((category) => category.isActive)
+			.map((category) => ({ value: category.name, label: category.name }))
+	);
+	const validationContext = $derived<TriageValidationContext>({
+		statuses: portalStatuses,
+		categories: portalCategories
+	});
+
+	const canTriage = $derived(
+		canEditSolicitation(solicitation.assignee?.id, page.data.user ?? null)
+	);
+
+	// Triagem vigente via `GET /triage` (lazy, ao montar a aba — contrato §2):
+	// objeto → readonly; `null` → edição com rascunho vazio.
+	let serverTriage = $state<TriageAssessment | null>(null);
+	let triageLoaded = $state(false);
+	let isCreatingNew = $state(false);
+	const isReadonly = $derived(triageLoaded && serverTriage !== null && !isCreatingNew);
+
+	function applyDraftPrecedence(protocol: string, fetched: TriageAssessment | null) {
 		// SessionStorage tem prioridade: 1) rascunho não-finalizado, 2) triage finalizado persistido (1ª e N-ésima edição)
-		const persistedDraft = loadDraftFromSession(solicitation.protocol);
-		if (persistedDraft) return toTriageDraft(persistedDraft);
-		const persistedFinal = loadTriageFromSession(solicitation.protocol);
-		if (persistedFinal) return toTriageDraft(persistedFinal);
-		return toTriageDraft(solicitation.triage);
-	}
-
-	let draft = $state<TriageAssessment>(resolveInitialDraft());
-
-	// Sincroniza quando protocolo muda (navegação) — garante que cada protocolo tem seu rascunho isolado
-	$effect(() => {
-		const protocol = solicitation.protocol;
-		const serverTriage = solicitation.triage;
 		const persistedDraft = loadDraftFromSession(protocol);
 		if (persistedDraft) {
 			draft = toTriageDraft(persistedDraft);
@@ -59,7 +79,32 @@
 			draft = toTriageDraft(persistedFinal);
 			return;
 		}
-		draft = toTriageDraft(serverTriage);
+		draft = toTriageDraft(fetched ?? solicitation.triage);
+	}
+
+	let draft = $state<TriageAssessment>(toTriageDraft(solicitation.triage));
+
+	// Sincroniza quando protocolo muda (navegação) — garante que cada protocolo tem seu rascunho isolado
+	$effect(() => {
+		const protocol = solicitation.protocol;
+		let cancelled = false;
+		triageLoaded = false;
+		isCreatingNew = false;
+		serverTriage = null;
+		void (async () => {
+			const result = await getTriage(protocol);
+			if (cancelled) return;
+			if (result.ok) {
+				serverTriage = result.data;
+				applyDraftPrecedence(protocol, result.data);
+			} else {
+				applyDraftPrecedence(protocol, null);
+			}
+			triageLoaded = true;
+		})();
+		return () => {
+			cancelled = true;
+		};
 	});
 
 	function persistDraft() {
@@ -125,6 +170,7 @@
 	}
 
 	function handleFieldChange(path: keyof TriageAssessment, value: string) {
+		if (path === 'exitStatus') return;
 		// @ts-expect-error dynamic
 		draft[path] = value;
 		if (path === 'adherentToScope' && value !== 'Não') {
@@ -140,8 +186,15 @@
 		persistDraft();
 	}
 
+	function handleExitStatusChange(value: string) {
+		// FilterSelect trafega string; o contrato exige FK numérica no payload.
+		draft.exitStatus = value === '' ? '' : Number(value);
+		clearFieldError('exitStatus');
+		persistDraft();
+	}
+
 	function handleBlur(path: string) {
-		const next = validateTriageField(draft, path);
+		const next = validateTriageField(draft, path, validationContext);
 		// remove previous errors for path keys
 		for (const key of Object.keys(next)) {
 			delete errors[key];
@@ -169,9 +222,17 @@
 
 	function handleCancel() {
 		clearDraftFromSession(solicitation.protocol);
-		draft = toTriageDraft(solicitation.triage);
+		draft = toTriageDraft(serverTriage ?? solicitation.triage);
+		isCreatingNew = serverTriage !== null;
 		errors = {};
 		showConfirm = false;
+	}
+
+	function handleStartNewTriage() {
+		clearDraftFromSession(solicitation.protocol);
+		draft = toTriageDraft(null);
+		isCreatingNew = true;
+		errors = {};
 	}
 
 	function handleCalculatePriority() {
@@ -180,7 +241,7 @@
 	}
 
 	function handleFinalizeClick() {
-		const validation = validateTriageDraft(draft);
+		const validation = validateTriageDraft(draft, validationContext);
 		if (!hasCalculatedPriority()) {
 			validation['prioritization'] = PRIORITY_REQUIRED_MESSAGE;
 		}
@@ -199,7 +260,7 @@
 
 	async function handleConfirm() {
 		if (isSaving) return;
-		const validation = validateTriageDraft(draft);
+		const validation = validateTriageDraft(draft, validationContext);
 		if (!hasCalculatedPriority()) {
 			validation['prioritization'] = PRIORITY_REQUIRED_MESSAGE;
 		}
@@ -216,17 +277,23 @@
 		}
 		isSaving = true;
 		const payload = toTriagePayload(draft);
-		const result = await updateTriage(solicitation.protocol, payload);
+		const result = await createTriage(solicitation.protocol, payload);
 		isSaving = false;
 		if (result.ok) {
 			showConfirm = false;
 			errors = {};
 			// Persistência real via sessionStorage: salva final e limpa rascunho
-			saveTriageToSession(solicitation.protocol, payload);
+			saveTriageToSession(solicitation.protocol, result.data);
 			clearDraftFromSession(solicitation.protocol);
-			draft = toTriageDraft(result.data.triage);
+			serverTriage = result.data;
+			isCreatingNew = false;
+			draft = toTriageDraft(result.data);
 			toastState.add('Triagem finalizada com sucesso.', 'success');
-			onTriageSuccess?.(result.data);
+			// Side-effects (status/categoria) refletem no detalhe interno.
+			const refreshed = await getInternalRequest(solicitation.protocol);
+			if (refreshed.ok) {
+				onTriageSuccess?.(refreshed.data);
+			}
 		} else {
 			toastState.add(result.error.message, 'error');
 			showConfirm = false;
@@ -236,6 +303,14 @@
 
 <section class="triage-section" bind:this={sectionRoot} aria-label="Triagem da solicitação">
 	<h2 class="section-heading">AVALIAÇÃO DA TRIAGEM</h2>
+
+	{#if !triageLoaded}
+		<p class="triage-loading" aria-busy="true">Carregando triagem…</p>
+	{:else if isReadonly}
+		<p class="triage-readonly-note" role="status">
+			Triagem finalizada — os campos estão em somente leitura.
+		</p>
+	{/if}
 
 	<div class="field-group">
 		<!-- Linha 1: Aderente ao Escopo + Justificativa (justificativa com dobro da largura) -->
@@ -247,7 +322,7 @@
 					value={draft.adherentToScope}
 					onchange={(v) => handleFieldChange('adherentToScope', v)}
 					placeholder="Selecione"
-					disabled={isSaving}
+					disabled={isSaving || isReadonly}
 					error={errors['adherentToScope'] ?? ''}
 				/>
 			</div>
@@ -257,7 +332,7 @@
 					placeholder="Informe a justificativa"
 					bind:value={draft.adherentJustification}
 					maxlength={1000}
-					disabled={isSaving || isJustificationDisabled()}
+					disabled={isSaving || isReadonly || isJustificationDisabled()}
 					error={errors['adherentJustification'] ?? ''}
 					oninput={() => clearFieldError('adherentJustification')}
 					onblur={() => handleBlur('adherentJustification')}
@@ -274,7 +349,7 @@
 					value={draft.changeCategory}
 					onchange={(v) => handleFieldChange('changeCategory', v)}
 					placeholder="Selecione"
-					disabled={isSaving}
+					disabled={isSaving || isReadonly}
 					error={errors['changeCategory'] ?? ''}
 				/>
 			</div>
@@ -288,11 +363,11 @@
 					<div class="category-new">
 						<FilterSelect
 							label="Nova Categoria"
-							options={CATEGORY_OPTIONS}
+							options={categoryOptions}
 							value={draft.newCategory}
 							onchange={(v) => handleFieldChange('newCategory', v)}
 							placeholder="Selecione"
-							disabled={isSaving || isNewCategoryDisabled()}
+							disabled={isSaving || isReadonly || isNewCategoryDisabled()}
 							error={errors['newCategory'] ?? ''}
 						/>
 					</div>
@@ -308,7 +383,7 @@
 			bind:value={draft.preliminaryComplexity}
 			maxlength={4000}
 			rows={4}
-			disabled={isSaving}
+			disabled={isSaving || isReadonly}
 			error={errors['preliminaryComplexity'] ?? ''}
 			oninput={() => clearFieldError('preliminaryComplexity')}
 		/>
@@ -321,7 +396,7 @@
 			bind:value={draft.perceivedRisks}
 			maxlength={4000}
 			rows={4}
-			disabled={isSaving}
+			disabled={isSaving || isReadonly}
 			error={errors['perceivedRisks'] ?? ''}
 			oninput={() => clearFieldError('perceivedRisks')}
 		/>
@@ -335,7 +410,7 @@
 				placeholder="Informe o Analista"
 				bind:value={draft.suggestedResponsible}
 				maxlength={150}
-				disabled={isSaving}
+				disabled={isSaving || isReadonly}
 				error={errors['suggestedResponsible'] ?? ''}
 				oninput={() => clearFieldError('suggestedResponsible')}
 				onblur={() => handleBlur('suggestedResponsible')}
@@ -345,7 +420,7 @@
 				placeholder="Informe a justificativa"
 				bind:value={draft.suggestedResponsibleJustification}
 				maxlength={1000}
-				disabled={isSaving}
+				disabled={isSaving || isReadonly}
 				error={errors['suggestedResponsibleJustification'] ?? ''}
 				oninput={() => clearFieldError('suggestedResponsibleJustification')}
 				onblur={() => handleBlur('suggestedResponsibleJustification')}
@@ -361,11 +436,11 @@
 			<div class="narrow-field wide-field">
 				<FilterSelect
 					label="Status de Saída"
-					options={TRIAGE_EXIT_OPTIONS}
-					value={draft.exitStatus}
-					onchange={(v) => handleFieldChange('exitStatus', v)}
+					options={exitOptions}
+					value={draft.exitStatus === '' ? '' : String(draft.exitStatus)}
+					onchange={handleExitStatusChange}
 					placeholder="Selecione"
-					disabled={isSaving}
+					disabled={isSaving || isReadonly}
 					error={errors['exitStatus'] ?? ''}
 				/>
 			</div>
@@ -375,7 +450,7 @@
 					placeholder="Informe o resultado"
 					bind:value={draft.result}
 					maxlength={1000}
-					disabled={isSaving}
+					disabled={isSaving || isReadonly}
 					error={errors['result'] ?? ''}
 					oninput={() => clearFieldError('result')}
 					onblur={() => handleBlur('result')}
@@ -391,7 +466,7 @@
 			bind:value={draft.conclusionJustification}
 			maxlength={4000}
 			rows={5}
-			disabled={isSaving}
+			disabled={isSaving || isReadonly}
 			error={errors['conclusionJustification'] ?? ''}
 			oninput={() => clearFieldError('conclusionJustification')}
 		/>
@@ -407,15 +482,29 @@
 	{/if}
 
 	<div class="footer-actions">
-		<Button variant="outline-neutral" disabled={isSaving} onclick={handleCancel}>Cancelar</Button>
-		<Button variant="secondary" disabled={isSaving} onclick={handleCalculatePriority}>
-			<Icon iconName="calculate" iconSize="sm" />
-			{hasCalculatedPriority() ? 'Alterar Prioridade' : 'Calcular Prioridade'}
-		</Button>
-		<Button variant="primary" disabled={isSaving} loading={isSaving} onclick={handleFinalizeClick}>
-			<Icon iconName="check" iconSize="sm" />
-			Finalizar Triagem
-		</Button>
+		{#if isReadonly}
+			{#if canTriage}
+				<Button variant="primary" disabled={isSaving} onclick={handleStartNewTriage}>
+					<Icon iconName="addCircle" iconSize="sm" />
+					Começar Nova Triagem
+				</Button>
+			{/if}
+		{:else}
+			<Button variant="outline-neutral" disabled={isSaving} onclick={handleCancel}>Cancelar</Button>
+			<Button variant="secondary" disabled={isSaving} onclick={handleCalculatePriority}>
+				<Icon iconName="calculate" iconSize="sm" />
+				{hasCalculatedPriority() ? 'Alterar Prioridade' : 'Calcular Prioridade'}
+			</Button>
+			<Button
+				variant="primary"
+				disabled={isSaving || !triageLoaded}
+				loading={isSaving}
+				onclick={handleFinalizeClick}
+			>
+				<Icon iconName="check" iconSize="sm" />
+				Finalizar Triagem
+			</Button>
+		{/if}
 	</div>
 </section>
 
@@ -459,6 +548,23 @@
 		flex-direction: column;
 		gap: var(--spacing-md);
 		align-items: flex-start;
+	}
+
+	.triage-loading {
+		margin: 0;
+		font: var(--label);
+		color: var(--text-color-primary);
+	}
+
+	.triage-readonly-note {
+		margin: 0;
+		padding: var(--spacing-sm) var(--spacing-md);
+		border-radius: var(--radius-sm);
+		background: var(--white-gray);
+		color: var(--text-color-primary);
+		font: var(--label);
+		width: 75%;
+		box-sizing: border-box;
 	}
 
 	.section-heading {
