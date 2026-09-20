@@ -1114,6 +1114,7 @@ export async function assignAnalystMock(
 	const detail = mockInternalRequestDetails.find(
 		(d) => d.protocol.toLowerCase().trim() === normalized
 	);
+
 	if (!detail) {
 		return Promise.reject(new ApiError(404, 'Solicitação não encontrada.'));
 	}
@@ -1147,15 +1148,19 @@ export async function assignAnalystMock(
 	};
 
 	if (responsibility === 'mapeamento') {
+		// Responsável pelo Mapeamento é independente do responsável pela Triagem.
 		detail.mappingAssignee = assigneeValue;
-	}
+	} else {
+		// A atribuição de Triagem altera o responsável principal da solicitação.
+		detail.assignee = assigneeValue;
 
-	detail.assignee = assigneeValue;
-	// Também reflete na fila centralizada para consistência visual (triagem)
-	const queueItem = mockRequests.find((r) => r.protocol.toLowerCase().trim() === normalized);
-	if (queueItem) {
-		queueItem.assigneeId = analyst.id;
-		queueItem.assignee = analyst.fullName;
+		// A fila representa o responsável pela Triagem.
+		const queueItem = mockRequests.find((r) => r.protocol.toLowerCase().trim() === normalized);
+
+		if (queueItem) {
+			queueItem.assigneeId = analyst.id;
+			queueItem.assignee = analyst.fullName;
+		}
 	}
 
 	detail.lastUpdate = new Date().toISOString();
