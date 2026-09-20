@@ -1,6 +1,8 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
 	import type { IconName } from '$lib/types/icons';
+	import { cubicOut } from 'svelte/easing';
+	import { fly } from 'svelte/transition';
 
 	export type FilterOption = {
 		value: string;
@@ -48,6 +50,9 @@
 	let container = $state<HTMLDivElement>();
 	let listbox = $state<HTMLUListElement>();
 	let inputEl = $state<HTMLInputElement>();
+
+	const prefersReducedMotion =
+		typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 	// Busca acento-insensível: "média" casa com "Media" e vice-versa.
 	function normalize(text: string): string {
@@ -239,7 +244,18 @@
 		</button>
 
 		{#if open}
-			<ul class="options" id={listId} role="listbox" bind:this={listbox}>
+			<ul
+				class="options"
+				id={listId}
+				role="listbox"
+				bind:this={listbox}
+				transition:fly={{
+					y: -6,
+					duration: prefersReducedMotion ? 0 : 150,
+					opacity: 0,
+					easing: cubicOut
+				}}
+			>
 				{#if filtered.length === 0}
 					<li class="empty" role="presentation">Nenhum resultado</li>
 				{:else}

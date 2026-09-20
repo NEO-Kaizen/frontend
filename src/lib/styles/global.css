@@ -222,8 +222,8 @@ body {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	padding-top: var(--spacing-xl);
-	gap: var(--spacing-xl);
+	padding: var(--spacing-lg) var(--spacing-lg) 0;
+	gap: var(--spacing-lg);
 	width: 100%;
 	min-height: 100dvh;
 	background-color: var(--background-color);
@@ -232,6 +232,7 @@ body {
 .content-container {
 	width: 100%;
 	max-width: var(--largura-maxima-conteudo);
+	padding-inline: var(--spacing-md);
 }
 
 h1,
