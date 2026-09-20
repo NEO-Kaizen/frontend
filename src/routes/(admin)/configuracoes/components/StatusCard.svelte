@@ -1,7 +1,10 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { fade } from 'svelte/transition';
+	import { flip } from 'svelte/animate';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import InfoTip from '$lib/components/InfoTip.svelte';
 	import ToggleButton from '$lib/components/ToggleButton.svelte';
 	import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
 	import { isPortalConfigLoadBlocked } from '$lib/config/portal-config-load';
@@ -34,6 +37,14 @@
 	// Leitura autoritativa falhou: o draft pode ser o fallback local — bloqueia
 	// edição e salvamento até a revalidação.
 	const loadFailed = $derived(isPortalConfigLoadBlocked(page.data));
+
+	// Animações de filtragem respeitam o SO: com movimento reduzido, durações
+	// zeradas fazem o Svelte pular a transição sem caminho de código separado.
+	const prefersReducedMotion =
+		typeof window !== 'undefined' &&
+		typeof window.matchMedia === 'function' &&
+		window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+	const ROW_TRANSITION_MS = prefersReducedMotion ? 0 : 220;
 
 	// Erro global da lista (Card 6) — lista vazia, limite de itens, nome
 	// inválido ou nome duplicado.
@@ -79,13 +90,15 @@
 	}
 
 	function addStatus() {
+		// Novo status herda os filtros booleanos ativos para continuar visível
+		// na lista filtrada; com filtros em "Todas", mantém os defaults.
 		setStatuses([
 			{
 				id: nextId(section.draft.statuses),
 				name: '',
 				visibility: 'PUBLIC',
-				closesRequest: false,
-				isTriageExit: false,
+				closesRequest: closesFilter === 'all' ? false : closesFilter === 'true',
+				isTriageExit: triageExitFilter === 'all' ? false : triageExitFilter === 'true',
 				tone: 'info',
 				isActive: true
 			},
@@ -105,32 +118,96 @@
 		setStatuses(replaceById<PortalStatus>(section.draft.statuses, id, patch));
 	}
 
-	// Status em edição (valores locais do formulário); `null` = nenhum.
-	let editing = $state<{
-		id: number;
-		name: string;
-		visibility: StatusVisibility;
-		closesRequest: boolean;
-		isTriageExit: boolean;
-		tone: StatusTone;
-		isActive: boolean;
-	} | null>(null);
-
-	// Foca o input de nome assim que a linha entra em edição.
-	function focusOnMount(node: HTMLInputElement) {
+	// Foca o controle assim que a célula entra em edição.
+	function focusOnMount(node: HTMLElement) {
 		node.focus();
 	}
 
-	// Só marca a linha como inválida depois que o usuário tenta confirmá-la.
-	let rowError = $state(false);
-	const nameInvalid = $derived(rowError && editing !== null && !isValidStatusName(editing.name));
+	// Abre o menu nativo do select no mesmo gesto do clique: o badge "funciona
+	// como" o select em um clique só. Sem suporte ou sem ativação, cai no
+	// foco (comportamento atual de dois cliques) em vez de quebrar.
+	// Dispensar o menu sem escolher volta ao badge: clique fora fecha via
+	// `dismissOnOutside`; clicar no próprio select (menu já dispensado) fecha
+	// via `dismissOnSelf` — o nativo não emite evento ao clicar na opção atual.
+	// O cleanup do attach remove os listeners ao desmontar o editor.
+	function openSelectPicker(node: HTMLElement) {
+		node.focus();
+		let menuOpened = false;
+		try {
+			(node as HTMLSelectElement).showPicker?.();
+			menuOpened = true;
+		} catch {
+			// ignore — foco já aplicado acima
+		}
+		const dismissOnOutside = (event: PointerEvent) => {
+			if (event.target instanceof Node && !node.contains(event.target)) {
+				closeCellEditor();
+			}
+		};
+		// Só arma o auto-fechamento quando o menu abriu sozinho: no fallback
+		// (usuário abre o menu clicando), ele mataria o menu recém-aberto.
+		const dismissOnSelf = () => closeCellEditor();
+		window.addEventListener('pointerdown', dismissOnOutside);
+		if (menuOpened) {
+			node.addEventListener('pointerdown', dismissOnSelf);
+		}
+		return () => {
+			window.removeEventListener('pointerdown', dismissOnOutside);
+			node.removeEventListener('pointerdown', dismissOnSelf);
+		};
+	}
 
-	// Filtro de exibição: inativos continuam no draft e podem ser reativados.
+	// Edição por célula (clique no valor): `null` = nenhuma célula em edição.
+	// Diferente do modo de edição por linha, apenas uma célula abre por vez e
+	// selects nativos confirmam na escolha (sem popover customizado preso no scroll).
+	type EditableStatusField = 'name' | 'visibility' | 'tone';
+	let editingCell = $state<{ id: number; field: EditableStatusField } | null>(null);
+	let editingName = $state('');
+
+	// Só marca o nome como inválido depois que o usuário tenta confirmá-lo.
+	let nameError = $state(false);
+	const nameInvalid = $derived(
+		nameError && editingCell?.field === 'name' && !isValidStatusName(editingName)
+	);
+
+	// Filtros de exibição (somente visão, nunca mutam o draft): inativos
+	// continuam no draft e podem ser reativados; booleanos filtram por valor.
+	type BooleanFilter = 'all' | 'true' | 'false';
 	let showInactive = $state(false);
+	let closesFilter = $state<BooleanFilter>('all');
+	let triageExitFilter = $state<BooleanFilter>('all');
 	const visibleStatuses = $derived(
-		section.draft.statuses.filter((status) => showInactive || status.isActive)
+		section.draft.statuses.filter(
+			(status) =>
+				(showInactive || status.isActive) &&
+				(closesFilter === 'all' || String(status.closesRequest) === closesFilter) &&
+				(triageExitFilter === 'all' || String(status.isTriageExit) === triageExitFilter)
+		)
 	);
 	const inactiveCount = $derived(section.draft.statuses.filter((s) => !s.isActive).length);
+	const hasActiveFilters = $derived(closesFilter !== 'all' || triageExitFilter !== 'all');
+
+	function clearFilters() {
+		closesFilter = 'all';
+		triageExitFilter = 'all';
+	}
+
+	const BOOLEAN_FILTER_LABELS: Record<BooleanFilter, string> = {
+		all: 'Todas',
+		true: 'Sim',
+		false: 'Não'
+	};
+
+	// Pílulas de filtro alternam Todas → Sim → Não → Todas.
+	function cycleBooleanFilter(which: 'closes' | 'triageExit') {
+		const next = (current: BooleanFilter): BooleanFilter =>
+			current === 'all' ? 'true' : current === 'true' ? 'false' : 'all';
+		if (which === 'closes') {
+			closesFilter = next(closesFilter);
+		} else {
+			triageExitFilter = next(triageExitFilter);
+		}
+	}
 
 	// Impede inativar o último status ativo.
 	function canToggleInactive(status: PortalStatus): boolean {
@@ -141,6 +218,22 @@
 	// Ativa/inativa é a única ação de "saída" — não há exclusão de item salvo.
 	function toggleActive(status: PortalStatus) {
 		updateStatus(status.id, { isActive: !status.isActive });
+	}
+
+	// Pop simétrico ao alternar Encerra/Saída (liga e desliga): a Web Animations
+	// API não depende de classe adicionada/removida, então o movimento é igual
+	// nas duas direções. Com movimento reduzido, pula direto (só o glide de cor).
+	function popToggle(event: MouseEvent) {
+		if (prefersReducedMotion) return;
+		const target = event.currentTarget as HTMLElement | null;
+		target?.animate(
+			[
+				{ transform: 'scale(0.88)' },
+				{ transform: 'scale(1.04)', offset: 0.6 },
+				{ transform: 'scale(1)' }
+			],
+			{ duration: 180, easing: 'ease-out' }
+		);
 	}
 
 	const VISIBILITY_OPTIONS: { value: StatusVisibility; label: string }[] = [
@@ -159,62 +252,64 @@
 	function handleAdd() {
 		addStatus();
 		const added = section.draft.statuses[0];
-		editing = added
-			? {
-					id: added.id,
-					name: added.name,
-					visibility: added.visibility,
-					closesRequest: added.closesRequest,
-					isTriageExit: added.isTriageExit,
-					tone: added.tone,
-					isActive: added.isActive
-				}
-			: null;
-		rowError = false;
+		if (!added) return;
+		// Novo status abre direto no editor de nome — e como herda os filtros
+		// ativos (ver addStatus), permanece visível na lista filtrada.
+		editingCell = { id: added.id, field: 'name' };
+		editingName = added.name;
+		nameError = false;
 	}
 
-	function handleEdit(status: PortalStatus) {
-		editing = {
-			id: status.id,
-			name: status.name,
-			visibility: status.visibility,
-			closesRequest: status.closesRequest,
-			isTriageExit: status.isTriageExit,
-			tone: status.tone,
-			isActive: status.isActive
-		};
-		rowError = false;
+	function openCellEditor(status: PortalStatus, field: EditableStatusField) {
+		if (section.saving || loadFailed) return;
+		editingCell = { id: status.id, field };
+		nameError = false;
+		if (field === 'name') {
+			editingName = status.name;
+		}
 	}
 
-	function handleSaveEdit() {
-		if (!editing) return;
+	function closeCellEditor() {
+		editingCell = null;
+		nameError = false;
+	}
 
-		const error = statusRowError(editing.name, editing.id);
+	function commitNameEdit(status: PortalStatus) {
+		const error = statusRowError(editingName, status.id);
 		if (error) {
-			rowError = true;
+			nameError = true;
 			notifyError(error);
 			return;
 		}
-
-		updateStatus(editing.id, {
-			name: editing.name,
-			visibility: editing.visibility,
-			closesRequest: editing.closesRequest,
-			isTriageExit: editing.isTriageExit,
-			tone: editing.tone
-		});
-		editing = null;
-		rowError = false;
+		updateStatus(status.id, { name: editingName.trim() });
+		closeCellEditor();
 	}
 
-	function handleCancelEdit(status: PortalStatus) {
+	function cancelNameEdit(status: PortalStatus) {
 		// Cancelar um status recém-adicionado (ainda sem nome) descarta a linha;
 		// itens já salvos nunca são excluídos (apenas ativados/inativados).
 		if (status.name.trim() === '') {
 			setStatuses(removeById(section.draft.statuses, status.id));
 		}
-		editing = null;
-		rowError = false;
+		closeCellEditor();
+	}
+
+	// Selects nativos confirmam na escolha: atualizam o draft (seção fica dirty)
+	// e fecham o editor. O salvamento continua na ação da seção.
+	function commitCellSelect(
+		status: PortalStatus,
+		field: Exclude<EditableStatusField, 'name'>,
+		value: string
+	) {
+		switch (field) {
+			case 'visibility':
+				updateStatus(status.id, { visibility: value as StatusVisibility });
+				break;
+			case 'tone':
+				updateStatus(status.id, { tone: value as StatusTone });
+				break;
+		}
+		closeCellEditor();
 	}
 </script>
 
@@ -223,6 +318,12 @@
 	title="6. Status"
 	description="Configure os status do ciclo de vida das solicitações."
 >
+	{#snippet titleAddon()}
+		<InfoTip
+			label="Como editar os status"
+			text="Clique nos valores para editar, ou ligue e desligue Encerra e Saída na coluna Tipo. As alterações ficam pendentes até você clicar em Salvar."
+		/>
+	{/snippet}
 	{#snippet actions()}
 		<SectionActions
 			dirty={section.dirty}
@@ -258,29 +359,69 @@
 		/>
 	</div>
 
-	{#if statusesError && !editing}
+	<div class="status-filters" role="group" aria-label="Filtros da tabela de status">
+		<span class="filter-label">Filtrar por:</span>
+		<button
+			type="button"
+			class="filter-pill"
+			class:selected={closesFilter !== 'all'}
+			aria-label="Filtro de encerramento: {BOOLEAN_FILTER_LABELS[
+				closesFilter
+			]}. Clique para alternar."
+			onclick={() => cycleBooleanFilter('closes')}
+		>
+			Encerramento: {BOOLEAN_FILTER_LABELS[closesFilter]}
+		</button>
+		<button
+			type="button"
+			class="filter-pill"
+			class:selected={triageExitFilter !== 'all'}
+			aria-label="Filtro de saída de triagem: {BOOLEAN_FILTER_LABELS[
+				triageExitFilter
+			]}. Clique para alternar."
+			onclick={() => cycleBooleanFilter('triageExit')}
+		>
+			Saída: {BOOLEAN_FILTER_LABELS[triageExitFilter]}
+		</button>
+		{#if hasActiveFilters}
+			<button
+				type="button"
+				class="clear-filters"
+				transition:fade={{ duration: ROW_TRANSITION_MS }}
+				onclick={clearFilters}
+			>
+				Limpar filtros
+			</button>
+		{/if}
+	</div>
+
+	{#if statusesError && !editingCell}
 		<p class="status-error" role="alert">{statusesError}</p>
 	{/if}
 
-	<div class="status-table">
+	<div class="status-table" role="region" aria-label="Tabela de status">
 		<table>
 			<thead>
 				<tr>
 					<th scope="col" class="col-name">Nome</th>
 					<th scope="col" class="col-visibility">Visível em</th>
-					<th scope="col" class="col-closes">Encerramento</th>
-					<th scope="col" class="col-triage-exit">Saída triagem</th>
+					<th scope="col" class="col-tipo">Tipo</th>
 					<th scope="col" class="col-tone">Tom visual</th>
-					<th scope="col" class="col-actions">Ações</th>
+					<th scope="col" class="col-actions">Ativo</th>
 				</tr>
 			</thead>
 			<tbody>
 				{#each visibleStatuses as status (status.id)}
-					<tr class="tone-{status.tone}">
+					<tr
+						class="tone-{status.tone}"
+						in:fade={{ duration: ROW_TRANSITION_MS }}
+						out:fade={{ duration: ROW_TRANSITION_MS }}
+						animate:flip={{ duration: ROW_TRANSITION_MS }}
+					>
 						<td class="col-name">
 							<span class="name-field">
 								<span class="status-dot" aria-hidden="true"></span>
-								{#if editing && editing.id === status.id}
+								{#if editingCell?.id === status.id && editingCell.field === 'name'}
 									<input
 										class="edit-input"
 										class:invalid={nameInvalid}
@@ -289,115 +430,133 @@
 										aria-label="Nome do status"
 										aria-invalid={nameInvalid}
 										{@attach focusOnMount}
-										bind:value={editing.name}
+										bind:value={editingName}
+										onkeydown={(event) => {
+											if (event.key === 'Enter') commitNameEdit(status);
+											else if (event.key === 'Escape') cancelNameEdit(status);
+										}}
+										onblur={() => commitNameEdit(status)}
 									/>
 								{:else}
-									{status.name}
+									<button
+										type="button"
+										class="cell-button name-button"
+										aria-label="Editar nome de {status.name}"
+										disabled={section.saving || loadFailed}
+										onclick={() => openCellEditor(status, 'name')}
+									>
+										<span class="cell-text">{status.name}</span>
+									</button>
 								{/if}
 							</span>
 						</td>
 						<td class="col-visibility">
-							{#if editing && editing.id === status.id}
+							{#if editingCell?.id === status.id && editingCell.field === 'visibility'}
 								<select
-									class="edit-select"
-									aria-label="Visibilidade do status"
-									bind:value={editing.visibility}
+									class="cell-select"
+									aria-label="Visibilidade de {status.name}"
+									value={status.visibility}
+									{@attach openSelectPicker}
+									onchange={(event) =>
+										commitCellSelect(status, 'visibility', event.currentTarget.value)}
+									onkeydown={(event) => {
+										if (event.key === 'Escape') closeCellEditor();
+									}}
+									onblur={() => closeCellEditor()}
 								>
 									{#each VISIBILITY_OPTIONS as option (option.value)}
 										<option value={option.value}>{option.label}</option>
 									{/each}
 								</select>
 							{:else}
-								<span class="visibility-badge">
-									{status.visibility === 'PUBLIC' ? 'Público' : 'Interno'}
-								</span>
+								<button
+									type="button"
+									class="cell-button"
+									aria-label="Alterar visibilidade de {status.name}"
+									disabled={section.saving || loadFailed}
+									onclick={() => openCellEditor(status, 'visibility')}
+								>
+									<span class="visibility-badge">
+										{status.visibility === 'PUBLIC' ? 'Público' : 'Interno'}
+									</span>
+								</button>
 							{/if}
 						</td>
-						<td class="col-closes">
-							{#if editing && editing.id === status.id}
-								<select
-									class="edit-select"
-									aria-label="Encerramento do status"
-									bind:value={editing.closesRequest}
+						<td class="col-tipo">
+							<span class="tipo-pills" role="group" aria-label="Tipo de {status.name}">
+								<button
+									type="button"
+									class="tipo-pill"
+									class:on={status.closesRequest}
+									aria-pressed={status.closesRequest}
+									aria-label="Encerramento de {status.name}"
+									disabled={section.saving || loadFailed}
+									onclick={(event) => {
+										popToggle(event);
+										updateStatus(status.id, { closesRequest: !status.closesRequest });
+									}}
 								>
-									<option value={false}>Não</option>
-									<option value={true}>Sim</option>
-								</select>
-							{:else}
-								{status.closesRequest ? 'Sim' : 'Não'}
-							{/if}
-						</td>
-						<td class="col-triage-exit">
-							{#if editing && editing.id === status.id}
-								<select
-									class="edit-select"
-									aria-label="Saída de triagem do status"
-									bind:value={editing.isTriageExit}
+									Encerra
+								</button>
+								<button
+									type="button"
+									class="tipo-pill"
+									class:on={status.isTriageExit}
+									aria-pressed={status.isTriageExit}
+									aria-label="Saída de triagem de {status.name}"
+									disabled={section.saving || loadFailed}
+									onclick={(event) => {
+										popToggle(event);
+										updateStatus(status.id, { isTriageExit: !status.isTriageExit });
+									}}
 								>
-									<option value={false}>Não</option>
-									<option value={true}>Sim</option>
-								</select>
-							{:else}
-								{status.isTriageExit ? 'Sim' : 'Não'}
-							{/if}
+									Saída
+								</button>
+							</span>
 						</td>
 						<td class="col-tone">
-							{#if editing && editing.id === status.id}
+							{#if editingCell?.id === status.id && editingCell.field === 'tone'}
 								<select
-									class="edit-select"
-									aria-label="Tom visual do status"
-									bind:value={editing.tone}
+									class="cell-select"
+									aria-label="Tom visual de {status.name}"
+									value={status.tone}
+									{@attach openSelectPicker}
+									onchange={(event) => commitCellSelect(status, 'tone', event.currentTarget.value)}
+									onkeydown={(event) => {
+										if (event.key === 'Escape') closeCellEditor();
+									}}
+									onblur={() => closeCellEditor()}
 								>
 									{#each STATUS_TONES as tone (tone)}
 										<option value={tone}>{TONE_LABELS[tone]}</option>
 									{/each}
 								</select>
 							{:else}
-								<span class="tone-badge">
-									<span class="tone-dot" aria-hidden="true"></span>
-									{TONE_LABELS[status.tone]}
-								</span>
+								<button
+									type="button"
+									class="cell-button"
+									aria-label="Alterar tom visual de {status.name}"
+									disabled={section.saving || loadFailed}
+									onclick={() => openCellEditor(status, 'tone')}
+								>
+									<span class="tone-badge">
+										<span class="tone-dot" aria-hidden="true"></span>
+										{TONE_LABELS[status.tone]}
+									</span>
+								</button>
 							{/if}
 						</td>
 						<td class="col-actions">
-							{#if editing && editing.id === status.id}
-								<button
-									class="icon-btn"
-									type="button"
-									aria-label="Salvar status"
-									onclick={handleSaveEdit}
-								>
-									<Icon iconName="check" iconSize="sm" />
-								</button>
-								<button
-									class="icon-btn"
-									type="button"
-									aria-label="Cancelar edição"
-									onclick={() => handleCancelEdit(status)}
-								>
-									<Icon iconName="close" iconSize="sm" />
-								</button>
-							{:else}
-								<button
-									class="icon-btn"
-									type="button"
-									aria-label="Editar status"
-									disabled={section.saving || loadFailed}
-									onclick={() => handleEdit(status)}
-								>
-									<Icon iconName="edit" iconSize="sm" />
-								</button>
-								<button
-									class="icon-btn"
-									type="button"
-									aria-label={status.isActive ? 'Inativar status' : 'Ativar status'}
-									title={status.isActive ? 'Inativar status' : 'Ativar status'}
-									disabled={section.saving || loadFailed || !canToggleInactive(status)}
-									onclick={() => toggleActive(status)}
-								>
-									<Icon iconName={status.isActive ? 'block' : 'check'} iconSize="sm" />
-								</button>
-							{/if}
+							<button
+								class="icon-btn"
+								type="button"
+								aria-label={status.isActive ? 'Inativar status' : 'Ativar status'}
+								title={status.isActive ? 'Inativar status' : 'Ativar status'}
+								disabled={section.saving || loadFailed || !canToggleInactive(status)}
+								onclick={() => toggleActive(status)}
+							>
+								<Icon iconName={status.isActive ? 'block' : 'check'} iconSize="sm" />
+							</button>
 						</td>
 					</tr>
 				{/each}
@@ -411,6 +570,99 @@
 		display: flex;
 		align-items: center;
 		gap: var(--spacing-sm);
+		flex-wrap: wrap;
+	}
+
+	.status-filters {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-md);
+		flex-wrap: wrap;
+	}
+
+	.filter-label {
+		font: var(--label);
+		font-size: 12px;
+		color: var(--text-color-secondary);
+		margin-right: 2px;
+	}
+
+	.filter-pill {
+		padding: 4px 10px;
+		border: var(--border-default);
+		border-radius: var(--radius-sm);
+		background-color: var(--white);
+		color: var(--text-color-secondary);
+		font-size: 12px;
+		cursor: pointer;
+		transition:
+			background-color var(--transition-default),
+			border-color var(--transition-default),
+			color var(--transition-default);
+	}
+
+	.filter-pill.selected {
+		border-color: var(--secondary-color);
+		color: var(--secondary-color);
+		font-weight: 700;
+	}
+
+	.filter-pill:focus-visible,
+	.tipo-pill:focus-visible,
+	.clear-filters:focus-visible,
+	.cell-button:focus-visible {
+		outline: 2px solid var(--secondary-color);
+		outline-offset: 2px;
+	}
+
+	.tipo-pills {
+		display: inline-flex;
+		flex-direction: column;
+		align-items: stretch;
+		gap: 2px;
+	}
+
+	.tipo-pill {
+		padding: 2px 8px;
+		border: var(--border-default);
+		border-radius: var(--radius-sm);
+		background-color: var(--white);
+		color: var(--text-color-secondary);
+		font-size: 12px;
+		white-space: nowrap;
+		cursor: pointer;
+		transition:
+			background-color var(--transition-default),
+			border-color var(--transition-default),
+			color var(--transition-default),
+			transform 120ms ease;
+	}
+
+	.tipo-pill.on {
+		border-color: var(--secondary-color);
+		background-color: var(--secondary-color);
+		color: var(--on-primary);
+		font-weight: 700;
+	}
+
+	.tipo-pill:active:not(:disabled) {
+		transform: scale(0.92);
+	}
+
+	.tipo-pill:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.clear-filters {
+		border: none;
+		background: none;
+		padding: 4px;
+		color: var(--secondary-color);
+		font-size: 12px;
+		font-weight: 700;
+		text-decoration: underline;
+		cursor: pointer;
 	}
 
 	.status-error {
@@ -420,15 +672,19 @@
 	}
 
 	.status-table {
-		width: 100%;
+		width: max-content;
+		max-width: 100%;
 		background: var(--white);
 		border: var(--border-default);
 		border-radius: var(--radius-sm);
-		overflow: hidden;
+		overflow-x: auto;
 	}
 
+	/* Larguras fixas em px: a tabela nunca remedeia colunas ao filtrar
+	   (sem saltos), nunca estica além do conteúdo e nunca comprime cabeçalhos
+	   (sem colisão). Abaixo dessa largura, o container rola horizontalmente. */
 	table {
-		width: 100%;
+		width: 632px;
 		border-collapse: collapse;
 		table-layout: fixed;
 	}
@@ -457,39 +713,73 @@
 	}
 
 	.col-name {
-		width: 28%;
+		width: 240px;
 	}
 
 	.col-visibility {
-		width: 15%;
-	}
-
-	td.col-closes {
-		width: 14%;
-		color: var(--secondary-color);
-		font-size: 13px;
+		width: 100px;
 		text-align: center;
 	}
 
-	td.col-triage-exit {
-		width: 14%;
-		color: var(--secondary-color);
-		font-size: 13px;
+	.col-tipo {
+		width: 100px;
 		text-align: center;
 	}
 
 	.col-tone {
-		width: 14%;
-	}
-
-	td.col-tone {
+		width: 140px;
 		text-align: center;
 	}
 
 	.col-actions {
-		width: 16%;
+		width: 52px;
 		text-align: end;
 		white-space: nowrap;
+	}
+
+	.cell-button {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		padding: 2px 4px;
+		border: 1px solid transparent;
+		border-radius: var(--radius-sm);
+		background: none;
+		color: inherit;
+		font: inherit;
+		cursor: pointer;
+		transition:
+			background-color var(--transition-default),
+			border-color var(--transition-default);
+	}
+
+	.cell-button:hover:not(:disabled) {
+		border-color: var(--border-color);
+		background-color: var(--background-color);
+	}
+
+	.cell-button:disabled {
+		cursor: default;
+	}
+
+	.cell-button .cell-text {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.name-button {
+		max-width: 320px;
+	}
+
+	.cell-select {
+		box-sizing: border-box;
+		padding: 4px 8px;
+		border: var(--border-default);
+		border-radius: var(--radius-sm);
+		font-size: 13px;
+		color: var(--text-color-primary);
+		background-color: var(--white);
 	}
 
 	.name-field {
@@ -559,17 +849,6 @@
 		border-color: var(--status-error);
 	}
 
-	.edit-select {
-		width: 100%;
-		box-sizing: border-box;
-		padding: 4px 8px;
-		border: var(--border-default);
-		border-radius: var(--radius-sm);
-		font-size: 13px;
-		color: var(--text-color-primary);
-		background-color: var(--white);
-	}
-
 	.icon-btn {
 		display: inline-flex;
 		align-items: center;
@@ -591,6 +870,14 @@
 	.icon-btn:disabled {
 		opacity: 0.4;
 		cursor: not-allowed;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.filter-pill,
+		.tipo-pill,
+		.cell-button {
+			transition: none;
+		}
 	}
 
 	.tone-error {
