@@ -13,12 +13,8 @@
 	import {
 		clearDraftFromSession,
 		loadDraftFromSession,
-		loadTriageFromSession,
-		saveDraftToSession,
-		saveTriageToSession
+		saveDraftToSession
 	} from '$lib/services/triage-draft.service';
-	import { loadPrioritizationFinal } from '$lib/services/prioritization-draft.service';
-	import { toastState } from '$lib/states/toast.svelte';
 	import { triageExitOptions } from '$lib/utils/status';
 	import { YES_NO_OPTIONS } from '$lib/types/request';
 	import type { InternalRequestDetail } from '$lib/types/request';
@@ -68,21 +64,25 @@
 	const isReadonly = $derived(triageLoaded && serverTriage !== null && !isCreatingNew);
 
 	function applyDraftPrecedence(protocol: string, fetched: TriageAssessment | null) {
-		// SessionStorage tem prioridade: 1) rascunho não-finalizado, 2) triage finalizado persistido (1ª e N-ésima edição)
+		// Rascunho local representa trabalho ainda não salvo e pode ter precedência.
 		const persistedDraft = loadDraftFromSession(protocol);
+
 		if (persistedDraft) {
 			draft = toTriageDraft(persistedDraft);
-			// Rascunho divergente do servidor = edição em andamento (1ª ou
-			// N-ésima): retoma editável após reload, mesmo com triagem finalizada.
+
+			// Rascunho divergente do servidor = edição em andamento.
+			// Após reload, preserva a edição local sem transformar
+			// sessionStorage em fonte de verdade da triagem finalizada.
 			const isEqualToServer = JSON.stringify(draft) === JSON.stringify(toTriageDraft(fetched));
-			if (fetched && !isEqualToServer) isCreatingNew = true;
+
+			if (fetched && !isEqualToServer) {
+				isCreatingNew = true;
+			}
+
 			return;
 		}
-		const persistedFinal = loadTriageFromSession(protocol);
-		if (persistedFinal) {
-			draft = toTriageDraft(persistedFinal);
-			return;
-		}
+
+		// Estado finalizado vem exclusivamente do backend por GET /triage.
 		draft = toTriageDraft(fetched);
 	}
 
@@ -124,16 +124,17 @@
 	// `applyDraftPrecedence`, deixando o formulário em somente leitura em branco.
 	$effect(() => {
 		if (!triageLoaded) return;
+
 		const snapshot = $state.snapshot(draft);
 		const serverDraft = toTriageDraft(serverTriage);
 		const isEqualToServer = JSON.stringify(snapshot) === JSON.stringify(serverDraft);
+
 		if (isEqualToServer) {
 			clearDraftFromSession(solicitation.protocol);
 			return;
 		}
-		if (!isSaving) {
-			saveDraftToSession(solicitation.protocol, snapshot);
-		}
+
+		saveDraftToSession(solicitation.protocol, snapshot);
 	});
 	let errors = $state<Record<string, string>>({});
 	let isSaving = $state(false);
@@ -143,21 +144,13 @@
 	const PRIORITY_REQUIRED_MESSAGE = 'Calcule a prioridade antes de finalizar a triagem.';
 
 	function hasCalculatedPriority(): boolean {
-		// Fonte de verdade: score no objeto da solicitação (atualizado via
-		// onSave/onsave da calculadora) OU resultado final em sessionStorage
-		// (sobrevive a reload quando o mock servidor reverte).
-		if (
+		// A solicitação representa o estado autoritativo da priorização.
+		// Estado final armazenado apenas no navegador não comprova uma
+		// priorização persistida e válida.
+		return (
 			solicitation.prioritization?.score !== null &&
 			solicitation.prioritization?.score !== undefined
-		) {
-			return true;
-		}
-		try {
-			const persisted = loadPrioritizationFinal(solicitation.protocol);
-			return !!persisted?.result && typeof persisted.result.score === 'number';
-		} catch {
-			return false;
-		}
+		);
 	}
 
 	function isJustificationDisabled(): boolean {
@@ -293,8 +286,8 @@
 		if (result.ok) {
 			showConfirm = false;
 			errors = {};
-			// Persistência real via sessionStorage: salva final e limpa rascunho
-			saveTriageToSession(solicitation.protocol, result.data);
+			// O backend passa a ser a fonte autoritativa do estado finalizado.
+			// O sessionStorage permanece apenas para rascunho não salvo.
 			clearDraftFromSession(solicitation.protocol);
 			serverTriage = result.data;
 			isCreatingNew = false;

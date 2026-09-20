@@ -1,13 +1,10 @@
 <script lang="ts">
-	import { browser } from '$app/environment';
 	import { page } from '$app/state';
-	import { untrack } from 'svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import { statusThemeVars } from '$lib/utils/status';
 	import type { InternalNotesResponse } from '$lib/types/internal-note';
 	import type { InternalRequestDetail } from '$lib/types/request';
 	import type { CriterionNotes, PrioritizationResult } from '$lib/types/prioritization';
-	import { loadPrioritizationFinal } from '$lib/services/prioritization-draft.service';
 	import { canAssignAnalyst, canCalculatePriority } from '$lib/services/access.service';
 	import AssignAction from './AssignAction.svelte';
 	import FloatingPrioritizationPanel from './prioritization/FloatingPrioritizationPanel.svelte';
@@ -21,6 +18,7 @@
 		onSaveSuccess?: (updated: InternalRequestDetail) => void;
 		onSaveError?: (message: string) => void;
 		onTriageSuccess?: (updated: InternalRequestDetail) => void;
+		onPrioritizationSuccess?: (updated: InternalRequestDetail) => void;
 	}
 
 	let {
@@ -29,22 +27,26 @@
 		internalNotesError,
 		onSaveSuccess,
 		onSaveError,
-		onTriageSuccess
+		onTriageSuccess,
+		onPrioritizationSuccess
 	}: Props = $props();
 
 	let statusTheme = $derived(statusThemeVars(solicitation.status, page.data.portalConfig.statuses));
+
 	let displayScore = $derived(
 		solicitation.prioritization.score === null ? '-' : String(solicitation.prioritization.score)
 	);
+
 	let priorityLabel = $derived(solicitation.prioritization.label ?? 'Prioridade a ser calculada');
+
 	let isPriorityCalculated = $derived(solicitation.prioritization.score !== null);
+
 	let maxScore = $derived(solicitation.prioritization.maxScore ?? 50);
 
 	function priorityBadgeTheme(
 		label: string | null,
 		hasScore: boolean
 	): { bg: string; color: string; border: string } {
-		// Sem pontuação/label: neutro (antes: `#f3f4f6` hardcoded).
 		if (!hasScore || !label) {
 			return {
 				bg: 'var(--status-neutral-bg)',
@@ -52,6 +54,7 @@
 				border: 'var(--status-neutral)'
 			};
 		}
+
 		switch (label) {
 			case 'Crítica':
 				return {
@@ -59,20 +62,22 @@
 					color: 'var(--status-red)',
 					border: 'var(--status-red)'
 				};
+
 			case 'Alta':
 				return {
 					bg: 'var(--status-yellow-bg)',
 					color: 'var(--status-yellow)',
 					border: 'var(--status-yellow)'
 				};
+
 			case 'Média':
 				return {
 					bg: 'var(--status-blue-bg)',
 					color: 'var(--status-blue)',
 					border: 'var(--status-blue)'
 				};
+
 			default:
-				// Baixa: neutro (antes: verde).
 				return {
 					bg: 'var(--status-neutral-bg)',
 					color: 'var(--status-neutral)',
@@ -86,16 +91,27 @@
 	);
 
 	const currentUser = $derived(page.data.user as import('$lib/types/auth').SessionUser | null);
+
 	const canAssign = $derived(canAssignAnalyst(currentUser));
+
 	const canCalculate = $derived(
 		canCalculatePriority(currentUser, solicitation.assignee?.id ?? null)
 	);
+
 	const hiddenQuickActionKeys = $derived.by(() => {
 		const hidden: string[] = [];
-		if (!canAssign) hidden.push('assignResponsible');
-		if (!canCalculate) hidden.push('priorityCalculator');
+
+		if (!canAssign) {
+			hidden.push('assignResponsible');
+		}
+
+		if (!canCalculate) {
+			hidden.push('priorityCalculator');
+		}
+
 		return hidden;
 	});
+
 	const existingPriorityResult = $derived<PrioritizationResult | null>(
 		isPriorityCalculated && solicitation.prioritization.label
 			? {
@@ -113,44 +129,19 @@
 
 	let isAssignModalOpen = $state(false);
 
-	// Restaura priorização final do sessionStorage ao montar/trocar de protocolo
-	// Corrige header que revertia após invalidateAll (mock servidor isolado) — sem depender de solicitation para evitar loop
-	$effect(() => {
-		const protocol = solicitation.protocol;
-		if (!browser) return;
-		untrack(() => {
-			const persisted = loadPrioritizationFinal(protocol);
-			if (!persisted) return;
-			const hasNotes = Object.keys(persisted.notes).length > 0;
-			if (!hasNotes) return;
-			const current = solicitation;
-			const serverNotes = current.prioritization.notes;
-			const needsUpdate =
-				JSON.stringify(serverNotes) !== JSON.stringify(persisted.notes) ||
-				persisted.result?.score !== current.prioritization.score;
-			if (needsUpdate) {
-				solicitation = {
-					...current,
-					prioritization: {
-						score: persisted.result?.score ?? current.prioritization.score,
-						maxScore: 50 as const,
-						label: persisted.result?.level ?? current.prioritization.label,
-						notes: { ...persisted.notes }
-					}
-				};
-			}
-		});
-	});
-
 	function handleOpenCalculator() {
-		if (!canCalculate) return;
+		if (!canCalculate) {
+			return;
+		}
+
 		isCalculatorOpen = true;
 		isCalculatorMinimized = false;
 	}
 
 	function handleCloseCalculator() {
 		isCalculatorOpen = false;
-		// R5: não reseta o que foi preenchido — estado interno da calculadora permanece
+
+		// R5: não reseta o que foi preenchido — estado interno da calculadora permanece.
 	}
 
 	function handleToggleMinimize() {
@@ -171,23 +162,29 @@
 				notes: { ...notes }
 			}
 		};
-		// Propaga para +page.svelte e outras abas sem reload manual (sem invalidateAll para não reverter via mock servidor)
-		onTriageSuccess?.(solicitation);
+
+		// Priorização possui contrato próprio de sucesso.
+		// Não dispara efeitos exclusivos da Triagem.
+		onPrioritizationSuccess?.(solicitation);
 		onSaveSuccess?.(solicitation);
 	}
 
 	function handleAssignSuccess(updated: InternalRequestDetail): void {
-		// Atualiza localmente sem invalidar: evita revert do mock (server sem persistência) e
-		// mantém mesma lógica para Triagem/Mapeamento — apenas o PATCH muda (assigneeId vs mappingAssigneeId)
 		solicitation = updated;
 	}
 
 	function handleQuickAction(key: string) {
 		if (key === 'priorityCalculator') {
-			if (!canCalculate) return;
+			if (!canCalculate) {
+				return;
+			}
+
 			handleOpenCalculator();
 		} else if (key === 'assignResponsible') {
-			if (!canAssign) return;
+			if (!canAssign) {
+				return;
+			}
+
 			isAssignModalOpen = true;
 		}
 	}

@@ -1,9 +1,7 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { browser } from '$app/environment';
 	import NotFoundState from '$lib/components/NotFoundState.svelte';
-	import { loadTriageFromSession } from '$lib/services/triage-draft.service';
 	import SolicitationSpecs from './components/SolicitationSpecs.svelte';
 	import type { PageProps } from './$types';
 
@@ -11,51 +9,22 @@
 
 	const protocol = $derived(data.protocol);
 	const error = $derived(data.error);
-	// svelte-ignore state_referenced_locally
-	let solicitation = $state(data.solicitation);
 
-	$effect(() => {
-		if (!browser) {
-			solicitation = data.solicitation;
-			return;
-		}
-		if (!data.solicitation) {
-			solicitation = data.solicitation;
-			return;
-		}
-		const persisted = loadTriageFromSession(data.protocol);
-		if (persisted) {
-			const serverStr = JSON.stringify(data.solicitation.triage);
-			const persistedStr = JSON.stringify(persisted);
-			if (serverStr !== persistedStr) {
-				// `exitStatus` é FK numérica: deriva o nome via cadastro ativo.
-				const exitName = data.portalConfig.statuses.find(
-					(status) => status.id === persisted.exitStatus
-				)?.name;
-				solicitation = {
-					...data.solicitation,
-					triage: persisted,
-					status: exitName
-						? (exitName as typeof data.solicitation.status)
-						: data.solicitation.status,
-					demand: {
-						...data.solicitation.demand,
-						category:
-							persisted.changeCategory === 'Sim' && persisted.newCategory
-								? persisted.newCategory
-								: data.solicitation.demand.category
-					},
-					lastUpdate: new Date().toISOString()
-				};
-				return;
-			}
-		}
-		solicitation = data.solicitation;
-	});
+	let solicitation = $derived(data.solicitation);
 
 	function handleTriageSuccess(updated: typeof solicitation) {
 		solicitation = updated;
+
+		// A Triagem possui endpoint próprio de leitura.
+		// Após a persistência, revalidamos os dados do servidor.
 		void invalidateAll();
+	}
+
+	function handlePrioritizationSuccess(updated: typeof solicitation) {
+		// A Priorização atualiza imediatamente o estado recebido
+		// pelo fluxo de persistência, sem reutilizar o callback
+		// semanticamente exclusivo da Triagem.
+		solicitation = updated;
 	}
 </script>
 
@@ -84,6 +53,7 @@
 			internalNotes={data.internalNotes}
 			internalNotesError={data.internalNotesError}
 			onTriageSuccess={handleTriageSuccess}
+			onPrioritizationSuccess={handlePrioritizationSuccess}
 		/>
 	{:else if error && error.status === 404}
 		<NotFoundState
