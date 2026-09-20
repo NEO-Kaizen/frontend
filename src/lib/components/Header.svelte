@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
+	import AssetImage from './AssetImage.svelte';
 	import type { IconName } from '$lib/types/icons';
 	import { page } from '$app/state';
 	import Button from '$lib/components/Button.svelte';
@@ -11,6 +12,8 @@
 	import { clearDraft } from '$lib/services/solicitation-draft.service';
 	import { searchRequests } from '$lib/services/request.service';
 	import { isInternalProfile } from '$lib/services/access.service';
+	import { onMount } from 'svelte';
+	import { getThemeMode, toggleTheme } from '$lib/states/theme.svelte';
 
 	interface NavButton {
 		name: string;
@@ -25,6 +28,14 @@
 	const appConfig = $derived(page.data.portalConfig);
 	const queuePath = resolve('/(admin)/fila');
 	const isAuthenticated = $derived(currentUser != null);
+
+	// `isMounted` evita divergência de hidratação: no SSR o modo é sempre o
+	// claro; no cliente o valor real vem do localStorage/sistema.
+	let isMounted = $state(false);
+	onMount(() => {
+		isMounted = true;
+	});
+	const isDarkTheme = $derived(isMounted && getThemeMode() === 'dark');
 
 	function isActive(item: NavButton, pathname: string): boolean {
 		if (!item.href) return false;
@@ -61,6 +72,11 @@
 			name: 'Gerenciar Usuários',
 			icon: 'manageUsers',
 			href: resolve('/(admin)/usuarios')
+		},
+		{
+			name: 'Configurações',
+			icon: 'settings',
+			href: resolve('/(admin)/configuracoes')
 		}
 	];
 
@@ -74,6 +90,10 @@
 	const isNotSolicitante = $derived(currentUser != null && isInternalProfile(currentUser.role));
 
 	const activeSearch = $derived(page.url.searchParams.get('search') ?? '');
+
+	// Na tela de configurações o editor de tema controla a pré-visualização
+	// localmente; o toggle global fica oculto para não competir com ele.
+	const isSettingsPage = $derived(page.url.pathname.startsWith(resolve('/(admin)/configuracoes')));
 
 	let isSearching = $state(false);
 
@@ -148,7 +168,14 @@
 <header>
 	<div class="top_bar">
 		<a class="top_bar-logo" href={resolve('/')}>
-			<img width="123" height="37" alt={appConfig.platformName} src={appConfig.assets.logoUrl} />
+			<AssetImage
+				lightSrc={appConfig.assets.logoLightUrl}
+				darkSrc={appConfig.assets.logoDarkUrl}
+				alt={appConfig.platformName}
+				tint={appConfig.assets.logoUsePrimaryColor}
+				width={123}
+				height={37}
+			/>
 		</a>
 
 		<div class="top_bar-interactables">
@@ -173,6 +200,18 @@
 				<span>+</span> Nova solicitação
 			</Button>
 
+			{#if !isSettingsPage}
+				<button
+					class="theme-toggle"
+					type="button"
+					aria-label={isDarkTheme ? 'Ativar tema claro' : 'Ativar tema escuro'}
+					title={isDarkTheme ? 'Ativar tema claro' : 'Ativar tema escuro'}
+					onclick={toggleTheme}
+				>
+					<Icon iconName={isDarkTheme ? 'lightMode' : 'darkMode'} />
+				</button>
+			{/if}
+
 			{#if isAuthenticated}
 				<div class="separator_bar-column"></div>
 
@@ -181,7 +220,15 @@
 						<p class="profile_block-name">{currentUser?.name}</p>
 						<p class="profile_block-role">{currentUser?.role}</p>
 					</div>
-					<img src={appConfig.assets.avatarUrl} alt="Imagem do usuário" width="47" height="47" />
+					<span class="profile_block-avatar">
+						<AssetImage
+							lightSrc={appConfig.assets.avatarLightUrl}
+							darkSrc={appConfig.assets.avatarDarkUrl}
+							alt="Imagem do usuário"
+							width="100%"
+							height="100%"
+						/>
+					</span>
 				</div>
 			{:else}
 				<Button
@@ -279,15 +326,44 @@
 		width: 300px;
 	}
 
+	.theme-toggle {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 40px;
+		height: 40px;
+		border: var(--border-default);
+		border-radius: 100%;
+		background-color: transparent;
+		color: var(--primary-color);
+		cursor: pointer;
+		transition: var(--transition-default);
+	}
+
+	.theme-toggle:hover,
+	.theme-toggle:focus-visible {
+		background-color: var(--tint);
+	}
+
 	.profile_block {
 		display: flex;
 		align-items: center;
 		gap: var(--spacing-sm);
 		padding: 0 var(--spacing-md);
 	}
-	.profile_block > img {
+	.profile_block-avatar {
+		display: inline-flex;
+		width: 47px;
 		height: 47px;
 		border-radius: 100%;
+		overflow: hidden;
+		flex-shrink: 0;
+	}
+	.profile_block-avatar :global(img),
+	.profile_block-avatar :global(.asset-tint) {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
 	}
 	.profile_block-identification {
 		display: flex;
@@ -332,7 +408,7 @@
 	.nav-item:not(.inactive):focus-visible,
 	.nav-item.active {
 		background-color: var(--primary-color);
-		color: var(--white);
+		color: var(--on-primary);
 	}
 	.nav-item:disabled {
 		cursor: not-allowed;

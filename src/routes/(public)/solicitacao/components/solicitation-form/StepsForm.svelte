@@ -163,7 +163,7 @@
 
 	.completed .circle {
 		background-color: var(--secondary-color);
-		color: var(--white);
+		color: var(--on-primary);
 		border-color: var(--secondary-color);
 	}
 

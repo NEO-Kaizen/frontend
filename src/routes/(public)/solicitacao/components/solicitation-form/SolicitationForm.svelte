@@ -36,9 +36,10 @@
 	interface Props {
 		user?: SessionUser | null;
 		solicitationMode: SolicitationMode;
+		categoryOptions?: { value: string; label: string }[];
 	}
 
-	let { user = null, solicitationMode }: Props = $props();
+	let { user = null, solicitationMode, categoryOptions = [] }: Props = $props();
 
 	const hasSession = $derived(Boolean(user));
 	const shouldLockIdentity = $derived(solicitationMode === 'AUTHENTICATED' && hasSession);
@@ -473,7 +474,7 @@
 				/>
 			</div>
 			<div hidden={currentStep !== 2}>
-				<StepDemand bind:this={step2Ref} bind:data={demand} />
+				<StepDemand bind:this={step2Ref} bind:data={demand} {categoryOptions} />
 			</div>
 			<div hidden={currentStep !== 3}>
 				<StepOperational bind:this={step3Ref} bind:data={operational} />
@@ -537,7 +538,7 @@
 
 	.form-header h1 {
 		font: var(--h1);
-		color: var(--primary-color);
+		color: var(--heading-color);
 	}
 
 	.form-card {

@@ -6,8 +6,12 @@
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Modal from '$lib/components/Modal.svelte';
+	import { canEditSolicitation } from '$lib/services/access.service';
 	import { updateInternalRequest } from '$lib/services/request.service';
+	import type { InternalNote, InternalNotesResponse } from '$lib/types/internal-note';
 	import type { InternalRequestDetail } from '$lib/types/request';
+	import InternalNotesSection from './InternalNotesSection.svelte';
+	import MappingSection from './mapping/MappingSection.svelte';
 	import InfoSection from './solicitation-info/InfoSection.svelte';
 	import {
 		applyFieldChange,
@@ -21,11 +25,31 @@
 
 	interface Props {
 		solicitation: InternalRequestDetail;
+		internalNotes: InternalNotesResponse | null;
+		internalNotesError: string | null;
 		onSaveSuccess?: (updated: InternalRequestDetail) => void;
 		onSaveError?: (message: string) => void;
 	}
 
-	let { solicitation, onSaveSuccess, onSaveError }: Props = $props();
+	let { solicitation, internalNotes, internalNotesError, onSaveSuccess, onSaveError }: Props =
+		$props();
+
+	function getInitialInternalNotesState(): {
+		items: InternalNote[];
+		unseenCount: number;
+		loadError: string | null;
+	} {
+		return {
+			items: [...(internalNotes?.items ?? [])],
+			unseenCount: internalNotes?.unseenCount ?? 0,
+			loadError: internalNotesError
+		};
+	}
+
+	const initialInternalNotesState = getInitialInternalNotesState();
+	let internalNoteItems = $state<InternalNote[]>(initialInternalNotesState.items);
+	let internalNotesUnseenCount = $state(initialInternalNotesState.unseenCount);
+	let internalNotesLoadError = $state<string | null>(initialInternalNotesState.loadError);
 
 	type SpecTabId = 'informacoes' | 'triagem' | 'mapeamento' | 'historico' | 'observacoes';
 
@@ -39,52 +63,70 @@
 		badge?: number;
 	};
 
-	const SPEC_TABS: readonly SpecTabDefinition[] = [
+	// ---- Modo de edição (issue #121) ----
+	// `isEditMode` fica no topo porque a aba ativa deriva dele (edição trava
+	// a aba em `informacoes` para não perder o rascunho).
+	let isEditMode = $state(false);
+
+	// O badge de observações representa itens ainda não visualizados pelo usuário,
+	// não notificações. Histórico permanece desabilitado até seu domínio existir.
+	let specTabs = $derived<readonly SpecTabDefinition[]>([
 		{ id: 'informacoes', label: 'Informações', icon: 'description', enabled: true },
 		{ id: 'triagem', label: 'Triagem', icon: 'filter', enabled: false },
 		{
 			id: 'mapeamento',
 			label: 'Mapeamento',
 			icon: 'calendarCheck',
-			enabled: false,
-			badge: 1
+			enabled: true
 		},
 		{
 			id: 'historico',
 			label: 'Histórico de Conversa',
 			icon: 'history',
-			enabled: false,
-			badge: 1
+			enabled: false
 		},
-		{ id: 'observacoes', label: 'Observações Internas', icon: 'info', enabled: false }
-	];
+		{
+			id: 'observacoes',
+			label: 'Observações Internas',
+			icon: 'info',
+			enabled: true,
+			badge: internalNotesUnseenCount > 0 ? internalNotesUnseenCount : undefined
+		}
+	]);
 
 	function resolveActiveTab(param: string | null): SpecTabId {
-		const tab = SPEC_TABS.find((item) => item.id === param);
+		const tab = specTabs.find((item) => item.id === param);
 		if (tab && tab.enabled) {
 			return tab.id;
 		}
 		return DEFAULT_TAB_ID;
 	}
 
-	const activeTab = $derived(resolveActiveTab(page.url.searchParams.get('aba')));
+	// Durante a edição das informações a aba fica travada em `informacoes`
+	// para não perder o rascunho (o mapeamento tem fluxo próprio de edição).
+	const activeTab = $derived(
+		isEditMode ? DEFAULT_TAB_ID : resolveActiveTab(page.url.searchParams.get('aba'))
+	);
 
 	const activeTabLabel = $derived(
-		SPEC_TABS.find((tab) => tab.id === activeTab)?.label ??
-			SPEC_TABS.find((tab) => tab.id === DEFAULT_TAB_ID)?.label ??
+		specTabs.find((tab) => tab.id === activeTab)?.label ??
+			specTabs.find((tab) => tab.id === DEFAULT_TAB_ID)?.label ??
 			DEFAULT_TAB_ID
 	);
 
-	// Botão Editar visível apenas para Administrador ou o responsável pela triagem.
-	// Regra definitiva é decidida pela issue #121 (modo de edição).
+	// Botão Editar visível apenas para quem pode editar o conteúdo interno
+	// (Administrador ou responsável atribuído — regra em `access.service`).
+	// Gestor e demais perfis visualizam em somente leitura.
+	// A permissão do mapeamento usa exclusivamente o responsável do mapeamento
+	// (`mappingAssigneeId`). A fonte é o primeiro GET da solicitação + `/auth/me`
+	// (via `page.data.user`) — nunca o GET do mapeamento.
 	const currentUser = $derived(page.data.user);
-	const canEdit = $derived(
-		currentUser?.role === 'Administrador' ||
-			Boolean(currentUser && solicitation.assignee?.id === currentUser.id)
-	);
+	const mappingAssigneeId = $derived(solicitation.mappingAssigneeId);
+	const canEdit = $derived(canEditSolicitation(solicitation.assignee?.id, currentUser ?? null));
+	const canEditMapping = $derived(canEditSolicitation(mappingAssigneeId, currentUser ?? null));
 
 	function handleTabSelect(tab: SpecTabDefinition) {
-		if (!tab.enabled) return;
+		if (!tab.enabled || isEditMode) return;
 		clearSaveSuccess();
 
 		const url = new URL(page.url);
@@ -101,14 +143,13 @@
 
 	function ensureInfoTab(): void {
 		if (activeTab !== DEFAULT_TAB_ID) {
-			const tab = SPEC_TABS.find((item) => item.id === DEFAULT_TAB_ID);
+			const tab = specTabs.find((item) => item.id === DEFAULT_TAB_ID);
 			if (tab) handleTabSelect(tab);
 		}
 	}
 
 	// ---- Modo de edição (issue #121) ----
 
-	let isEditMode = $state(false);
 	let draft = $state<EditableDraft | null>(null);
 	let errors = $state<Record<string, string>>({});
 	let isSaving = $state(false);
@@ -247,29 +288,51 @@
 			onSaveError?.(result.error.message);
 		}
 	}
+
+	function handleInternalNotesLoaded(response: InternalNotesResponse): void {
+		internalNoteItems = response.items;
+		internalNotesUnseenCount = response.unseenCount;
+		internalNotesLoadError = null;
+	}
+
+	function handleInternalNotesLoadError(message: string): void {
+		internalNotesLoadError = message;
+	}
+
+	function handleInternalNoteCreated(note: InternalNote): void {
+		internalNoteItems = [...internalNoteItems, note];
+	}
+
+	function handleInternalNotesMarkedRead(): void {
+		internalNotesUnseenCount = 0;
+	}
 </script>
 
 <section class="details-card" aria-label="Detalhes da solicitação" bind:this={detailsCard}>
 	<div class="tabs-bar" role="tablist" aria-label="Abas da solicitação">
 		<div class="tabs-left">
-			{#each SPEC_TABS as tab (tab.id)}
+			{#each specTabs as tab (tab.id)}
 				<button
 					type="button"
 					role="tab"
 					id={`spec-tab-${tab.id}`}
 					aria-selected={activeTab === tab.id}
-					aria-disabled={!tab.enabled ? 'true' : undefined}
+					aria-disabled={!tab.enabled || (isEditMode && tab.id !== 'informacoes')
+						? 'true'
+						: undefined}
 					aria-controls="spec-panel"
-					disabled={!tab.enabled}
+					disabled={!tab.enabled || (isEditMode && tab.id !== 'informacoes')}
 					class="tab-item"
 					class:active={activeTab === tab.id}
-					class:disabled={!tab.enabled}
+					class:disabled={!tab.enabled || (isEditMode && tab.id !== 'informacoes')}
 					onclick={() => handleTabSelect(tab)}
 				>
 					<Icon iconName={tab.icon} iconSize="sm" />
 					<span>{tab.label}</span>
 					{#if tab.badge}
-						<span class="tab-badge" aria-label={`${tab.badge} notificação`}>{tab.badge}</span>
+						<span class="tab-badge" aria-label={`${tab.badge} observações ainda não visualizadas`}>
+							{tab.badge}
+						</span>
 					{/if}
 				</button>
 			{/each}
@@ -305,7 +368,7 @@
 						<span>Cancelar</span>
 					</button>
 				</div>
-			{:else if canEdit}
+			{:else if canEdit && activeTab === 'informacoes'}
 				<button
 					type="button"
 					bind:this={editButton}
@@ -343,6 +406,19 @@
 				{errors}
 				onFieldChange={handleFieldChange}
 				onFieldBlur={handleFieldBlur}
+			/>
+		{:else if activeTab === 'mapeamento'}
+			<MappingSection {solicitation} canEdit={canEditMapping} />
+		{:else if activeTab === 'observacoes'}
+			<InternalNotesSection
+				protocol={solicitation.protocol}
+				notes={internalNoteItems}
+				loadError={internalNotesLoadError}
+				currentUserId={currentUser?.id ?? ''}
+				onNotesLoaded={handleInternalNotesLoaded}
+				onLoadError={handleInternalNotesLoadError}
+				onNoteCreated={handleInternalNoteCreated}
+				onMarkedRead={handleInternalNotesMarkedRead}
 			/>
 		{:else}
 			<p class="placeholder">Conteúdo de {activeTabLabel} — implementação futura</p>
@@ -435,7 +511,7 @@
 
 	.tab-item.active {
 		background: var(--primary-color);
-		color: var(--white);
+		color: var(--on-primary);
 		border-color: var(--primary-color);
 	}
 
@@ -461,7 +537,7 @@
 		padding: 0 5px;
 		border-radius: 999px;
 		background: var(--secondary-color);
-		color: var(--white);
+		color: var(--on-primary);
 		font-size: 11px;
 		font-weight: 700;
 		line-height: 1;
