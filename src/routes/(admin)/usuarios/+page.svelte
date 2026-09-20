@@ -297,7 +297,9 @@
 	<header class="page-header">
 		<h1>Gerenciamento de Usuários</h1>
 
-		<p class="page-subtitle">Controle o acesso e permissões dos colaboradores no MAAT Flow.</p>
+		<p class="page-subtitle">
+			Controle o acesso e permissões dos colaboradores no {data.portalConfig.platformName}.
+		</p>
 	</header>
 
 	<!-- =========================
@@ -544,7 +546,7 @@
 	.page-header h1 {
 		margin: 0;
 		font: var(--h1);
-		color: var(--primary-color);
+		color: var(--heading-color);
 	}
 
 	.page-subtitle {
@@ -781,6 +783,12 @@
 		}
 	}
 
+	@media (prefers-reduced-motion: reduce) {
+		.spinner {
+			animation: none;
+		}
+	}
+
 	/* =========================
 	   RODAPÉ
 	========================= */
@@ -862,7 +870,7 @@
 
 	.page-button:hover:not(.active),
 	.nav-button:hover:not(:disabled) {
-		background-color: var(--status-blue-bg);
+		background-color: var(--tint);
 
 		color: var(--secondary-color);
 	}
@@ -870,7 +878,7 @@
 	.page-button.active {
 		background-color: var(--primary-color);
 
-		color: var(--white);
+		color: var(--on-primary);
 	}
 
 	.nav-button {

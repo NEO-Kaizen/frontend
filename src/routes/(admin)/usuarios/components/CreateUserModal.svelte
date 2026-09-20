@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { page } from '$app/state';
+
 	import Button from '$lib/components/Button.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import Input from '$lib/components/Input.svelte';
@@ -138,7 +140,7 @@
 		</div>
 	{:else}
 		<div class="form-content">
-			<p class="description">Cadastre um novo usuário no MAAT Flow.</p>
+			<p class="description">Cadastre um novo usuário no {page.data.portalConfig.platformName}.</p>
 
 			<div class="field">
 				<span class="field-label">Nome completo</span>

@@ -2,11 +2,14 @@
 	import { page } from '$app/state';
 	import { invalidateAll } from '$app/navigation';
 	import Button from '$lib/components/Button.svelte';
+	import { page } from '$app/state';
 	import Icon from '$lib/components/Icon.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import { requestFieldChange } from '$lib/services/pendency.service';
 	import type { PendingFieldRef } from '$lib/types/pendency';
-	import type { InternalRequestDetail, RequestStatus } from '$lib/types/request';
+	import { statusThemeVars } from '$lib/utils/status';
+	import type { InternalNotesResponse } from '$lib/types/internal-note';
+	import type { InternalRequestDetail } from '$lib/types/request';
 	import { SvelteMap } from 'svelte/reactivity';
 	import { buildFieldLookup } from '$lib/pendency/field-catalog';
 	import FieldPendencyModal from './pendency/FieldPendencyModal.svelte';
@@ -15,11 +18,14 @@
 
 	interface Props {
 		solicitation: InternalRequestDetail;
+		internalNotes: InternalNotesResponse | null;
+		internalNotesError: string | null;
 		onSaveSuccess?: (updated: InternalRequestDetail) => void;
 		onSaveError?: (message: string) => void;
 	}
 
-	let { solicitation, onSaveSuccess, onSaveError }: Props = $props();
+	let { solicitation, internalNotes, internalNotesError, onSaveSuccess, onSaveError }: Props =
+		$props();
 
 	const currentUser = $derived(page.data.user);
 
@@ -157,7 +163,7 @@
 		}
 	}
 
-	let statusTheme = $derived(getStatusTheme(solicitation.status));
+	let statusTheme = $derived(statusThemeVars(solicitation.status, page.data.portalConfig.statuses));
 	let displayScore = $derived(
 		solicitation.prioritization.score === null ? '-' : String(solicitation.prioritization.score)
 	);
@@ -169,8 +175,13 @@
 		label: string | null,
 		hasScore: boolean
 	): { bg: string; color: string; border: string } {
+		// Sem pontuação/label: neutro (antes: `#f3f4f6` hardcoded).
 		if (!hasScore || !label) {
-			return { bg: '#f3f4f6', color: 'var(--gray)', border: 'var(--white-gray)' };
+			return {
+				bg: 'var(--status-neutral-bg)',
+				color: 'var(--status-neutral)',
+				border: 'var(--status-neutral)'
+			};
 		}
 		switch (label) {
 			case 'Crítica':
@@ -192,10 +203,11 @@
 					border: 'var(--status-blue)'
 				};
 			default:
+				// Baixa: neutro (antes: verde).
 				return {
-					bg: 'var(--status-green-bg)',
-					color: 'var(--status-green)',
-					border: 'var(--status-green)'
+					bg: 'var(--status-neutral-bg)',
+					color: 'var(--status-neutral)',
+					border: 'var(--status-neutral)'
 				};
 		}
 	}
@@ -265,7 +277,7 @@
 	{/if}
 
 	<SpecTabs
-		{solicitation}
+		{solicitation} {internalNotes} {internalNotesError}
 		{onSaveSuccess}
 		{onSaveError}
 		{isPendencyMode}

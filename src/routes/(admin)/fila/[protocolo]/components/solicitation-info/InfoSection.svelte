@@ -1,7 +1,7 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import type { InternalRequestDetail, YesNoDetail } from '$lib/types/request';
 	import {
-		CATEGORY_OPTIONS,
 		CRITICALITY_OPTIONS,
 		FREQUENCY_OPTIONS,
 		IMPACT_OPTIONS,
@@ -38,6 +38,12 @@
 		onFieldPendencyClick,
 		onFieldPendencyRemove
 	}: Props = $props();
+
+	const categoryOptions = $derived(
+		page.data.portalConfig.categories
+			.filter((category) => category.isActive)
+			.map((category) => ({ value: category.name, label: category.name }))
+	);
 
 	function formatYesNoDetail(value: YesNoDetail | undefined): string {
 		if (value === undefined) return '---';
@@ -172,7 +178,7 @@
 				value={solicitation.demand.category}
 				{isEditMode}
 				kind="select"
-				options={CATEGORY_OPTIONS}
+				options={categoryOptions}
 				editValue={draft?.demand.category ?? ''}
 				error={err('demand.category')}
 				dirty={isDirty('demand.category')}
@@ -710,8 +716,8 @@
 		align-items: center;
 		gap: 12px;
 		padding: 10px 12px;
-		background: #fafafa;
-		border: 1px solid var(--white-gray);
+		background: var(--surface);
+		border: 1px solid var(--border-color);
 		border-radius: var(--radius-sm);
 		flex: 0 0 auto;
 		width: auto;

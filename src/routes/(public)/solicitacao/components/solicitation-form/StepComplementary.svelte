@@ -238,13 +238,13 @@
 		width: 40px;
 		height: 40px;
 		border-radius: var(--radius-sm);
-		background-color: var(--status-blue-bg);
+		background-color: var(--tint);
 		color: var(--secondary-color);
 	}
 
 	.step-header h3 {
 		font: var(--h3);
-		color: var(--primary-color);
+		color: var(--heading-color);
 	}
 
 	.fields-grid {
@@ -295,7 +295,7 @@
 	}
 
 	.add-schedule-button:hover {
-		background-color: var(--status-blue-bg);
+		background-color: var(--tint);
 	}
 
 	.add-schedule-button:focus-visible {
