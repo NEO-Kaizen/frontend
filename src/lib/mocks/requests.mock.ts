@@ -18,7 +18,8 @@ import type {
 	RequestStatus,
 	UpdateInternalRequestPayload
 } from '$lib/types/request';
-import type { TriageAssessment } from '$lib/types/triage';
+import { DEFAULT_STATUSES } from '$lib/config/portal-defaults';
+import type { CreateTriagePayload, TriageAssessment } from '$lib/types/triage';
 
 // Status considerados "em andamento" para a métrica da fila: trabalho já em fluxo,
 // excluindo etapas de fila/priorização e estados terminais.
@@ -731,17 +732,23 @@ function loadTriageFromSessionStorage(protocol: string): TriageAssessment | null
 		const raw = sessionStorage.getItem(triageSessionKey(protocol));
 		if (!raw) return null;
 		const parsed: unknown = JSON.parse(raw);
-		if (
-			typeof parsed === 'object' &&
-			parsed !== null &&
-			typeof (parsed as Record<string, unknown>).adherentToScope === 'string'
-		) {
-			return parsed as TriageAssessment;
-		}
-		return null;
+		if (typeof parsed !== 'object' || parsed === null) return null;
+		const record = parsed as Record<string, unknown>;
+		// Drafts legados com `exitStatus` literal (string não-vazia) são inválidos
+		// na regra nova (FK numérica) e descartados.
+		const exitStatus = record.exitStatus;
+		if (exitStatus !== '' && typeof exitStatus !== 'number') return null;
+		if (typeof record.adherentToScope !== 'string') return null;
+		return parsed as TriageAssessment;
 	} catch {
 		return null;
 	}
+}
+
+function resolveStatusName(exitStatus: number | ''): RequestStatus | null {
+	if (exitStatus === '') return null;
+	const found = DEFAULT_STATUSES.find((status) => status.id === exitStatus);
+	return (found?.name as RequestStatus | undefined) ?? null;
 }
 
 function saveTriageToSessionStorage(protocol: string, triage: TriageAssessment): void {
@@ -849,6 +856,7 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 		lastUpdate: '2026-08-28T16:20:00.000Z',
 		internalObservations: null,
 		triage: {
+			id: '660e8400-e29b-41d4-a716-446655440100',
 			adherentToScope: 'Sim',
 			adherentJustification: '',
 			changeCategory: 'Não',
@@ -858,7 +866,7 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 			perceivedRisks: 'Risco de divergência em marcações manuais e impacto na folha.',
 			suggestedResponsible: 'Ana Souza',
 			suggestedResponsibleJustification: 'Experiência prévia com automação de ponto.',
-			exitStatus: 'Elegível para avaliação',
+			exitStatus: 9,
 			result: 'Encaminhado para mapeamento detalhado.',
 			conclusionJustification:
 				'Demanda aderente ao escopo de automação e com benefícios claros de eficiência.'
@@ -1011,8 +1019,9 @@ export function getInternalRequestMock(protocol: string): Promise<InternalReques
 		if (persisted.changeCategory === 'Sim' && persisted.newCategory) {
 			detail.demand.category = persisted.newCategory;
 		}
-		if (persisted.exitStatus) {
-			detail.status = persisted.exitStatus as unknown as RequestStatus;
+		const derivedStatus = resolveStatusName(persisted.exitStatus);
+		if (derivedStatus) {
+			detail.status = derivedStatus;
 		}
 	}
 	// return delay(MOCK_LATENCY_MS).then(() => structuredClone(detail));
@@ -1052,10 +1061,10 @@ export function updateInternalRequestMock(
 	return delay(MOCK_LATENCY_MS).then(() => structuredClone(detail));
 }
 
-export function updateTriageMock(
+export function createTriageMock(
 	protocol: string,
-	payload: TriageAssessment
-): Promise<InternalRequestDetail> {
+	payload: CreateTriagePayload
+): Promise<TriageAssessment> {
 	const normalized = protocol.toLowerCase().trim();
 	const detail = mockInternalRequestDetails.find(
 		(d) => d.protocol.toLowerCase().trim() === normalized
@@ -1063,17 +1072,37 @@ export function updateTriageMock(
 	if (!detail) {
 		return Promise.reject(new ApiError(404, 'Solicitação não encontrada.'));
 	}
-	detail.triage = structuredClone(payload);
+	// Cada POST gera um id novo (uuid do registro) — nunca há duas triagens
+	// simultâneas, apenas sequenciais; a última é a vigente.
+	const triage: TriageAssessment = {
+		...structuredClone(payload),
+		id: crypto.randomUUID()
+	};
+	detail.triage = structuredClone(triage);
 	if (payload.changeCategory === 'Sim' && payload.newCategory) {
 		detail.demand.category = payload.newCategory;
 	}
-	if (payload.exitStatus) {
-		detail.status = payload.exitStatus as unknown as RequestStatus;
+	const derivedStatus = resolveStatusName(payload.exitStatus);
+	if (derivedStatus) {
+		detail.status = derivedStatus;
 	}
 	detail.lastUpdate = new Date().toISOString();
 	// Persistência real via sessionStorage — garante reload na mesma sessão
-	saveTriageToSessionStorage(protocol, payload);
-	return delay(MOCK_LATENCY_MS).then(() => structuredClone(detail));
+	saveTriageToSessionStorage(protocol, triage);
+	return delay(MOCK_LATENCY_MS).then(() => structuredClone(triage));
+}
+
+export function getTriageMock(protocol: string): Promise<TriageAssessment | null> {
+	const normalized = protocol.toLowerCase().trim();
+	const detail = mockInternalRequestDetails.find(
+		(d) => d.protocol.toLowerCase().trim() === normalized
+	);
+	if (!detail) {
+		return Promise.reject(new ApiError(404, 'Solicitação não encontrada.'));
+	}
+	const persisted = loadTriageFromSessionStorage(protocol);
+	const current = persisted ?? detail.triage;
+	return delay(MOCK_LATENCY_MS).then(() => (current ? structuredClone(current) : null));
 }
 
 export async function assignAnalystMock(

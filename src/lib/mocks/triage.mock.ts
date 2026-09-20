@@ -1,1 +1,1 @@
-export { updateTriageMock } from './requests.mock';
+export { createTriageMock, getTriageMock } from './requests.mock';
