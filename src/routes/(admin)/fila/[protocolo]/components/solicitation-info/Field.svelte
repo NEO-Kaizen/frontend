@@ -179,7 +179,6 @@
 			transform 180ms ease,
 			box-shadow 180ms ease;
 		margin-bottom: var(--spacing-md);
-
 	}
 
 	.field-editor:focus-within {

@@ -1,4 +1,5 @@
 // Contrato de conversa da solicitação — thread, eventos e pendências.
+
 // Base para a aba "Histórico de Conversa" da página interna de Tratativa.
 
 export type ConversationAuthorType = 'requester' | 'analyst';
@@ -42,6 +43,7 @@ export interface PendencyField {
 // Card visual de pendência. As regras de negócio (validação, solicitar
 // novamente, ciclo de status) pertencem à integração da issue #123 — este
 // tipo reflete apenas o que a camada visual consome.
+
 export interface Pendency {
 	id: string;
 	type: 'pendency';
@@ -58,7 +60,6 @@ export type ConversationItem = ConversationMessage | ConversationSystemEvent | P
 export interface ConversationRequester {
 	id: string;
 	name: string;
-	isOnline: boolean;
 }
 
 export interface ConversationHistory {
@@ -69,6 +70,7 @@ export interface ConversationHistory {
 
 // Anexo no envio da mensagem — apenas metadados; o binário é derivado no
 // servidor quando o endpoint real for liberado.
+
 export interface ConversationAttachmentInput {
 	name: string;
 	mimeType?: string;

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import { toastState } from '$lib/states/toast.svelte';
 	import type { ConversationAttachmentInput, ConversationMessage } from '$lib/types/conversation';
 	import type { Result } from '$lib/types/result';
 
@@ -14,52 +15,29 @@
 	let { onSend }: Props = $props();
 
 	let content = $state('');
-	let attachments = $state<ConversationAttachmentInput[]>([]);
 	let isSending = $state(false);
 	let sendError = $state<string | null>(null);
-	let sendSuccess = $state(false);
-	let fileInput: HTMLInputElement | null = null;
 
 	const trimmedContent = $derived(content.trim());
+
 	const canSend = $derived(trimmedContent.length > 0 && !isSending && Boolean(onSend));
-
-	function attachFileInput(node: HTMLInputElement): void {
-		fileInput = node;
-	}
-
-	function handlePickFiles(event: Event): void {
-		const input = event.target as HTMLInputElement;
-		for (const file of Array.from(input.files ?? [])) {
-			if (!attachments.some((attachment) => attachment.name === file.name)) {
-				attachments.push({
-					name: file.name,
-					mimeType: file.type,
-					sizeBytes: file.size
-				});
-			}
-		}
-		input.value = '';
-	}
-
-	function removeAttachment(name: string): void {
-		attachments = attachments.filter((attachment) => attachment.name !== name);
-	}
 
 	async function handleSend(): Promise<void> {
 		if (!onSend || !trimmedContent || isSending) return;
 
 		isSending = true;
 		sendError = null;
-		sendSuccess = false;
 
-		const result = await onSend({ content: trimmedContent, attachments });
+		const result = await onSend({
+			content: trimmedContent,
+			attachments: []
+		});
 
 		isSending = false;
 
 		if (result.ok) {
 			content = '';
-			attachments = [];
-			sendSuccess = true;
+			toastState.add('Mensagem enviada.', 'success');
 		} else {
 			sendError = result.error.message;
 		}
@@ -83,55 +61,24 @@
 		aria-label="Mensagem para o solicitante"
 		onkeydown={handleKeydown}></textarea>
 
-	<p class="composer-hint">
-		O status dessa solicitação irá mudar para &quot;pendente de informações&quot; após o envio.
-	</p>
-
-	{#if attachments.length > 0}
-		<ul class="composer-attachments">
-			{#each attachments as attachment (attachment.name)}
-				<li class="composer-attachment">
-					<Icon iconName="description" iconSize="sm" ariaLabel="Anexo" />
-					<span class="attachment-name">{attachment.name}</span>
-					<button
-						type="button"
-						class="remove-attachment"
-						aria-label={`Remover anexo ${attachment.name}`}
-						disabled={isSending}
-						onclick={() => removeAttachment(attachment.name)}
-					>
-						<Icon iconName="close" iconSize="sm" ariaLabel="Remover" />
-					</button>
-				</li>
-			{/each}
-		</ul>
-	{/if}
-
 	{#if sendError}
-		<p class="composer-feedback composer-error" role="alert">{sendError}</p>
-	{/if}
-	{#if sendSuccess}
-		<p class="composer-feedback composer-success" role="status">Mensagem enviada.</p>
+		<p class="composer-feedback composer-error" role="alert">
+			{sendError}
+		</p>
 	{/if}
 
 	<div class="composer-actions">
 		<button
 			type="button"
 			class="attach-button"
-			disabled={isSending}
-			onclick={() => fileInput?.click()}
+			disabled
+			aria-disabled="true"
+			title="Fluxo de solicitação de anexo aguardando definição"
 		>
-			<Icon iconName="cloudUpload" iconSize="sm" ariaLabel="Anexar arquivo" />
+			<Icon iconName="cloudUpload" iconSize="sm" ariaLabel="Solicitar anexo" />
 			<span>Solicitar Anexo</span>
 		</button>
-		<input
-			{@attach attachFileInput}
-			type="file"
-			class="sr-only"
-			multiple
-			tabindex="-1"
-			onchange={handlePickFiles}
-		/>
+
 		<Button
 			variant="primary"
 			loading={isSending}
@@ -187,69 +134,6 @@
 		opacity: 0.6;
 	}
 
-	.composer-hint {
-		margin: 0;
-		font-family: var(--font-inter);
-		font-size: 12px;
-		color: var(--gray);
-	}
-
-	.composer-attachments {
-		list-style: none;
-		margin: 0;
-		padding: 0;
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--spacing-sm);
-	}
-
-	.composer-attachment {
-		display: inline-flex;
-		align-items: center;
-		gap: 6px;
-		padding: 4px 8px;
-		border-radius: var(--radius-sm);
-		background: var(--background-color);
-		border: var(--border-default);
-		color: var(--secondary-color);
-		min-width: 0;
-		max-width: 100%;
-	}
-
-	.attachment-name {
-		font-family: var(--font-inter);
-		font-size: 12px;
-		font-weight: 500;
-		color: var(--rich-black);
-		overflow-wrap: anywhere;
-	}
-
-	.remove-attachment {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		padding: 2px;
-		border: none;
-		background: none;
-		color: var(--gray);
-		cursor: pointer;
-		border-radius: 4px;
-	}
-
-	.remove-attachment:hover {
-		color: var(--status-red);
-	}
-
-	.remove-attachment:focus-visible {
-		outline: 2px solid var(--secondary-color);
-		outline-offset: 1px;
-	}
-
-	.remove-attachment:disabled {
-		cursor: not-allowed;
-		opacity: 0.6;
-	}
-
 	.composer-feedback {
 		margin: 0;
 		padding: 8px 12px;
@@ -263,12 +147,6 @@
 		background-color: var(--status-red-bg);
 		color: var(--status-red);
 		border: 1px solid var(--status-red);
-	}
-
-	.composer-success {
-		background-color: var(--status-green-bg);
-		color: var(--status-green);
-		border: 1px solid var(--status-green);
 	}
 
 	.composer-actions {

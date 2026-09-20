@@ -168,8 +168,7 @@ const FIXTURE_ITEMS: ConversationItem[] = [
 
 const MOCK_REQUESTER: ConversationRequester = {
 	id: 'req-maria-oliveira',
-	name: 'Maria Oliveira',
-	isOnline: true
+	name: 'Maria Oliveira'
 };
 
 // Store em memória — permite enviar mensagens em dev sem backend.
@@ -197,7 +196,7 @@ export function getConversationMock(protocol: string): Promise<ConversationHisto
 	// (estado vazio da UI). Protocolo inexistente também não quebra a página.
 	const history: ConversationHistory = found ?? {
 		protocol,
-		requester: { id: `req-${normalized}`, name: 'Solicitante', isOnline: false },
+		requester: { id: `req-${normalized}`, name: 'Solicitante' },
 		items: []
 	};
 
@@ -223,7 +222,7 @@ export function sendConversationMessageMock(
 		}
 		conversation = {
 			protocol,
-			requester: { id: `req-${normalized}`, name: detail.requester.fullName, isOnline: true },
+			requester: { id: `req-${normalized}`, name: detail.requester.fullName },
 			items: []
 		};
 		mockConversations.push(conversation);
