@@ -85,6 +85,7 @@
 				name: '',
 				visibility: 'PUBLIC',
 				closesRequest: false,
+				isTriageExit: false,
 				tone: 'info',
 				isActive: true
 			},
@@ -95,7 +96,10 @@
 	function updateStatus(
 		id: number,
 		patch: Partial<
-			Pick<PortalStatus, 'name' | 'visibility' | 'closesRequest' | 'tone' | 'isActive'>
+			Pick<
+				PortalStatus,
+				'name' | 'visibility' | 'closesRequest' | 'isTriageExit' | 'tone' | 'isActive'
+			>
 		>
 	) {
 		setStatuses(replaceById<PortalStatus>(section.draft.statuses, id, patch));
@@ -107,6 +111,7 @@
 		name: string;
 		visibility: StatusVisibility;
 		closesRequest: boolean;
+		isTriageExit: boolean;
 		tone: StatusTone;
 		isActive: boolean;
 	} | null>(null);
@@ -160,6 +165,7 @@
 					name: added.name,
 					visibility: added.visibility,
 					closesRequest: added.closesRequest,
+					isTriageExit: added.isTriageExit,
 					tone: added.tone,
 					isActive: added.isActive
 				}
@@ -173,6 +179,7 @@
 			name: status.name,
 			visibility: status.visibility,
 			closesRequest: status.closesRequest,
+			isTriageExit: status.isTriageExit,
 			tone: status.tone,
 			isActive: status.isActive
 		};
@@ -193,6 +200,7 @@
 			name: editing.name,
 			visibility: editing.visibility,
 			closesRequest: editing.closesRequest,
+			isTriageExit: editing.isTriageExit,
 			tone: editing.tone
 		});
 		editing = null;
@@ -261,6 +269,7 @@
 					<th scope="col" class="col-name">Nome</th>
 					<th scope="col" class="col-visibility">Visível em</th>
 					<th scope="col" class="col-closes">Encerramento</th>
+					<th scope="col" class="col-triage-exit">Saída triagem</th>
 					<th scope="col" class="col-tone">Tom visual</th>
 					<th scope="col" class="col-actions">Ações</th>
 				</tr>
@@ -316,6 +325,20 @@
 								</select>
 							{:else}
 								{status.closesRequest ? 'Sim' : 'Não'}
+							{/if}
+						</td>
+						<td class="col-triage-exit">
+							{#if editing && editing.id === status.id}
+								<select
+									class="edit-select"
+									aria-label="Saída de triagem do status"
+									bind:value={editing.isTriageExit}
+								>
+									<option value={false}>Não</option>
+									<option value={true}>Sim</option>
+								</select>
+							{:else}
+								{status.isTriageExit ? 'Sim' : 'Não'}
 							{/if}
 						</td>
 						<td class="col-tone">
@@ -434,22 +457,29 @@
 	}
 
 	.col-name {
-		width: 32%;
+		width: 28%;
 	}
 
 	.col-visibility {
-		width: 16%;
+		width: 15%;
 	}
 
 	td.col-closes {
-		width: 18%;
+		width: 14%;
+		color: var(--secondary-color);
+		font-size: 13px;
+		text-align: center;
+	}
+
+	td.col-triage-exit {
+		width: 14%;
 		color: var(--secondary-color);
 		font-size: 13px;
 		text-align: center;
 	}
 
 	.col-tone {
-		width: 15%;
+		width: 14%;
 	}
 
 	td.col-tone {
@@ -457,7 +487,7 @@
 	}
 
 	.col-actions {
-		width: 19%;
+		width: 16%;
 		text-align: end;
 		white-space: nowrap;
 	}
