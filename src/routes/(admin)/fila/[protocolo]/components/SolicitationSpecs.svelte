@@ -2,7 +2,6 @@
 	import { page } from '$app/state';
 	import { invalidateAll } from '$app/navigation';
 	import Button from '$lib/components/Button.svelte';
-	import { page } from '$app/state';
 	import Icon from '$lib/components/Icon.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import { requestFieldChange } from '$lib/services/pendency.service';
