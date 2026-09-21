@@ -72,6 +72,10 @@
 		const persistedDraft = loadDraftFromSession(protocol);
 		if (persistedDraft) {
 			draft = toTriageDraft(persistedDraft);
+			// Rascunho divergente do servidor = edição em andamento (1ª ou
+			// N-ésima): retoma editável após reload, mesmo com triagem finalizada.
+			const isEqualToServer = JSON.stringify(draft) === JSON.stringify(toTriageDraft(fetched));
+			if (fetched && !isEqualToServer) isCreatingNew = true;
 			return;
 		}
 		const persistedFinal = loadTriageFromSession(protocol);
@@ -79,10 +83,13 @@
 			draft = toTriageDraft(persistedFinal);
 			return;
 		}
-		draft = toTriageDraft(fetched ?? solicitation.triage);
+		draft = toTriageDraft(fetched);
 	}
 
-	let draft = $state<TriageAssessment>(toTriageDraft(solicitation.triage));
+	// Vazio até o `GET /triage` resolver: o valor inicial não deve capturar
+	// `solicitation.triage` (assíncrono/rehidratado) — o `applyDraftPrecedence`
+	// define o conteúdo após a carga.
+	let draft = $state<TriageAssessment>(toTriageDraft(null));
 
 	// Sincroniza quando protocolo muda (navegação) — garante que cada protocolo tem seu rascunho isolado
 	$effect(() => {
@@ -111,10 +118,14 @@
 		saveDraftToSession(solicitation.protocol, $state.snapshot(draft));
 	}
 
-	// Persistência contínua do rascunho (1ª e N-ésima edição) — sobrevive a reload/abas via sessionStorage
+	// Persistência contínua do rascunho (1ª e N-ésima edição) — sobrevive a reload/abas via sessionStorage.
+	// Só roda após a carga inicial: sem o gate, o draft vazio de montagem era
+	// salvo por cima da triagem finalizada e depois relido pelo
+	// `applyDraftPrecedence`, deixando o formulário em somente leitura em branco.
 	$effect(() => {
+		if (!triageLoaded) return;
 		const snapshot = $state.snapshot(draft);
-		const serverDraft = toTriageDraft(solicitation.triage);
+		const serverDraft = toTriageDraft(serverTriage);
 		const isEqualToServer = JSON.stringify(snapshot) === JSON.stringify(serverDraft);
 		if (isEqualToServer) {
 			clearDraftFromSession(solicitation.protocol);
