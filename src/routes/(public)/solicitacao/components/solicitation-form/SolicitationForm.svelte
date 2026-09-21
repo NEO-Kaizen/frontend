@@ -16,9 +16,16 @@
 		saveDraft,
 		type SolicitationDraft
 	} from '$lib/services/solicitation-draft.service';
+	import { CATEGORY_OPTIONS } from '$lib/types/request';
 	import type { SessionUser } from '$lib/types/auth';
 	import type { SolicitationMode } from '$lib/types/portal-config';
 	import type { RequesterProfileBlock } from '$lib/types/user';
+	import {
+		getDemoComplementary,
+		getDemoDemand,
+		getDemoIdentification,
+		getDemoOperational
+	} from './demo-answers';
 	import type {
 		ComplementaryData,
 		CreateRequestPayload,
@@ -233,6 +240,26 @@
 	function handleStepClick(stepId: number) {
 		if (visitedSteps.has(stepId)) {
 			currentStep = stepId;
+		}
+	}
+
+	// Preenche o passo atual com respostas fictícias válidas (botão de demonstração).
+	function fillCurrentStepDemo() {
+		if (currentStep === 1) {
+			identification = {
+				...getDemoIdentification(),
+				...(shouldLockIdentity ? getSessionIdentity() : {})
+			};
+			step1Ref?.clearErrors();
+		} else if (currentStep === 2) {
+			demand = getDemoDemand(categoryOptions[0]?.value ?? CATEGORY_OPTIONS[0].value);
+			step2Ref?.clearErrors();
+		} else if (currentStep === 3) {
+			operational = getDemoOperational();
+			step3Ref?.clearErrors();
+		} else {
+			complementary = getDemoComplementary();
+			step4Ref?.clearErrors();
 		}
 	}
 
@@ -511,6 +538,12 @@
 			{/if}
 
 			<footer class="form-actions">
+				<div class="demo-fill">
+					<Button variant="outline-neutral" disabled={isSubmitting} onclick={fillCurrentStepDemo}>
+						<Icon iconName="autorenew" iconSize="md" />
+						Preencher exemplo
+					</Button>
+				</div>
 				<Button variant="outline-neutral" onclick={handleCancel}>Cancelar</Button>
 
 				<div class="actions-right">
@@ -582,6 +615,11 @@
 		gap: var(--spacing-sm);
 		margin-top: var(--spacing-md);
 		padding-top: var(--spacing-md);
+	}
+
+	.demo-fill {
+		display: flex;
+		margin-right: auto;
 	}
 
 	.actions-right {
