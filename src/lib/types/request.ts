@@ -383,6 +383,8 @@ export interface RequestDetail {
 	} | null;
 }
 
+import type { TriageAssessment } from './triage';
+
 // ---- DTO interno (superconjunto) ----
 // Service: getInternalRequest(protocol: string): Promise<Result<InternalRequestDetail>>
 
@@ -402,6 +404,8 @@ export interface PrioritizationResult {
 	notes: CriterionNotes;
 }
 
+export type AnalystResponsibility = 'triagem' | 'mapeamento';
+
 export interface InternalRequestDetail {
 	protocol: string;
 	status: RequestStatus;
@@ -410,10 +414,9 @@ export interface InternalRequestDetail {
 	// ID do responsável (preparação para limitação por perfil — issue #121).
 	// `id` + `name` obrigatórios; ambos `null` apenas quando não atribuído.
 	assignee: { id: string | null; name: string | null; email?: string | null } | null;
-	// Responsável pelo mapeamento (contrato Front ↔ Back — Mapeamento): quando
-	// o backend expô-lo, ele prevalece sobre `assignee` na permissão de edição
-	// da aba Mapeamento. Ausente = usa `assignee`.
-	mappingAssigneeId?: string | null;
+	// Responsável pelo mapeamento (contrato Front ↔ Back — Mapeamento): o
+	// backend devolve o objeto ao receber `mappingAssigneeId` no PATCH.
+	mappingAssignee?: { id: string | null; name: string | null; email?: string | null } | null;
 	// Leitura estendida do detalhe (contrato de pendências v0.5 §7): alerta de
 	// respostas a aprovar + resumo + não-lidos derivados de `PendingItem`.
 	// `unread` é derivado de `status` (D-P21) — sem "marcar como lido".
@@ -434,6 +437,7 @@ export interface InternalRequestDetail {
 	openedAt: string;
 	lastUpdate: string;
 	internalObservations?: string | null;
+	triage?: TriageAssessment | null;
 }
 
 // PATCH /requests/:protocol/internal — proposta (backend definirá o contrato

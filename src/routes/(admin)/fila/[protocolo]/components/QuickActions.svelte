@@ -14,6 +14,10 @@
 		/** Bloqueio de nova pendência (§4): há lote em aberto aguardando resposta/revisão. */
 		isRequestChangeBlocked?: boolean;
 		requestChangeBlockedHint?: string | null;
+		onAction?: (key: string) => void;
+		hiddenActionKeys?: readonly string[];
+		hasExistingPriority?: boolean;
+		existingPriorityDisplay?: string | null;
 	}
 
 	let {
@@ -22,7 +26,11 @@
 		onSaved,
 		onRequestChange,
 		isRequestChangeBlocked = false,
-		requestChangeBlockedHint = null
+		requestChangeBlockedHint = null,
+		onAction,
+		hiddenActionKeys = [],
+		hasExistingPriority = false,
+		existingPriorityDisplay = null
 	}: Props = $props();
 
 	let isOpen = $state(false);
@@ -39,7 +47,7 @@
 		disabled?: boolean;
 	};
 
-	const actions: QuickAction[] = [
+	const baseActions: readonly QuickAction[] = [
 		{
 			key: 'requestChange',
 			label: 'Solicitar Alteração',
@@ -48,7 +56,7 @@
 		},
 		{
 			key: 'assignResponsible',
-			label: 'Atribuir Responsável',
+			label: 'Atribuir Analista',
 			hint: 'Atribuir ou Alterar',
 			icon: 'group'
 		},
@@ -76,22 +84,33 @@
 		currentUser?.role === 'Administrador' ||
 			Boolean(currentUser && solicitation.assignee?.id === currentUser.id)
 	);
+
 	const visibleActions = $derived.by(() => {
-		const list = canRequestChange
-			? actions
-			: actions.filter((action) => action.key !== 'requestChange');
-		if (!isRequestChangeBlocked) return list;
-		return list.map((action) =>
-			action.key === 'requestChange'
-				? {
-						...action,
-						disabled: true,
-						hint:
-							requestChangeBlockedHint ??
-							'Há uma pendência em aberto — conclua a revisão para solicitar outra'
-					}
-				: action
-		);
+		let list = baseActions.filter((action) => !hiddenActionKeys.includes(action.key));
+		if (!canRequestChange) {
+			list = list.filter((action) => action.key !== 'requestChange');
+		}
+		return list.map((action) => {
+			if (action.key === 'priorityCalculator' && hasExistingPriority) {
+				return {
+					...action,
+					label: 'Alterar Prioridade',
+					hint: existingPriorityDisplay
+						? `Atual: ${existingPriorityDisplay}`
+						: 'Prioridade já calculada — alterar'
+				};
+			}
+			if (action.key === 'requestChange' && isRequestChangeBlocked) {
+				return {
+					...action,
+					disabled: true,
+					hint:
+						requestChangeBlockedHint ??
+						'Há uma pendência em aberto — conclua a revisão para solicitar outra'
+				};
+			}
+			return action;
+		});
 	});
 
 	function toggle() {
@@ -114,6 +133,8 @@
 			onRequestChange?.();
 		} else if (actionKey === 'informPending') {
 			showPendingModal = true;
+		} else {
+			onAction?.(actionKey);
 		}
 	}
 

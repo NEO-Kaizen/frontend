@@ -428,7 +428,7 @@ function sanitizeCategories(value: unknown): PortalCategory[] {
 
 // Status do ciclo de vida vindos da API ou do payload — itens estruturalmente
 // válidos (id inteiro positivo, nome nos limites, visibility/tone na allowlist,
-// closesRequest/isActive booleanos). Descarta cada item inválido em vez de
+// closesRequest/isTriageExit/isActive booleanos). Descarta cada item inválido em vez de
 // derrubar a lista toda; se nada restar, exceder o limite, repetir nomes ou
 // nenhum item ativo, cai nos status padrão.
 function sanitizeStatuses(value: unknown): PortalStatus[] {
@@ -442,6 +442,7 @@ function sanitizeStatuses(value: unknown): PortalStatus[] {
 		const visibility = sanitizeStatusVisibility(item.visibility);
 		const tone = sanitizeStatusTone(item.tone);
 		const closesRequest = item.closesRequest === true;
+		const isTriageExit = item.isTriageExit === true;
 		// Ausente cai em ativo para não inativar listas legadas por omissão.
 		const isActive = item.isActive !== false;
 
@@ -451,7 +452,7 @@ function sanitizeStatuses(value: unknown): PortalStatus[] {
 			item.id > 0 &&
 			isValidStatusName(name)
 		) {
-			statuses.push({ id: item.id, name, visibility, closesRequest, tone, isActive });
+			statuses.push({ id: item.id, name, visibility, closesRequest, isTriageExit, tone, isActive });
 		}
 	}
 

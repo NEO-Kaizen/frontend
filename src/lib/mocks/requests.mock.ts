@@ -15,8 +15,11 @@ import type {
 	RequestSummary,
 	UpdateInternalRequestPayload
 } from '$lib/types/request';
+import { DEFAULT_STATUSES } from '$lib/config/portal-defaults';
 import { ApiError } from '$lib/types/result';
 import { computePrioritizationResult, getSavedPrioritizationNotes } from './prioritization.mock';
+import type { CreateTriagePayload, TriageAssessment } from '$lib/types/triage';
+import { mockUsers } from './users.mock';
 
 // Status considerados "em andamento" para a métrica da fila: trabalho já em fluxo,
 // excluindo etapas de fila/priorização e estados terminais.
@@ -534,6 +537,7 @@ function registerCreatedRequest(protocol: string, payload: CreateRequestPayload)
 		priority: null,
 		prioritization: { score: null, maxScore: 50, label: null, notes: {} },
 		assignee: null,
+		mappingAssignee: null,
 		correctionAlert: null,
 		requester: payload.requester,
 		demand: payload.demand,
@@ -545,7 +549,8 @@ function registerCreatedRequest(protocol: string, payload: CreateRequestPayload)
 		attachments: [],
 		openedAt: now,
 		lastUpdate: now,
-		internalObservations: null
+		internalObservations: null,
+		triage: null
 	});
 }
 
@@ -742,6 +747,46 @@ export function getRequestByProtocolMock(protocol: string): Promise<RequestDetai
 	return Promise.resolve(detail);
 }
 
+const TRIAGE_SESSION_PREFIX = 'maat:triage:';
+
+function triageSessionKey(protocol: string): string {
+	return `${TRIAGE_SESSION_PREFIX}${protocol.trim().toLowerCase()}`;
+}
+
+function loadTriageFromSessionStorage(protocol: string): TriageAssessment | null {
+	if (typeof window === 'undefined' || typeof sessionStorage === 'undefined') return null;
+	try {
+		const raw = sessionStorage.getItem(triageSessionKey(protocol));
+		if (!raw) return null;
+		const parsed: unknown = JSON.parse(raw);
+		if (typeof parsed !== 'object' || parsed === null) return null;
+		const record = parsed as Record<string, unknown>;
+		// Drafts legados com `exitStatus` literal (string não-vazia) são inválidos
+		// na regra nova (FK numérica) e descartados.
+		const exitStatus = record.exitStatus;
+		if (exitStatus !== '' && typeof exitStatus !== 'number') return null;
+		if (typeof record.adherentToScope !== 'string') return null;
+		return parsed as TriageAssessment;
+	} catch {
+		return null;
+	}
+}
+
+function resolveStatusName(exitStatus: number | ''): RequestStatus | null {
+	if (exitStatus === '') return null;
+	const found = DEFAULT_STATUSES.find((status) => status.id === exitStatus);
+	return (found?.name as RequestStatus | undefined) ?? null;
+}
+
+function saveTriageToSessionStorage(protocol: string, triage: TriageAssessment): void {
+	if (typeof window === 'undefined' || typeof sessionStorage === 'undefined') return;
+	try {
+		sessionStorage.setItem(triageSessionKey(protocol), JSON.stringify(triage));
+	} catch {
+		// ignore quota / blocked
+	}
+}
+
 export const mockInternalRequestDetails: InternalRequestDetail[] = [
 	{
 		protocol: 'MAAT-6N2W-8VBM',
@@ -769,6 +814,7 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 			name: 'Fernando Alves',
 			email: 'fernando.alves@maat.com.br'
 		},
+		mappingAssignee: null,
 		correctionAlert: null,
 		requester: {
 			fullName: 'Maria Oliveira',
@@ -835,7 +881,23 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 		],
 		openedAt: '2026-08-10T09:41:20.000Z',
 		lastUpdate: '2026-08-28T16:20:00.000Z',
-		internalObservations: null
+		internalObservations: null,
+		triage: {
+			id: '660e8400-e29b-41d4-a716-446655440100',
+			adherentToScope: 'Sim',
+			adherentJustification: '',
+			changeCategory: 'Não',
+			newCategory: '',
+			preliminaryComplexity:
+				'Média — envolve integração com sistema de ponto e validação de regras.',
+			perceivedRisks: 'Risco de divergência em marcações manuais e impacto na folha.',
+			suggestedResponsible: 'Ana Souza',
+			suggestedResponsibleJustification: 'Experiência prévia com automação de ponto.',
+			exitStatus: 9,
+			result: 'Encaminhado para mapeamento detalhado.',
+			conclusionJustification:
+				'Demanda aderente ao escopo de automação e com benefícios claros de eficiência.'
+		}
 	},
 	{
 		protocol: 'MAAT-8K3P-9X2M',
@@ -847,6 +909,7 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 			name: 'Fernando Alves',
 			email: 'fernando.alves@maat.com.br'
 		},
+		mappingAssignee: null,
 		correctionAlert: { count: 1, batchId: 'batch-2026-102' },
 		requester: {
 			fullName: 'Maria Oliveira',
@@ -892,7 +955,8 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 		attachments: [],
 		openedAt: '2026-08-25T14:03:11.000Z',
 		lastUpdate: '2026-08-26T10:12:40.000Z',
-		internalObservations: null
+		internalObservations: null,
+		triage: null
 	},
 	{
 		protocol: 'MAAT-7C4F-1NXR',
@@ -904,6 +968,7 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 			name: 'Carlos Mendes',
 			email: 'carlos.mendes@maat.com.br'
 		},
+		mappingAssignee: null,
 		correctionAlert: null,
 		requester: {
 			fullName: 'Ana Souza',
@@ -961,7 +1026,8 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 		],
 		openedAt: '2026-08-26T13:45:00.000Z',
 		lastUpdate: '2026-08-27T10:30:00.000Z',
-		internalObservations: 'Aguardando volume médio mensal informado pelo solicitante.'
+		internalObservations: 'Aguardando volume médio mensal informado pelo solicitante.',
+		triage: null
 	},
 	{
 		protocol: 'MAAT-9R3D-7KWF',
@@ -973,6 +1039,7 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 			name: 'Lucas Gomes',
 			email: 'lucas.gomes@maat.com.br'
 		},
+		mappingAssignee: null,
 		correctionAlert: null,
 		requester: {
 			fullName: 'João Santos',
@@ -1034,7 +1101,8 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 		],
 		openedAt: '2026-08-20T08:15:00.000Z',
 		lastUpdate: '2026-08-28T15:30:00.000Z',
-		internalObservations: null
+		internalObservations: null,
+		triage: null
 	},
 	{
 		protocol: 'MAAT-3V8K-6JPN',
@@ -1102,7 +1170,8 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 		],
 		openedAt: '2026-09-04T13:10:00.000Z',
 		lastUpdate: '2026-09-04T13:10:00.000Z',
-		internalObservations: null
+		internalObservations: null,
+		triage: null
 	}
 ];
 
@@ -1114,6 +1183,19 @@ export function getInternalRequestMock(protocol: string): Promise<InternalReques
 	if (!detail) {
 		return Promise.reject(new ApiError(404, 'Solicitação não encontrada.'));
 	}
+	// Persistência real via sessionStorage (sobrevive a reload na sessão)
+	const persisted = loadTriageFromSessionStorage(protocol);
+	if (persisted) {
+		detail.triage = structuredClone(persisted);
+		if (persisted.changeCategory === 'Sim' && persisted.newCategory) {
+			detail.demand.category = persisted.newCategory;
+		}
+		const derivedStatus = resolveStatusName(persisted.exitStatus);
+		if (derivedStatus) {
+			detail.status = derivedStatus;
+		}
+	}
+	// return delay(MOCK_LATENCY_MS).then(() => structuredClone(detail));
 
 	// Reflete avaliação salva em sessão: notas persistidas no mock de priorização
 	// voltam no /requests/:protocol/internal para reavaliação/atualização do card.
@@ -1147,5 +1229,112 @@ export function updateInternalRequestMock(
 	detail.operational = structuredClone(payload.operational);
 	detail.complementary = payload.complementary ? structuredClone(payload.complementary) : undefined;
 	detail.lastUpdate = new Date().toISOString();
+	return delay(MOCK_LATENCY_MS).then(() => structuredClone(detail));
+}
+
+export function createTriageMock(
+	protocol: string,
+	payload: CreateTriagePayload
+): Promise<TriageAssessment> {
+	const normalized = protocol.toLowerCase().trim();
+	const detail = mockInternalRequestDetails.find(
+		(d) => d.protocol.toLowerCase().trim() === normalized
+	);
+	if (!detail) {
+		return Promise.reject(new ApiError(404, 'Solicitação não encontrada.'));
+	}
+	// Cada POST gera um id novo (uuid do registro) — nunca há duas triagens
+	// simultâneas, apenas sequenciais; a última é a vigente.
+	const triage: TriageAssessment = {
+		...structuredClone(payload),
+		id: crypto.randomUUID()
+	};
+	detail.triage = structuredClone(triage);
+	if (payload.changeCategory === 'Sim' && payload.newCategory) {
+		detail.demand.category = payload.newCategory;
+	}
+	const derivedStatus = resolveStatusName(payload.exitStatus);
+	if (derivedStatus) {
+		detail.status = derivedStatus;
+	}
+	detail.lastUpdate = new Date().toISOString();
+	// Persistência real via sessionStorage — garante reload na mesma sessão
+	saveTriageToSessionStorage(protocol, triage);
+	return delay(MOCK_LATENCY_MS).then(() => structuredClone(triage));
+}
+
+export function getTriageMock(protocol: string): Promise<TriageAssessment | null> {
+	const normalized = protocol.toLowerCase().trim();
+	const detail = mockInternalRequestDetails.find(
+		(d) => d.protocol.toLowerCase().trim() === normalized
+	);
+	if (!detail) {
+		return Promise.reject(new ApiError(404, 'Solicitação não encontrada.'));
+	}
+	const persisted = loadTriageFromSessionStorage(protocol);
+	const current = persisted ?? detail.triage;
+	return delay(MOCK_LATENCY_MS).then(() => (current ? structuredClone(current) : null));
+}
+
+export async function assignAnalystMock(
+	protocol: string,
+	analystId: string,
+	responsibility: 'triagem' | 'mapeamento' = 'triagem'
+): Promise<InternalRequestDetail> {
+	const normalized = protocol.toLowerCase().trim();
+	const detail = mockInternalRequestDetails.find(
+		(d) => d.protocol.toLowerCase().trim() === normalized
+	);
+
+	if (!detail) {
+		return Promise.reject(new ApiError(404, 'Solicitação não encontrada.'));
+	}
+
+	if (!analystId || !analystId.trim()) {
+		return Promise.reject(new ApiError(400, 'Analista não informado.'));
+	}
+
+	const analyst = (
+		mockUsers as unknown as Array<{
+			id: string;
+			fullName: string;
+			email: string;
+			profile: string;
+			isActive: boolean;
+		}>
+	).find((u) => u.id === analystId && u.profile === 'Analista');
+
+	if (!analyst) {
+		return Promise.reject(new ApiError(404, 'Analista não encontrado.'));
+	}
+
+	if (!analyst.isActive) {
+		return Promise.reject(new ApiError(403, 'Analista inativo.'));
+	}
+
+	const assigneeValue = {
+		id: analyst.id,
+		name: analyst.fullName,
+		email: analyst.email
+	};
+
+	if (responsibility === 'mapeamento') {
+		// Responsável pelo Mapeamento é independente do responsável pela Triagem.
+		detail.mappingAssignee = assigneeValue;
+	} else {
+		// A atribuição de Triagem altera o responsável principal da solicitação.
+		detail.assignee = assigneeValue;
+
+		// A fila representa o responsável pela Triagem.
+		const queueItem = mockRequests.find((r) => r.protocol.toLowerCase().trim() === normalized);
+
+		if (queueItem) {
+			queueItem.assigneeId = analyst.id;
+			queueItem.assignee = analyst.fullName;
+		}
+	}
+
+	detail.lastUpdate = new Date().toISOString();
+
 	return delay(MOCK_LATENCY_MS).then(() => structuredClone(detail));
 }

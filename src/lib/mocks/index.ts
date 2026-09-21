@@ -16,6 +16,7 @@ type MockDomains = {
 	users: true;
 	prioritization: true;
 	pendingItems: true;
+	triage: true;
 	mapping: true;
 	internalNotes: true;
 };
@@ -30,6 +31,7 @@ export const MOCK_DOMAINS: false | MockDomains =
 		users: true,
 		prioritization: true,
 		pendingItems: true,
+		triage: true,
 		mapping: true,
 		internalNotes: true
 	} as const);

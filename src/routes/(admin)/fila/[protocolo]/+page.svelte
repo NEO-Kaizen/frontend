@@ -8,8 +8,24 @@
 	let { data }: PageProps = $props();
 
 	const protocol = $derived(data.protocol);
-	const solicitation = $derived(data.solicitation);
 	const error = $derived(data.error);
+
+	let solicitation = $derived(data.solicitation);
+
+	function handleTriageSuccess(updated: typeof solicitation) {
+		solicitation = updated;
+
+		// A Triagem possui endpoint próprio de leitura.
+		// Após a persistência, revalidamos os dados do servidor.
+		void invalidateAll();
+	}
+
+	function handlePrioritizationSuccess(updated: typeof solicitation) {
+		// A Priorização atualiza imediatamente o estado recebido
+		// pelo fluxo de persistência, sem reutilizar o callback
+		// semanticamente exclusivo da Triagem.
+		solicitation = updated;
+	}
 </script>
 
 <svelte:head>
@@ -38,6 +54,8 @@
 			internalNotesError={data.internalNotesError}
 			pendencies={data.pendencies}
 			pendenciesError={data.pendenciesError}
+			onTriageSuccess={handleTriageSuccess}
+			onPrioritizationSuccess={handlePrioritizationSuccess}
 		/>
 	{:else if error && error.status === 404}
 		<NotFoundState

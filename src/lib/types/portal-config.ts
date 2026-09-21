@@ -130,14 +130,17 @@ export type ThemePalette = keyof PortalTheme;
 // Status do ciclo de vida da solicitação (Card 6) — lista gerenciada no
 // PortalConfig. `id` é a chave estável (número inteiro positivo, gerado pelo
 // cliente em novos status e aceito pela API); `closesRequest` indica se o
-// status encerra a solicitação; `visibility` e `tone` são enums allowlist.
-// `isActive` é a ativação/inativação (não há exclusão): status inativos
-// permanecem no histórico, mas não entram em novos fluxos.
+// status encerra a solicitação; `isTriageExit` marca as saídas elegíveis da
+// triagem (distinto de `closesRequest`: "Pendente de informações" sai sem
+// encerrar); `visibility` e `tone` são enums allowlist. `isActive` é a
+// ativação/inativação (não há exclusão): status inativos permanecem no
+// histórico, mas não entram em novos fluxos.
 export interface PortalStatus {
 	id: number;
 	name: string;
 	visibility: StatusVisibility;
 	closesRequest: boolean;
+	isTriageExit: boolean;
 	tone: StatusTone;
 	isActive: boolean;
 }

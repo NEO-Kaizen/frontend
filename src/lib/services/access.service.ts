@@ -44,6 +44,17 @@ export function isProfileAllowed(role: UserType, profiles: 'any' | readonly User
 	return profiles === 'any' || profiles.includes(role);
 }
 
+export function canAssignAnalyst(user: SessionUser | null): boolean {
+	return user?.role === 'Administrador';
+}
+
+export function canCalculatePriority(user: SessionUser | null, assigneeId: string | null): boolean {
+	if (!user) return false;
+	if (user.role === 'Administrador') return true;
+	if (user.role === 'Analista' && assigneeId !== null && user.id === assigneeId) return true;
+	return false;
+}
+
 export function isAllowedReturnTo(value: string): value is PostLoginRoute {
 	if (!value.startsWith('/')) return false;
 	if (value.includes('://')) return false;

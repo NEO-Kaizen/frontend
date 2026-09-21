@@ -1,21 +1,28 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { fade, fly } from 'svelte/transition';
+	import { cubicIn, cubicInOut, cubicOut } from 'svelte/easing';
 	import Icon from './Icon.svelte';
 	import type { Snippet } from 'svelte';
 
 	interface Props {
 		title: string;
 		onclose: () => void;
-		size?: 'default' | 'large';
 		children: Snippet;
+		size?: 'sm' | 'lg';
 	}
 
-	let { title, onclose, size = 'default', children }: Props = $props();
+	let { title, onclose, children, size = 'sm' }: Props = $props();
 
 	const uid = $props.id();
 
 	let shellElement = $state<HTMLElement | null>(null);
 	let previouslyFocused = $state<HTMLElement | null>(null);
+
+	const prefersReducedMotion =
+		typeof window !== 'undefined' &&
+		typeof window.matchMedia === 'function' &&
+		window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape') {
@@ -39,17 +46,36 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<div class="modal-overlay" role="presentation" tabindex="-1" onclick={onclose}>
+<div
+	class="modal-overlay"
+	role="presentation"
+	tabindex="-1"
+	onclick={onclose}
+	in:fade={{ duration: prefersReducedMotion ? 0 : 240, easing: cubicOut }}
+	out:fade={{ duration: prefersReducedMotion ? 0 : 320, easing: cubicIn }}
+>
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<div
 		bind:this={shellElement}
 		class="modal-shell"
-		class:modal-shell--large={size === 'large'}
+		class:lg={size === 'lg'}
 		role="dialog"
 		aria-modal="true"
 		tabindex="-1"
 		aria-labelledby={`modal-title-${uid}`}
 		onclick={(event) => event.stopPropagation()}
+		in:fly={{
+			y: prefersReducedMotion ? 0 : 12,
+			duration: prefersReducedMotion ? 0 : 280,
+			easing: cubicOut,
+			opacity: 0
+		}}
+		out:fly={{
+			y: prefersReducedMotion ? 0 : 10,
+			duration: prefersReducedMotion ? 0 : 340,
+			easing: cubicInOut,
+			opacity: 0
+		}}
 	>
 		<header class="modal-header">
 			<h3 id={`modal-title-${uid}`}>{title}</h3>
@@ -68,7 +94,7 @@
 	.modal-overlay {
 		position: fixed;
 		inset: 0;
-		z-index: 50;
+		z-index: 70; /* > QuickActions 40 e FloatingPrioritizationPanel 60 — modal sempre acima */
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -88,8 +114,20 @@
 		box-shadow: var(--regular-shadow);
 	}
 
-	.modal-shell--large {
-		max-width: 720px;
+	.modal-shell.lg {
+		max-width: min(720px, 92vw);
+		max-height: 80dvh;
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
+	}
+
+	.modal-shell.lg .modal-body {
+		overflow: hidden;
+		flex: 1;
+		min-height: 0;
+		display: flex;
+		flex-direction: column;
 	}
 
 	.modal-header {
