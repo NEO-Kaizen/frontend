@@ -35,6 +35,22 @@ export async function loadPrioritizationCriteria(): Promise<Result<Prioritizatio
 	}
 }
 
+function buildValidationMessage(criteria: PrioritizationCriterion[], missingIds: string[]): string {
+	const missingNames = missingIds
+		.map((id) => criteria.find((criterion) => criterion.id === id)?.name ?? id)
+		.filter(Boolean);
+
+	if (missingNames.length === 0) {
+		return 'Preencha todos os critérios com uma nota de 1 a 5 antes de salvar.';
+	}
+
+	if (missingNames.length === criteria.length) {
+		return `Preencha todos os ${criteria.length} critérios com nota de 1 a 5 antes de salvar.`;
+	}
+
+	return `Faltam ${missingNames.length} critério(s): ${missingNames.join(', ')} — selecione nota de 1 a 5.`;
+}
+
 function validateNotes(
 	criteria: PrioritizationCriterion[],
 	notes: CriterionNotes
@@ -50,7 +66,7 @@ function validateNotes(
 		return {
 			ok: false,
 			error: {
-				message: 'Preencha todos os critérios com uma nota de 1 a 5 antes de salvar.',
+				message: buildValidationMessage(criteria, missingCriterionIds),
 				missingCriterionIds
 			}
 		};

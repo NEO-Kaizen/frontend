@@ -52,7 +52,7 @@
 	h2 {
 		margin: 0 0 var(--spacing-sm) 0;
 		font: var(--h3);
-		color: var(--primary-color);
+		color: var(--heading-color);
 	}
 
 	p {

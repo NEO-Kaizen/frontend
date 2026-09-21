@@ -5,29 +5,13 @@
 	import Button from '$lib/components/Button.svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { formatShortDate, formatShortTime } from '$lib/utils/dates';
-	import type { PaginatedResponse, RequestStatus, RequestSummary } from '$lib/types/request';
+	import { statusToneClass } from '$lib/utils/status';
+	import type { PaginatedResponse, RequestSummary } from '$lib/types/request';
 	import type { Result } from '$lib/types/result';
 	import { resolve } from '$app/paths';
+	import { page as appPage } from '$app/state';
 
-	const mapStatusToClass: Record<RequestStatus, string> = {
-		'Aguardando triagem': 'status-blue',
-		'Aguardando mapeamento': 'status-blue',
-		'Em triagem': 'status-blue',
-		'Em desenvolvimento': 'status-blue',
-		'Direcionado para outra área': 'status-gray',
-		'Em análise de viabilidade': 'status-blue',
-		'Em homologação': 'status-blue',
-		'Em mapeamento': 'status-blue',
-		'Não elegível': 'status-red',
-		'Pendente de informações': 'status-yellow',
-		'Solicitação enviada': 'status-gray',
-		'Mapeamento agendado': 'status-blue',
-		Elegível: 'status-green',
-		Concluído: 'status-green',
-		Priorizado: 'status-yellow',
-		Cancelado: 'status-red',
-		Backlog: 'status-gray'
-	};
+	const statuses = $derived(appPage.data.portalConfig.statuses);
 
 	// União literal estreita: evita o falso-positivo RouteId × resolve() documentado.
 	type DetailRoute = '/(public)/acompanhar/[protocolo]' | '/(admin)/fila/[protocolo]';
@@ -156,7 +140,7 @@
 							</td>
 
 							<td>
-								<span class="status {mapStatusToClass[request.status] ?? 'status-gray'}">
+								<span class="status {statusToneClass(request.status, statuses)}">
 									<span class="status-dot"></span>
 									{request.status}
 								</span>
@@ -231,7 +215,7 @@
 	td {
 		padding: var(--spacing-lg);
 		border-bottom: var(--border-default);
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 		vertical-align: middle;
 	}
 
@@ -281,8 +265,8 @@
 	}
 
 	.prioridade.baixa {
-		color: var(--gray);
-		background: var(--white-gray);
+		color: var(--status-neutral);
+		background: var(--status-neutral-bg);
 	}
 
 	.responsavel,
@@ -335,11 +319,11 @@
 		background: var(--status-yellow);
 	}
 
-	.status.status-gray {
-		color: var(--gray);
+	.status.status-neutral {
+		color: var(--status-neutral);
 	}
-	.status.status-gray .status-dot {
-		background: var(--gray);
+	.status.status-neutral .status-dot {
+		background: var(--status-neutral);
 	}
 
 	.empty-state {
@@ -361,7 +345,7 @@
 	.empty-state h3 {
 		margin: 0 0 var(--spacing-xs);
 		font: var(--h3);
-		color: var(--primary-color);
+		color: var(--heading-color);
 	}
 
 	.empty-state p {

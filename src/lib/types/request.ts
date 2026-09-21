@@ -1,4 +1,5 @@
 import type { CriterionNotes } from './prioritization';
+import type { CorrectionAlert, PendingSummary, UnreadState } from './pendency';
 
 export type RequestStatus =
 	| 'Solicitação enviada'
@@ -51,26 +52,6 @@ export type RequestCategory =
 	| 'Apoio técnico'
 	| 'Estudo de viabilidade'
 	| 'Outros';
-
-export const REQUEST_STATUS_OPTIONS: RequestStatus[] = [
-	'Solicitação enviada',
-	'Aguardando triagem',
-	'Em triagem',
-	'Pendente de informações',
-	'Aguardando mapeamento',
-	'Mapeamento agendado',
-	'Em mapeamento',
-	'Em análise de viabilidade',
-	'Elegível',
-	'Não elegível',
-	'Priorizado',
-	'Backlog',
-	'Direcionado para outra área',
-	'Em desenvolvimento',
-	'Em homologação',
-	'Concluído',
-	'Cancelado'
-];
 
 // Bloco 1 — dados do solicitante.
 export interface RequesterBlock {
@@ -428,7 +409,16 @@ export interface InternalRequestDetail {
 	// ID do responsável (preparação para limitação por perfil — issue #121).
 	// `id` + `name` obrigatórios; ambos `null` apenas quando não atribuído.
 	assignee: { id: string | null; name: string | null; email?: string | null } | null;
-	correctionAlert?: { count: number; message: string } | null;
+	// Responsável pelo mapeamento (contrato Front ↔ Back — Mapeamento): quando
+	// o backend expô-lo, ele prevalece sobre `assignee` na permissão de edição
+	// da aba Mapeamento. Ausente = usa `assignee`.
+	mappingAssigneeId?: string | null;
+	// Leitura estendida do detalhe (contrato de pendências v0.5 §7): alerta de
+	// respostas a aprovar + resumo + não-lidos derivados de `PendingItem`.
+	// `unread` é derivado de `status` (D-P21) — sem "marcar como lido".
+	correctionAlert?: CorrectionAlert | null;
+	pendingSummary?: PendingSummary;
+	unread?: UnreadState;
 
 	// blocos da solicitação
 	requester: RequesterBlock;

@@ -6,10 +6,11 @@
 	interface Props {
 		title: string;
 		onclose: () => void;
+		size?: 'default' | 'large';
 		children: Snippet;
 	}
 
-	let { title, onclose, children }: Props = $props();
+	let { title, onclose, size = 'default', children }: Props = $props();
 
 	const uid = $props.id();
 
@@ -43,6 +44,7 @@
 	<div
 		bind:this={shellElement}
 		class="modal-shell"
+		class:modal-shell--large={size === 'large'}
 		role="dialog"
 		aria-modal="true"
 		tabindex="-1"
@@ -78,10 +80,16 @@
 		width: 100%;
 		max-width: 480px;
 		max-height: calc(100dvh - var(--spacing-xl));
-		overflow-y: auto;
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
 		background-color: var(--white);
 		border-radius: var(--radius-md);
 		box-shadow: var(--regular-shadow);
+	}
+
+	.modal-shell--large {
+		max-width: 720px;
 	}
 
 	.modal-header {
@@ -91,12 +99,13 @@
 		gap: var(--spacing-md);
 		padding: var(--spacing-md) var(--spacing-lg);
 		border-bottom: var(--border-default);
+		flex-shrink: 0;
 	}
 
 	.modal-header h3 {
 		margin: 0;
 		font: var(--h3);
-		color: var(--primary-color);
+		color: var(--heading-color);
 	}
 
 	.modal-close {
@@ -123,5 +132,7 @@
 
 	.modal-body {
 		padding: var(--spacing-lg);
+		overflow-y: auto;
+		min-height: 0;
 	}
 </style>

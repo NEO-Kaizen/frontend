@@ -11,18 +11,33 @@ const DASHBOARD_PATH = '/(admin)/home' as const;
 
 type PostLoginRoute = typeof CHANGE_PASSWORD_PATH | typeof DASHBOARD_PATH | typeof HOME_PATH;
 
-export type GuardRuleId = 'anySession' | 'internalArea' | 'adminOnly';
+export type GuardRuleId = 'anySession' | 'internalArea' | 'managementOnly' | 'adminOnly';
 
 const INTERNAL_PROFILES: readonly UserType[] = ['Analista', 'Gestor', 'Administrador'];
 
 const GUARD_RULES: Record<GuardRuleId, { profiles: 'any' | readonly UserType[] }> = {
 	anySession: { profiles: 'any' },
 	internalArea: { profiles: INTERNAL_PROFILES },
+	managementOnly: { profiles: ['Gestor', 'Administrador'] },
 	adminOnly: { profiles: ['Administrador'] }
 };
 
 export function isInternalProfile(role: UserType): boolean {
 	return INTERNAL_PROFILES.includes(role);
+}
+
+// Permissão de edição do conteúdo interno da solicitação (informações e
+// mapeamento): Administrador edita qualquer uma; os demais perfis editam
+// apenas a solicitação que lhes foi atribuída (responsável). O Gestor
+// visualiza em somente leitura porque não é atribuído como responsável.
+// A regra vive aqui para nenhum componente precisar de role hardcoded.
+export function canEditSolicitation(
+	assigneeId: string | null | undefined,
+	user: SessionUser | null
+): boolean {
+	if (!user) return false;
+	if (user.role === 'Administrador') return true;
+	return Boolean(assigneeId && assigneeId === user.id);
 }
 
 export function isProfileAllowed(role: UserType, profiles: 'any' | readonly UserType[]): boolean {

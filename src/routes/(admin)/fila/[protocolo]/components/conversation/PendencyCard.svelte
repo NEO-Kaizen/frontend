@@ -1,33 +1,46 @@
 <script lang="ts">
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import type { Pendency, PendencyStatus } from '$lib/types/conversation';
+	import type { PendingBatch, PendingItem } from '$lib/types/pendency';
+	import { formatDateTime } from '$lib/utils/dates';
 
 	interface Props {
-		pendency: Pendency;
-		onValidate?: (id: string) => void | Promise<void>;
-		onRequestAgain?: (id: string) => void | Promise<void>;
+		batch: PendingBatch;
+		onReview?: (batch: PendingBatch) => void | Promise<void>;
 	}
 
-	let { pendency, onValidate, onRequestAgain }: Props = $props();
-
-	type PendencyAction = 'validate' | 'requestAgain';
+	let { batch, onReview }: Props = $props();
 
 	let expanded = $state(false);
-	let pendingAction = $state<PendencyAction | null>(null);
+	let isReviewing = $state(false);
 
-	const STATUS_CONFIG: Record<PendencyStatus, { label: string; summaryStatus?: string }> = {
+	type BatchState = 'resolved' | 'responded' | 'requested';
+
+	const batchState = $derived<BatchState>(
+		batch.resolved ? 'resolved' : batch.respondedCount > 0 ? 'responded' : 'requested'
+	);
+
+	const STATUS_CONFIG: Record<BatchState, { label: string; summaryStatus?: string }> = {
 		requested: { label: 'Pendência solicitada', summaryStatus: 'aguardando resposta' },
-		awaiting_approval: { label: 'Resposta a aprovar', summaryStatus: 'aguardando aprovação' },
-		answered: { label: 'Pendência respondida' }
+		responded: { label: 'Resposta a aprovar', summaryStatus: 'aguardando aprovação' },
+		resolved: { label: 'Pendência validada' }
 	};
 
-	const statusConfig = $derived(STATUS_CONFIG[pendency.status]);
-	const fieldCount = $derived(pendency.fields.length);
-	const attachmentCount = $derived(pendency.attachments?.length ?? 0);
+	// CTAs de aprovação só aparecem com o lote COMPLETO respondido (contrato
+	// v0.5 §8: todos os itens `responded` + anexo satisfeito). A revisão parcial
+	// de subconjuntos (D-P23) continua disponível no modal de revisão.
+	const canApprove = $derived(
+		batch.respondedCount > 0 && batch.respondedCount === batch.items.length
+	);
 
-	function pluralize(value: number, singular: string, pluralform: string): string {
-		return value === 1 ? singular : pluralform;
+	const statusConfig = $derived(STATUS_CONFIG[batchState]);
+
+	const attachmentCount = $derived(
+		batch.items.reduce((count, item) => count + item.responseAttachments.length, 0)
+	);
+
+	function pluralize(value: number, singular: string, plural: string): string {
+		return value === 1 ? singular : plural;
 	}
 
 	function formatBytes(bytes: number): string {
@@ -35,20 +48,28 @@
 		return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 	}
 
+	function displayValue(value: string | number | boolean | null | undefined): string {
+		if (value === null || value === undefined) return '---';
+		return String(value);
+	}
+
 	const summary = $derived.by(() => {
-		const parts = [`${fieldCount} ${pluralize(fieldCount, 'campo', 'campos')}`];
-
-		if (pendency.status === 'answered') {
-			parts.push(`${attachmentCount} ${pluralize(attachmentCount, 'anexo', 'anexos')}`);
+		const parts: string[] = [];
+		if (batch.fieldCount > 0) {
+			parts.push(`${batch.fieldCount} ${pluralize(batch.fieldCount, 'campo', 'campos')}`);
 		} else {
-			if (attachmentCount > 0) {
-				parts.push(pluralize(attachmentCount, 'com anexo', 'com anexos'));
-			}
-			if (statusConfig.summaryStatus) {
-				parts.push(statusConfig.summaryStatus);
-			}
+			parts.push('somente instrução');
 		}
-
+		if (batch.respondedCount > 0) {
+			parts.push(
+				`${batch.respondedCount} ${pluralize(batch.respondedCount, 'resposta a aprovar', 'respostas a aprovar')}`
+			);
+		} else if (statusConfig.summaryStatus) {
+			parts.push(statusConfig.summaryStatus);
+		}
+		if (attachmentCount > 0) {
+			parts.push(`${attachmentCount} ${pluralize(attachmentCount, 'anexo', 'anexos')}`);
+		}
 		return parts.join(' · ');
 	});
 
@@ -56,31 +77,30 @@
 		expanded = !expanded;
 	}
 
-	// Ações apenas visuais: disparam callback fornecido pela camada de
-	// integração (#123). Bloqueia apenas duplo clique da mesma ação, sem
-	// bloquear ações não relacionadas.
-	async function runAction(action: PendencyAction): Promise<void> {
-		if (pendingAction === action) return;
-		pendingAction = action;
+	async function runReview(): Promise<void> {
+		if (isReviewing) return;
+		isReviewing = true;
 		try {
-			if (action === 'validate') {
-				await onValidate?.(pendency.id);
-			} else {
-				await onRequestAgain?.(pendency.id);
-			}
+			await onReview?.(batch);
 		} finally {
-			pendingAction = null;
+			isReviewing = false;
 		}
+	}
+
+	function fieldStateLabel(item: PendingItem): string {
+		if (item.status === 'validated') return 'Validado';
+		if (item.status === 'responded') return 'Respondido';
+		return 'Solicitado';
 	}
 </script>
 
 <!-- eslint-disable svelte/no-navigation-without-resolve -- links de anexo usam URL dinâmica do backend, não rotas do app -->
-<li id={`pendency-card-${pendency.id}`} class="pendency-card {pendency.status}">
+<li id={`pendency-card-${batch.batchId}`} class="pendency-card {batchState}">
 	<button
 		type="button"
 		class="card-toggle"
 		aria-expanded={expanded}
-		aria-controls={`pendency-panel-${pendency.id}`}
+		aria-controls={`pendency-panel-${batch.batchId}`}
 		onclick={toggle}
 	>
 		<span class="status-dot" aria-hidden="true"></span>
@@ -96,105 +116,136 @@
 	</button>
 
 	{#if expanded}
-		<div id={`pendency-panel-${pendency.id}`} class="pendency-panel">
-			<section class="pendency-section">
-				<h4 class="section-title">O que foi solicitado</h4>
-				{#if pendency.comment}
-					<p class="section-comment">{pendency.comment}</p>
-				{/if}
-				<ul class="field-chips">
-					{#each pendency.fields as field (field.field)}
-						<li class="field-chip">{field.label}</li>
-					{/each}
-				</ul>
-				<ul class="field-list">
-					{#each pendency.fields as field (field.field)}
-						<li class="field-row">
-							<span class="field-label">{field.label}</span>
-							{#if field.requestedValue}
-								<span class="field-value">{field.requestedValue}</span>
-							{/if}
-						</li>
-					{/each}
-				</ul>
-				{#if pendency.status === 'requested' && pendency.attachments && pendency.attachments.length > 0}
-					<ul class="attachment-list">
-						{#each pendency.attachments as attachment (attachment.id)}
-							<li class="attachment-item">
-								<Icon iconName="description" iconSize="sm" ariaLabel="Anexo" />
-								<span class="attachment-name">{attachment.name}</span>
-							</li>
-						{/each}
-					</ul>
-				{/if}
-			</section>
-
-			{#if pendency.status === 'awaiting_approval' || pendency.status === 'answered'}
-				<section class="pendency-section">
-					<h4 class="section-title">O que o solicitante respondeu</h4>
-					{#if pendency.responseMessage}
-						<p class="section-comment">{pendency.responseMessage}</p>
+		<div id={`pendency-panel-${batch.batchId}`} class="pendency-panel">
+			{#if batch.observation}
+				{@const observation = batch.observation}
+				<section class="pendency-section" aria-label="Observação da pendência">
+					<div class="field-head">
+						<h4 class="section-title">Observação</h4>
+						<span class="field-chip {observation.status}">{fieldStateLabel(observation)}</span>
+					</div>
+					<p class="section-comment">{observation.comment}</p>
+					{#if observation.status === 'responded' || observation.status === 'validated'}
+						{#if observation.responseText}
+							<p class="response-note">{observation.responseText}</p>
+						{/if}
 					{/if}
-					<ul class="field-list">
-						{#each pendency.fields as field (field.field)}
-							<li class="diff-block">
-								<span class="diff-label">{field.label}</span>
-								<div class="diff" aria-label={`Comparação do campo ${field.label}`}>
-									{#if field.requestedValue}
-										<span class="diff-removed">- {field.requestedValue}</span>
-									{/if}
-									{#if field.answeredValue}
-										<span class="diff-added">+ {field.answeredValue}</span>
-									{/if}
-								</div>
-							</li>
-						{/each}
-					</ul>
-					{#if pendency.attachments && pendency.attachments.length > 0}
+					{#if observation.responseAttachments.length > 0}
 						<ul class="attachment-list">
-							{#each pendency.attachments as attachment (attachment.id)}
+							{#each observation.responseAttachments as attachment (attachment.fileName)}
 								<li class="attachment-item">
 									<Icon iconName="description" iconSize="sm" ariaLabel="Anexo" />
-									{#if attachment.url && attachment.canDownload}
+									{#if attachment.downloadUrl && attachment.canDownload}
 										<a
 											class="attachment-link"
-											href={attachment.url}
+											href={attachment.downloadUrl}
 											download
-											title="Baixar anexo {attachment.name}"
+											title="Baixar anexo {attachment.fileName}"
 										>
-											{attachment.name}
+											{attachment.fileName}
 										</a>
 									{:else}
-										<span class="attachment-name">{attachment.name}</span>
+										<span class="attachment-name">{attachment.fileName}</span>
 									{/if}
-									{#if attachment.sizeBytes !== undefined}
-										<span class="attachment-size">{formatBytes(attachment.sizeBytes)}</span>
-									{/if}
+									<span class="attachment-size">{formatBytes(attachment.sizeBytes)}</span>
 								</li>
 							{/each}
 						</ul>
 					{/if}
+					<span class="item-date">
+						{#if observation.status === 'validated'}
+							Validada em {formatDateTime(observation.validatedAt ?? observation.createdAt)}
+						{:else if observation.status === 'responded'}
+							Respondida em {formatDateTime(observation.respondedAt ?? observation.createdAt)}
+						{:else}
+							Solicitada em {formatDateTime(observation.createdAt)}
+						{/if}
+					</span>
 				</section>
+			{/if}
 
-				{#if pendency.status === 'answered'}
-					<div class="pendency-actions" role="group" aria-label="Ações da pendência">
-						<Button
-							loading={pendingAction === 'validate'}
-							disabled={pendingAction === 'validate'}
-							onclick={() => void runAction('validate')}
-						>
-							Validar alteração
-						</Button>
-						<Button
-							variant="outline-neutral"
-							loading={pendingAction === 'requestAgain'}
-							disabled={pendingAction === 'requestAgain'}
-							onclick={() => void runAction('requestAgain')}
-						>
-							Solicitar novamente
-						</Button>
-					</div>
-				{/if}
+			{#if batch.fields.length > 0}
+				<section class="pendency-section" aria-label="Campos solicitados">
+					<h4 class="section-title">Campos solicitados</h4>
+					<ul class="field-list">
+						{#each batch.fields as item (item.id)}
+							<li class="field-block">
+								<div class="field-head">
+									<span class="field-label">{item.field?.fieldLabel ?? 'Campo'}</span>
+									<span class="field-chip {item.status}">{fieldStateLabel(item)}</span>
+								</div>
+								<p class="field-comment">{item.comment}</p>
+								{#if item.status === 'responded' || item.status === 'validated'}
+									{#if item.type === 'field_edit'}
+										<div class="diff" aria-label={`Comparação do campo ${item.field?.fieldLabel}`}>
+											<div class="diff-line diff-old">
+												<span class="diff-glyph" aria-hidden="true">−</span>
+												<span class="diff-value">{displayValue(item.field?.currentValue)}</span>
+											</div>
+											<div class="diff-line diff-new">
+												<span class="diff-glyph" aria-hidden="true">＋</span>
+												<span class="diff-value">{displayValue(item.correctedValue)}</span>
+											</div>
+										</div>
+									{/if}
+									{#if item.responseText}
+										<p class="response-note">{item.responseText}</p>
+									{/if}
+								{/if}
+								{#if item.responseAttachments.length > 0}
+									<ul class="attachment-list">
+										{#each item.responseAttachments as attachment (attachment.fileName)}
+											<li class="attachment-item">
+												<Icon iconName="description" iconSize="sm" ariaLabel="Anexo" />
+												{#if attachment.downloadUrl && attachment.canDownload}
+													<a
+														class="attachment-link"
+														href={attachment.downloadUrl}
+														download
+														title="Baixar anexo {attachment.fileName}"
+													>
+														{attachment.fileName}
+													</a>
+												{:else}
+													<span class="attachment-name">{attachment.fileName}</span>
+												{/if}
+												<span class="attachment-size">{formatBytes(attachment.sizeBytes)}</span>
+											</li>
+										{/each}
+									</ul>
+								{/if}
+								{#if item.status === 'validated'}
+									<span class="item-date">
+										Validado em {formatDateTime(item.validatedAt ?? item.createdAt)}
+									</span>
+								{:else if item.status === 'responded'}
+									<span class="item-date">
+										Respondido em {formatDateTime(item.respondedAt ?? item.createdAt)}
+									</span>
+								{/if}
+							</li>
+						{/each}
+					</ul>
+				</section>
+			{/if}
+
+			{#if batch.resolved}
+				<p class="resolved-note" role="status">
+					Todas as decisões desta pendência foram concluídas.
+				</p>
+			{:else if canApprove && onReview}
+				<div class="pendency-actions" role="group" aria-label="Ações da pendência">
+					<Button loading={isReviewing} disabled={isReviewing} onclick={() => void runReview()}>
+						Revisar pendência
+					</Button>
+				</div>
+			{:else if batch.respondedCount > 0}
+				<p class="waiting-note" role="status">
+					Aguardando resposta dos demais itens para aprovar o lote. A revisão parcial está
+					disponível no modal de pendências.
+				</p>
+			{:else}
+				<p class="waiting-note" role="status">Aguardando resposta do solicitante.</p>
 			{/if}
 		</div>
 	{/if}
@@ -213,14 +264,14 @@
 			box-shadow 150ms ease;
 	}
 
-	.pendency-card.awaiting_approval {
+	.pendency-card.responded {
 		border-left-color: var(--status-yellow);
 		background: var(--status-yellow-bg);
 	}
 
-	.pendency-card.answered {
-		border-left-color: var(--status-green);
-		background: var(--status-green-bg);
+	.pendency-card.resolved {
+		border-left-color: var(--gray);
+		background: var(--white);
 	}
 
 	.card-toggle {
@@ -254,12 +305,12 @@
 		flex-shrink: 0;
 	}
 
-	.awaiting_approval .status-dot {
+	.responded .status-dot {
 		background: var(--status-yellow);
 	}
 
-	.answered .status-dot {
-		background: var(--status-green);
+	.resolved .status-dot {
+		background: var(--gray);
 	}
 
 	.status-label {
@@ -269,12 +320,12 @@
 		color: var(--rich-black);
 	}
 
-	.awaiting_approval .status-label {
+	.responded .status-label {
 		color: var(--status-yellow);
 	}
 
-	.answered .status-label {
-		color: var(--status-green);
+	.resolved .status-label {
+		color: var(--gray);
 	}
 
 	.summary {
@@ -289,12 +340,12 @@
 		text-overflow: ellipsis;
 	}
 
-	.awaiting_approval .summary {
+	.responded .summary {
 		color: var(--status-yellow);
 	}
 
-	.answered .summary {
-		color: var(--status-green);
+	.resolved .summary {
+		color: var(--gray);
 	}
 
 	.chevron {
@@ -338,24 +389,10 @@
 		word-break: break-word;
 	}
 
-	.field-chips {
-		list-style: none;
-		margin: 0;
-		padding: 0;
-		display: flex;
-		flex-wrap: wrap;
-		gap: 6px;
-	}
-
-	.field-chip {
-		padding: 3px 10px;
-		border-radius: 999px;
-		background: var(--background-color);
-		border: var(--border-default);
+	.item-date {
 		font-family: var(--font-inter);
-		font-size: 12px;
-		font-weight: 500;
-		color: var(--secondary-color);
+		font-size: 11px;
+		color: var(--gray);
 	}
 
 	.field-list {
@@ -364,16 +401,23 @@
 		padding: 0;
 		display: flex;
 		flex-direction: column;
-		gap: var(--spacing-sm);
+		gap: var(--spacing-md);
 	}
 
-	.field-row {
+	.field-block {
 		display: flex;
 		flex-direction: column;
-		gap: 2px;
+		gap: 6px;
 		border-left: 2px solid var(--white-gray);
 		padding-left: 10px;
 		min-width: 0;
+	}
+
+	.field-head {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-sm);
+		flex-wrap: wrap;
 	}
 
 	.field-label {
@@ -383,27 +427,38 @@
 		color: var(--gray);
 	}
 
-	.field-value {
+	.field-chip {
+		padding: 2px 8px;
+		border-radius: 999px;
+		font-family: var(--font-inter);
+		font-size: 11px;
+		font-weight: 700;
+		background: var(--background-color);
+		color: var(--gray);
+		border: var(--border-default);
+		white-space: nowrap;
+	}
+
+	.field-chip.responded {
+		background: var(--status-yellow-bg);
+		color: var(--status-yellow);
+		border-color: var(--status-yellow);
+	}
+
+	.field-chip.validated {
+		background: var(--status-green-bg);
+		color: var(--status-green);
+		border-color: var(--status-green);
+	}
+
+	.field-comment {
+		margin: 0;
 		font-family: var(--font-inter);
 		font-size: 13px;
 		line-height: 1.5;
 		color: var(--rich-black);
 		white-space: pre-wrap;
 		word-break: break-word;
-	}
-
-	.diff-block {
-		display: flex;
-		flex-direction: column;
-		gap: 6px;
-		min-width: 0;
-	}
-
-	.diff-label {
-		font-family: var(--font-inter);
-		font-size: 12px;
-		font-weight: 600;
-		color: var(--gray);
 	}
 
 	.diff {
@@ -413,25 +468,60 @@
 		min-width: 0;
 	}
 
-	.diff-removed,
-	.diff-added {
-		font-family: var(--font-inter);
-		font-size: 13px;
-		line-height: 1.5;
+	.diff-line {
+		display: flex;
+		gap: var(--spacing-sm);
 		padding: 6px 10px;
 		border-radius: var(--radius-sm);
-		white-space: pre-wrap;
-		word-break: break-word;
+		align-items: baseline;
 	}
 
-	.diff-removed {
+	.diff-old {
 		background: var(--status-red-bg);
+	}
+
+	.diff-new {
+		background: var(--status-green-bg);
+	}
+
+	.diff-glyph {
+		font-weight: 700;
+		flex-shrink: 0;
+	}
+
+	.diff-old .diff-glyph {
 		color: var(--status-red);
 	}
 
-	.diff-added {
-		background: var(--status-green-bg);
+	.diff-new .diff-glyph {
 		color: var(--status-green);
+	}
+
+	.diff-value {
+		font-family: var(--font-inter);
+		font-size: 13px;
+		font-weight: 600;
+		word-break: break-word;
+		overflow-wrap: anywhere;
+	}
+
+	.diff-old .diff-value {
+		text-decoration: line-through;
+		color: var(--status-red);
+	}
+
+	.diff-new .diff-value {
+		color: var(--status-green);
+	}
+
+	.response-note {
+		margin: 0;
+		font-family: var(--font-inter);
+		font-size: 13px;
+		color: var(--black);
+		line-height: 1.5;
+		white-space: pre-wrap;
+		word-break: break-word;
 	}
 
 	.attachment-list {
@@ -482,6 +572,14 @@
 		color: var(--gray);
 		white-space: nowrap;
 		margin-left: auto;
+	}
+
+	.resolved-note,
+	.waiting-note {
+		margin: 0;
+		font-family: var(--font-inter);
+		font-size: 12px;
+		color: var(--gray);
 	}
 
 	.pendency-actions {

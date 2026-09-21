@@ -1,5 +1,3 @@
-import { ApiError } from '$lib/types/result';
-import { computePrioritizationResult, getSavedPrioritizationNotes } from './prioritization.mock';
 import type {
 	QueueAssignee,
 	QueueMetricsResponse,
@@ -7,16 +5,18 @@ import type {
 	QueueResponse
 } from '$lib/types/queue';
 import type {
-	InternalRequestDetail,
 	CreateRequestPayload,
 	CreateRequestResponse,
+	InternalRequestDetail,
 	ListRequestsQuery,
 	PaginatedResponse,
 	RequestDetail,
-	RequestSummary,
 	RequestStatus,
+	RequestSummary,
 	UpdateInternalRequestPayload
 } from '$lib/types/request';
+import { ApiError } from '$lib/types/result';
+import { computePrioritizationResult, getSavedPrioritizationNotes } from './prioritization.mock';
 
 // Status considerados "em andamento" para a métrica da fila: trabalho já em fluxo,
 // excluindo etapas de fila/priorização e estados terminais.
@@ -47,9 +47,9 @@ export type MockRequest = RequestSummary & {
 	assigneeId: string | null;
 };
 
-const MOCK_ASSIGNEES = {
+export const MOCK_ASSIGNEES = {
 	fernandoAlves: '650e8400-e29b-41d4-a716-446655440001',
-	anaSouza: '650e8400-e29b-41d4-a716-446655440002',
+	anaSouza: '1',
 	lucasGomes: '650e8400-e29b-41d4-a716-446655440003',
 	gabrielSoares: '650e8400-e29b-41d4-a716-446655440004',
 	carlosMendes: '650e8400-e29b-41d4-a716-446655440005'
@@ -742,7 +742,7 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 			name: 'Fernando Alves',
 			email: 'fernando.alves@maat.com.br'
 		},
-		correctionAlert: { count: 2, message: 'Alteração respondida pelo solicitante (2 campos)' },
+		correctionAlert: null,
 		requester: {
 			fullName: 'Maria Oliveira',
 			corporateEmail: 'maria.oliveira@maat.com.br',
@@ -820,7 +820,7 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 			name: 'Fernando Alves',
 			email: 'fernando.alves@maat.com.br'
 		},
-		correctionAlert: null,
+		correctionAlert: { count: 2, batchId: 'batch-2026-101' },
 		requester: {
 			fullName: 'Maria Oliveira',
 			corporateEmail: 'maria.oliveira@maat.com.br',

@@ -24,6 +24,7 @@
 		maxlength?: number;
 		icon?: IconName;
 		prefix?: string;
+		hint?: string;
 	}
 
 	type ActionProps =
@@ -58,6 +59,7 @@
 		actionIcon,
 		actionLabel,
 		onAction,
+		hint,
 		...restProps
 	}: Props = $props();
 
@@ -75,7 +77,12 @@
 
 <div class="input-field">
 	{#if label}
-		<label for={inputId}>{label}</label>
+		<label for={inputId}>
+			{label}
+			{#if hint}
+				<span class="label-hint">{hint}</span>
+			{/if}
+		</label>
 	{/if}
 
 	<div class="input-wrapper">
@@ -154,6 +161,12 @@
 		color: var(--black);
 	}
 
+	.label-hint {
+		margin-left: var(--spacing-sm);
+		color: var(--gray);
+		font-family: monospace;
+	}
+
 	input {
 		width: 100%;
 		box-sizing: border-box;
@@ -162,7 +175,7 @@
 		border-radius: var(--radius-sm);
 		font: var(--paragrafo);
 		background-color: var(--white);
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 		outline: none;
 		transition: var(--transition-default);
 	}
@@ -267,7 +280,7 @@
 	input.readonly {
 		cursor: default;
 		background-color: var(--white-gray);
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 	}
 
 	input[type='password']::-ms-reveal {

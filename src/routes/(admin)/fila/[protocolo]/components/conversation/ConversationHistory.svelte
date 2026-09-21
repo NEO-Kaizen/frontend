@@ -1,62 +1,58 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import Button from '$lib/components/Button.svelte';
-	import { UNVALIDATED_PENDENCY_STATUSES } from '$lib/services/conversation.service';
-	import type {
-		ConversationAttachmentInput,
-		ConversationHistory as ConversationHistoryEntity,
-		ConversationMessage
-	} from '$lib/types/conversation';
+	import { toPendingBatches } from '$lib/services/pendency.service';
+	import type { ListPendenciesResponse, PendingBatch } from '$lib/types/pendency';
 	import type { Result } from '$lib/types/result';
-	import ConversationComposer from './ConversationComposer.svelte';
-	import ConversationThread from './ConversationThread.svelte';
 	import CorrectionAlert from './CorrectionAlert.svelte';
-
-	interface ConversationSendInput {
-		content: string;
-		attachments: ConversationAttachmentInput[];
-	}
+	import PendencyCard from './PendencyCard.svelte';
 
 	interface Props {
-		initialHistory: ConversationHistoryEntity | null;
+		initialBatches: PendingBatch[];
 		initialLoading: boolean;
 		initialError: string | null;
-		correctionAlertMessage?: string | null;
-		onRetry?: () => Promise<Result<ConversationHistoryEntity>>;
-		onSendMessage?: (input: ConversationSendInput) => Promise<Result<ConversationMessage>>;
-		onValidatePendency?: (id: string) => void | Promise<void>;
-		onRequestAgainPendency?: (id: string) => void | Promise<void>;
+		/** Lote do `correctionAlert` do detalhe (contrato v0.5 §7) — alvo do scroll. */
+		correctionAlertBatchId?: string | null;
+		/** `false` enquanto existir lote em aberto (D-P22) — bloqueia nova criação. */
+		canRequestCreate?: boolean;
+		onRetry?: () => Promise<Result<ListPendenciesResponse>>;
+		onReviewBatch?: (batch: PendingBatch) => void;
+		onRequestCreate?: () => void;
 	}
 
 	let {
-		initialHistory,
+		initialBatches,
 		initialLoading,
 		initialError,
-		correctionAlertMessage = null,
+		correctionAlertBatchId = null,
+		canRequestCreate = true,
 		onRetry,
-		onSendMessage,
-		onValidatePendency,
-		onRequestAgainPendency
+		onReviewBatch,
+		onRequestCreate
 	}: Props = $props();
 
-	let history = $state<ConversationHistoryEntity | null>(untrack(() => initialHistory));
+	let batches = $state<PendingBatch[]>(untrack(() => initialBatches));
 	let isLoading = $state(untrack(() => initialLoading));
 	let loadError = $state<string | null>(untrack(() => initialError));
 
-	const items = $derived(history?.items ?? []);
+	// Sincroniza com o server load (ex.: após criar/revisar + invalidateAll).
+	// O retry local é preservado enquanto carrega.
+	$effect(() => {
+		if (!isLoading) {
+			batches = initialBatches;
+		}
+	});
 
-	const unvalidatedPendencies = $derived(
-		items.filter(
-			(item) => item.type === 'pendency' && UNVALIDATED_PENDENCY_STATUSES.includes(item.status)
-		)
+	const respondedCount = $derived(
+		batches.reduce((count, batch) => count + batch.respondedCount, 0)
 	);
 
 	const correctionAlert = $derived.by(() => {
-		if (!history || unvalidatedPendencies.length === 0) return null;
+		if (batches.length === 0 || respondedCount === 0) return null;
 
 		return {
-			count: unvalidatedPendencies.length,
-			message: correctionAlertMessage ?? 'O solicitante respondeu às pendências abertas.'
+			count: respondedCount,
+			message: 'O solicitante respondeu às pendências. Revise as respostas.'
 		};
 	});
 
@@ -69,7 +65,7 @@
 		const result = await onRetry();
 
 		if (result.ok) {
-			history = result.data;
+			batches = toPendingBatches(result.data);
 		} else {
 			loadError = result.error.message;
 		}
@@ -77,38 +73,15 @@
 		isLoading = false;
 	}
 
-	async function handleComposerSend(
-		input: ConversationSendInput
-	): Promise<Result<ConversationMessage>> {
-		if (!onSendMessage) {
-			return {
-				ok: false,
-				error: { message: 'O envio de mensagens não está disponível.' }
-			};
-		}
-
-		const result = await onSendMessage(input);
-
-		if (result.ok && history) {
-			history = {
-				...history,
-				items: [...history.items, { ...result.data, type: 'message' }]
-			};
-		}
-
-		return result;
-	}
-
 	function scrollToFirstPending(): void {
-		const unvalidated = unvalidatedPendencies;
+		const pending =
+			batches.find((batch) => batch.batchId === correctionAlertBatchId) ??
+			batches.find((batch) => batch.respondedCount > 0) ??
+			batches[0];
 
-		if (unvalidated.length === 0) return;
+		if (!pending) return;
 
-		const item = unvalidated[0];
-
-		if (item.type !== 'pendency') return;
-
-		const element = document.getElementById(`pendency-card-${item.id}`);
+		const element = document.getElementById(`pendency-card-${pending.batchId}`);
 
 		element?.scrollIntoView({
 			behavior: 'smooth',
@@ -119,7 +92,19 @@
 
 <section class="conversation" aria-labelledby="conversation-title">
 	<header class="conversation-header">
-		<h3 id="conversation-title" class="conversation-title">Histórico de Conversa</h3>
+		<h3 id="conversation-title" class="conversation-title">Histórico de pendências</h3>
+		{#if onRequestCreate}
+			<Button
+				variant="outline-neutral"
+				disabled={!canRequestCreate}
+				title={canRequestCreate
+					? 'Criar uma nova pendência (observação e/ou campos)'
+					: 'Há uma pendência em aberto — conclua a revisão para solicitar outra'}
+				onclick={onRequestCreate}
+			>
+				+ Solicitar pendência
+			</Button>
+		{/if}
 	</header>
 
 	<div class="conversation-content">
@@ -132,7 +117,7 @@
 					</div>
 				{/each}
 
-				<p class="sr-only">Carregando mensagens…</p>
+				<p class="sr-only">Carregando pendências…</p>
 			</div>
 		{:else if loadError}
 			<div class="conversation-error" role="alert">
@@ -151,23 +136,19 @@
 				/>
 			{/if}
 
-			{#if history}
-				{#if history.items.length === 0}
-					<p class="conversation-empty" role="status">Nenhuma mensagem foi enviada ainda.</p>
-				{:else}
-					<ConversationThread
-						items={history.items}
-						onValidate={onValidatePendency}
-						onRequestAgain={onRequestAgainPendency}
-					/>
-				{/if}
+			{#if batches.length === 0}
+				<p class="conversation-empty" role="status">
+					Nenhuma pendência registrada para esta solicitação.
+				</p>
+			{:else}
+				<ul class="pendency-list">
+					{#each batches as batch (batch.batchId)}
+						<PendencyCard {batch} onReview={onReviewBatch} />
+					{/each}
+				</ul>
 			{/if}
 		{/if}
 	</div>
-
-	{#if !isLoading && !loadError && history && onSendMessage}
-		<ConversationComposer onSend={handleComposerSend} />
-	{/if}
 </section>
 
 <style>
@@ -201,6 +182,17 @@
 		font-size: 16px;
 		font-weight: 700;
 		color: var(--rich-black);
+	}
+
+	.pendency-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-md);
+		width: 100%;
+		min-width: 0;
 	}
 
 	.conversation-loading {

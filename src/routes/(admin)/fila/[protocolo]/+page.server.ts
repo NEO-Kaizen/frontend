@@ -1,5 +1,6 @@
-import { getConversation } from '$lib/services/conversation.service';
 import { getInternalRequest } from '$lib/services/request.service';
+import { getInternalNotes } from '$lib/services/internal-note.service';
+import { listPendencies } from '$lib/services/pendency.service';
 import type { PageServerLoad } from './$types';
 
 // Server load (não universal): o fetch sai do servidor sem o modelo CORS do
@@ -8,24 +9,37 @@ import type { PageServerLoad } from './$types';
 export const load: PageServerLoad = async ({ params, fetch }) => {
 	const protocol = params.protocolo;
 
-	const [requestResult, conversationResult] = await Promise.all([
+	const [result, internalNotesResult, pendenciesResult] = await Promise.all([
 		getInternalRequest(protocol, fetch),
-		getConversation(protocol, fetch)
+		getInternalNotes(protocol, fetch),
+		listPendencies(protocol, fetch)
 	]);
 
-	if (requestResult.ok) {
+	// A leitura de pendências segue o contrato v0.4: em DEV o mock responde; em
+	// produção, sem endpoint dedicado de listagem, o histórico exibe o estado
+	// de erro com retry em vez de quebrar a página.
+	const pendencies = pendenciesResult.ok ? pendenciesResult.data : null;
+	const pendenciesError = pendenciesResult.ok ? null : pendenciesResult.error.message;
+
+	if (result.ok) {
 		return {
 			protocol,
-			solicitation: requestResult.data,
+			solicitation: result.data,
 			error: null,
-			conversationResult
+			internalNotes: internalNotesResult.ok ? internalNotesResult.data : null,
+			internalNotesError: internalNotesResult.ok ? null : internalNotesResult.error.message,
+			pendencies,
+			pendenciesError
 		};
 	}
 
 	return {
 		protocol,
 		solicitation: null,
-		error: requestResult.error,
-		conversationResult
+		error: result.error,
+		internalNotes: null,
+		internalNotesError: null,
+		pendencies,
+		pendenciesError
 	};
 };

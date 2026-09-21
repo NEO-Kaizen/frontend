@@ -10,8 +10,12 @@ export const MOCK_DOMAINS =
 	MOCKS_ENABLED &&
 	({
 		auth: true,
+		dashboard: true,
 		request: true,
+		portalConfig: true,
 		users: true,
 		prioritization: true,
-		conversation: true
+		pendingItems: true,
+		mapping: true,
+		internalNotes: true
 	} as const);
