@@ -130,6 +130,7 @@
 				value={editValue}
 				options={variant.options ?? []}
 				{disabled}
+				{required}
 				{error}
 				dirty={isDirty}
 				clearValue={variant.allowEmpty ? '' : undefined}
@@ -169,10 +170,12 @@
 						? 'Editar justificativa desta marcação'
 						: 'Marcar este campo para solicitar alteração'}
 				>
-					{label}
+					{label}{#if required}<span class="required-mark" aria-hidden="true">*</span>{/if}
 				</button>
 			{:else}
-				<span class="field-label">{label}</span>
+				<span class="field-label"
+					>{label}{#if required}<span class="required-mark" aria-hidden="true">*</span>{/if}</span
+				>
 			{/if}
 			{#if onPendencyClick}
 				<button
@@ -221,6 +224,11 @@
 		color: var(--gray);
 		letter-spacing: 0.03em;
 		line-height: 1.5;
+	}
+
+	.required-mark {
+		margin-left: 2px;
+		color: var(--status-red);
 	}
 
 	button.field-label {

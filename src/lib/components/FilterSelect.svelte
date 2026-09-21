@@ -23,6 +23,7 @@
 		error?: string;
 		disabled?: boolean;
 		dirty?: boolean;
+		required?: boolean;
 	}
 
 	let {
@@ -36,7 +37,8 @@
 		clearValue,
 		error = '',
 		disabled = false,
-		dirty = false
+		dirty = false,
+		required = false
 	}: Props = $props();
 
 	const uid = $props.id();
@@ -184,7 +186,9 @@
 
 <div class="filter-select">
 	{#if label}
-		<label for={inputId}>{label}</label>
+		<label for={inputId}
+			>{label}{#if required}<span class="required-mark" aria-hidden="true">*</span>{/if}</label
+		>
 	{/if}
 
 	<div
@@ -207,6 +211,7 @@
 			aria-controls={listId}
 			aria-activedescendant={open && filtered[highlighted] ? optionId(highlighted) : undefined}
 			aria-label={ariaLabel ?? label}
+			aria-required={required ? true : undefined}
 			aria-invalid={error ? true : undefined}
 			aria-describedby={error ? `${inputId}-error` : undefined}
 			{placeholder}
@@ -302,6 +307,11 @@
 	label {
 		font: var(--label);
 		color: var(--black);
+	}
+
+	.required-mark {
+		margin-left: 2px;
+		color: var(--status-red);
 	}
 
 	.control {

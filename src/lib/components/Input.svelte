@@ -95,7 +95,7 @@
 <div class="input-field">
 	{#if label}
 		<label for={inputId}>
-			{label}
+			{label}{#if required}<span class="required-mark" aria-hidden="true">*</span>{/if}
 			{#if hint}
 				<span class="label-hint">{hint}</span>
 			{/if}
@@ -193,6 +193,11 @@
 		margin-left: var(--spacing-sm);
 		color: var(--gray);
 		font-family: monospace;
+	}
+
+	.required-mark {
+		margin-left: 2px;
+		color: var(--status-red);
 	}
 
 	input {

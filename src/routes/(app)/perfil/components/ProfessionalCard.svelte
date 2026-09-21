@@ -139,6 +139,7 @@
 		/>
 
 		<TagInput
+			required
 			label="Especialidades"
 			hint="Pressione Enter ou use + para adicionar."
 			placeholder="Ex.: Automação"
@@ -149,7 +150,10 @@
 		/>
 
 		<fieldset class="categories">
-			<legend>Formatos de demanda atendidos</legend>
+			<legend
+				>Formatos de demanda atendidos<span class="required-mark" aria-hidden="true">*</span
+				></legend
+			>
 
 			<div class="category-options">
 				{#each categories as category (category.id)}
@@ -191,6 +195,11 @@
 		padding: 0;
 		font: var(--label);
 		color: var(--black);
+	}
+
+	.required-mark {
+		margin-left: 2px;
+		color: var(--status-red);
 	}
 
 	.category-options {

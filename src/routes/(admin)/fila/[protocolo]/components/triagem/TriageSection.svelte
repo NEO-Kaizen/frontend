@@ -323,6 +323,7 @@
 			<div class="narrow-field">
 				<FilterSelect
 					label="Aderente ao Escopo?"
+					required
 					options={YES_NO_OPTIONS}
 					value={draft.adherentToScope}
 					onchange={(v) => handleFieldChange('adherentToScope', v)}
@@ -334,6 +335,7 @@
 			<div class="wide-field">
 				<Input
 					label="Justificativa"
+					required={draft.adherentToScope === 'Não'}
 					placeholder="Informe a justificativa"
 					bind:value={draft.adherentJustification}
 					maxlength={1000}
@@ -350,6 +352,7 @@
 			<div class="narrow-field">
 				<FilterSelect
 					label="Mudar a Categoria?"
+					required
 					options={YES_NO_OPTIONS}
 					value={draft.changeCategory}
 					onchange={(v) => handleFieldChange('changeCategory', v)}
@@ -368,6 +371,7 @@
 					<div class="category-new">
 						<FilterSelect
 							label="Nova Categoria"
+							required={draft.changeCategory === 'Sim'}
 							options={categoryOptions}
 							value={draft.newCategory}
 							onchange={(v) => handleFieldChange('newCategory', v)}
@@ -384,6 +388,7 @@
 	<div class="field-75">
 		<Textarea
 			label="Complexidade Preliminar"
+			required={draft.adherentToScope === 'Sim'}
 			placeholder="Descreva a complexidade preliminar"
 			bind:value={draft.preliminaryComplexity}
 			maxlength={4000}
@@ -397,6 +402,7 @@
 	<div class="field-75">
 		<Textarea
 			label="Riscos Percebidos"
+			required={draft.adherentToScope === 'Sim'}
 			placeholder="Descreva os riscos percebidos"
 			bind:value={draft.perceivedRisks}
 			maxlength={4000}
@@ -441,6 +447,7 @@
 			<div class="narrow-field wide-field">
 				<FilterSelect
 					label="Status de Saída"
+					required
 					options={exitOptions}
 					value={draft.exitStatus === '' ? '' : String(draft.exitStatus)}
 					onchange={handleExitStatusChange}
@@ -452,6 +459,7 @@
 			<div class="result-field">
 				<Input
 					label="Resultado"
+					required
 					placeholder="Informe o resultado"
 					bind:value={draft.result}
 					maxlength={1000}
@@ -467,6 +475,7 @@
 	<div class="field-75">
 		<Textarea
 			label="Justificativa"
+			required
 			placeholder="Informe a justificativa da conclusão"
 			bind:value={draft.conclusionJustification}
 			maxlength={4000}

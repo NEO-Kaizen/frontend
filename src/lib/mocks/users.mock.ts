@@ -1,5 +1,6 @@
 import { ApiError } from '$lib/types/result';
-import type { PaginatedResponse } from '$lib/types/request';
+import type { PaginatedResponse, RequestCategory } from '$lib/types/request';
+import { DEFAULT_CATEGORIES } from '$lib/config/portal-defaults';
 
 import type {
 	Analyst,
@@ -355,6 +356,27 @@ export function createUserMock(payload: CreateUserPayload): Promise<CreateUserRe
 		return Promise.reject(new ApiError(409, 'E-mail já cadastrado'));
 	}
 
+	const isAnalyst = payload.role === 'analista';
+	const professional = payload.professional;
+
+	if (
+		isAnalyst &&
+		(!professional ||
+			!professional.jobTitle.trim() ||
+			professional.specialties.length === 0 ||
+			professional.attendedCategoryIds.length === 0)
+	) {
+		return Promise.reject(
+			new ApiError(400, 'Dados profissionais são obrigatórios para o perfil Analista.')
+		);
+	}
+
+	if (!isAnalyst && professional) {
+		return Promise.reject(
+			new ApiError(400, 'Dados profissionais são exclusivos do perfil Analista.')
+		);
+	}
+
 	const temporaryPassword = generateTemporaryPassword();
 	const createdAt = new Date().toISOString();
 	const id = String(nextId++);
@@ -375,9 +397,11 @@ export function createUserMock(payload: CreateUserPayload): Promise<CreateUserRe
 	};
 
 	if (role === 'Analista') {
-		baseUser.specialty = '';
-		baseUser.categories = [];
-		baseUser.notes = null;
+		baseUser.specialty = professional?.jobTitle.trim() ?? '';
+		baseUser.categories = (professional?.attendedCategoryIds ?? [])
+			.map((categoryId) => DEFAULT_CATEGORIES.find((category) => category.id === categoryId)?.name)
+			.filter((name): name is RequestCategory => Boolean(name));
+		baseUser.notes = professional?.notes?.trim() || null;
 		baseUser.requestLoad = 0;
 	}
 

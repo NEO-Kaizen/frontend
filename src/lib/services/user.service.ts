@@ -25,7 +25,15 @@ import type {
 	UserSummary
 } from '$lib/types/user';
 
-import { isRequired, isValidEmail, isValidText, PASSWORD_PATTERN } from '$lib/utils/validations';
+import {
+	isRequired,
+	isValidEmail,
+	isValidText,
+	PASSWORD_PATTERN,
+	PROFILE_JOB_TITLE_MAX_LENGTH,
+	PROFILE_NOTES_MAX_LENGTH,
+	PROFILE_SPECIALTY_MAX_LENGTH
+} from '$lib/utils/validations';
 
 export async function listUsers(
 	query: ListUsersQuery,
@@ -79,7 +87,8 @@ export async function createUser(data: CreateUserFormData): Promise<Result<Creat
 		const response = await createUserApi({
 			fullName: data.name.trim(),
 			email: data.email.trim(),
-			role: data.role
+			role: data.role,
+			professional: data.professional
 		});
 
 		return {
@@ -259,6 +268,46 @@ function validateCreateUser(data: CreateUserFormData): { message: string } | nul
 		return {
 			message: 'O e-mail deve ter no máximo 254 caracteres.'
 		};
+	}
+
+	if (data.role === 'analista') {
+		const professional = data.professional;
+
+		if (!professional) {
+			return { message: 'Dados profissionais são obrigatórios para o perfil Analista.' };
+		}
+
+		const jobTitle = professional.jobTitle.trim();
+
+		if (!isRequired(jobTitle)) {
+			return { message: 'Informe o cargo do analista.' };
+		}
+
+		if (jobTitle.length > PROFILE_JOB_TITLE_MAX_LENGTH) {
+			return { message: `O cargo deve ter no máximo ${PROFILE_JOB_TITLE_MAX_LENGTH} caracteres.` };
+		}
+
+		if (professional.specialties.length === 0) {
+			return { message: 'Informe ao menos uma especialidade.' };
+		}
+
+		if (professional.specialties.some((item) => item.length > PROFILE_SPECIALTY_MAX_LENGTH)) {
+			return {
+				message: `Cada especialidade deve ter no máximo ${PROFILE_SPECIALTY_MAX_LENGTH} caracteres.`
+			};
+		}
+
+		if (professional.attendedCategoryIds.length === 0) {
+			return { message: 'Selecione ao menos uma categoria atendida.' };
+		}
+
+		if ((professional.notes ?? '').trim().length > PROFILE_NOTES_MAX_LENGTH) {
+			return {
+				message: `As observações devem ter no máximo ${PROFILE_NOTES_MAX_LENGTH} caracteres.`
+			};
+		}
+	} else if (data.professional) {
+		return { message: 'Dados profissionais são exclusivos do perfil Analista.' };
 	}
 
 	return null;

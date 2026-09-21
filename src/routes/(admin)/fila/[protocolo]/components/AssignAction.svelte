@@ -318,7 +318,9 @@
 
 		<footer class="assign-footer">
 			<div class="responsibility-group" role="radiogroup" aria-label="Responsabilidade do analista">
-				<span class="responsibility-title">Responsável por:</span>
+				<span class="responsibility-title"
+					>Responsável por:<span class="required-mark" aria-hidden="true">*</span></span
+				>
 				<label class="radio-option" class:selected={responsibility === 'triagem'}>
 					<input
 						type="radio"
@@ -801,6 +803,11 @@
 		letter-spacing: 0.02em;
 		text-transform: uppercase;
 		white-space: nowrap;
+	}
+
+	.required-mark {
+		margin-left: 2px;
+		color: var(--status-red);
 	}
 
 	.radio-option {

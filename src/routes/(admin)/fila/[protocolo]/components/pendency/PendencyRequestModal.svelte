@@ -81,6 +81,7 @@
 	<div class="field">
 		<Textarea
 			label="Observação"
+			required={entries.length === 0}
 			placeholder="Descreva o que precisa ser corrigido ou informado..."
 			bind:value={observation}
 			rows={4}

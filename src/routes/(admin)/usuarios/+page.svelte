@@ -30,6 +30,11 @@
 
 	let { data }: PageProps = $props();
 
+	// Categorias ativas alimentam os "formatos de demanda atendidos" do analista.
+	const activeCategories = $derived(
+		data.portalConfig.categories.filter((category) => category.isActive)
+	);
+
 	const tabs = [
 		{ id: 'todos', label: 'Todos', profile: undefined },
 		{ id: 'administradores', label: 'Administradores', profile: 'administrador' },
@@ -205,7 +210,8 @@
 		const result = await createUser({
 			name: data.name.trim(),
 			email: data.email.trim(),
-			role: data.role
+			role: data.role,
+			professional: data.professional
 		});
 
 		isCreating = false;
@@ -481,6 +487,7 @@
 	<CreateUserModal
 		loading={isCreating}
 		error={createError}
+		categories={activeCategories}
 		onclose={closeCreateModal}
 		oncreate={handleCreate}
 	/>
