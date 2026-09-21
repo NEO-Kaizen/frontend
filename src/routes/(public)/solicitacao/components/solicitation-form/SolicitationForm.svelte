@@ -18,6 +18,7 @@
 	} from '$lib/services/solicitation-draft.service';
 	import type { SessionUser } from '$lib/types/auth';
 	import type { SolicitationMode } from '$lib/types/portal-config';
+	import type { RequesterProfileBlock } from '$lib/types/user';
 	import type {
 		ComplementaryData,
 		CreateRequestPayload,
@@ -35,11 +36,17 @@
 
 	interface Props {
 		user?: SessionUser | null;
+		requesterProfile?: RequesterProfileBlock | null;
 		solicitationMode: SolicitationMode;
 		categoryOptions?: { value: string; label: string }[];
 	}
 
-	let { user = null, solicitationMode, categoryOptions = [] }: Props = $props();
+	let {
+		user = null,
+		requesterProfile = null,
+		solicitationMode,
+		categoryOptions = []
+	}: Props = $props();
 
 	const hasSession = $derived(Boolean(user));
 	const shouldLockIdentity = $derived(solicitationMode === 'AUTHENTICATED' && hasSession);
@@ -79,12 +86,23 @@
 			: { fullName: '', corporateEmail: '' };
 	}
 
+	// Dados de solicitante salvos em "Meus dados" — pré-preenchem a etapa 1
+	// quando o rascunho não tem valor para o campo.
+	function getProfileRequester(): Pick<
+		IdentificationData,
+		'area' | 'department' | 'manager' | 'additionalContact'
+	> {
+		return {
+			area: requesterProfile?.area ?? '',
+			department: requesterProfile?.department ?? '',
+			manager: requesterProfile?.manager ?? '',
+			additionalContact: requesterProfile?.additionalContact ?? ''
+		};
+	}
+
 	let identification = $state<IdentificationData>({
 		...getSessionIdentity(),
-		area: '',
-		department: '',
-		manager: '',
-		additionalContact: ''
+		...getProfileRequester()
 	});
 
 	let demand = $state<DemandData>({
@@ -144,9 +162,18 @@
 		currentStep = draft.currentStep;
 		completedSteps = new Set(draft.completedSteps);
 		visitedSteps = new Set(draft.visitedSteps);
-		identification = shouldLockIdentity
-			? { ...draft.identification, ...getSessionIdentity() }
-			: draft.identification;
+
+		// O rascunho manda; o perfil preenche apenas os campos ainda vazios.
+		const fromProfile = getProfileRequester();
+		const merged: IdentificationData = {
+			...draft.identification,
+			area: draft.identification.area || fromProfile.area,
+			department: draft.identification.department || fromProfile.department,
+			manager: draft.identification.manager || fromProfile.manager,
+			additionalContact: draft.identification.additionalContact || fromProfile.additionalContact
+		};
+
+		identification = shouldLockIdentity ? { ...merged, ...getSessionIdentity() } : merged;
 		demand = draft.demand;
 		operational = draft.operational;
 		complementary = draft.complementary;
@@ -226,12 +253,8 @@
 		protocolCopied = false;
 		clearTimeout(copyTimeout);
 		identification = {
-			fullName: hasSession ? (user?.name ?? '') : '',
-			corporateEmail: hasSession ? (user?.email ?? '') : '',
-			area: '',
-			department: '',
-			manager: '',
-			additionalContact: ''
+			...getSessionIdentity(),
+			...getProfileRequester()
 		};
 		demand = {
 			title: '',

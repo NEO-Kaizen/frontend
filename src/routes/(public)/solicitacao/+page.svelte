@@ -14,6 +14,7 @@
 <main class="content-container">
 	<SolicitationForm
 		user={data.user}
+		requesterProfile={data.requesterProfile}
 		solicitationMode={data.portalConfig.solicitationMode}
 		{categoryOptions}
 	/>
