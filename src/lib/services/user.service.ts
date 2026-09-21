@@ -1,8 +1,10 @@
 import {
 	createUser as createUserApi,
+	getMyProfile as getMyProfileApi,
 	getUserStats as getUserStatsApi,
 	listUsers as listUsersApi,
 	resetUserPassword as resetUserPasswordApi,
+	updateMyProfile as updateMyProfileApi,
 	updateUserStatus as updateUserStatusApi
 } from '$lib/api/user.api';
 
@@ -15,7 +17,9 @@ import type {
 	CreateUserResponse,
 	ListUsersQuery,
 	ResetPasswordResponse,
+	UpdateMyProfileInput,
 	UpdateUserStatusResponse,
+	UserProfileResponse,
 	UserStats,
 	UserStatus,
 	UserSummary
@@ -159,6 +163,56 @@ export async function resetUserPassword(id: string): Promise<Result<ResetPasswor
 			}
 		};
 	}
+}
+
+// "Meus dados" — leitura e gravação do próprio perfil. O backend decide
+// bloqueios (bloco professional só para Analista, campos imutáveis ignorados);
+// o service apenas transporta e traduz o erro para a UI.
+export async function getMyProfile(fetchImpl?: typeof fetch): Promise<Result<UserProfileResponse>> {
+	try {
+		const data = await getMyProfileApi(fetchImpl);
+
+		return {
+			ok: true,
+			data
+		};
+	} catch (error) {
+		return mapApiError(error);
+	}
+}
+
+export async function updateMyProfile(
+	input: UpdateMyProfileInput
+): Promise<Result<UserProfileResponse>> {
+	try {
+		const data = await updateMyProfileApi(input);
+
+		return {
+			ok: true,
+			data
+		};
+	} catch (error) {
+		return mapApiError(error);
+	}
+}
+
+function mapApiError<T>(error: unknown): Result<T> {
+	if (error instanceof ApiError) {
+		return {
+			ok: false,
+			error: {
+				status: error.status,
+				message: error.message
+			}
+		};
+	}
+
+	return {
+		ok: false,
+		error: {
+			message: 'Não foi possível conectar ao servidor.'
+		}
+	};
 }
 
 function mapUserSummary(user: UserSummary): AdminUser {

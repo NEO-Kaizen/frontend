@@ -243,3 +243,37 @@ export const PASSWORD_MIN_LENGTH = 8;
 export const PASSWORD_PATTERN = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
 
 export const PASSWORD_REQUIREMENTS = ['Mínimo de 8 caracteres', 'Contém letras e números'] as const;
+
+// ---- "Meus dados" (GET/PUT /users/me) ----
+// Limites espelham o schema do backend (`UpdateProfileRequest.dto.ts` +
+// `users.schema.ts`) para o formulário bloquear antes do request.
+export const PROFILE_AREA_MAX_LENGTH = 100;
+
+export const PROFILE_DEPARTMENT_MAX_LENGTH = 100;
+
+export const PROFILE_MANAGER_MAX_LENGTH = 150;
+
+export const PROFILE_ADDITIONAL_CONTACT_MAX_LENGTH = 100;
+
+export const PROFILE_JOB_TITLE_MAX_LENGTH = 100;
+
+export const PROFILE_SPECIALTY_MAX_LENGTH = 100;
+
+export const PROFILE_NOTES_MAX_LENGTH = 500;
+
+// Mesma regra do `uploadAvatar` do backend (jpeg/png, até 2MB).
+export const PROFILE_AVATAR_MAX_BYTES = 2 * 1024 * 1024;
+
+export const PROFILE_AVATAR_EXTENSIONS: readonly string[] = ['.jpg', '.jpeg', '.png'];
+
+export const PROFILE_AVATAR_KINDS: readonly string[] = ['image/jpeg', 'image/png'];
+
+export function isValidProfileAvatar(file: File): boolean {
+	const extension = '.' + (file.name.split('.').pop() ?? '').toLowerCase();
+
+	return (
+		PROFILE_AVATAR_EXTENSIONS.includes(extension) &&
+		PROFILE_AVATAR_KINDS.includes(file.type) &&
+		file.size <= PROFILE_AVATAR_MAX_BYTES
+	);
+}

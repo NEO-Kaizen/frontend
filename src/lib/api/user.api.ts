@@ -8,12 +8,43 @@ import type {
 	CreateUserResponse,
 	ListUsersQuery,
 	ResetPasswordResponse,
+	UpdateMyProfileInput,
 	UpdateUserStatusResponse,
+	UserProfileResponse,
 	UserStats,
 	UserSummary
 } from '$lib/types/user';
 
 const USERS_PATH = '/users';
+
+// "Meus dados" (GET/PUT /users/me) — self-service, autenticado.
+export async function getMyProfile(fetchImpl?: typeof fetch): Promise<UserProfileResponse> {
+	return apiClient<UserProfileResponse>(`${USERS_PATH}/me`, {}, fetchImpl);
+}
+
+export async function updateMyProfile(input: UpdateMyProfileInput): Promise<UserProfileResponse> {
+	const formData = new FormData();
+
+	// O backend lê o JSON da parte `payload`; `undefined` some do stringify e
+	// assim só os blocos informados entram no PATCH (contrato multipart).
+	formData.set(
+		'payload',
+		JSON.stringify({
+			requester: input.requester,
+			professional: input.professional,
+			removeAvatar: input.removeAvatar
+		})
+	);
+
+	if (input.avatar) {
+		formData.set('avatar', input.avatar);
+	}
+
+	return apiClient<UserProfileResponse>(`${USERS_PATH}/me`, {
+		method: 'PUT',
+		body: formData
+	});
+}
 
 export async function listUsers(
 	query: ListUsersQuery,

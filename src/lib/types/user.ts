@@ -78,3 +78,53 @@ export interface ResetPasswordResponse {
 	id: string;
 	temporaryPassword: string;
 }
+
+// "Meus dados" — perfil completo do próprio usuário (GET /users/me).
+// Blocos são opcionais no contrato: `requester` pode não existir e
+// `professional` só é preenchido para o perfil Analista.
+export interface RequesterProfileBlock {
+	area: string | null;
+	department: string | null;
+	manager: string | null;
+	additionalContact: string | null;
+}
+
+export interface ProfessionalProfileBlock {
+	jobTitle: string | null;
+	specialties: string[];
+	attendedCategoryIds: number[];
+	notes: string | null;
+}
+
+export interface UserProfileResponse {
+	id: string;
+	fullName: string;
+	email: string;
+	role: UserRole;
+	avatarUrl: string | null;
+	requester: RequesterProfileBlock | null;
+	professional: ProfessionalProfileBlock | null;
+}
+
+// Payload de PUT /users/me (multipart: campo `payload` = JSON). Enviar apenas
+// os blocos alterados; `fullName`/`email`/`role` são imutáveis por contrato.
+export interface UpdateRequesterBlock {
+	area: string;
+	department?: string;
+	manager: string;
+	additionalContact?: string;
+}
+
+export interface UpdateProfessionalBlock {
+	jobTitle: string;
+	specialties: string[];
+	attendedCategoryIds: number[];
+	notes?: string;
+}
+
+export interface UpdateMyProfileInput {
+	requester?: UpdateRequesterBlock;
+	professional?: UpdateProfessionalBlock;
+	removeAvatar?: boolean;
+	avatar?: File;
+}
