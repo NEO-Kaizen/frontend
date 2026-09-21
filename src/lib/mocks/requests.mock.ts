@@ -60,6 +60,7 @@ export const mockRequests: MockRequest[] = [
 		protocol: 'MAAT-8K3P-9X2M',
 		corporateEmail: 'maria.oliveira@maat.com.br',
 		createdAt: '2026-08-25T14:03:11.000Z',
+		demandTitle: 'Automatizar conferência de diárias',
 		processName: 'Pagamento de diárias',
 		priority: null,
 		status: 'Em triagem',
@@ -71,6 +72,7 @@ export const mockRequests: MockRequest[] = [
 		protocol: 'MAAT-6N2W-8VBM',
 		corporateEmail: 'maria.oliveira@maat.com.br',
 		createdAt: '2026-08-10T09:41:20.000Z',
+		demandTitle: 'Fechamento mensal de ponto',
 		processName: 'Fechamento mensal de ponto',
 		priority: 'Alta',
 		status: 'Concluído',
@@ -82,6 +84,7 @@ export const mockRequests: MockRequest[] = [
 		protocol: 'MAAT-4P7K-2LQX',
 		corporateEmail: 'maria.oliveira@maat.com.br',
 		createdAt: '2026-08-18T11:20:00.000Z',
+		demandTitle: 'Controle de férias',
 		processName: 'Controle de férias',
 		priority: 'Média',
 		status: 'Em desenvolvimento',
@@ -93,6 +96,7 @@ export const mockRequests: MockRequest[] = [
 		protocol: 'MAAT-9R3D-7KWF',
 		corporateEmail: 'joao.santos@maat.com.br',
 		createdAt: '2026-08-20T08:15:00.000Z',
+		demandTitle: 'Automatização de relatórios',
 		processName: 'Automatização de relatórios',
 		priority: 'Alta',
 		status: 'Aguardando mapeamento',
@@ -104,6 +108,7 @@ export const mockRequests: MockRequest[] = [
 		protocol: 'MAAT-5X8M-3QTP',
 		corporateEmail: 'joao.santos@maat.com.br',
 		createdAt: '2026-08-22T15:40:00.000Z',
+		demandTitle: 'Integração de sistemas',
 		processName: 'Integração de sistemas',
 		priority: 'Crítica',
 		status: 'Em análise de viabilidade',
@@ -115,6 +120,7 @@ export const mockRequests: MockRequest[] = [
 		protocol: 'MAAT-2B6V-9HKS',
 		corporateEmail: 'ana.souza@maat.com.br',
 		createdAt: '2026-08-24T10:30:00.000Z',
+		demandTitle: 'Acesso ao sistema interno',
 		processName: 'Acesso ao sistema interno',
 		priority: 'Baixa',
 		status: 'Solicitação enviada',
@@ -126,6 +132,7 @@ export const mockRequests: MockRequest[] = [
 		protocol: 'MAAT-7C4F-1NXR',
 		corporateEmail: 'ana.souza@maat.com.br',
 		createdAt: '2026-08-26T13:45:00.000Z',
+		demandTitle: 'Atualização cadastral',
 		processName: 'Atualização cadastral',
 		priority: null,
 		status: 'Pendente de informações',
@@ -137,6 +144,7 @@ export const mockRequests: MockRequest[] = [
 		protocol: 'MAAT-5M2R-7TQA',
 		corporateEmail: 'ana.souza@maat.com.br',
 		createdAt: '2026-09-03T10:20:00.000Z',
+		demandTitle: 'Revisão do fluxo de aprovações',
 		processName: 'Revisão do fluxo de aprovações',
 		priority: 'Alta',
 		status: 'Em desenvolvimento',
@@ -148,6 +156,7 @@ export const mockRequests: MockRequest[] = [
 		protocol: 'MAAT-3V8K-6JPN',
 		corporateEmail: 'pedro.rocha@maat.com.br',
 		createdAt: '2026-09-04T13:10:00.000Z',
+		demandTitle: 'Automação de conferência documental',
 		processName: 'Automação de conferência documental',
 		priority: 'Média',
 		status: 'Priorizado',
@@ -159,6 +168,7 @@ export const mockRequests: MockRequest[] = [
 		protocol: 'MAAT-3J8L-6PQM',
 		corporateEmail: 'carlos.mendes@maat.com.br',
 		createdAt: '2026-08-27T09:10:00.000Z',
+		demandTitle: 'Revisão de processo',
 		processName: 'Revisão de processo',
 		priority: 'Média',
 		status: 'Priorizado',
@@ -170,6 +180,7 @@ export const mockRequests: MockRequest[] = [
 		protocol: 'MAAT-8T2K-4WNB',
 		corporateEmail: 'fernanda.lima@maat.com.br',
 		createdAt: '2026-08-28T16:25:00.000Z',
+		demandTitle: 'Novo fluxo de atendimento',
 		processName: 'Novo fluxo de atendimento',
 		priority: 'Alta',
 		status: 'Em homologação',
@@ -181,6 +192,7 @@ export const mockRequests: MockRequest[] = [
 		protocol: 'MAAT-1Q9Z-5RKC',
 		corporateEmail: 'rafael.costa@maat.com.br',
 		createdAt: '2026-08-29T11:50:00.000Z',
+		demandTitle: 'Dashboard de indicadores',
 		processName: 'Dashboard de indicadores',
 		priority: 'Média',
 		status: 'Backlog',
@@ -192,6 +204,7 @@ export const mockRequests: MockRequest[] = [
 		protocol: 'MAAT-6H3P-8VXM',
 		corporateEmail: 'juliana.alves@maat.com.br',
 		createdAt: '2026-08-30T08:40:00.000Z',
+		demandTitle: 'Melhoria no processo de atendimento',
 		processName: 'Melhoria no processo de atendimento',
 		priority: 'Alta',
 		status: 'Elegível',
@@ -203,6 +216,7 @@ export const mockRequests: MockRequest[] = [
 		protocol: 'MAAT-4K7N-2DQS',
 		corporateEmail: 'bruno.martins@maat.com.br',
 		createdAt: '2026-08-30T14:15:00.000Z',
+		demandTitle: 'Solicitação de cancelamento',
 		processName: 'Solicitação de cancelamento',
 		priority: 'Baixa',
 		status: 'Cancelado',
@@ -636,18 +650,31 @@ function getQueueAssignees(): QueueAssignee[] {
 	).sort((a, b) => a.name.localeCompare(b.name));
 }
 
+function normalizeSearch(text: string): string {
+	return text
+		.normalize('NFD')
+		.replace(/\p{Diacritic}/gu, '')
+		.toLowerCase()
+		.trim();
+}
+
 export function listQueueRequestsMock(query: QueueQuery): Promise<QueueResponse> {
 	let requests = [...mockRequests];
 
 	if (query.search) {
-		const normalizedSearch = query.search.trim().toLowerCase();
+		const term = normalizeSearch(query.search);
 
 		requests = requests.filter((request) => {
+			const protocol = normalizeSearch(request.protocol);
+			const demandTitle = normalizeSearch(request.demandTitle ?? request.processName);
+			const requester = normalizeSearch(request.requesterName);
+			const email = normalizeSearch(request.corporateEmail);
+
 			return (
-				request.protocol.toLowerCase().includes(normalizedSearch) ||
-				request.processName.toLowerCase().includes(normalizedSearch) ||
-				request.requesterName.toLowerCase().includes(normalizedSearch) ||
-				request.corporateEmail.toLowerCase().includes(normalizedSearch)
+				protocol.includes(term) ||
+				demandTitle.includes(term) ||
+				requester.includes(term) ||
+				email.includes(term)
 			);
 		});
 	}
