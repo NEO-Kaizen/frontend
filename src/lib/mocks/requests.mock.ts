@@ -820,7 +820,7 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 			name: 'Fernando Alves',
 			email: 'fernando.alves@maat.com.br'
 		},
-		correctionAlert: { count: 2, batchId: 'batch-2026-101' },
+		correctionAlert: { count: 1, batchId: 'batch-2026-102' },
 		requester: {
 			fullName: 'Maria Oliveira',
 			corporateEmail: 'maria.oliveira@maat.com.br',

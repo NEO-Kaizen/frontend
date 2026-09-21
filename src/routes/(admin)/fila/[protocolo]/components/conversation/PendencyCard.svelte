@@ -16,8 +16,15 @@
 
 	type BatchState = 'resolved' | 'responded' | 'requested';
 
+	// Estado agregado do lote (contrato v0.5 §6): "Resposta a aprovar" somente
+	// quando TODOS os itens estão `responded`; mistura `requested` + `responded`
+	// continua pendência aberta ("Pendência solicitada"); tudo `validated` fecha.
 	const batchState = $derived<BatchState>(
-		batch.resolved ? 'resolved' : batch.respondedCount > 0 ? 'responded' : 'requested'
+		batch.resolved
+			? 'resolved'
+			: batch.respondedCount > 0 && batch.respondedCount === batch.items.length
+				? 'responded'
+				: 'requested'
 	);
 
 	const STATUS_CONFIG: Record<BatchState, { label: string; summaryStatus?: string }> = {

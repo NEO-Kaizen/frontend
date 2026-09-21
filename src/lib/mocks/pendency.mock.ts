@@ -16,14 +16,15 @@ const PENDING_STATUS: RequestStatus = 'Pendente de informações';
 
 // Fixtures da tratativa MAAT-8K3P-9X2M (Em triagem), no formato v0.5
 // (`type` + `field` anulável + `responseText` + `deadline`). Cenários do
-// domínio (§13): um lote com observação + 5 campos em estados diferentes e
-// um lote somente-observação (já respondido, para exercitar a revisão).
+// domínio: um lote misto único (1 observação + 10 campos em estados
+// diferentes) e um lote somente-observação (já respondido, para exercitar a
+// revisão de item `observation`). Um `batchId` = uma pendência.
 const seedItems: PendingItem[] = [
-	// Lote A — 1 observação + 5 campos (requested/responded/validated).
+	// Lote 100 — 1 observação + 10 campos (requested/responded/validated).
 	{
-		id: 'pnd-101-obs',
+		id: 'pnd-100-obs',
 		protocol: 'MAAT-8K3P-9X2M',
-		batchId: 'batch-2026-101',
+		batchId: 'batch-2026-100',
 		type: 'observation',
 		field: null,
 		comment: 'Precisamos corrigir os dados cadastrais e operacionais antes de priorizar a demanda.',
@@ -37,9 +38,9 @@ const seedItems: PendingItem[] = [
 		validatedAt: null
 	},
 	{
-		id: 'pnd-101-f1',
+		id: 'pnd-100-f1',
 		protocol: 'MAAT-8K3P-9X2M',
-		batchId: 'batch-2026-101',
+		batchId: 'batch-2026-100',
 		type: 'field_edit',
 		field: {
 			fieldKey: 'demand.processName',
@@ -57,9 +58,9 @@ const seedItems: PendingItem[] = [
 		validatedAt: '2026-09-03T09:15:00.000Z'
 	},
 	{
-		id: 'pnd-101-f2',
+		id: 'pnd-100-f2',
 		protocol: 'MAAT-8K3P-9X2M',
-		batchId: 'batch-2026-101',
+		batchId: 'batch-2026-100',
 		type: 'field_edit',
 		field: {
 			fieldKey: 'operational.systemsUsed',
@@ -85,9 +86,9 @@ const seedItems: PendingItem[] = [
 		validatedAt: null
 	},
 	{
-		id: 'pnd-101-f3',
+		id: 'pnd-100-f3',
 		protocol: 'MAAT-8K3P-9X2M',
-		batchId: 'batch-2026-101',
+		batchId: 'batch-2026-100',
 		type: 'field_edit',
 		field: {
 			fieldKey: 'operational.volumetry',
@@ -105,9 +106,9 @@ const seedItems: PendingItem[] = [
 		validatedAt: null
 	},
 	{
-		id: 'pnd-101-f4',
+		id: 'pnd-100-f4',
 		protocol: 'MAAT-8K3P-9X2M',
-		batchId: 'batch-2026-101',
+		batchId: 'batch-2026-100',
 		type: 'field_edit',
 		field: {
 			fieldKey: 'demand.justification',
@@ -126,9 +127,9 @@ const seedItems: PendingItem[] = [
 		validatedAt: null
 	},
 	{
-		id: 'pnd-101-f5',
+		id: 'pnd-100-f5',
 		protocol: 'MAAT-8K3P-9X2M',
-		batchId: 'batch-2026-101',
+		batchId: 'batch-2026-100',
 		type: 'field_edit',
 		field: {
 			fieldKey: 'requester.area',
@@ -145,7 +146,7 @@ const seedItems: PendingItem[] = [
 		respondedAt: null,
 		validatedAt: null
 	},
-	// Lote B — somente observação, já respondida (exercita validação de item
+	// Lote 102 — somente observação, já respondida (exercita validação de item
 	// `observation` e o desbloqueio de nova pendência após revisão total).
 	{
 		id: 'pnd-102-obs',
@@ -163,12 +164,11 @@ const seedItems: PendingItem[] = [
 		respondedAt: '2026-09-06T14:10:00.000Z',
 		validatedAt: null
 	},
-	// Lote C — 5 campos: 3 validados + 1 responded + 1 requested. Exercita a
-	// revisão parcial (D-P23): decidir o item responded sem encerrar os demais.
+	// (continuação do lote 100 — mesmo `batchId`, mesma pendência).
 	{
-		id: 'pnd-103-f1',
+		id: 'pnd-100-f6',
 		protocol: 'MAAT-8K3P-9X2M',
-		batchId: 'batch-2026-103',
+		batchId: 'batch-2026-100',
 		type: 'field_edit',
 		field: {
 			fieldKey: 'demand.title',
@@ -181,14 +181,14 @@ const seedItems: PendingItem[] = [
 		responseText: 'Título confirmado.',
 		responseAttachments: [],
 		deadline: null,
-		createdAt: '2026-09-07T09:00:00.000Z',
+		createdAt: '2026-09-01T09:00:00.000Z',
 		respondedAt: '2026-09-08T10:00:00.000Z',
 		validatedAt: '2026-09-08T11:00:00.000Z'
 	},
 	{
-		id: 'pnd-103-f2',
+		id: 'pnd-100-f7',
 		protocol: 'MAAT-8K3P-9X2M',
-		batchId: 'batch-2026-103',
+		batchId: 'batch-2026-100',
 		type: 'field_edit',
 		field: {
 			fieldKey: 'demand.category',
@@ -201,14 +201,14 @@ const seedItems: PendingItem[] = [
 		responseText: 'Categoria confirmada.',
 		responseAttachments: [],
 		deadline: null,
-		createdAt: '2026-09-07T09:00:00.000Z',
+		createdAt: '2026-09-01T09:00:00.000Z',
 		respondedAt: '2026-09-08T10:00:00.000Z',
 		validatedAt: '2026-09-08T11:00:00.000Z'
 	},
 	{
-		id: 'pnd-103-f3',
+		id: 'pnd-100-f8',
 		protocol: 'MAAT-8K3P-9X2M',
-		batchId: 'batch-2026-103',
+		batchId: 'batch-2026-100',
 		type: 'field_edit',
 		field: {
 			fieldKey: 'operational.processDescription',
@@ -221,14 +221,14 @@ const seedItems: PendingItem[] = [
 		responseText: 'Etapas detalhadas com responsáveis.',
 		responseAttachments: [],
 		deadline: null,
-		createdAt: '2026-09-07T09:00:00.000Z',
+		createdAt: '2026-09-01T09:00:00.000Z',
 		respondedAt: '2026-09-08T10:00:00.000Z',
 		validatedAt: '2026-09-08T11:00:00.000Z'
 	},
 	{
-		id: 'pnd-103-f4',
+		id: 'pnd-100-f9',
 		protocol: 'MAAT-8K3P-9X2M',
-		batchId: 'batch-2026-103',
+		batchId: 'batch-2026-100',
 		type: 'field_edit',
 		field: {
 			fieldKey: 'operational.mainRisks',
@@ -241,14 +241,14 @@ const seedItems: PendingItem[] = [
 		responseText: 'Riscos atualizados com o cenário de pico.',
 		responseAttachments: [],
 		deadline: null,
-		createdAt: '2026-09-07T09:00:00.000Z',
+		createdAt: '2026-09-01T09:00:00.000Z',
 		respondedAt: '2026-09-09T13:20:00.000Z',
 		validatedAt: null
 	},
 	{
-		id: 'pnd-103-f5',
+		id: 'pnd-100-f10',
 		protocol: 'MAAT-8K3P-9X2M',
-		batchId: 'batch-2026-103',
+		batchId: 'batch-2026-100',
 		type: 'field_edit',
 		field: {
 			fieldKey: 'operational.clientImpact',
@@ -261,7 +261,7 @@ const seedItems: PendingItem[] = [
 		responseText: null,
 		responseAttachments: [],
 		deadline: null,
-		createdAt: '2026-09-07T09:00:00.000Z',
+		createdAt: '2026-09-01T09:00:00.000Z',
 		respondedAt: null,
 		validatedAt: null
 	}

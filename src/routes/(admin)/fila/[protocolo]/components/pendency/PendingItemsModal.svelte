@@ -53,9 +53,9 @@
 	let errorMessage = $state('');
 	let isSubmitting = $state(false);
 	let reviewError = $state('');
-	// Decisão explícita por item (`responded` → `validated`/`requested`). Itens
-	// sem decisão ficam "para depois": permanecem `responded` e a pendência
-	// continua aberta (§7–§9). O submit envia SOMENTE os decididos.
+	// Decisão explícita por item (`responded` → `validated`/`requested`). Sem
+	// decisão, o item permanece `responded` para revisão posterior (D-P23) —
+	// não existe decisão `later` enviada ao backend.
 	let reviewDecisions = new SvelteMap<string, DecisionChoice>();
 	let reopenComments = $state<Record<string, string>>({});
 
@@ -113,8 +113,11 @@
 		onSaved?.();
 	}
 
-	function setDecision(itemId: string, choice: DecisionChoice | null): void {
-		if (choice === null) {
+	// Alternância de decisão por item: clicar no badge selecionado desmarca
+	// (o item fica sem decisão e permanece `responded`); clicar no outro badge
+	// substitui a seleção. Não há terceira decisão enviada ao backend (D-P23).
+	function toggleDecision(itemId: string, choice: DecisionChoice): void {
+		if (reviewDecisions.get(itemId) === choice) {
 			reviewDecisions.delete(itemId);
 			return;
 		}
@@ -144,8 +147,8 @@
 		reviewError = '';
 		const batch = respondedBatches.find((group) => group.batchId === batchId);
 		if (!batch) return;
-		// Revisão parcial (§8): envia só os itens decididos; os demais
-		// ("decidir depois") permanecem `responded` e o lote continua aberto.
+		// Uma única operação por ação agregada: envia os itens decididos em um
+		// único PATCH; os não enviados permanecem `responded` (D-P23).
 		const decided = decidedItems(batch.items);
 		if (decided.length === 0) return;
 
@@ -312,7 +315,7 @@
 														class="decision-option"
 														class:selected={decisionFor(item.id) === 'validate'}
 														aria-pressed={decisionFor(item.id) === 'validate'}
-														onclick={() => setDecision(item.id, 'validate')}
+														onclick={() => toggleDecision(item.id, 'validate')}
 													>
 														<Icon iconName="validate" iconSize="sm" />
 														Validar
@@ -322,21 +325,10 @@
 														class="decision-option"
 														class:selected={decisionFor(item.id) === 'reopen'}
 														aria-pressed={decisionFor(item.id) === 'reopen'}
-														onclick={() => setDecision(item.id, 'reopen')}
+														onclick={() => toggleDecision(item.id, 'reopen')}
 													>
 														<Icon iconName="reopen" iconSize="sm" />
 														Solicitar novamente
-													</button>
-													<button
-														type="button"
-														class="decision-option"
-														class:selected={decisionFor(item.id) === null}
-														aria-pressed={decisionFor(item.id) === null}
-														title="Deixar este item para revisão posterior"
-														onclick={() => setDecision(item.id, null)}
-													>
-														<Icon iconName="history" iconSize="sm" />
-														Depois
 													</button>
 												</div>
 
@@ -362,16 +354,20 @@
 
 								{#if canReview}
 									{@const decided = decidedItems(batch.items)}
+									{@const validateCount = decided.filter(
+										(item) => reviewDecisions.get(item.id) === 'validate'
+									).length}
 									<div class="batch-actions">
 										{#if reviewError}
 											<p class="form-error" role="alert">{reviewError}</p>
 										{/if}
 										{#if decided.length < batch.items.length}
+											{@const missing = batch.items.length - decided.length}
 											<p class="pending-hint" role="status">
-												{batch.items.length - decided.length}
-												{batch.items.length - decided.length === 1
-													? 'item ficará para revisão posterior'
-													: 'itens ficarão para revisão posterior'}.
+												{missing}
+												{missing === 1
+													? 'item sem decisão permanecerá como respondido'
+													: 'itens sem decisão permanecerão como respondidos'}.
 											</p>
 										{/if}
 										<Button
@@ -379,15 +375,11 @@
 											loading={isSubmitting}
 											disabled={decided.length === 0}
 											title={decided.length === 0
-												? 'Decida ao menos um item'
-												: 'Enviar revisão dos itens decididos'}
+												? 'Selecione ao menos um item para validar'
+												: 'Enviar as decisões selecionadas em um único PATCH'}
 											onclick={() => handleReviewSubmit(batch.batchId)}
 										>
-											{isSubmitting
-												? 'Enviando…'
-												: decided.length === 0
-													? 'Enviar revisão'
-													: `Enviar revisão (${decided.length})`}
+											{isSubmitting ? 'Enviando…' : `Validar (${validateCount})`}
 										</Button>
 									</div>
 								{/if}
