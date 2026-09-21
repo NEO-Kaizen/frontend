@@ -232,7 +232,12 @@
 			{#if isAuthenticated}
 				<div class="separator_bar-column"></div>
 
-				<div class="profile_block">
+				<a
+					class="profile_block"
+					href={resolve('/(app)/perfil')}
+					aria-label="Abrir meus dados"
+					title="Meus dados"
+				>
 					<div class="profile_block-identification">
 						<p class="profile_block-name">{currentUser?.name}</p>
 						<p class="profile_block-role">{currentUser?.role}</p>
@@ -246,7 +251,7 @@
 							height="100%"
 						/>
 					</span>
-				</div>
+				</a>
 			{:else}
 				<Button
 					variant="outline"
