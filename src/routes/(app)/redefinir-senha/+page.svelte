@@ -19,6 +19,10 @@
 
 	const returnTo = page.url.searchParams.get('returnTo');
 
+	// O texto se adapta ao motivo da visita: troca obrigatória no primeiro
+	// acesso (mustChangePassword) ou alteração voluntária (ex.: vinda de /perfil).
+	const mustChangePassword = $derived(page.data.user?.mustChangePassword ?? false);
+
 	type FieldName = 'currentPassword' | 'newPassword' | 'confirmPassword';
 	let fieldErrors = $state<Partial<Record<FieldName, string>>>({});
 
@@ -90,14 +94,18 @@
 </script>
 
 <svelte:head>
-	<title>Redefinir Senha</title>
+	<title>{mustChangePassword ? 'Redefinir Senha' : 'Alterar Senha'}</title>
 </svelte:head>
 
 <main class="password-change-page">
 	<div class="password-change-card">
 		<div class="card-header">
-			<h1>Redefinir Senha</h1>
-			<p>Por segurança, é necessário alterar sua senha no primeiro acesso.</p>
+			<h1>{mustChangePassword ? 'Redefinir Senha' : 'Alterar Senha'}</h1>
+			<p>
+				{mustChangePassword
+					? 'Por segurança, é necessário alterar sua senha no primeiro acesso.'
+					: 'Defina uma nova senha para sua conta.'}
+			</p>
 		</div>
 
 		<form onsubmit={handleSubmit} novalidate>
