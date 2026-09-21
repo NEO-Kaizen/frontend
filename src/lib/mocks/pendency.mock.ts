@@ -8,6 +8,7 @@ import type {
 	CreatePendingItemsResponse,
 	PendingFieldValue,
 	PendingItem,
+	RespondPendingItemBody,
 	ReviewPendingItemsBody,
 	ReviewPendingItemsResponse
 } from '$lib/types/pendency';
@@ -393,6 +394,127 @@ export async function createPendingItemsMock(
 		requestAttachment: payload.requestAttachment === true,
 		items: created.map((item) => structuredClone(item))
 	}));
+}
+
+// Resposta do SOLICITANTE por item — PATCH
+// /requests/:protocol/pending-items/:pendingItemId (contrato v0.5 §8). Um item
+// por chamada: `field_edit` recebe `{ correctedValue }` (tipo preservado);
+// `observation` recebe `{ response }` (trim, 1..2000). Somente `requested`
+// responde; já respondido/validado → 409. Sem `solicitationStatus` na resposta.
+export async function respondPendingItemMock(
+	protocol: string,
+	pendingItemId: string,
+	body: RespondPendingItemBody
+): Promise<PendingItem> {
+	const normalized = findByProtocol(protocol);
+	const item = store.find(
+		(candidate) =>
+			candidate.id === pendingItemId && candidate.protocol.toLowerCase().trim() === normalized
+	);
+
+	// 404 genérico quando o item não existe ou é de outro protocolo.
+	if (!item) {
+		throw new ApiError(404, 'Pendência não encontrada.');
+	}
+
+	if (item.status !== 'requested') {
+		throw new ApiError(409, 'Esta pendência já foi respondida.');
+	}
+
+	const now = new Date().toISOString();
+
+	if (item.type === 'observation') {
+		if (!('response' in body)) {
+			throw new ApiError(400, 'Informe a resposta da observação.');
+		}
+		const trimmed = body.response.trim();
+		if (!trimmed) {
+			throw new ApiError(400, 'Descreva a resposta antes de enviar.');
+		}
+		if (trimmed.length > 2000) {
+			throw new ApiError(400, 'A resposta deve ter no máximo 2000 caracteres.');
+		}
+		item.responseText = trimmed;
+	} else {
+		if (!('correctedValue' in body)) {
+			throw new ApiError(400, 'Informe o valor corrigido.');
+		}
+		const value = body.correctedValue;
+		if (value === null || (typeof value === 'string' && !value.trim())) {
+			throw new ApiError(400, 'Informe o valor corrigido.');
+		}
+		item.correctedValue = typeof value === 'string' ? value.trim() : value;
+	}
+
+	item.status = 'responded';
+	item.respondedAt = now;
+
+	const solicitation = findSolicitation(protocol);
+	solicitation.lastUpdate = now;
+
+	return delay(400).then(() => structuredClone(item));
+}
+
+export interface MockAttachmentMeta {
+	fileName: string;
+	mimeType: string;
+	sizeBytes: number;
+}
+
+// Anexo do solicitante — POST .../pending-items/:pendingItemId/attachments
+// (contrato v0.5 §10): separado do PATCH; o upload pode acontecer em qualquer
+// item do lote. Valida tipo (PDF/DOCX/XLSX/PNG/JPG) e tamanho (10 MB).
+export async function uploadPendingItemAttachmentMock(
+	protocol: string,
+	pendingItemId: string,
+	file: MockAttachmentMeta
+): Promise<PendingItem> {
+	const normalized = findByProtocol(protocol);
+	const item = store.find(
+		(candidate) =>
+			candidate.id === pendingItemId && candidate.protocol.toLowerCase().trim() === normalized
+	);
+
+	if (!item) {
+		throw new ApiError(404, 'Pendência não encontrada.');
+	}
+
+	if (item.status === 'validated') {
+		throw new ApiError(409, 'Esta pendência já foi validada.');
+	}
+
+	const allowedTypes = [
+		'application/pdf',
+		'image/png',
+		'image/jpeg',
+		'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+		'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+	];
+	const extension = `.${file.fileName.split('.').pop()?.toLowerCase() ?? ''}`;
+	const allowedExtensions = ['.pdf', '.docx', '.xlsx', '.png', '.jpg'];
+	if (!allowedTypes.includes(file.mimeType) || !allowedExtensions.includes(extension)) {
+		throw new ApiError(400, 'Tipo de arquivo não permitido. Use PDF, DOCX, XLSX, PNG ou JPG.');
+	}
+	if (file.sizeBytes <= 0 || file.sizeBytes > 10 * 1024 * 1024) {
+		throw new ApiError(400, 'Arquivo excede o tamanho máximo de 10 MB.');
+	}
+
+	item.responseAttachments = [
+		...item.responseAttachments,
+		{
+			fileName: file.fileName,
+			mimeType: file.mimeType,
+			sizeBytes: file.sizeBytes,
+			downloadUrl: null,
+			canDownload: false
+		}
+	];
+
+	const now = new Date().toISOString();
+	const solicitation = findSolicitation(protocol);
+	solicitation.lastUpdate = now;
+
+	return delay(400).then(() => structuredClone(item));
 }
 
 // Revisão parcial do lote (contrato v0.5 §9, regra D-P23): valida todas as

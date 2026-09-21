@@ -1,23 +1,19 @@
-import { getRequestByProtocol } from '$lib/services/request.service';
+import { resolve } from '$app/paths';
+import { redirectToLogin } from '$lib/services/access.service';
 import type { PageServerLoad } from './$types';
 
-// Server load (não universal): evita o modelo CORS do browser em fetch
-// cross-origin no SSR e mantém o cookie quando houver sessão.
-export const load: PageServerLoad = async ({ params, fetch }) => {
-	const protocol = params.protocolo;
-	const result = await getRequestByProtocol(protocol, fetch);
-
-	if (result.ok) {
-		return {
-			protocol,
-			solicitation: result.data,
-			error: null
-		};
+// Server load (não universal): nunca busca os dados da solicitação aqui —
+// eles trafegam após a validação pública (identidade em `sessionStorage` +
+// header `X-Requester-Identity`, sem JWT/cookie) ou sessão, direto no cliente.
+// O servidor expõe apenas protocolo, modo e usuário.
+export const load: PageServerLoad = ({ locals, params, url }) => {
+	if (locals.portalConfig.solicitationMode === 'AUTHENTICATED' && !locals.user) {
+		redirectToLogin(url, resolve('/(public)/login'));
 	}
 
 	return {
-		protocol,
-		solicitation: null,
-		error: result.error
+		protocol: params.protocolo,
+		solicitationMode: locals.portalConfig.solicitationMode,
+		user: locals.user
 	};
 };

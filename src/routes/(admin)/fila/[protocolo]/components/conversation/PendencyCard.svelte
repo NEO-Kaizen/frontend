@@ -11,7 +11,12 @@
 
 	let { batch, onReview }: Props = $props();
 
-	let expanded = $state(false);
+	// O card-folha de cada lote fica expandido por padrão; o analista pode
+	// recolher manualmente. O accordion de itens `validated` (recolhidos por
+	// padrão) é estado de UI puro — não vai ao backend.
+	let isExpanded = $state(true);
+
+	let expandedValidatedItems = $state<Record<string, boolean>>({});
 	let isReviewing = $state(false);
 
 	type BatchState = 'resolved' | 'responded' | 'requested';
@@ -81,7 +86,14 @@
 	});
 
 	function toggle(): void {
-		expanded = !expanded;
+		isExpanded = !isExpanded;
+	}
+
+	function toggleValidatedItem(itemId: string): void {
+		expandedValidatedItems = {
+			...expandedValidatedItems,
+			[itemId]: !expandedValidatedItems[itemId]
+		};
 	}
 
 	async function runReview(): Promise<void> {
@@ -106,7 +118,7 @@
 	<button
 		type="button"
 		class="card-toggle"
-		aria-expanded={expanded}
+		aria-expanded={isExpanded}
 		aria-controls={`pendency-panel-${batch.batchId}`}
 		onclick={toggle}
 	>
@@ -115,14 +127,14 @@
 		<span class="summary" aria-hidden="true">{summary}</span>
 		<span class="chevron">
 			<Icon
-				iconName={expanded ? 'expandLess' : 'expandMore'}
+				iconName={isExpanded ? 'expandLess' : 'expandMore'}
 				iconSize="sm"
-				ariaLabel={expanded ? 'Recolher detalhes da pendência' : 'Expandir detalhes da pendência'}
+				ariaLabel={isExpanded ? 'Recolher detalhes da pendência' : 'Expandir detalhes da pendência'}
 			/>
 		</span>
 	</button>
 
-	{#if expanded}
+	{#if isExpanded}
 		<div id={`pendency-panel-${batch.batchId}`} class="pendency-panel">
 			{#if batch.observation}
 				{@const observation = batch.observation}
@@ -176,59 +188,91 @@
 					<h4 class="section-title">Campos solicitados</h4>
 					<ul class="field-list">
 						{#each batch.fields as item (item.id)}
-							<li class="field-block">
-								<div class="field-head">
-									<span class="field-label">{item.field?.fieldLabel ?? 'Campo'}</span>
-									<span class="field-chip {item.status}">{fieldStateLabel(item)}</span>
-								</div>
-								<p class="field-comment">{item.comment}</p>
-								{#if item.status === 'responded' || item.status === 'validated'}
-									{#if item.type === 'field_edit'}
-										<div class="diff" aria-label={`Comparação do campo ${item.field?.fieldLabel}`}>
-											<div class="diff-line diff-old">
-												<span class="diff-glyph" aria-hidden="true">−</span>
-												<span class="diff-value">{displayValue(item.field?.currentValue)}</span>
-											</div>
-											<div class="diff-line diff-new">
-												<span class="diff-glyph" aria-hidden="true">＋</span>
-												<span class="diff-value">{displayValue(item.correctedValue)}</span>
-											</div>
-										</div>
-									{/if}
-									{#if item.responseText}
-										<p class="response-note">{item.responseText}</p>
-									{/if}
+							{@const isValidated = item.status === 'validated'}
+							{@const isItemExpanded = !isValidated || expandedValidatedItems[item.id] === true}
+							<li class="field-block" class:is-validated={isValidated}>
+								{#if isValidated}
+									<button
+										type="button"
+										class="field-toggle"
+										aria-expanded={isItemExpanded}
+										aria-controls={`field-panel-${item.id}`}
+										onclick={() => toggleValidatedItem(item.id)}
+									>
+										<span class="field-label">{item.field?.fieldLabel ?? 'Campo'}</span>
+										<span class="field-chip validated">{fieldStateLabel(item)}</span>
+										<span class="field-chevron">
+											<Icon
+												iconName={isItemExpanded ? 'expandLess' : 'expandMore'}
+												iconSize="sm"
+												ariaLabel={isItemExpanded
+													? 'Recolher campo validado'
+													: 'Expandir campo validado'}
+											/>
+										</span>
+									</button>
+								{:else}
+									<div class="field-head">
+										<span class="field-label">{item.field?.fieldLabel ?? 'Campo'}</span>
+										<span class="field-chip {item.status}">{fieldStateLabel(item)}</span>
+									</div>
 								{/if}
-								{#if item.responseAttachments.length > 0}
-									<ul class="attachment-list">
-										{#each item.responseAttachments as attachment (attachment.fileName)}
-											<li class="attachment-item">
-												<Icon iconName="description" iconSize="sm" ariaLabel="Anexo" />
-												{#if attachment.downloadUrl && attachment.canDownload}
-													<a
-														class="attachment-link"
-														href={attachment.downloadUrl}
-														download
-														title="Baixar anexo {attachment.fileName}"
-													>
-														{attachment.fileName}
-													</a>
-												{:else}
-													<span class="attachment-name">{attachment.fileName}</span>
-												{/if}
-												<span class="attachment-size">{formatBytes(attachment.sizeBytes)}</span>
-											</li>
-										{/each}
-									</ul>
-								{/if}
-								{#if item.status === 'validated'}
-									<span class="item-date">
-										Validado em {formatDateTime(item.validatedAt ?? item.createdAt)}
-									</span>
-								{:else if item.status === 'responded'}
-									<span class="item-date">
-										Respondido em {formatDateTime(item.respondedAt ?? item.createdAt)}
-									</span>
+
+								{#if isItemExpanded}
+									<div id={`field-panel-${item.id}`} class="field-content">
+										<p class="field-comment">{item.comment}</p>
+										{#if item.status === 'responded' || item.status === 'validated'}
+											{#if item.type === 'field_edit'}
+												<div
+													class="diff"
+													aria-label={`Comparação do campo ${item.field?.fieldLabel}`}
+												>
+													<div class="diff-line diff-old">
+														<span class="diff-glyph" aria-hidden="true">−</span>
+														<span class="diff-value">{displayValue(item.field?.currentValue)}</span>
+													</div>
+													<div class="diff-line diff-new">
+														<span class="diff-glyph" aria-hidden="true">＋</span>
+														<span class="diff-value">{displayValue(item.correctedValue)}</span>
+													</div>
+												</div>
+											{/if}
+											{#if item.responseText}
+												<p class="response-note">{item.responseText}</p>
+											{/if}
+										{/if}
+										{#if item.responseAttachments.length > 0}
+											<ul class="attachment-list">
+												{#each item.responseAttachments as attachment (attachment.fileName)}
+													<li class="attachment-item">
+														<Icon iconName="description" iconSize="sm" ariaLabel="Anexo" />
+														{#if attachment.downloadUrl && attachment.canDownload}
+															<a
+																class="attachment-link"
+																href={attachment.downloadUrl}
+																download
+																title="Baixar anexo {attachment.fileName}"
+															>
+																{attachment.fileName}
+															</a>
+														{:else}
+															<span class="attachment-name">{attachment.fileName}</span>
+														{/if}
+														<span class="attachment-size">{formatBytes(attachment.sizeBytes)}</span>
+													</li>
+												{/each}
+											</ul>
+										{/if}
+										{#if item.status === 'validated'}
+											<span class="item-date">
+												Validado em {formatDateTime(item.validatedAt ?? item.createdAt)}
+											</span>
+										{:else if item.status === 'responded'}
+											<span class="item-date">
+												Respondido em {formatDateTime(item.respondedAt ?? item.createdAt)}
+											</span>
+										{/if}
+									</div>
 								{/if}
 							</li>
 						{/each}
@@ -420,11 +464,52 @@
 		min-width: 0;
 	}
 
+	.field-block.is-validated {
+		border-left-color: var(--status-green);
+		gap: 0;
+	}
+
 	.field-head {
 		display: flex;
 		align-items: center;
 		gap: var(--spacing-sm);
 		flex-wrap: wrap;
+	}
+
+	.field-toggle {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-sm);
+		width: 100%;
+		background: none;
+		border: none;
+		padding: 0;
+		cursor: pointer;
+		text-align: left;
+		font-family: inherit;
+	}
+
+	.field-toggle:focus-visible {
+		outline: 2px solid var(--secondary-color);
+		outline-offset: 2px;
+		border-radius: 2px;
+	}
+
+	.field-chevron {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		color: var(--gray);
+		margin-left: auto;
+		flex-shrink: 0;
+	}
+
+	.field-content {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+		padding-top: 6px;
+		min-width: 0;
 	}
 
 	.field-label {

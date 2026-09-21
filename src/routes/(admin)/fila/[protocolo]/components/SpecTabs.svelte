@@ -177,7 +177,7 @@
 		},
 		{
 			id: 'historico',
-			label: 'Histórico de Conversa',
+			label: 'Histórico de Pendências',
 			icon: 'history',
 			enabled: true,
 			badge: respondedPendencyCount > 0 ? respondedPendencyCount : undefined

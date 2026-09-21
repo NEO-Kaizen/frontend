@@ -5,7 +5,21 @@ import { dev } from '$app/environment';
 export const MOCKS_ENABLED = dev;
 
 // Toggle por domínio — desligar tudo via MOCKS_ENABLED; novos domínios entram aqui.
-export const MOCK_DOMAINS =
+// A anotação explícita mantém `MOCK_DOMAINS && MOCK_DOMAINS.<domínio>`
+// compilando mesmo com `MOCKS_ENABLED = false` (sem ela o tipo colapsa
+// para `false` e os acessos viram `never`, quebrando o `check`).
+type MockDomains = {
+	auth: true;
+	dashboard: true;
+	request: true;
+	portalConfig: true;
+	users: true;
+	prioritization: true;
+	pendingItems: true;
+	mapping: true;
+	internalNotes: true;
+};
+export const MOCK_DOMAINS: false | MockDomains =
 	dev &&
 	MOCKS_ENABLED &&
 	({
