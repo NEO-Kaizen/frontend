@@ -192,7 +192,7 @@
 	});
 </script>
 
-<Modal title="Pendências por campo" size="large" {onclose}>
+<Modal title="Pendências por campo" size="lg" {onclose}>
 	<div class="pendency-view">
 		<div class="tabs" role="tablist" aria-label="Status das pendências">
 			{#each tabs as tab (tab.id)}

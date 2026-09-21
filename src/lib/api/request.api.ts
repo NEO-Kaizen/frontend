@@ -170,9 +170,7 @@ export async function assignAnalyst(
 
 	const encoded = encodeURIComponent(protocol);
 	const body =
-		responsibility === 'mapeamento'
-			? { mappingAssigneeId: analystId }
-			: { assigneeId: analystId };
+		responsibility === 'mapeamento' ? { mappingAssigneeId: analystId } : { assigneeId: analystId };
 
 	return apiClient<InternalRequestDetail>(
 		`${REQUESTS_PATH}/${encoded}/internal/assignee`,

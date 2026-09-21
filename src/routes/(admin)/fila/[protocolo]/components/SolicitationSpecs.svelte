@@ -36,6 +36,7 @@
 		onSaveError?: (message: string) => void;
 		onTriageSuccess?: (updated: InternalRequestDetail) => void;
 		onPrioritizationSuccess?: (updated: InternalRequestDetail) => void;
+		onAssignmentSuccess?: (updated: InternalRequestDetail) => void;
 	}
 
 	let {
@@ -47,7 +48,8 @@
 		onSaveSuccess,
 		onSaveError,
 		onTriageSuccess,
-		onPrioritizationSuccess
+		onPrioritizationSuccess,
+		onAssignmentSuccess
 	}: Props = $props();
 
 	async function handlePendencySaved(): Promise<void> {
@@ -261,6 +263,13 @@
 
 	const currentUser = $derived(page.data.user as import('$lib/types/auth').SessionUser | null);
 
+	// Responsável único pela solicitação — Triagem e Mapeamento são mutuamente
+	// exclusivos, então o header exibe quem estiver atribuído.
+	const ownerId = $derived(solicitation.assignee?.id ?? solicitation.mappingAssignee?.id ?? null);
+	const ownerName = $derived(
+		solicitation.assignee?.name ?? solicitation.mappingAssignee?.name ?? null
+	);
+
 	const canAssign = $derived(canAssignAnalyst(currentUser));
 
 	const canCalculate = $derived(
@@ -340,6 +349,7 @@
 
 	function handleAssignSuccess(updated: InternalRequestDetail): void {
 		solicitation = updated;
+		onAssignmentSuccess?.(updated);
 	}
 
 	function handleQuickAction(key: string) {
@@ -385,10 +395,10 @@
 				</span>
 				<span
 					class="responsible-value"
-					class:is-unassigned={!solicitation.assignee?.name}
-					title={solicitation.assignee?.name ?? 'Não atribuído'}
+					class:is-unassigned={!ownerName}
+					title={ownerName ?? 'Não atribuído'}
 				>
-					{solicitation.assignee?.name ?? 'Não atribuído'}
+					{ownerName ?? 'Não atribuído'}
 				</span>
 			</div>
 		</div>
@@ -429,13 +439,6 @@
 
 	{#if pendencyError}
 		<p class="pendency-feedback pendency-error" role="alert">{pendencyError}</p>
-	{/if}
-
-	{#if isPendencyBlocked && !isPendencyMode}
-		<p class="pendency-feedback pendency-blocked" role="status">
-			Há uma pendência em aberto aguardando resposta ou revisão. Conclua todas as decisões na aba de
-			histórico para solicitar uma nova pendência.
-		</p>
 	{/if}
 
 	<SpecTabs
@@ -494,10 +497,8 @@
 	{#if isAssignModalOpen && canAssign}
 		<AssignAction
 			protocol={solicitation.protocol}
-			currentAssigneeId={solicitation.assignee?.id ?? null}
-			currentAssigneeName={solicitation.assignee?.name ?? null}
-			// currentMappingAssigneeId={solicitation.mappingAssignee?.id ?? null}
-			// currentMappingAssigneeName={solicitation.mappingAssignee?.name ?? null}
+			currentAssigneeId={ownerId}
+			currentAssigneeName={ownerName}
 			onclose={() => (isAssignModalOpen = false)}
 			onSuccess={handleAssignSuccess}
 		/>
@@ -636,12 +637,6 @@
 		background-color: var(--status-red-bg);
 		color: var(--status-red);
 		border: 1px solid var(--status-red);
-	}
-
-	.pendency-blocked {
-		background-color: var(--status-yellow-bg);
-		color: var(--status-yellow);
-		border: 1px solid var(--status-yellow);
 	}
 
 	.pendency-cancel-body {

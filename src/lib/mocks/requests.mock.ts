@@ -1319,19 +1319,21 @@ export async function assignAnalystMock(
 	};
 
 	if (responsibility === 'mapeamento') {
-		// Responsável pelo Mapeamento é independente do responsável pela Triagem.
+		// Um único responsável por vez: assumir o Mapeamento libera a Triagem.
 		detail.mappingAssignee = assigneeValue;
+		detail.assignee = null;
 	} else {
-		// A atribuição de Triagem altera o responsável principal da solicitação.
+		// Um único responsável por vez: assumir a Triagem libera o Mapeamento.
 		detail.assignee = assigneeValue;
+		detail.mappingAssignee = null;
+	}
 
-		// A fila representa o responsável pela Triagem.
-		const queueItem = mockRequests.find((r) => r.protocol.toLowerCase().trim() === normalized);
+	// A fila representa o responsável único pela solicitação.
+	const queueItem = mockRequests.find((r) => r.protocol.toLowerCase().trim() === normalized);
 
-		if (queueItem) {
-			queueItem.assigneeId = analyst.id;
-			queueItem.assignee = analyst.fullName;
-		}
+	if (queueItem) {
+		queueItem.assigneeId = analyst.id;
+		queueItem.assignee = analyst.fullName;
 	}
 
 	detail.lastUpdate = new Date().toISOString();
