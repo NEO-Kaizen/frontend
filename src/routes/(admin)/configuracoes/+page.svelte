@@ -1,6 +1,14 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
-	import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
+	import Button from '$lib/components/Button.svelte';
+	import Icon from '$lib/components/Icon.svelte';
+	import {
+		DEFAULT_PORTAL_CONFIG,
+		NEO_EXAMPLE_ASSETS,
+		NEO_THEME
+	} from '$lib/config/portal-defaults';
+	import { saveAssets, saveIdentity, saveTheme } from '$lib/config/portal-config.service';
+	import { toastState } from '$lib/states/toast.svelte';
 	import AccessCard from './components/AccessCard.svelte';
 	import AssetsCard from './components/AssetsCard.svelte';
 	import CategoriesCard from './components/CategoriesCard.svelte';
@@ -18,6 +26,42 @@
 	// Se a leitura autoritativa falhou, `portalConfig` é o fallback do layout
 	// (defaults) e os cards bloqueiam edição/salvamento até a revalidação.
 	const loadFailed = $derived(data.portalConfigLoadError !== null);
+
+	// Aplica e salva imediatamente a configuração de exemplo (identidade NEO +
+	// tema NEO + assets de exemplo). As três seções têm PATCH próprio; salvamos
+	// em sequência e paramos no primeiro erro.
+	let isApplying = $state(false);
+
+	async function handleApplyExample(): Promise<void> {
+		if (isApplying || loadFailed) return;
+
+		isApplying = true;
+
+		const identity = await saveIdentity({ platformName: 'NEO' });
+		if (!identity.ok) {
+			isApplying = false;
+			toastState.add(identity.error.message, 'error');
+			return;
+		}
+
+		const theme = await saveTheme({ theme: structuredClone(NEO_THEME) });
+		if (!theme.ok) {
+			isApplying = false;
+			toastState.add(theme.error.message, 'error');
+			return;
+		}
+
+		const assets = await saveAssets({ ...NEO_EXAMPLE_ASSETS, logoUsePrimaryColor: true }, {});
+		if (!assets.ok) {
+			isApplying = false;
+			toastState.add(assets.error.message, 'error');
+			return;
+		}
+
+		isApplying = false;
+		toastState.add('Exemplo aplicado e salvo.', 'success');
+		await invalidateAll();
+	}
 </script>
 
 <svelte:head>
@@ -27,7 +71,20 @@
 </svelte:head>
 
 <main class="content-container settings-page">
-	<SettingsPageHeader />
+	<div class="settings-header-row">
+		<SettingsPageHeader />
+
+		<Button
+			variant="outline-neutral"
+			onclick={handleApplyExample}
+			loading={isApplying}
+			disabled={loadFailed}
+			title="Aplicar a configuração de exemplo (tema NEO)"
+		>
+			<Icon iconName="autorenew" iconSize="sm" />
+			Exemplo
+		</Button>
+	</div>
 
 	{#if loadFailed}
 		<div class="load-error" role="alert">
@@ -41,19 +98,21 @@
 		</div>
 	{/if}
 
-	<div class="settings-grid">
-		<div class="settings-col">
-			<AccessCard />
-			<VisualIdentityCard />
-			<CategoriesCard />
+	{#key data.portalConfig}
+		<div class="settings-grid">
+			<div class="settings-col">
+				<AccessCard />
+				<VisualIdentityCard />
+				<CategoriesCard />
+			</div>
+			<div class="settings-col">
+				<PlatformIdentityCard />
+				<AssetsCard />
+				<StatusCard />
+				<PriorizationWeightsCard />
+			</div>
 		</div>
-		<div class="settings-col">
-			<PlatformIdentityCard />
-			<AssetsCard />
-			<StatusCard />
-			<PriorizationWeightsCard />
-		</div>
-	</div>
+	{/key}
 </main>
 
 <style>
@@ -61,6 +120,14 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--spacing-lg);
+	}
+
+	.settings-header-row {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: var(--spacing-md);
+		flex-wrap: wrap;
 	}
 
 	.load-error {

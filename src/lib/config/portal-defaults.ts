@@ -1,4 +1,5 @@
 import type {
+	PortalAssets,
 	PortalCategory,
 	PortalConfig,
 	PortalStatus,
@@ -358,6 +359,60 @@ export const DEFAULT_THEME: PortalTheme = {
 		gradient: { from: '#002068', to: '#003399', angle: 143 },
 		statuses: DARK_STATUS_TONES
 	}
+};
+
+// Tema de exemplo da marca NEO (vermelho `#eb0a1e`) usado pelo botão "Exemplo"
+// das Configurações. Portado da branch `feat/neo-theme-default`; os tons de
+// status são os mesmos já usados pelo `DEFAULT_THEME` atual.
+export const NEO_THEME: PortalTheme = {
+	light: {
+		background: '#f5f5f5',
+		surface: '#ffffff',
+		border: '#e0e0e0',
+		textPrimary: '#1a1a1a',
+		textSecondary: '#58595b',
+		heading: '#1a1a1a',
+		richBlack: '#000000',
+		primary: '#eb0a1e',
+		secondary: '#c4091a',
+		tint: '#fbe3e5',
+		onPrimary: '#ffffff',
+		onDark: '#ffffff',
+		onGradient: '#ffffff',
+		gradient: { from: '#eb0a1e', to: '#a3000f', angle: 143 },
+		statuses: LIGHT_STATUS_TONES
+	},
+	dark: {
+		background: '#0a0a0a',
+		surface: '#171717',
+		border: '#2e2e2e',
+		textPrimary: '#f5f5f5',
+		textSecondary: '#a3a3a3',
+		heading: '#f5f5f5',
+		richBlack: '#000000',
+		primary: '#eb0a1e',
+		secondary: '#ff6b7a',
+		tint: '#2a1013',
+		onPrimary: '#ffffff',
+		onDark: '#ffffff',
+		onGradient: '#ffffff',
+		gradient: { from: '#8c0012', to: '#eb0a1e', angle: 143 },
+		statuses: DARK_STATUS_TONES
+	}
+};
+
+// Assets de exemplo para o botão "Exemplo": imagem de login escura em ambos os
+// temas e logo colorido pela primária. Favicon inalterado.
+export const NEO_EXAMPLE_ASSETS: PortalAssets = {
+	logoLightUrl: logoAsset,
+	logoDarkUrl: logoAsset,
+	logoUsePrimaryColor: true,
+	avatarLightUrl: avatarAsset,
+	avatarDarkUrl: avatarAsset,
+	loginImageLightUrl: loginImageDarkAsset,
+	loginImageDarkUrl: loginImageDarkAsset,
+	faviconLightUrl: faviconAsset,
+	faviconDarkUrl: faviconAsset
 };
 
 // Defaults locais do portal — espelham os valores atuais do design system
