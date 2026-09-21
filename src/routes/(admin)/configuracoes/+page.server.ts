@@ -9,7 +9,7 @@ import type { PageServerLoad } from './$types';
 // nenhum `portalConfig` é retornado (vale o do layout) e a flag
 // `portalConfigLoadError` bloqueia edição/salvamento nos cards.
 export const load: PageServerLoad = async ({ locals, url, fetch }) => {
-	guard('adminOnly', locals.user, url.pathname);
+	guard('adminOnly', locals.user, url);
 
 	const result = await loadPortalConfigStrict(fetch);
 	if (result.ok) {

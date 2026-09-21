@@ -1,15 +1,14 @@
+import { base, resolve } from '$app/paths';
 import { redirect } from '@sveltejs/kit';
-import type { RouteId } from '$app/types';
 import type { SessionUser } from '$lib/types/auth';
 import type { UserType } from '$lib/types/user';
 
-const LOGIN_PATH = '/login' as const;
-const UNAUTHORIZED_PATH = '/sem-autorizacao' as const;
+const LOGIN_ROUTE = '/(public)/login' as const;
+const UNAUTHORIZED_ROUTE = '/(public)/sem-autorizacao' as const;
+const CHANGE_PASSWORD_ROUTE = '/(app)/redefinir-senha' as const;
 const CHANGE_PASSWORD_PATH = '/redefinir-senha' as const;
-const HOME_PATH = '/' as const;
-const DASHBOARD_PATH = '/(admin)/home' as const;
-
-type PostLoginRoute = typeof CHANGE_PASSWORD_PATH | typeof DASHBOARD_PATH | typeof HOME_PATH;
+const HOME_ROUTE = '/' as const;
+const DASHBOARD_ROUTE = '/(admin)/home' as const;
 
 export type GuardRuleId = 'anySession' | 'internalArea' | 'managementOnly' | 'adminOnly';
 
@@ -55,38 +54,44 @@ export function canCalculatePriority(user: SessionUser | null, assigneeId: strin
 	return false;
 }
 
-export function isAllowedReturnTo(value: string): value is PostLoginRoute {
-	if (!value.startsWith('/')) return false;
-	if (value.includes('://')) return false;
-	if (value.startsWith('//')) return false;
-	return true;
+export function isAllowedReturnTo(value: string): boolean {
+	try {
+		const url = new URL(value, 'http://internal');
+		const isSameOrigin = url.origin === 'http://internal';
+		const isInsideApp = !base || url.pathname === base || url.pathname.startsWith(`${base}/`);
+
+		return value.startsWith('/') && isSameOrigin && isInsideApp;
+	} catch {
+		return false;
+	}
 }
 
-export function guard(rule: GuardRuleId, user: SessionUser | null, pathname?: string): void {
+function appendReturnTo(destination: string, returnTo?: string | null): string {
+	if (!returnTo || !isAllowedReturnTo(returnTo)) return destination;
+
+	const searchParams = new URLSearchParams({ returnTo });
+	return `${destination}?${searchParams.toString()}`;
+}
+
+export function guard(rule: GuardRuleId, user: SessionUser | null, url?: URL): void {
 	const profiles = GUARD_RULES[rule].profiles;
 	if (!user) {
-		const returnUrl =
-			pathname && isAllowedReturnTo(pathname)
-				? `${LOGIN_PATH}?returnTo=${encodeURIComponent(pathname)}`
-				: LOGIN_PATH;
-		redirect(303, returnUrl);
+		const returnTo = url ? url.pathname + url.search : null;
+		redirect(303, appendReturnTo(resolve(LOGIN_ROUTE), returnTo));
 	}
 	if (!isProfileAllowed(user.role, profiles)) {
-		redirect(303, UNAUTHORIZED_PATH);
+		redirect(303, resolve(UNAUTHORIZED_ROUTE));
 	}
 }
 
-export function redirectToLogin(url: URL, loginUrl: string): never {
+export function redirectToLogin(url: URL): never {
 	const returnTo = url.pathname + url.search;
-	const searchParams = new URLSearchParams({ returnTo });
-	redirect(303, `${loginUrl}?${searchParams.toString()}`);
+	redirect(303, appendReturnTo(resolve(LOGIN_ROUTE), returnTo));
 }
 
-export function getHomeRedirect(
-	user: SessionUser | null
-): Extract<RouteId, '/(admin)/home'> | null {
+export function getHomeRedirect(user: SessionUser | null): string | null {
 	if (user && isInternalProfile(user.role)) {
-		return '/(admin)/home';
+		return resolve(DASHBOARD_ROUTE);
 	}
 	return null;
 }
@@ -96,21 +101,21 @@ export function isPasswordChangeRequired(user: SessionUser | null): boolean {
 }
 
 export function isPasswordChangeRoute(pathname: string): boolean {
-	return pathname.startsWith(CHANGE_PASSWORD_PATH);
+	const changePasswordPath = `${base}${CHANGE_PASSWORD_PATH}`;
+
+	return pathname === changePasswordPath || pathname.startsWith(`${changePasswordPath}/`);
 }
 
-export function guardPasswordChange(user: SessionUser | null, pathname: string): void {
-	if (user && isPasswordChangeRequired(user) && !isPasswordChangeRoute(pathname)) {
-		redirect(303, CHANGE_PASSWORD_PATH);
+export function guardPasswordChange(user: SessionUser | null, url: URL): void {
+	if (user && isPasswordChangeRequired(user) && !isPasswordChangeRoute(url.pathname)) {
+		const returnTo = url.pathname + url.search;
+		redirect(303, appendReturnTo(resolve(CHANGE_PASSWORD_ROUTE), returnTo));
 	}
 }
 
 export function getPostLoginRedirect(user: SessionUser, returnTo?: string | null): string {
 	if (isPasswordChangeRequired(user)) {
-		if (returnTo && isAllowedReturnTo(returnTo)) {
-			return `${CHANGE_PASSWORD_PATH}?returnTo=${encodeURIComponent(returnTo)}`;
-		}
-		return CHANGE_PASSWORD_PATH;
+		return appendReturnTo(resolve(CHANGE_PASSWORD_ROUTE), returnTo);
 	}
 
 	if (returnTo && isAllowedReturnTo(returnTo)) {
@@ -118,8 +123,8 @@ export function getPostLoginRedirect(user: SessionUser, returnTo?: string | null
 	}
 
 	if (INTERNAL_PROFILES.includes(user.role)) {
-		return DASHBOARD_PATH;
+		return resolve(DASHBOARD_ROUTE);
 	}
 
-	return HOME_PATH;
+	return resolve(HOME_ROUTE);
 }

@@ -1,4 +1,3 @@
-import { resolve } from '$app/paths';
 import { redirectToLogin } from '$lib/services/access.service';
 import type { PageServerLoad } from './$types';
 
@@ -8,7 +7,7 @@ import type { PageServerLoad } from './$types';
 // O servidor expõe apenas protocolo, modo e usuário.
 export const load: PageServerLoad = ({ locals, params, url }) => {
 	if (locals.portalConfig.solicitationMode === 'AUTHENTICATED' && !locals.user) {
-		redirectToLogin(url, resolve('/(public)/login'));
+		redirectToLogin(url);
 	}
 
 	return {
