@@ -36,6 +36,8 @@
 			{solicitation}
 			internalNotes={data.internalNotes}
 			internalNotesError={data.internalNotesError}
+			pendencies={data.pendencies}
+			pendenciesError={data.pendenciesError}
 		/>
 	{:else if error && error.status === 404}
 		<NotFoundState

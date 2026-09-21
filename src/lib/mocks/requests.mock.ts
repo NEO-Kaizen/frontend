@@ -1,5 +1,3 @@
-import { ApiError } from '$lib/types/result';
-import { computePrioritizationResult, getSavedPrioritizationNotes } from './prioritization.mock';
 import type {
 	QueueAssignee,
 	QueueMetricsResponse,
@@ -7,16 +5,18 @@ import type {
 	QueueResponse
 } from '$lib/types/queue';
 import type {
-	InternalRequestDetail,
 	CreateRequestPayload,
 	CreateRequestResponse,
+	InternalRequestDetail,
 	ListRequestsQuery,
 	PaginatedResponse,
 	RequestDetail,
-	RequestSummary,
 	RequestStatus,
+	RequestSummary,
 	UpdateInternalRequestPayload
 } from '$lib/types/request';
+import { ApiError } from '$lib/types/result';
+import { computePrioritizationResult, getSavedPrioritizationNotes } from './prioritization.mock';
 
 // Status considerados "em andamento" para a métrica da fila: trabalho já em fluxo,
 // excluindo etapas de fila/priorização e estados terminais.
@@ -742,7 +742,7 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 			name: 'Fernando Alves',
 			email: 'fernando.alves@maat.com.br'
 		},
-		correctionAlert: { count: 2, message: 'Alteração respondida pelo solicitante (2 campos)' },
+		correctionAlert: null,
 		requester: {
 			fullName: 'Maria Oliveira',
 			corporateEmail: 'maria.oliveira@maat.com.br',
@@ -820,7 +820,7 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 			name: 'Fernando Alves',
 			email: 'fernando.alves@maat.com.br'
 		},
-		correctionAlert: null,
+		correctionAlert: { count: 1, batchId: 'batch-2026-102' },
 		requester: {
 			fullName: 'Maria Oliveira',
 			corporateEmail: 'maria.oliveira@maat.com.br',
@@ -935,6 +935,147 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 		openedAt: '2026-08-26T13:45:00.000Z',
 		lastUpdate: '2026-08-27T10:30:00.000Z',
 		internalObservations: 'Aguardando volume médio mensal informado pelo solicitante.'
+	},
+	{
+		protocol: 'MAAT-9R3D-7KWF',
+		status: 'Aguardando mapeamento',
+		priority: 'Alta',
+		prioritization: { score: null, maxScore: 50, label: null, notes: {} },
+		assignee: {
+			id: MOCK_ASSIGNEES.lucasGomes,
+			name: 'Lucas Gomes',
+			email: 'lucas.gomes@maat.com.br'
+		},
+		correctionAlert: null,
+		requester: {
+			fullName: 'João Santos',
+			corporateEmail: 'joao.santos@maat.com.br',
+			area: 'Tecnologia',
+			department: 'Dados e Relatórios',
+			manager: 'Lucas Gomes',
+			additionalContact: 'Ramal 4210'
+		},
+		demand: {
+			title: 'Automatização de relatórios',
+			requestType: 'Automação',
+			category: 'Dashboard ou relatório',
+			processName: 'Automatização de relatórios',
+			description:
+				'Automatizar a geração dos relatórios gerenciais para eliminar a consolidação manual.',
+			problem: 'A consolidação manual em planilhas gera divergências entre áreas.',
+			expectedResult: 'Relatórios gerados automaticamente com números consistentes.',
+			justification: 'Reduzir o tempo de fechamento gerencial e os erros de consolidação.'
+		},
+		operational: {
+			processDescription: 'Extração de dados, consolidação em planilhas e envio por e-mail.',
+			processSteps:
+				'1. Extração dos sistemas\n2. Consolidação manual\n3. Validação com gestores\n4. Envio',
+			systemsUsed: 'ERP interno, planilhas Excel',
+			executionFrequency: 'Semanal',
+			volumetry: '45',
+			peopleInvolved: 3,
+			averageExecutionTime: '4 horas',
+			monthlyEffortHours: 16,
+			hasManualControls: 'Validação manual com cada gerência antes do envio.',
+			mainRisks: 'Decisões tomadas com números divergentes.',
+			clientImpact: 'Gestores sem visão confiável dos indicadores.',
+			operationalImpact: 'Alto',
+			desiredDeadline: '2026-10-05',
+			perceivedCriticality: 'Alta'
+		},
+		complementary: {
+			hasProcessDocumentation: 'Passo a passo da consolidação na base de conhecimento.',
+			hasSimilarSolution: false,
+			dependsOnOtherAreas: 'Dados de Vendas e Financeiro.',
+			handlesRestrictedInfo: 'Relatórios contêm dados salariais agregados (sigilo).',
+			additionalNotes: 'Priorizar o relatório de fechamento mensal.'
+		},
+		schedulePreferences: ['2026-09-12T09:00', '2026-09-12T15:00'],
+		mappingDate: null,
+		meeting: {
+			scheduledFor: '2026-09-10T10:00:00.000Z',
+			link: null
+		},
+		attachments: [
+			{
+				fileName: 'modelo-relatorio.xlsx',
+				mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+				sizeBytes: 64000,
+				downloadUrl: null,
+				canDownload: false
+			}
+		],
+		openedAt: '2026-08-20T08:15:00.000Z',
+		lastUpdate: '2026-08-28T15:30:00.000Z',
+		internalObservations: null
+	},
+	{
+		protocol: 'MAAT-3V8K-6JPN',
+		status: 'Priorizado',
+		priority: 'Média',
+		prioritization: { score: null, maxScore: 50, label: null, notes: {} },
+		assignee: {
+			id: MOCK_ASSIGNEES.anaSouza,
+			name: 'Ana Souza',
+			email: 'ana.souza@maat.com.br'
+		},
+		correctionAlert: null,
+		requester: {
+			fullName: 'Pedro Rocha',
+			corporateEmail: 'pedro.rocha@maat.com.br',
+			area: 'Jurídico',
+			department: 'Contratos',
+			manager: 'Ana Souza',
+			additionalContact: undefined
+		},
+		demand: {
+			title: 'Automação de conferência documental',
+			requestType: 'Automação',
+			category: 'Automação',
+			processName: 'Automação de conferência documental',
+			description: 'Automatizar a conferência de documentos contratuais antes da assinatura.',
+			problem: 'A conferência manual atrasa assinaturas e deixa passar cláusulas divergentes.',
+			expectedResult: 'Checklist automático de conformidade documental.',
+			justification: 'Dar vazão ao volume de contratos sem aumentar a equipe.'
+		},
+		operational: {
+			processDescription: 'Recebimento de minutas, conferência de cláusulas e liberação.',
+			processSteps: '1. Recebimento da minuta\n2. Conferência de cláusulas\n3. Liberação',
+			systemsUsed: 'E-mail corporativo, editor de texto',
+			executionFrequency: 'Diária',
+			volumetry: '25',
+			peopleInvolved: 2,
+			averageExecutionTime: '1 hora',
+			monthlyEffortHours: 40,
+			hasManualControls: false,
+			mainRisks: 'Assinatura de contrato com cláusula divergente.',
+			clientImpact: 'Retrabalho jurídico e risco contratual.',
+			operationalImpact: 'Médio',
+			desiredDeadline: '2026-10-30',
+			perceivedCriticality: 'Média'
+		},
+		complementary: {
+			hasProcessDocumentation: false,
+			hasSimilarSolution: false,
+			dependsOnOtherAreas: false,
+			handlesRestrictedInfo: false,
+			additionalNotes: undefined
+		},
+		schedulePreferences: ['2026-09-20T11:00'],
+		mappingDate: null,
+		meeting: null,
+		attachments: [
+			{
+				fileName: 'checklist-conferencia.xlsx',
+				mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+				sizeBytes: 48000,
+				downloadUrl: '/mocks/checklist-conferencia.xlsx',
+				canDownload: true
+			}
+		],
+		openedAt: '2026-09-04T13:10:00.000Z',
+		lastUpdate: '2026-09-04T13:10:00.000Z',
+		internalObservations: null
 	}
 ];
 

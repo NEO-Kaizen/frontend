@@ -112,6 +112,17 @@ function toSessionUser(user: MockUser): SessionUser {
 	};
 }
 
+/**
+ * Sessão mockada atual (ou `null` sem login / fora do browser). Usada pelo
+ * mock de acompanhamento para distinguir analista de solicitante, como o
+ * backend faz pela sessão. Uso exclusivo em testes DEV.
+ */
+export function getMockSessionUser(): SessionUser | null {
+	const userId = readSessionCookie();
+	const user = userId ? MOCK_USERS.find((candidate) => candidate.id === userId) : undefined;
+	return user ? toSessionUser(user) : null;
+}
+
 function readSessionCookie(): string | null {
 	if (!browser) return null;
 

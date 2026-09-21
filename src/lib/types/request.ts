@@ -1,4 +1,5 @@
 import type { CriterionNotes } from './prioritization';
+import type { CorrectionAlert, PendingSummary, UnreadState } from './pendency';
 
 export type RequestStatus =
 	| 'Solicitação enviada'
@@ -412,7 +413,12 @@ export interface InternalRequestDetail {
 	// o backend expô-lo, ele prevalece sobre `assignee` na permissão de edição
 	// da aba Mapeamento. Ausente = usa `assignee`.
 	mappingAssigneeId?: string | null;
-	correctionAlert?: { count: number; message: string } | null;
+	// Leitura estendida do detalhe (contrato de pendências v0.5 §7): alerta de
+	// respostas a aprovar + resumo + não-lidos derivados de `PendingItem`.
+	// `unread` é derivado de `status` (D-P21) — sem "marcar como lido".
+	correctionAlert?: CorrectionAlert | null;
+	pendingSummary?: PendingSummary;
+	unread?: UnreadState;
 
 	// blocos da solicitação
 	requester: RequesterBlock;

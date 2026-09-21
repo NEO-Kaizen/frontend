@@ -1,5 +1,6 @@
 import { browser } from '$app/environment';
 import { env } from '$env/dynamic/public';
+import type { RequesterIdentity } from '$lib/types/requester-tracking';
 import { ApiError } from '$lib/types/result';
 
 const PUBLIC_API_URL = env.PUBLIC_API_URL;
@@ -25,6 +26,20 @@ function resolveFetch(fetchImpl?: typeof fetch): typeof fetch {
 	console.error(error);
 
 	throw error;
+}
+
+// Transporte do solicitante público (contrato Pendências por campo v0.5 §2):
+// header `X-Requester-Identity` com nome+e-mail (o protocolo vai no path). O
+// fluxo autenticado passa `null` e usa o cookie de sessão
+// (`credentials: "include"` abaixo). Único construtor do header — as APIs de
+// tracking e de pendências reutilizam este.
+export function requesterIdentityHeaders(
+	identity: RequesterIdentity | null | undefined
+): Record<string, string> {
+	if (!identity) return {};
+	return {
+		'X-Requester-Identity': JSON.stringify({ name: identity.name, email: identity.email })
+	};
 }
 
 // FormData sem Content-Type: o browser gera o boundary do multipart.
