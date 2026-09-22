@@ -226,6 +226,8 @@
 
 	function handleTabSelect(tab: SpecTabDefinition) {
 		if (!tab.enabled || isEditMode) return;
+	
+		const enteringHistorico = tab.id === 'historico' && activeTab !== 'historico';
 		clearSaveSuccess();
 
 		const url = new URL(page.url);
@@ -238,6 +240,9 @@
 			noScroll: true,
 			keepFocus: true
 		});
+		if (enteringHistorico) {
+			void invalidateAll();
+		}
 	}
 
 	function ensureInfoTab(): void {
@@ -825,13 +830,6 @@
 		color: var(--gray);
 		padding: var(--spacing-md) 0;
 		margin: 0;
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.btn-save,
-		.btn-cancel {
-			transition: none;
-		}
 	}
 
 	@media (max-width: 768px) {

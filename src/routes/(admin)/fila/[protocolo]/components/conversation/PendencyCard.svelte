@@ -267,6 +267,10 @@
 											<span class="item-date">
 												Respondido em {formatDateTime(item.respondedAt ?? item.createdAt)}
 											</span>
+										{:else}
+											<span class="item-date">
+												Solicitada em {formatDateTime(item.createdAt)}
+											</span>
 										{/if}
 									</div>
 								{/if}
@@ -544,7 +548,6 @@
 		font-family: var(--font-inter);
 		font-size: 13px;
 		line-height: 1.5;
-		color: var(--rich-black);
 		white-space: pre-wrap;
 		word-break: break-word;
 	}
