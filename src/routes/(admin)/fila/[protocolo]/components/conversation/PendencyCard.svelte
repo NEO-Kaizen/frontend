@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import PendencyFieldDiff from '$lib/components/PendencyFieldDiff.svelte';
 	import type { PendingBatch, PendingItem } from '$lib/types/pendency';
 	import { formatDateTime } from '$lib/utils/dates';
 
@@ -11,10 +12,13 @@
 
 	let { batch, onReview }: Props = $props();
 
-	// O card-folha de cada lote fica expandido por padrão; o analista pode
-	// recolher manualmente. O accordion de itens `validated` (recolhidos por
-	// padrão) é estado de UI puro — não vai ao backend.
-	let isExpanded = $state(true);
+	// O card-folha de cada lote segue o status: expandido quando há ação
+	// pendente (`requested`/`responded`) e recolhido quando já validado
+	// (`resolved`). Após o toggle manual, a escolha do analista prevalece
+	// (`null` = sem override manual). O accordion de itens `validated`
+	// (recolhidos por padrão) é estado de UI puro — não vai ao backend.
+	let manualExpanded = $state<boolean | null>(null);
+	const isExpanded = $derived(manualExpanded ?? !batch.resolved);
 
 	let expandedValidatedItems = $state<Record<string, boolean>>({});
 	let isReviewing = $state(false);
@@ -86,7 +90,7 @@
 	});
 
 	function toggle(): void {
-		isExpanded = !isExpanded;
+		manualExpanded = !isExpanded;
 	}
 
 	function toggleValidatedItem(itemId: string): void {
@@ -223,19 +227,11 @@
 										<p class="field-comment">{item.comment}</p>
 										{#if item.status === 'responded' || item.status === 'validated'}
 											{#if item.type === 'field_edit'}
-												<div
-													class="diff"
-													aria-label={`Comparação do campo ${item.field?.fieldLabel}`}
-												>
-													<div class="diff-line diff-old">
-														<span class="diff-glyph" aria-hidden="true">−</span>
-														<span class="diff-value">{displayValue(item.field?.currentValue)}</span>
-													</div>
-													<div class="diff-line diff-new">
-														<span class="diff-glyph" aria-hidden="true">＋</span>
-														<span class="diff-value">{displayValue(item.correctedValue)}</span>
-													</div>
-												</div>
+												<PendencyFieldDiff
+													oldValue={displayValue(item.field?.currentValue)}
+													newValue={displayValue(item.correctedValue)}
+													label={item.field?.fieldLabel}
+												/>
 											{/if}
 											{#if item.responseText}
 												<p class="response-note">{item.responseText}</p>
@@ -306,7 +302,7 @@
 	.pendency-card {
 		list-style: none;
 		border: 1px solid var(--white-gray);
-		border-left: 4px solid var(--gray);
+		border-left: 4px solid var(--status-blue);
 		border-radius: var(--radius-sm);
 		background: var(--white);
 		min-width: 0;
@@ -321,7 +317,7 @@
 	}
 
 	.pendency-card.resolved {
-		border-left-color: var(--gray);
+		border-left-color: var(--status-green);
 		background: var(--white);
 	}
 
@@ -352,7 +348,7 @@
 		width: 10px;
 		height: 10px;
 		border-radius: 50%;
-		background: var(--gray);
+		background: var(--status-blue);
 		flex-shrink: 0;
 	}
 
@@ -361,14 +357,14 @@
 	}
 
 	.resolved .status-dot {
-		background: var(--gray);
+		background: var(--status-green);
 	}
 
 	.status-label {
 		font-family: var(--font-inter);
 		font-size: 13px;
 		font-weight: 700;
-		color: var(--rich-black);
+		color: var(--status-blue);
 	}
 
 	.responded .status-label {
@@ -376,7 +372,7 @@
 	}
 
 	.resolved .status-label {
-		color: var(--gray);
+		color: var(--status-green);
 	}
 
 	.summary {
@@ -551,59 +547,6 @@
 		color: var(--rich-black);
 		white-space: pre-wrap;
 		word-break: break-word;
-	}
-
-	.diff {
-		display: flex;
-		flex-direction: column;
-		gap: 4px;
-		min-width: 0;
-	}
-
-	.diff-line {
-		display: flex;
-		gap: var(--spacing-sm);
-		padding: 6px 10px;
-		border-radius: var(--radius-sm);
-		align-items: baseline;
-	}
-
-	.diff-old {
-		background: var(--status-red-bg);
-	}
-
-	.diff-new {
-		background: var(--status-green-bg);
-	}
-
-	.diff-glyph {
-		font-weight: 700;
-		flex-shrink: 0;
-	}
-
-	.diff-old .diff-glyph {
-		color: var(--status-red);
-	}
-
-	.diff-new .diff-glyph {
-		color: var(--status-green);
-	}
-
-	.diff-value {
-		font-family: var(--font-inter);
-		font-size: 13px;
-		font-weight: 600;
-		word-break: break-word;
-		overflow-wrap: anywhere;
-	}
-
-	.diff-old .diff-value {
-		text-decoration: line-through;
-		color: var(--status-red);
-	}
-
-	.diff-new .diff-value {
-		color: var(--status-green);
 	}
 
 	.response-note {

@@ -36,6 +36,17 @@
 	// poluição visual. Estado puramente de UI — o status vem do backend.
 	let expandedValidatedItems = $state<Record<string, boolean>>({});
 
+	// Accordion do card: segue o status do lote — validado (`resolved`)
+	// inicia fechado; a responder (`requested`) ou a validar (`responded`)
+	// inicia aberto. Após o toggle manual, a escolha do usuário prevalece
+	// (`null` = sem override manual). Estado puramente de UI.
+	let manualExpanded = $state<boolean | null>(null);
+	const isExpanded = $derived(manualExpanded ?? !batch.resolved);
+
+	function toggle(): void {
+		manualExpanded = !isExpanded;
+	}
+
 	function toggleValidatedItem(itemId: string): void {
 		expandedValidatedItems = {
 			...expandedValidatedItems,
@@ -139,165 +150,180 @@
 
 <article class="pendency-card" data-status={batchStatus} aria-label="Pendência solicitada">
 	<header class="pendency-header">
-		<span class="pendency-title">Pendência solicitada</span>
-		<span class="header-pills">
-			<span class="pendency-status" data-status={batchStatus}>{statusLabel}</span>
-			{#if hasOverdue && batchStatus === 'requested'}
-				<span class="pendency-status" data-status="overdue">Em atraso</span>
-			{/if}
-		</span>
+		<button
+			type="button"
+			class="card-toggle"
+			aria-expanded={isExpanded}
+			aria-controls={`requester-pendency-panel-${batch.batchId}`}
+			onclick={toggle}
+		>
+			<span class="pendency-title">Pendência solicitada</span>
+			<span class="header-pills">
+				<span class="pendency-status" data-status={batchStatus}>{statusLabel}</span>
+				{#if hasOverdue && batchStatus === 'requested'}
+					<span class="pendency-status" data-status="overdue">Em atraso</span>
+				{/if}
+			</span>
+			<span class="card-chevron" aria-hidden="true">{isExpanded ? '▼' : '▶'}</span>
+		</button>
 	</header>
 
-	<p class="batch-progress" aria-label="Progresso do lote">
-		{progressLabel}{#if batch.requestedCount > 0}
-			· {batch.requestedCount}
-			{batch.requestedCount === 1 ? 'aguardando resposta' : 'aguardando resposta'}{/if}
-	</p>
+	{#if isExpanded}
+		<div id={`requester-pendency-panel-${batch.batchId}`} class="pendency-panel">
+			<p class="batch-progress" aria-label="Progresso do lote">
+				{progressLabel}{#if batch.requestedCount > 0}
+					· {batch.requestedCount}
+					{batch.requestedCount === 1 ? 'aguardando resposta' : 'aguardando resposta'}{/if}
+			</p>
 
-	{#if batch.observation}
-		<div class="observation-block">
-			<p class="observation-label">Solicitação de alteração</p>
-			<p class="observation-text">{batch.observation.comment}</p>
-		</div>
-	{/if}
-
-	<div class="items-block">
-		{#if batch.observation}
-			<PendencyItemBlock
-				{protocol}
-				item={batch.observation}
-				{identity}
-				showComment={false}
-				onResponded={onItemResponded}
-				{onUnauthorized}
-			/>
-		{/if}
-		{#each batch.fields as item (item.id)}
-			{@const isValidated = item.status === 'validated'}
-			{@const isExpanded = isFieldExpanded(item)}
-			{#if isValidated}
-				<div class="field-accordion" data-status="validated">
-					<button
-						type="button"
-						class="field-accordion-toggle"
-						aria-expanded={isExpanded}
-						aria-controls={`requester-field-${item.id}`}
-						onclick={() => toggleValidatedItem(item.id)}
-					>
-						<span class="field-accordion-chevron" aria-hidden="true">{isExpanded ? '▼' : '▶'}</span>
-						<span class="field-accordion-label">{item.field?.fieldLabel ?? 'Campo'}</span>
-						<span class="field-accordion-note">validado</span>
-					</button>
-					{#if isExpanded}
-						<div id={`requester-field-${item.id}`} class="field-accordion-panel">
-							<PendencyItemBlock
-								{protocol}
-								{item}
-								{identity}
-								onResponded={onItemResponded}
-								{onUnauthorized}
-							/>
-						</div>
-					{/if}
+			{#if batch.observation}
+				<div class="observation-block">
+					<p class="observation-label">Solicitação de alteração</p>
+					<p class="observation-text">{batch.observation.comment}</p>
 				</div>
-			{:else}
-				<PendencyItemBlock
-					{protocol}
-					{item}
-					{identity}
-					onResponded={onItemResponded}
-					{onUnauthorized}
-				/>
 			{/if}
-		{/each}
-	</div>
 
-	{#if batch.fields.length > 0}
-		{@const pendingFields = batch.items.filter(
-			(item) => item.type === 'field_edit' && item.status === 'requested'
-		).length}
-		<p class="field-count">
-			{pendingFields === 1
-				? '1 campo aguardando resposta'
-				: `${pendingFields} campos aguardando resposta`}
-			{#if batch.validatedCount > 0}
-				· {batch.validatedCount} validado{batch.validatedCount === 1 ? '' : 's'}
-			{/if}
-		</p>
-	{/if}
-
-	<div class="attachments-block">
-		<p class="attachments-title">
-			<Icon iconName="cloudUpload" iconSize="sm" />
-			<span>Anexos do lote</span>
-			{#if requiresAttachment}
-				<span class="required-tag">Solicitado pelo analista</span>
-			{/if}
-		</p>
-		{#if batchAttachments.length === 0}
-			<p class="attachments-empty">Nenhum anexo enviado neste lote.</p>
-		{:else}
-			<ul class="attachments-list">
-				{#each batchAttachments as entry (entry.itemId + entry.attachment.fileName)}
-					<li class="attachment-item">
-						<span class="attachment-name">{entry.attachment.fileName}</span>
-						<span class="attachment-meta">
-							{entry.attachment.mimeType} • {formatBytes(entry.attachment.sizeBytes)}
-						</span>
-						{#if entry.attachment.canDownload && entry.attachment.downloadUrl}
-							<a
-								href={entry.attachment.downloadUrl}
-								target="_blank"
-								rel="external noopener noreferrer"
-								class="attachment-link"
+			<div class="items-block">
+				{#if batch.observation}
+					<PendencyItemBlock
+						{protocol}
+						item={batch.observation}
+						{identity}
+						showComment={false}
+						onResponded={onItemResponded}
+						{onUnauthorized}
+					/>
+				{/if}
+				{#each batch.fields as item (item.id)}
+					{@const isValidated = item.status === 'validated'}
+					{@const isFieldOpen = isFieldExpanded(item)}
+					{#if isValidated}
+						<div class="field-accordion" data-status="validated">
+							<button
+								type="button"
+								class="field-accordion-toggle"
+								aria-expanded={isFieldOpen}
+								aria-controls={`requester-field-${item.id}`}
+								onclick={() => toggleValidatedItem(item.id)}
 							>
-								Visualizar
-							</a>
-						{/if}
-					</li>
+								<span class="field-accordion-chevron" aria-hidden="true"
+									>{isFieldOpen ? '▼' : '▶'}</span
+								>
+								<span class="field-accordion-label">{item.field?.fieldLabel ?? 'Campo'}</span>
+								<span class="field-accordion-note">validado</span>
+							</button>
+							{#if isFieldOpen}
+								<div id={`requester-field-${item.id}`} class="field-accordion-panel">
+									<PendencyItemBlock
+										{protocol}
+										{item}
+										{identity}
+										onResponded={onItemResponded}
+										{onUnauthorized}
+									/>
+								</div>
+							{/if}
+						</div>
+					{:else}
+						<PendencyItemBlock
+							{protocol}
+							{item}
+							{identity}
+							onResponded={onItemResponded}
+							{onUnauthorized}
+						/>
+					{/if}
 				{/each}
-			</ul>
-		{/if}
-		{#if uploadTargetId}
-			<input
-				bind:this={fileInput}
-				type="file"
-				accept=".pdf,.docx,.xlsx,.png,.jpg"
-				onchange={handleFileChange}
-				aria-hidden="true"
-				tabindex="-1"
-				hidden
-			/>
-			<div class="upload-row">
-				<Button variant="outline" disabled={isUploading} onclick={openFilePicker}>
-					{isUploading ? 'Enviando…' : 'Anexar arquivo'}
-				</Button>
-				<span class="upload-hint">PDF, DOCX, XLSX, PNG ou JPG (Máx. 10 MB)</span>
 			</div>
-			{#if uploadError}
-				<p class="upload-error" role="alert">{uploadError}</p>
-			{/if}
-		{/if}
-	</div>
 
-	<footer class="pendency-meta">
-		<span>{progressLabel}</span>
-		{#if deadlines.length > 0}
-			<span>Prazo: {formatDate(deadlines[0])}</span>
-		{/if}
-		<span>Solicitada em {formatDateTime(batch.createdAt)}</span>
-	</footer>
-
-	{#if isComplete}
-		<p class="complete-note" role="status">
-			{#if batch.resolved}
-				Lote validado pelo analista.
-			{:else if requiresAttachment && batchAttachments.length === 0}
-				Falta anexar ao menos 1 arquivo para concluir o lote.
-			{:else}
-				Todas as respostas foram enviadas. Aguardando validação do analista.
+			{#if batch.fields.length > 0}
+				{@const pendingFields = batch.items.filter(
+					(item) => item.type === 'field_edit' && item.status === 'requested'
+				).length}
+				<p class="field-count">
+					{pendingFields === 1
+						? '1 campo aguardando resposta'
+						: `${pendingFields} campos aguardando resposta`}
+					{#if batch.validatedCount > 0}
+						· {batch.validatedCount} validado{batch.validatedCount === 1 ? '' : 's'}
+					{/if}
+				</p>
 			{/if}
-		</p>
+
+			<div class="attachments-block">
+				<p class="attachments-title">
+					<Icon iconName="cloudUpload" iconSize="sm" />
+					<span>Anexos do lote</span>
+					{#if requiresAttachment}
+						<span class="required-tag">Solicitado pelo analista</span>
+					{/if}
+				</p>
+				{#if batchAttachments.length === 0}
+					<p class="attachments-empty">Nenhum anexo enviado neste lote.</p>
+				{:else}
+					<ul class="attachments-list">
+						{#each batchAttachments as entry (entry.itemId + entry.attachment.fileName)}
+							<li class="attachment-item">
+								<span class="attachment-name">{entry.attachment.fileName}</span>
+								<span class="attachment-meta">
+									{entry.attachment.mimeType} • {formatBytes(entry.attachment.sizeBytes)}
+								</span>
+								{#if entry.attachment.canDownload && entry.attachment.downloadUrl}
+									<a
+										href={entry.attachment.downloadUrl}
+										target="_blank"
+										rel="external noopener noreferrer"
+										class="attachment-link"
+									>
+										Visualizar
+									</a>
+								{/if}
+							</li>
+						{/each}
+					</ul>
+				{/if}
+				{#if uploadTargetId}
+					<input
+						bind:this={fileInput}
+						type="file"
+						accept=".pdf,.docx,.xlsx,.png,.jpg"
+						onchange={handleFileChange}
+						aria-hidden="true"
+						tabindex="-1"
+						hidden
+					/>
+					<div class="upload-row">
+						<Button variant="outline" disabled={isUploading} onclick={openFilePicker}>
+							{isUploading ? 'Enviando…' : 'Anexar arquivo'}
+						</Button>
+						<span class="upload-hint">PDF, DOCX, XLSX, PNG ou JPG (Máx. 10 MB)</span>
+					</div>
+					{#if uploadError}
+						<p class="upload-error" role="alert">{uploadError}</p>
+					{/if}
+				{/if}
+			</div>
+
+			<footer class="pendency-meta">
+				<span>{progressLabel}</span>
+				{#if deadlines.length > 0}
+					<span>Prazo: {formatDate(deadlines[0])}</span>
+				{/if}
+				<span>Solicitada em {formatDateTime(batch.createdAt)}</span>
+			</footer>
+
+			{#if isComplete}
+				<p class="complete-note" role="status">
+					{#if batch.resolved}
+						Lote validado pelo analista.
+					{:else if requiresAttachment && batchAttachments.length === 0}
+						Falta anexar ao menos 1 arquivo para concluir o lote.
+					{:else}
+						Todas as respostas foram enviadas. Aguardando validação do analista.
+					{/if}
+				</p>
+			{/if}
+		</div>
 	{/if}
 </article>
 
@@ -329,13 +355,55 @@
 		flex-wrap: wrap;
 	}
 
+	.card-toggle {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		flex-wrap: wrap;
+		width: 100%;
+		padding: 0;
+		background: none;
+		border: none;
+		cursor: pointer;
+		text-align: left;
+		font: inherit;
+	}
+
+	.card-toggle:focus-visible {
+		outline: 2px solid var(--secondary-color);
+		outline-offset: 2px;
+		border-radius: 2px;
+	}
+
+	.card-chevron {
+		margin-left: auto;
+		flex-shrink: 0;
+		font-size: 11px;
+		line-height: 1;
+		color: var(--gray);
+	}
+
+	.pendency-panel {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+	}
+
 	.pendency-title {
 		font-family: var(--font-inter);
 		font-size: 11px;
 		font-weight: 700;
 		letter-spacing: 0.03em;
-		color: var(--secondary-color);
+		color: var(--status-yellow);
 		text-transform: uppercase;
+	}
+
+	.pendency-card[data-status='responded'] .pendency-title {
+		color: var(--secondary-color);
+	}
+
+	.pendency-card[data-status='validated'] .pendency-title {
+		color: var(--status-green);
 	}
 
 	.header-pills {
