@@ -26,10 +26,12 @@
 		onRemoveItem?: (fieldKey: string) => void;
 		/**
 		 * Abre o fluxo de alteração de campos do Quick Action (marcação por
-		 * campo). Quando informado, o modal exibe o botão correspondente e
-		 * fecha para dar lugar àquele fluxo — sem duplicar a implementação.
+		 * campo). Recebe o rascunho atual (observação + anexo) para que o
+		 * fluxo de marcação preserve o que já foi digitado — sem duplicar
+		 * a implementação. Quando informado, o modal exibe o botão
+		 * correspondente e fecha para dar lugar àquele fluxo.
 		 */
-		onRequestFieldChange?: () => void;
+		onRequestFieldChange?: (draft: { observation: string; requestAttachment: boolean }) => void;
 		onclose: () => void;
 	}
 
@@ -52,8 +54,9 @@
 	let formError = $state('');
 
 	function handleFieldChangeRequest(): void {
+		const draft = { observation, requestAttachment };
 		onclose();
-		onRequestFieldChange?.();
+		onRequestFieldChange?.(draft);
 	}
 
 	function handleConfirm(): void {

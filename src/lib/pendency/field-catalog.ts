@@ -118,39 +118,37 @@ export function toFieldCandidateSections(
 		]
 	});
 
-	if (complementary) {
-		sections.push({
-			id: 'complementary',
-			title: 'Informações complementares',
-			fields: [
-				toRef(
-					'complementary.hasProcessDocumentation',
-					'Documentação de Processo',
-					formatYesNo(complementary.hasProcessDocumentation)
-				),
-				toRef(
-					'complementary.hasSimilarSolution',
-					'Solução Similar',
-					formatYesNo(complementary.hasSimilarSolution)
-				),
-				toRef(
-					'complementary.dependsOnOtherAreas',
-					'Depende de Outras Áreas',
-					formatYesNo(complementary.dependsOnOtherAreas)
-				),
-				toRef(
-					'complementary.handlesRestrictedInfo',
-					'Trata Dados Restritos',
-					formatYesNo(complementary.handlesRestrictedInfo)
-				),
-				toRef(
-					'complementary.additionalNotes',
-					'Observações Adicionais',
-					complementary.additionalNotes
-				)
-			]
-		});
-	}
+	sections.push({
+		id: 'complementary',
+		title: 'Informações complementares',
+		fields: [
+			toRef(
+				'complementary.hasProcessDocumentation',
+				'Documentação de Processo',
+				formatYesNo(complementary?.hasProcessDocumentation)
+			),
+			toRef(
+				'complementary.hasSimilarSolution',
+				'Solução Similar',
+				formatYesNo(complementary?.hasSimilarSolution)
+			),
+			toRef(
+				'complementary.dependsOnOtherAreas',
+				'Depende de Outras Áreas',
+				formatYesNo(complementary?.dependsOnOtherAreas)
+			),
+			toRef(
+				'complementary.handlesRestrictedInfo',
+				'Trata Dados Restritos',
+				formatYesNo(complementary?.handlesRestrictedInfo)
+			),
+			toRef(
+				'complementary.additionalNotes',
+				'Observações Adicionais',
+				complementary?.additionalNotes
+			)
+		]
+	});
 
 	return sections;
 }

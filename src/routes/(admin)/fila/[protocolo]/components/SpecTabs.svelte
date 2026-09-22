@@ -53,7 +53,7 @@
 		onFieldPendencyRemove?: (path: string) => void;
 		onPendencySave?: () => void;
 		onPendencyCancel?: () => void;
-		onRequestFieldChange?: () => void;
+		onRequestFieldChange?: (draft?: { observation: string; requestAttachment: boolean }) => void;
 	}
 
 	let {
@@ -134,10 +134,14 @@
 
 	// Atalho do modal para o fluxo de alteração de campos do Quick Action
 	// (marcação por campo): fecha o modal e reutiliza aquele fluxo — sem
-	// duplicar a implementação.
-	function handleRequestFieldChange(): void {
+	// duplicar a implementação. Repassa o rascunho (observação + anexo)
+	// digitado no modal para que o fluxo de marcação o preserve.
+	function handleRequestFieldChange(draft?: {
+		observation: string;
+		requestAttachment: boolean;
+	}): void {
 		showCreateModal = false;
-		onRequestFieldChange?.();
+		onRequestFieldChange?.(draft);
 	}
 
 	async function handleCreateConfirm(value: {

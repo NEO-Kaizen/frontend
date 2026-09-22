@@ -88,14 +88,18 @@
 	const openBatch = $derived(findOpenBatch(toPendingBatches(pendencies ?? [])));
 	const isPendencyBlocked = $derived(openBatch !== null);
 
-	function enterPendencyMode(): void {
+	function enterPendencyMode(draft?: { observation: string; requestAttachment: boolean }): void {
 		if (isPendencyMode || isPendencyBlocked) return;
 		pendingDraft.clear();
 		pendingFieldPath = null;
 		pendencyError = null;
 		pendingSuccess = null;
-		pendingObservation = '';
-		pendingRequestAttachment = false;
+		// Rascunho compartilhado com o modal de criação pelo histórico
+		// (SpecTabs → PendencyRequestModal): preserva observação + anexo
+		// digitados antes de entrar na marcação por campo. Sem draft,
+		// começa vazio (fluxo do Quick Action).
+		pendingObservation = draft?.observation ?? '';
+		pendingRequestAttachment = draft?.requestAttachment ?? false;
 		showPendencyRequestModal = false;
 		showPendencyCancelConfirm = false;
 		isPendencyMode = true;
