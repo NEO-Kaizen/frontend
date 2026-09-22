@@ -67,6 +67,7 @@
 						bind:value={searchValue}
 						actionIcon="search"
 						actionLabel="Buscar"
+						oninput={handleSubmit}
 						onAction={handleSubmit}
 					/>
 				</form>
