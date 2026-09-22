@@ -18,9 +18,21 @@ export async function login(credentials: LoginCredentials): Promise<Result<Login
 		return { ok: true, data };
 	} catch (error) {
 		if (error instanceof ApiError) {
-			return { ok: false, error: { status: error.status, message: 'Credenciais inválidas.' } };
+			return {
+				ok: false,
+				error: {
+					status: error.status,
+					message: error.message || 'Credenciais inválidas.'
+				}
+			};
 		}
-		return { ok: false, error: { message: 'Não foi possível conectar ao servidor.' } };
+
+		return {
+			ok: false,
+			error: {
+				message: 'Não foi possível conectar ao servidor.'
+			}
+		};
 	}
 }
 

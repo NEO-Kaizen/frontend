@@ -53,7 +53,7 @@ export async function listRequests(
 				ok: false,
 				error: {
 					status: error.status,
-					message: 'Não foi possível carregar as solicitações.'
+					message: error.message || 'Não foi possível carregar as solicitações.'
 				}
 			};
 		}
@@ -84,7 +84,7 @@ export async function listQueueRequests(
 				ok: false,
 				error: {
 					status: error.status,
-					message: 'Não foi possível carregar a fila centralizada.'
+					message: error.message || 'Não foi possível carregar a fila centralizada.'
 				}
 			};
 		}
@@ -114,7 +114,7 @@ export async function getQueueMetrics(
 				ok: false,
 				error: {
 					status: error.status,
-					message: 'Não foi possível carregar as métricas da fila.'
+					message: error.message || 'Não foi possível carregar as métricas da fila.'
 				}
 			};
 		}
