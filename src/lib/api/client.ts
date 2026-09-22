@@ -48,18 +48,54 @@ export async function apiClient<T>(
 	if (!response.ok) {
 		throw new ApiError(response.status, await readErrorMessage(response));
 	}
-	if (response.status === 204) {
+
+	return readSuccessBody<T>(response);
+}
+
+async function readSuccessBody<T>(response: Response): Promise<T> {
+	if (response.status === 204 || response.headers.get('content-length') === '0') {
 		return undefined as T;
 	}
 
-	return (await response.json()) as T;
+	const contentType = response.headers.get('content-type');
+
+	if (!contentType?.includes('application/json')) {
+		return undefined as T;
+	}
+
+	const text = await response.text();
+
+	if (!text.trim()) {
+		return undefined as T;
+	}
+
+	try {
+		return JSON.parse(text) as T;
+	} catch {
+		return undefined as T;
+	}
 }
 
 async function readErrorMessage(response: Response): Promise<string> {
+	const fallback = 'Não foi possível concluir a operação.';
+
 	try {
-		const body = (await response.json()) as { message?: string; error?: string };
-		return body.message || body.error || 'Não foi possível concluir a operação.';
+		const body: unknown = await response.json();
+
+		if (typeof body !== 'object' || body === null) {
+			return fallback;
+		}
+
+		if ('message' in body && typeof body.message === 'string' && body.message.trim()) {
+			return body.message;
+		}
+
+		if ('error' in body && typeof body.error === 'string' && body.error.trim()) {
+			return body.error;
+		}
+
+		return fallback;
 	} catch {
-		return 'Não foi possível concluir a operação.';
+		return fallback;
 	}
 }
