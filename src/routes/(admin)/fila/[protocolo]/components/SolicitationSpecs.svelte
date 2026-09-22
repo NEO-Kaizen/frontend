@@ -216,10 +216,10 @@
 				</span>
 				<span
 					class="responsible-value"
-					class:is-unassigned={!solicitation.assignee?.name}
+					class:is-unassigned={!solicitation.assignee?.name && !solicitation.mappingAssignee?.name}
 					title={solicitation.assignee?.name ?? 'Não atribuído'}
 				>
-					{solicitation.assignee?.name ?? 'Não atribuído'}
+					{solicitation.assignee?.name ?? solicitation.mappingAssignee?.name ?? 'Não atribuído'}
 				</span>
 			</div>
 		</div>
@@ -299,8 +299,9 @@
 			protocol={solicitation.protocol}
 			currentAssigneeId={solicitation.assignee?.id ?? null}
 			currentAssigneeName={solicitation.assignee?.name ?? null}
-			// currentMappingAssigneeId={solicitation.mappingAssignee?.id ?? null}
-			// currentMappingAssigneeName={solicitation.mappingAssignee?.name ?? null}
+			currentMappingAssigneeId={solicitation.mappingAssignee?.id ?? null}
+			currentMappingAssigneeName={solicitation.mappingAssignee?.name ?? null}
+			currentAssigneeDeadline={solicitation.assigneeDeadline ?? null}
 			onclose={() => (isAssignModalOpen = false)}
 			onSuccess={handleAssignSuccess}
 		/>

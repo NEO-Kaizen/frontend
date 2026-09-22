@@ -161,18 +161,21 @@ export async function assignAnalyst(
 	protocol: string,
 	analystId: string,
 	responsibility: AssignResponsibility = 'triagem',
+	assigneeDeadline: string | null = null,
 	fetchImpl?: typeof fetch
 ): Promise<InternalRequestDetail> {
 	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.request) {
 		const { assignAnalystMock } = await import('$lib/mocks/requests.mock');
-		return assignAnalystMock(protocol, analystId, responsibility);
+		return assignAnalystMock(protocol, analystId, responsibility, assigneeDeadline);
 	}
 
 	const encoded = encodeURIComponent(protocol);
+	// Exclusividade: apenas um responsável vigente — o campo oposto é
+	// explicitamente anulado para o backend limpar o vínculo anterior.
 	const body =
 		responsibility === 'mapeamento'
-			? { mappingAssigneeId: analystId }
-			: { assigneeId: analystId };
+			? { mappingAssigneeId: analystId, assigneeId: null, assigneeDeadline }
+			: { assigneeId: analystId, mappingAssigneeId: null, assigneeDeadline };
 
 	return apiClient<InternalRequestDetail>(
 		`${REQUESTS_PATH}/${encoded}/internal/assignee`,

@@ -414,7 +414,11 @@ export interface InternalRequestDetail {
 	assignee: { id: string | null; name: string | null; email?: string | null } | null;
 	// Responsável pelo mapeamento (contrato Front ↔ Back — Mapeamento): o
 	// backend devolve o objeto ao receber `mappingAssigneeId` no PATCH.
+	// Apenas um responsável é vigente por vez: ao atribuir `assignee`,
+	// `mappingAssignee` é `null`, e vice-versa.
 	mappingAssignee?: { id: string | null; name: string | null; email?: string | null } | null;
+	// Prazo da atribuição vigente (ISO "yyyy-mm-dd"). `null` quando não definido.
+	assigneeDeadline: string | null;
 	correctionAlert?: { count: number; message: string } | null;
 
 	// blocos da solicitação

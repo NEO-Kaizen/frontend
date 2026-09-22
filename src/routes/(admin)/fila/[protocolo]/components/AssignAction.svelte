@@ -18,6 +18,7 @@
 		currentAssigneeName?: string | null;
 		currentMappingAssigneeId?: string | null;
 		currentMappingAssigneeName?: string | null;
+		currentAssigneeDeadline?: string | null;
 		onclose: () => void;
 		onSuccess: (updated: InternalRequestDetail) => void;
 	}
@@ -28,6 +29,7 @@
 		currentAssigneeName = null,
 		currentMappingAssigneeId = null,
 		currentMappingAssigneeName = null,
+		currentAssigneeDeadline = null,
 		onclose,
 		onSuccess
 	}: Props = $props();
@@ -47,6 +49,19 @@
 	let selectedId = $state<string | null>(currentAssigneeId ?? null);
 	let isSaving = $state(false);
 	let responsibility = $state<'triagem' | 'mapeamento' | null>(null);
+	// svelte-ignore state_referenced_locally
+	let deadline = $state<string>(currentAssigneeDeadline ?? '');
+	let deadlineError = $state<string>('');
+
+	function getTodayIsoDate(): string {
+		const now = new Date();
+		const year = now.getFullYear();
+		const month = String(now.getMonth() + 1).padStart(2, '0');
+		const day = String(now.getDate()).padStart(2, '0');
+		return `${year}-${month}-${day}`;
+	}
+
+	const todayIso = getTodayIsoDate();
 
 	const prefersReducedMotion =
 		typeof window !== 'undefined' &&
@@ -120,21 +135,47 @@
 
 	let submitError = $state<string | null>(null);
 
+	function validateDeadline(value: string): string {
+		if (!value) return '';
+		if (value < todayIso) return 'O prazo não pode ser anterior a hoje.';
+		return '';
+	}
+
+	function handleDeadlineChange(value: string): void {
+		deadline = value;
+		deadlineError = validateDeadline(value);
+		if (!deadlineError) submitError = null;
+	}
+
 	async function handleSubmit(): Promise<void> {
 		if (!selectedId || isSaving) return;
 		if (!responsibility) {
 			submitError = 'Selecione a responsabilidade (Triagem ou Mapeamento).';
 			return;
 		}
+		const deadlineValidation = validateDeadline(deadline);
+		if (deadlineValidation) {
+			deadlineError = deadlineValidation;
+			submitError = deadlineValidation;
+			return;
+		}
 		isSaving = true;
 		submitError = null;
-		const result = await assignAnalyst(protocol, selectedId, responsibility);
+		const result = await assignAnalyst(
+			protocol,
+			selectedId,
+			responsibility,
+			deadline ? deadline : null
+		);
 		isSaving = false;
 		if (result.ok) {
 			onSuccess(result.data);
 			onclose();
 		} else {
 			submitError = result.error.message;
+			if (submitError.toLowerCase().includes('prazo')) {
+				deadlineError = submitError;
+			}
 		}
 	}
 
@@ -317,32 +358,45 @@
 		{/if}
 
 		<footer class="assign-footer">
-			<div class="responsibility-group" role="radiogroup" aria-label="Responsabilidade do analista">
-				<span class="responsibility-title">Responsável por:</span>
-				<label class="radio-option" class:selected={responsibility === 'triagem'}>
-					<input
-						type="radio"
-						name="responsibility"
-						value="triagem"
-						bind:group={responsibility}
-						onchange={() => handleResponsibilityChange('triagem')}
-						aria-label="Triagem"
+			<div class="footer-group">
+				<div class="responsibility-group" role="radiogroup" aria-label="Responsabilidade do analista">
+					<span class="responsibility-title">Responsável por:</span>
+					<label class="radio-option" class:selected={responsibility === 'triagem'}>
+						<input
+							type="radio"
+							name="responsibility"
+							value="triagem"
+							bind:group={responsibility}
+							onchange={() => handleResponsibilityChange('triagem')}
+							aria-label="Triagem"
+						/>
+						<span class="radio-indicator" aria-hidden="true"></span>
+						Triagem
+					</label>
+					<label class="radio-option" class:selected={responsibility === 'mapeamento'}>
+						<input
+							type="radio"
+							name="responsibility"
+							value="mapeamento"
+							bind:group={responsibility}
+							onchange={() => handleResponsibilityChange('mapeamento')}
+							aria-label="Mapeamento"
+						/>
+						<span class="radio-indicator" aria-hidden="true"></span>
+						Mapeamento
+					</label>
+				</div>
+				<div class="deadline-field">
+					<span class="responsibility-title">Prazo:</span>
+					<Input
+						type="date"
+						bind:value={deadline}
+						min={todayIso}
+						error={deadlineError}
+						aria-label="Prazo da atribuição"
+						oninput={() => handleDeadlineChange(deadline)}
 					/>
-					<span class="radio-indicator" aria-hidden="true"></span>
-					Triagem
-				</label>
-				<label class="radio-option" class:selected={responsibility === 'mapeamento'}>
-					<input
-						type="radio"
-						name="responsibility"
-						value="mapeamento"
-						bind:group={responsibility}
-						onchange={() => handleResponsibilityChange('mapeamento')}
-						aria-label="Mapeamento"
-					/>
-					<span class="radio-indicator" aria-hidden="true"></span>
-					Mapeamento
-				</label>
+				</div>
 			</div>
 
 			<div class="footer-actions">
@@ -782,15 +836,33 @@
 		flex-shrink: 0;
 	}
 
-	.responsibility-group {
+	.footer-group {
 		display: flex;
 		align-items: center;
 		gap: 12px;
 		flex-wrap: wrap;
 		padding: 8px 12px;
+		padding-bottom: 12px;
 		background: var(--background-color);
-		border: 1px solid var(--white-gray);
+		;border: 1px solid var(--white-gray);
 		border-radius: var(--radius-sm);
+		justify-content: space-between;
+		flex-wrap: wrap;
+	}
+	.responsibility-group {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		flex-wrap: wrap;
+
+	}
+
+	.deadline-field {
+		align-items: center;
+		display: flex;
+		min-width: 160px;
+		max-width: 200px;
+		flex-shrink: 0;
 	}
 
 	.responsibility-title {
@@ -925,6 +997,11 @@
 		.responsibility-group {
 			flex-direction: column;
 			align-items: flex-start;
+		}
+
+		.deadline-field {
+			max-width: none;
+			width: 100%;
 		}
 	}
 

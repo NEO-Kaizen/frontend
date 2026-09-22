@@ -524,6 +524,7 @@ function registerCreatedRequest(protocol: string, payload: CreateRequestPayload)
 		prioritization: { score: null, maxScore: 50, label: null, notes: {} },
 		assignee: null,
 		mappingAssignee: null,
+		assigneeDeadline: null,
 		correctionAlert: null,
 		requester: payload.requester,
 		demand: payload.demand,
@@ -788,6 +789,7 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 			email: 'fernando.alves@maat.com.br'
 		},
 		mappingAssignee: null,
+		assigneeDeadline: null,
 		correctionAlert: { count: 2, message: 'Alteração respondida pelo solicitante (2 campos)' },
 		requester: {
 			fullName: 'Maria Oliveira',
@@ -883,6 +885,7 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 			email: 'fernando.alves@maat.com.br'
 		},
 		mappingAssignee: null,
+		assigneeDeadline: null,
 		correctionAlert: null,
 		requester: {
 			fullName: 'Maria Oliveira',
@@ -942,6 +945,7 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 			email: 'carlos.mendes@maat.com.br'
 		},
 		mappingAssignee: null,
+		assigneeDeadline: null,
 		correctionAlert: null,
 		requester: {
 			fullName: 'Ana Souza',
@@ -1108,7 +1112,8 @@ export function getTriageMock(protocol: string): Promise<TriageAssessment | null
 export async function assignAnalystMock(
 	protocol: string,
 	analystId: string,
-	responsibility: 'triagem' | 'mapeamento' = 'triagem'
+	responsibility: 'triagem' | 'mapeamento' = 'triagem',
+	assigneeDeadline: string | null = null
 ): Promise<InternalRequestDetail> {
 	const normalized = protocol.toLowerCase().trim();
 	const detail = mockInternalRequestDetails.find(
@@ -1121,6 +1126,14 @@ export async function assignAnalystMock(
 
 	if (!analystId || !analystId.trim()) {
 		return Promise.reject(new ApiError(400, 'Analista não informado.'));
+	}
+
+	if (assigneeDeadline !== null && assigneeDeadline !== '') {
+		const today = new Date();
+		const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+		if (Number.isNaN(new Date(assigneeDeadline).getTime()) || assigneeDeadline < todayIso) {
+			return Promise.reject(new ApiError(400, 'O prazo não pode ser anterior a hoje.'));
+		}
 	}
 
 	const analyst = (
@@ -1148,11 +1161,23 @@ export async function assignAnalystMock(
 	};
 
 	if (responsibility === 'mapeamento') {
-		// Responsável pelo Mapeamento é independente do responsável pela Triagem.
+		// Exclusividade: responsável pelo Mapeamento anula o da Triagem.
 		detail.mappingAssignee = assigneeValue;
+		detail.assignee = null;
+		detail.assigneeDeadline = assigneeDeadline && assigneeDeadline !== '' ? assigneeDeadline : null;
+
+		// A fila representa o responsável pela Triagem — sem triagem, fica sem responsável.
+		const queueItem = mockRequests.find((r) => r.protocol.toLowerCase().trim() === normalized);
+
+		if (queueItem) {
+			queueItem.assigneeId = null;
+			queueItem.assignee = null;
+		}
 	} else {
-		// A atribuição de Triagem altera o responsável principal da solicitação.
+		// Exclusividade: responsável pela Triagem anula o do Mapeamento.
 		detail.assignee = assigneeValue;
+		detail.mappingAssignee = null;
+		detail.assigneeDeadline = assigneeDeadline && assigneeDeadline !== '' ? assigneeDeadline : null;
 
 		// A fila representa o responsável pela Triagem.
 		const queueItem = mockRequests.find((r) => r.protocol.toLowerCase().trim() === normalized);
