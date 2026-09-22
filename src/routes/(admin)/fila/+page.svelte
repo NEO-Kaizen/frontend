@@ -169,6 +169,16 @@
 		await goto(target, { keepFocus: true, noScroll: true });
 	}
 
+	async function handleSearch(term: string): Promise<void> {
+		const target = `${queuePath}${buildQueueParams({
+			page: null,
+			search: term ? term.trim() : null
+		})}`;
+
+		// eslint-disable-next-line svelte/no-navigation-without-resolve
+		await goto(target, { keepFocus: true, noScroll: true });
+	}
+
 	async function handleClearSearch(): Promise<void> {
 		const target = `${queuePath}${buildQueueParams({
 			page: null,
@@ -215,8 +225,8 @@
 		{assigneeOptions}
 		search={activeSearch}
 		onFilterChange={(next) => void handleFilterChange(next.status, next.priority, next.assignee)}
+		onSearch={(term) => void handleSearch(term)}
 		onClear={() => void handleClearFilters()}
-		onClearSearch={() => void handleClearSearch()}
 	/>
 
 	<SolicitationTable

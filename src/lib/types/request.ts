@@ -355,6 +355,7 @@ export interface PaginatedResponse<T> {
 export interface RequestSummary {
 	protocol: string;
 	createdAt: string;
+	demandTitle?: string;
 	processName: string;
 	priority: RequestPriority | null;
 	status: RequestStatus;
