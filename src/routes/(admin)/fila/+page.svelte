@@ -8,14 +8,23 @@
 	import QueueFilters from '$lib/components/QueueFilters.svelte';
 	import SolicitationTable from '$lib/components/tables/SolicitationTable.svelte';
 	import Button from '$lib/components/Button.svelte';
+	import Icon from '$lib/components/Icon.svelte';
+	import { exportQueueCsv } from '$lib/services/report.service';
+	import { notifyError } from '$lib/utils/feedback';
 
 	import type { MetricItem } from '$lib/types/metrics';
+	import type { PriorityFilter, QueueFilterQuery } from '$lib/types/queue';
+	import type { RequestStatus } from '$lib/types/request';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 
 	// Navegação pendente para a própria rota: estado de carregamento da tabela.
 	const isFetching = $derived(navigating.to?.route?.id === page.route.id);
+	let isExporting = $state(false);
+
+	const canExport = $derived(data.user?.role === 'Gestor' || data.user?.role === 'Administrador');
+	const hasExportableRows = $derived(data.result.ok && data.result.data.total > 0);
 
 	const queuePath = resolve('/(admin)/fila');
 
@@ -178,6 +187,45 @@
 		// eslint-disable-next-line svelte/no-navigation-without-resolve
 		await goto(target, { keepFocus: true, noScroll: true });
 	}
+
+	function currentExportFilters(): QueueFilterQuery {
+		const filters: QueueFilterQuery = {};
+
+		if (activeSearch) filters.search = activeSearch;
+		if (status !== 'all') filters.status = status as RequestStatus;
+		if (priority !== 'all') filters.priority = priority as PriorityFilter;
+		if (assigneeId !== 'all') filters.assigneeId = assigneeId;
+
+		return filters;
+	}
+
+	function startDownload(blob: Blob, filename: string): void {
+		const objectUrl = URL.createObjectURL(blob);
+		const anchor = document.createElement('a');
+		anchor.href = objectUrl;
+		anchor.download = filename;
+		anchor.hidden = true;
+		document.body.append(anchor);
+		anchor.click();
+		anchor.remove();
+		// Mantém a URL válida até o navegador efetivamente iniciar o download.
+		setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+	}
+
+	async function handleExport(): Promise<void> {
+		if (isExporting || !canExport || !hasExportableRows) return;
+
+		isExporting = true;
+		const result = await exportQueueCsv(currentExportFilters());
+		isExporting = false;
+
+		if (!result.ok) {
+			notifyError(result.error.message);
+			return;
+		}
+
+		startDownload(result.data.blob, result.data.filename);
+	}
 </script>
 
 <svelte:head>
@@ -186,8 +234,24 @@
 
 <section class="queue-page">
 	<header class="queue-page__header">
-		<h1>Fila Centralizada</h1>
-		<p>Gestão e acompanhamento operacional de demandas</p>
+		<div>
+			<h1>Fila Centralizada</h1>
+			<p>Gestão e acompanhamento operacional de demandas</p>
+		</div>
+
+		{#if canExport}
+			<Button
+				variant="outline"
+				loading={isExporting}
+				disabled={!hasExportableRows}
+				onclick={() => void handleExport()}
+			>
+				{#if !isExporting}
+					<Icon iconName="download" />
+				{/if}
+				{isExporting ? 'Preparando CSV' : 'Exportar CSV'}
+			</Button>
+		{/if}
 	</header>
 
 	{#if data.metricsResult.ok}
@@ -239,6 +303,13 @@
 
 	.queue-page__header {
 		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: var(--spacing-sm);
+	}
+
+	.queue-page__header > div {
+		display: flex;
 		flex-direction: column;
 		gap: var(--spacing-sm);
 	}
@@ -270,5 +341,15 @@
 
 	.metrics-state--error {
 		color: var(--status-red);
+	}
+
+	@media (max-width: 640px) {
+		.queue-page__header {
+			flex-direction: column;
+		}
+
+		.queue-page__header :global(button) {
+			width: 100%;
+		}
 	}
 </style>
