@@ -34,7 +34,6 @@
 		onClear,
 		search = '',
 		onSearch,
-		onClearSearch
 	}: Props = $props();
 
 	let searchValue = $state('');
@@ -130,12 +129,6 @@
 		background-color: var(--white);
 		border: 1px solid var(--border-color);
 		border-radius: var(--radius-lg);
-	}
-
-	.queue-filters__header {
-		display: flex;
-		align-items: center;
-		justify-content: flex-start;
 	}
 
 	.queue-filters__main {
