@@ -24,6 +24,7 @@
 			items: PendencyRequestItem[];
 		}) => void;
 		onRemoveItem?: (fieldKey: string) => void;
+		onDraftChange?: (draft: { observation: string; requestAttachment: boolean }) => void;
 		/**
 		 * Abre o fluxo de alteração de campos do Quick Action (marcação por
 		 * campo). Recebe o rascunho atual (observação + anexo) para que o
@@ -43,15 +44,20 @@
 		serverError = null,
 		onConfirm,
 		onRemoveItem,
+		onDraftChange,
 		onRequestFieldChange,
 		onclose
 	}: Props = $props();
 
-	// Cópia de trabalho do lote: observação geral + pedido de anexo. Os campos
-	// (fluxo de marcação) chegam prontos via `entries` e são só leitura aqui.
 	let observation = $state(untrack(() => initialObservation));
 	let requestAttachment = $state(untrack(() => initialRequestAttachment));
 	let formError = $state('');
+
+	$effect(() => {
+		const draft = { observation, requestAttachment };
+		const notify = untrack(() => onDraftChange);
+		notify?.(draft);
+	});
 
 	function handleFieldChangeRequest(): void {
 		const draft = { observation, requestAttachment };

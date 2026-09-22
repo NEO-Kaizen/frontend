@@ -47,7 +47,6 @@
 		isPendencyMode?: boolean;
 		pendencyCount?: number;
 		isPendencySaving?: boolean;
-		pendingSuccessText?: string | null;
 		markedFieldKeys?: ReadonlySet<string>;
 		onFieldPendencyClick?: (path: string) => void;
 		onFieldPendencyRemove?: (path: string) => void;
@@ -67,7 +66,6 @@
 		isPendencyMode = false,
 		pendencyCount = 0,
 		isPendencySaving = false,
-		pendingSuccessText = null,
 		markedFieldKeys = new Set<string>(),
 		onFieldPendencyClick,
 		onFieldPendencyRemove,
@@ -283,22 +281,7 @@
 
 	onDestroy(clearSaveSuccess);
 
-	// Mensagem de sucesso do modo marcação vem do pai via prop; reutiliza o
-	// mesmo elemento e o mesmo timeout do modo edição, apenas escondendo a
-	// exibição após o intervalo (o estado do pai fica intacto).
-	let pendingSuccessDismissed = $state(false);
-	$effect(() => {
-		pendingSuccessDismissed = !pendingSuccessText;
-		if (!pendingSuccessText) return;
-		const timer = setTimeout(() => {
-			pendingSuccessDismissed = true;
-		}, SAVE_SUCCESS_TIMEOUT_MS);
-		return () => clearTimeout(timer);
-	});
-
-	const successMessage = $derived(
-		saveSuccess ?? (pendingSuccessDismissed ? null : pendingSuccessText)
-	);
+	const successMessage = $derived(saveSuccess);
 
 	const prefersReducedMotion =
 		typeof window !== 'undefined' &&
