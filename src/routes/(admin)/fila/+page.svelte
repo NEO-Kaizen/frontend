@@ -227,7 +227,6 @@
 		onFilterChange={(next) => void handleFilterChange(next.status, next.priority, next.assignee)}
 		onSearch={(term) => void handleSearch(term)}
 		onClear={() => void handleClearFilters()}
-		onClearSearch={() => void handleClearSearch()}
 	/>
 
 	<SolicitationTable
