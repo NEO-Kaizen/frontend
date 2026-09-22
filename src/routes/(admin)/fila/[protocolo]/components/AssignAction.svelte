@@ -203,21 +203,11 @@
 			easing: cubicInOut
 		}}
 	>
-		<p class="assign-subtitle">
-			{#if isReassign && currentAssigneeDisplayName}
-				Selecione um novo analista para a solicitação <span class="protocol-highlight"
-					>{protocol}</span
-				>
-			{:else}
-				Selecione 1 analista para a solicitação <span class="protocol-highlight">{protocol}</span>
-			{/if}
-		</p>
 
 		{#if isReassign && currentAssigneeDisplayName}
 			<div class="current-banner" role="status" aria-label="Responsável atual">
 				<Icon iconName="person" iconSize="sm" />
-				<span>Responsável atual: <strong>{currentAssigneeDisplayName}</strong></span>
-				<span class="banner-hint">— escolha abaixo para alterar</span>
+				<span>Responsável atual: <strong>{currentAssigneeDisplayName}</strong> — {currentAssigneeId === currentMappingAssigneeId ? "Mapeamento" : "Triagem"}</span>
 			</div>
 		{/if}
 
@@ -317,7 +307,7 @@
 									<span class="name-row">
 										<span class="analyst-name">{analyst.fullName}</span>
 										{#if analyst.id === currentAssigneeId}
-											<span class="current-badge" aria-label="Responsável atual">Atual</span>
+											<span class="current-badge" aria-label="Responsável atual">Atual: {currentAssigneeId === currentMappingAssigneeId ? "mapeamento" : "pela triagem"}</span>
 										{/if}
 									</span>
 									{#if analyst.specialty && analyst.specialty.trim()}
@@ -359,7 +349,11 @@
 
 		<footer class="assign-footer">
 			<div class="footer-group">
-				<div class="responsibility-group" role="radiogroup" aria-label="Responsabilidade do analista">
+				<div
+					class="responsibility-group"
+					role="radiogroup"
+					aria-label="Responsabilidade do analista"
+				>
 					<span class="responsibility-title">Responsável por:</span>
 					<label class="radio-option" class:selected={responsibility === 'triagem'}>
 						<input
@@ -470,9 +464,9 @@
 		gap: 8px;
 		padding: 8px 12px;
 		border-radius: var(--radius-sm);
-		background: var(--status-blue-bg);
-		border: 1px solid rgba(0, 51, 153, 0.12);
+		background: color-mix(in srgb, var(--primary-color) 12%, var(--surface));
 		color: var(--primary-color);
+		border: 1px solid color-mix(in srgb, var(--primary-color) 30%, transparent);
 		font-family: var(--font-inter);
 		font-size: 12px;
 		font-weight: 500;
@@ -480,7 +474,7 @@
 	}
 
 	.current-banner :global(.material-symbols-outlined) {
-		color: var(--status-blue);
+		color: var(--primary-color);
 		flex-shrink: 0;
 	}
 
@@ -541,7 +535,12 @@
 	.skeleton-line {
 		height: 12px;
 		border-radius: 999px;
-		background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
+		background: linear-gradient(
+			90deg,
+			var(--white-gray) 25%,
+			var(--white) 50%,
+			var(--white-gray) 75%
+		);
 		background-size: 200% 100%;
 		animation: shimmer 1.4s infinite;
 	}
@@ -610,20 +609,20 @@
 	}
 
 	.analyst-card:hover {
-		background: #f8fafc;
-		border-color: #dbe2ea;
+		background: var(--background-color);
+		border-color: var(--white-gray);
 		transform: translateY(-1px);
-		box-shadow: 0 4px 12px rgba(15, 26, 42, 0.06);
+		box-shadow: var(--regular-shadow);
 	}
 
 	.analyst-card.selected {
 		border-color: var(--status-blue);
-		background: rgba(0, 51, 153, 0.04);
-		box-shadow: 0 2px 10px rgba(0, 51, 153, 0.08);
+		background: var(--status-blue-bg);
+		box-shadow: 0 2px 10px var(--status-blue-bg);
 	}
 
 	.analyst-card.selected:hover {
-		background: rgba(0, 51, 153, 0.06);
+		background: var(--tint);
 	}
 
 	.card-main {
@@ -701,7 +700,7 @@
 		font-family: var(--font-inter);
 		font-size: 14px;
 		font-weight: 700;
-		color: var(--rich-black);
+		color: var(--primary-color);
 		line-height: 1.3;
 		word-break: break-word;
 	}
@@ -720,7 +719,7 @@
 		border-radius: 999px;
 		background: var(--status-yellow-bg);
 		color: var(--status-yellow);
-		border: 1px solid rgba(149, 96, 6, 0.2);
+		border: 1px solid var(--status-yellow);
 		font-family: var(--font-inter);
 		font-size: 10px;
 		font-weight: 700;
@@ -749,9 +748,9 @@
 		align-items: center;
 		padding: 3px 8px;
 		border-radius: 999px;
-		background: var(--status-blue-bg);
-		color: var(--status-blue);
-		border: 1px solid rgba(0, 51, 153, 0.08);
+		background: color-mix(in srgb, var(--secondary-color) 12%, var(--surface));
+		color: var(--secondary-color);
+		border: 1px solid color-mix(in srgb, var(--secondary-color) 30%, transparent);
 		font-family: var(--font-inter);
 		font-size: 11px;
 		font-weight: 600;
@@ -844,7 +843,7 @@
 		padding: 8px 12px;
 		padding-bottom: 12px;
 		background: var(--background-color);
-		;border: 1px solid var(--white-gray);
+		border: 1px solid var(--white-gray);
 		border-radius: var(--radius-sm);
 		justify-content: space-between;
 		flex-wrap: wrap;
@@ -854,7 +853,6 @@
 		align-items: center;
 		gap: 12px;
 		flex-wrap: wrap;
-
 	}
 
 	.deadline-field {

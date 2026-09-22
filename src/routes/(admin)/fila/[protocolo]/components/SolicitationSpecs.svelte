@@ -297,7 +297,7 @@
 	{#if isAssignModalOpen && canAssign}
 		<AssignAction
 			protocol={solicitation.protocol}
-			currentAssigneeId={solicitation.assignee?.id ?? null}
+			currentAssigneeId={solicitation.assignee?.id ?? solicitation.mappingAssignee?.id ?? null}
 			currentAssigneeName={solicitation.assignee?.name ?? null}
 			currentMappingAssigneeId={solicitation.mappingAssignee?.id ?? null}
 			currentMappingAssigneeName={solicitation.mappingAssignee?.name ?? null}
