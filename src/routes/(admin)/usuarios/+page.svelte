@@ -205,7 +205,11 @@
 		const result = await createUser({
 			name: data.name.trim(),
 			email: data.email.trim(),
-			role: data.role
+			role: data.role,
+			area: data.area,
+			department: data.department,
+			manager: data.manager,
+			additionalContact: data.additionalContact
 		});
 
 		isCreating = false;

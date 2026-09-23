@@ -25,7 +25,16 @@ import type {
 	UserSummary
 } from '$lib/types/user';
 
-import { isRequired, isValidEmail, isValidText, PASSWORD_PATTERN } from '$lib/utils/validations';
+import {
+	isRequired,
+	isValidEmail,
+	isValidText,
+	PASSWORD_PATTERN,
+	PROFILE_ADDITIONAL_CONTACT_MAX_LENGTH,
+	PROFILE_AREA_MAX_LENGTH,
+	PROFILE_DEPARTMENT_MAX_LENGTH,
+	PROFILE_MANAGER_MAX_LENGTH
+} from '$lib/utils/validations';
 
 export async function listUsers(
 	query: ListUsersQuery,
@@ -79,7 +88,13 @@ export async function createUser(data: CreateUserFormData): Promise<Result<Creat
 		const response = await createUserApi({
 			fullName: data.name.trim(),
 			email: data.email.trim(),
-			role: data.role
+			role: data.role,
+			requester: {
+				area: data.area.trim(),
+				department: data.department?.trim() || undefined,
+				manager: data.manager.trim(),
+				additionalContact: data.additionalContact?.trim() || undefined
+			}
 		});
 
 		return {
@@ -230,6 +245,10 @@ function mapUserSummary(user: UserSummary): AdminUser {
 function validateCreateUser(data: CreateUserFormData): { message: string } | null {
 	const name = data.name.trim();
 	const email = data.email.trim();
+	const area = data.area?.trim() ?? '';
+	const department = data.department?.trim() ?? '';
+	const manager = data.manager?.trim() ?? '';
+	const additionalContact = data.additionalContact?.trim() ?? '';
 
 	if (!isRequired(name) || !isValidText(name)) {
 		return {
@@ -258,6 +277,54 @@ function validateCreateUser(data: CreateUserFormData): { message: string } | nul
 	if (email.length > 254) {
 		return {
 			message: 'O e-mail deve ter no máximo 254 caracteres.'
+		};
+	}
+
+	if (!isRequired(area) || !isValidText(area)) {
+		return {
+			message: 'Informe a área do solicitante.'
+		};
+	}
+
+	if (area.length > PROFILE_AREA_MAX_LENGTH) {
+		return {
+			message: `A área deve ter no máximo ${PROFILE_AREA_MAX_LENGTH} caracteres.`
+		};
+	}
+
+	if (department && !isValidText(department)) {
+		return {
+			message: 'O departamento deve conter apenas letras e espaços.'
+		};
+	}
+
+	if (department.length > PROFILE_DEPARTMENT_MAX_LENGTH) {
+		return {
+			message: `O departamento deve ter no máximo ${PROFILE_DEPARTMENT_MAX_LENGTH} caracteres.`
+		};
+	}
+
+	if (!isRequired(manager) || !isValidText(manager)) {
+		return {
+			message: 'Informe o gestor responsável.'
+		};
+	}
+
+	if (manager.length > PROFILE_MANAGER_MAX_LENGTH) {
+		return {
+			message: `O gestor deve ter no máximo ${PROFILE_MANAGER_MAX_LENGTH} caracteres.`
+		};
+	}
+
+	if (additionalContact && additionalContact.length < 3) {
+		return {
+			message: 'Informe um contato adicional válido.'
+		};
+	}
+
+	if (additionalContact.length > PROFILE_ADDITIONAL_CONTACT_MAX_LENGTH) {
+		return {
+			message: `O contato deve ter no máximo ${PROFILE_ADDITIONAL_CONTACT_MAX_LENGTH} caracteres.`
 		};
 	}
 

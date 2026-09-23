@@ -253,6 +253,10 @@ export function createUserMock(payload: CreateUserPayload): Promise<CreateUserRe
 		return Promise.reject(new ApiError(403, 'Não é possível gerenciar contas de Administradores'));
 	}
 
+	if (!payload.requester?.area?.trim() || !payload.requester?.manager?.trim()) {
+		return Promise.reject(new ApiError(400, 'Informe área e gestor responsável.'));
+	}
+
 	const email = payload.email.trim().toLowerCase();
 
 	const duplicatedEmail = mockUsers.some((user) => user.email.toLowerCase() === email);

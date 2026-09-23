@@ -46,12 +46,22 @@ export interface CreateUserFormData {
 	name: string;
 	email: string;
 	role: UserProfile;
+	area: string;
+	department?: string;
+	manager: string;
+	additionalContact?: string;
 }
 
 export interface CreateUserPayload {
 	fullName: string;
 	email: string;
 	role: UserProfile;
+	requester: {
+		area: string;
+		department?: string;
+		manager: string;
+		additionalContact?: string;
+	};
 }
 
 export interface CreateUserResponse {
@@ -108,10 +118,13 @@ export interface UserProfileResponse {
 
 // Payload de PUT /users/me (multipart: campo `payload` = JSON). Enviar apenas
 // os blocos alterados; `fullName`/`email`/`role` são imutáveis por contrato.
+// `area`/`department`/`manager` são preenchidos pelo administrador no cadastro
+// e recusados pelo backend no self-service (403) — o próprio usuário só envia
+// `additionalContact`, por isso todos os campos são opcionais.
 export interface UpdateRequesterBlock {
-	area: string;
+	area?: string;
 	department?: string;
-	manager: string;
+	manager?: string;
 	additionalContact?: string;
 }
 
