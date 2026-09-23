@@ -1,3 +1,5 @@
+import type { RequestCategory } from './request';
+
 export type UserType = 'Solicitante' | 'Analista' | 'Administrador' | 'Gestor';
 
 export type UserRole = UserType;
@@ -28,6 +30,15 @@ export interface UserSummary {
 	createdAt: string;
 }
 
+// Assignment DTO: backend `GET /users/analysts` retorna só ativos,
+// então `isActive` não faz parte do contrato (ver contratos/contract-assign-action.md).
+export interface Analyst extends Omit<UserSummary, 'isActive'> {
+	specialty: string;
+	categories: RequestCategory[];
+	notes: string | null;
+	requestLoad: number | null;
+}
+
 export interface UserStats {
 	total: number;
 	active: number;
@@ -38,6 +49,7 @@ export interface UserStats {
 export interface ListUsersQuery {
 	profile?: UserProfile;
 	search?: string;
+	category?: RequestCategory;
 	page?: number;
 	pageSize?: number;
 }

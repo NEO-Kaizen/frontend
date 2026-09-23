@@ -382,6 +382,8 @@ export interface RequestDetail {
 	} | null;
 }
 
+import type { TriageAssessment } from './triage';
+
 // ---- DTO interno (superconjunto) ----
 // Service: getInternalRequest(protocol: string): Promise<Result<InternalRequestDetail>>
 
@@ -401,6 +403,8 @@ export interface PrioritizationResult {
 	notes: CriterionNotes;
 }
 
+export type AnalystResponsibility = 'triagem' | 'mapeamento';
+
 export interface InternalRequestDetail {
 	protocol: string;
 	status: RequestStatus;
@@ -409,10 +413,13 @@ export interface InternalRequestDetail {
 	// ID do responsável (preparação para limitação por perfil — issue #121).
 	// `id` + `name` obrigatórios; ambos `null` apenas quando não atribuído.
 	assignee: { id: string | null; name: string | null; email?: string | null } | null;
-	// Responsável pelo mapeamento (contrato Front ↔ Back — Mapeamento): quando
-	// o backend expô-lo, ele prevalece sobre `assignee` na permissão de edição
-	// da aba Mapeamento. Ausente = usa `assignee`.
-	mappingAssigneeId?: string | null;
+	// Responsável pelo mapeamento (contrato Front ↔ Back — Mapeamento): o
+	// backend devolve o objeto ao receber `mappingAssigneeId` no PATCH.
+	// Apenas um responsável é vigente por vez: ao atribuir `assignee`,
+	// `mappingAssignee` é `null`, e vice-versa.
+	mappingAssignee?: { id: string | null; name: string | null; email?: string | null } | null;
+	// Prazo da atribuição vigente (ISO "yyyy-mm-dd"). `null` quando não definido.
+	assigneeDeadline: string | null;
 	correctionAlert?: { count: number; message: string } | null;
 
 	// blocos da solicitação
@@ -428,6 +435,7 @@ export interface InternalRequestDetail {
 	openedAt: string;
 	lastUpdate: string;
 	internalObservations?: string | null;
+	triage?: TriageAssessment | null;
 }
 
 // PATCH /requests/:protocol/internal — proposta (backend definirá o contrato
