@@ -50,6 +50,19 @@
 
 	const hasSession = $derived(Boolean(user));
 	const shouldLockIdentity = $derived(solicitationMode === 'AUTHENTICATED' && hasSession);
+	const lockedRequesterFields = $derived.by(() => {
+		const fields: (keyof IdentificationData)[] = [];
+		if (requesterProfile?.area?.trim()) fields.push('area');
+		if (requesterProfile?.department?.trim()) fields.push('department');
+		if (requesterProfile?.manager?.trim()) fields.push('manager');
+		return fields;
+	});
+	const lockedFieldsForStep1 = $derived.by(() => {
+		const base: (keyof IdentificationData)[] = shouldLockIdentity
+			? ['fullName', 'corporateEmail']
+			: [];
+		return [...base, ...lockedRequesterFields];
+	});
 
 	const steps = [
 		{ id: 1, label: 'Identificação' },
@@ -172,6 +185,12 @@
 			manager: draft.identification.manager || fromProfile.manager,
 			additionalContact: draft.identification.additionalContact || fromProfile.additionalContact
 		};
+
+		// Campos travados pelo perfil ignoram valores antigos do rascunho — o
+		// perfil é a fonte de verdade (admin pode tê-los alterado após o rascunho).
+		if (lockedRequesterFields.includes('area')) merged.area = fromProfile.area;
+		if (lockedRequesterFields.includes('department')) merged.department = fromProfile.department;
+		if (lockedRequesterFields.includes('manager')) merged.manager = fromProfile.manager;
 
 		identification = shouldLockIdentity ? { ...merged, ...getSessionIdentity() } : merged;
 		demand = draft.demand;
@@ -346,7 +365,7 @@
 		return {
 			requester: {
 				...requesterIdentity,
-				area: identification.area,
+				area: identification.area.trim(),
 				department: identification.department.trim() || undefined,
 				manager: identification.manager.trim(),
 				additionalContact: identification.additionalContact.trim() || undefined
@@ -493,7 +512,7 @@
 				<StepIdentification
 					bind:this={step1Ref}
 					bind:data={identification}
-					lockedFields={shouldLockIdentity ? ['fullName', 'corporateEmail'] : []}
+					lockedFields={lockedFieldsForStep1}
 				/>
 			</div>
 			<div hidden={currentStep !== 2}>

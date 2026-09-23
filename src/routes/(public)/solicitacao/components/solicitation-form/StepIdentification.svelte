@@ -30,21 +30,23 @@
 			}
 		}
 
-		if (!isValidText(data.area) || !isRequired(data.area)) {
+		if (!isLocked('area') && (!isValidText(data.area) || !isRequired(data.area))) {
 			e.area = 'Campo obrigatório, apenas texto.';
 		}
 
 		// departamento é opcional por padrão; quando há lista, valida a seleção;
-		// senão, valida apenas o formato quando preenchido
-		if (departmentOptions && departmentOptions.length > 0) {
-			if (data.department && !departmentOptions.some((o) => o.value === data.department)) {
-				e.department = 'Selecione um departamento válido.';
+		// senão, valida apenas o formato quando preenchido — pular quando travado pelo perfil admin
+		if (!isLocked('department')) {
+			if (departmentOptions && departmentOptions.length > 0) {
+				if (data.department && !departmentOptions.some((o) => o.value === data.department)) {
+					e.department = 'Selecione um departamento válido.';
+				}
+			} else if (data.department.trim() && !isValidText(data.department)) {
+				e.department = 'Apenas texto.';
 			}
-		} else if (data.department.trim() && !isValidText(data.department)) {
-			e.department = 'Apenas texto.';
 		}
 
-		if (!isValidText(data.manager) || !isRequired(data.manager)) {
+		if (!isLocked('manager') && (!isValidText(data.manager) || !isRequired(data.manager))) {
 			e.manager = 'Campo obrigatório, apenas texto.';
 		}
 
@@ -108,6 +110,7 @@
 			required
 			bind:value={data.area}
 			error={errors.area}
+			readonly={isLocked('area')}
 			onchange={() => clearError('area')}
 		/>
 
@@ -118,6 +121,7 @@
 				options={departmentOptions}
 				bind:value={data.department}
 				error={errors.department}
+				disabled={isLocked('department')}
 				onchange={() => clearError('department')}
 			/>
 		{:else}
@@ -126,6 +130,7 @@
 				placeholder="Ex: Gestão de Contas"
 				bind:value={data.department}
 				error={errors.department}
+				readonly={isLocked('department')}
 				oninput={() => clearError('department')}
 			/>
 		{/if}
@@ -136,6 +141,7 @@
 			required
 			bind:value={data.manager}
 			error={errors.manager}
+			readonly={isLocked('manager')}
 			oninput={() => clearError('manager')}
 		/>
 
