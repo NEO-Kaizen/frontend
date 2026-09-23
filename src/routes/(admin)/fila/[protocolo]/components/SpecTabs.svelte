@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { invalidateAll, goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onDestroy, tick } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
@@ -31,6 +31,15 @@
 		internalNotesError: string | null;
 		onSaveSuccess?: (updated: InternalRequestDetail) => void;
 		onSaveError?: (message: string) => void;
+		isPendencyMode?: boolean;
+		pendencyCount?: number;
+		isPendencySaving?: boolean;
+		pendingSuccessText?: string | null;
+		markedFieldKeys?: ReadonlySet<string>;
+		onFieldPendencyClick?: (path: string) => void;
+		onFieldPendencyRemove?: (path: string) => void;
+		onPendencySave?: () => void;
+		onPendencyCancel?: () => void;
 		onTriageSuccess?: (updated: InternalRequestDetail) => void;
 		onOpenCalculator?: () => void;
 	}
@@ -41,6 +50,15 @@
 		internalNotesError,
 		onSaveSuccess,
 		onSaveError,
+		isPendencyMode = false,
+		pendencyCount = 0,
+		isPendencySaving = false,
+		pendingSuccessText = null,
+		markedFieldKeys = new Set<string>(),
+		onFieldPendencyClick,
+		onFieldPendencyRemove,
+		onPendencySave,
+		onPendencyCancel,
 		onTriageSuccess,
 		onOpenCalculator
 	}: Props = $props();
@@ -165,6 +183,15 @@
 		}
 	}
 
+	// Ao entrar no modo de marcação, a aba de Informações é obrigatória (é onde
+	// os campos editáveis ficam visíveis). Rascunho é mantido entre abas.
+	$effect(() => {
+		if (isPendencyMode && !wasPendencyMode) {
+			ensureInfoTab();
+		}
+		wasPendencyMode = isPendencyMode;
+	});
+
 	// ---- Modo de edição (issue #121) ----
 
 	let draft = $state<EditableDraft | null>(null);
@@ -177,6 +204,7 @@
 	let showDiscardModal = $state(false);
 	let editButton = $state<HTMLButtonElement | null>(null);
 	let detailsCard = $state<HTMLElement | null>(null);
+	let wasPendencyMode = false;
 
 	const SAVE_SUCCESS_TIMEOUT_MS = 4000;
 	let saveSuccessTimer: ReturnType<typeof setTimeout> | undefined;
@@ -190,6 +218,23 @@
 	}
 
 	onDestroy(clearSaveSuccess);
+
+	// Mensagem de sucesso do modo marcação vem do pai via prop; reutiliza o
+	// mesmo elemento e o mesmo timeout do modo edição, apenas escondendo a
+	// exibição após o intervalo (o estado do pai fica intacto).
+	let pendingSuccessDismissed = $state(false);
+	$effect(() => {
+		pendingSuccessDismissed = !pendingSuccessText;
+		if (!pendingSuccessText) return;
+		const timer = setTimeout(() => {
+			pendingSuccessDismissed = true;
+		}, SAVE_SUCCESS_TIMEOUT_MS);
+		return () => clearTimeout(timer);
+	});
+
+	const successMessage = $derived(
+		saveSuccess ?? (pendingSuccessDismissed ? null : pendingSuccessText)
+	);
 
 	const prefersReducedMotion =
 		typeof window !== 'undefined' &&
@@ -370,27 +415,63 @@
 					in:fly={editActionsFlight.in}
 					out:fly={editActionsFlight.out}
 				>
-					<button
-						type="button"
-						class="btn-save"
+					<Button
+						variant="primary"
 						disabled={isSaving}
-						aria-busy={isSaving}
+						loading={isSaving}
 						title={isSaving ? 'Salvando alterações…' : 'Salvar alterações'}
 						onclick={handleSave}
 					>
 						<Icon iconName="check" iconSize="sm" />
 						<span>{isSaving ? 'Salvando…' : 'Salvar'}</span>
-					</button>
-					<button
-						type="button"
-						class="btn-cancel"
+					</Button>
+					<Button
+						variant="outline-neutral"
 						disabled={isSaving}
 						title="Descartar alterações e voltar"
 						onclick={handleCancel}
 					>
 						<Icon iconName="close" iconSize="sm" />
 						<span>Cancelar</span>
-					</button>
+					</Button>
+				</div>
+			{:else if isPendencyMode}
+				<div
+					class="edit-actions"
+					role="group"
+					aria-label="Ações de solicitação de alteração"
+					in:fly={editActionsFlight.in}
+					out:fly={editActionsFlight.out}
+				>
+					<Button
+						variant="primary"
+						disabled={isPendencySaving}
+						loading={isPendencySaving}
+						title={isPendencySaving
+							? 'Enviando solicitação…'
+							: pendencyCount === 0
+								? 'Solicitar pendência (observação e/ou campos)'
+								: 'Revisar e solicitar pendência'}
+						onclick={onPendencySave}
+					>
+						<Icon iconName="flag" iconSize="sm" />
+						<span>
+							{isPendencySaving
+								? 'Enviando…'
+								: pendencyCount === 0
+									? 'Solicitar pendência'
+									: `Solicitar pendência (${pendencyCount})`}
+						</span>
+					</Button>
+					<Button
+						variant="outline-neutral"
+						disabled={isPendencySaving}
+						title="Cancelar solicitação de alteração"
+						onclick={onPendencyCancel}
+					>
+						<Icon iconName="close" iconSize="sm" />
+						<span>Cancelar</span>
+					</Button>
 				</div>
 			{:else if canEdit && activeTab === 'informacoes'}
 				<button
@@ -409,7 +490,12 @@
 		</div>
 	</div>
 
-	<!-- Feedback de edição via toast bar (toastState) -->
+	{#if saveError}
+		<p class="save-feedback save-error" role="alert">{saveError}</p>
+	{/if}
+	{#if successMessage && !isEditMode}
+		<p class="save-feedback save-success" role="status">{successMessage}</p>
+	{/if}
 
 	<div
 		id="spec-panel"
@@ -427,6 +513,10 @@
 						{errors}
 						onFieldChange={handleFieldChange}
 						onFieldBlur={handleFieldBlur}
+						{isPendencyMode}
+						{markedFieldKeys}
+						{onFieldPendencyClick}
+						{onFieldPendencyRemove}
 					/>
 				{:else if activeTab === 'triagem'}
 					<TriageSection
@@ -584,52 +674,6 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 8px;
-	}
-
-	.btn-save,
-	.btn-cancel {
-		display: inline-flex;
-		align-items: center;
-		gap: 6px;
-		padding: 8px 14px;
-		border-radius: var(--radius-sm);
-		border: 1px solid transparent;
-		font-family: var(--font-inter);
-		font-size: 13px;
-		font-weight: 600;
-		color: var(--white);
-		cursor: pointer;
-		white-space: nowrap;
-		transition:
-			opacity 150ms ease,
-			background 150ms ease;
-	}
-
-	.btn-save {
-		background-color: var(--status-green);
-		border-color: var(--status-green);
-	}
-
-	.btn-cancel {
-		background-color: var(--status-red);
-		border-color: var(--status-red);
-	}
-
-	.btn-save:hover:not(:disabled),
-	.btn-cancel:hover:not(:disabled) {
-		opacity: 0.9;
-	}
-
-	.btn-save:focus-visible,
-	.btn-cancel:focus-visible {
-		outline: 2px solid var(--secondary-color);
-		outline-offset: 2px;
-	}
-
-	.btn-save:disabled,
-	.btn-cancel:disabled {
-		cursor: not-allowed;
-		opacity: 0.6;
 	}
 
 	.save-feedback {

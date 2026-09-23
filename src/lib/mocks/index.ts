@@ -16,6 +16,7 @@ export const MOCK_DOMAINS =
 		portalConfig: true,
 		users: true,
 		prioritization: true,
+		pendingItems: true,
 		triage: true,
 		mapping: true,
 		internalNotes: true

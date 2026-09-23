@@ -8,14 +8,14 @@ import type {
 	QueueResponse
 } from '$lib/types/queue';
 import type {
-	InternalRequestDetail,
 	CreateRequestPayload,
 	CreateRequestResponse,
+	InternalRequestDetail,
 	ListRequestsQuery,
 	PaginatedResponse,
 	RequestDetail,
-	RequestSummary,
 	RequestStatus,
+	RequestSummary,
 	UpdateInternalRequestPayload
 } from '$lib/types/request';
 import { DEFAULT_STATUSES } from '$lib/config/portal-defaults';

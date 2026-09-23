@@ -1,9 +1,16 @@
 <script lang="ts">
 	import Icon from '$lib/components/Icon.svelte';
+	import type { SessionUser } from '$lib/types/auth';
+	import type { InternalRequestDetail } from '$lib/types/request';
 	import { fly } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
+	import PendingItemsModal from './pendency/PendingItemsModal.svelte';
 
 	interface Props {
+		solicitation: InternalRequestDetail;
+		currentUser?: SessionUser | null;
+		onSaved?: () => void;
+		onRequestChange?: () => void;
 		onAction?: (key: string) => void;
 		hiddenActionKeys?: readonly string[];
 		hasExistingPriority?: boolean;
@@ -11,6 +18,10 @@
 	}
 
 	let {
+		solicitation,
+		currentUser = null,
+		onSaved,
+		onRequestChange,
 		onAction,
 		hiddenActionKeys = [],
 		hasExistingPriority = false,
@@ -18,6 +29,7 @@
 	}: Props = $props();
 
 	let isOpen = $state(false);
+	let showPendingModal = $state(false);
 
 	let containerEl: HTMLDivElement | undefined = $state(undefined);
 	let fabEl: HTMLButtonElement | undefined = $state(undefined);
@@ -57,8 +69,21 @@
 		}
 	];
 
+	const prefersReducedMotion =
+		typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+	// "Solicitar Alteração" visível apenas para Administrador ou o responsável
+	// pela triagem (mesma regra do botão Editar).
+	const canRequestChange = $derived(
+		currentUser?.role === 'Administrador' ||
+			Boolean(currentUser && solicitation.assignee?.id === currentUser.id)
+	);
+
 	const visibleActions = $derived.by(() => {
-		const filtered = baseActions.filter((a) => !hiddenActionKeys.includes(a.key));
+		let filtered = baseActions.filter((a) => !hiddenActionKeys.includes(a.key));
+		if (!canRequestChange) {
+			filtered = filtered.filter((a) => a.key !== 'requestChange');
+		}
 		return filtered.map((a) => {
 			if (a.key === 'priorityCalculator' && hasExistingPriority) {
 				return {
@@ -73,9 +98,6 @@
 		});
 	});
 
-	const prefersReducedMotion =
-		typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
 	function toggle() {
 		isOpen = !isOpen;
 	}
@@ -88,16 +110,21 @@
 		}
 	}
 
+	function handleAction(actionKey: string): void {
+		isOpen = false;
+		if (actionKey === 'requestChange') {
+			onRequestChange?.();
+		} else if (actionKey === 'informPending') {
+			showPendingModal = true;
+		}
+		onAction?.(actionKey);
+	}
+
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape' && isOpen) {
 			isOpen = false;
 			fabEl?.focus();
 		}
-	}
-
-	function handleActionClick(key: string) {
-		isOpen = false;
-		onAction?.(key);
 	}
 </script>
 
@@ -124,7 +151,7 @@
 						class="action-row"
 						style:animation-delay={`${prefersReducedMotion ? '0ms' : `${index * 30}ms`}`}
 					>
-						<button type="button" class="action-item" onclick={() => handleActionClick(action.key)}>
+						<button type="button" class="action-item" onclick={() => handleAction(action.key)}>
 							<span class="action-icon" aria-hidden="true">
 								<Icon iconName={action.icon} iconSize="sm" />
 							</span>
@@ -154,6 +181,16 @@
 		</span>
 	</button>
 </div>
+
+{#if showPendingModal}
+	<PendingItemsModal
+		protocol={solicitation.protocol}
+		{currentUser}
+		assigneeId={solicitation.assignee?.id ?? null}
+		onclose={() => (showPendingModal = false)}
+		{onSaved}
+	/>
+{/if}
 
 <style>
 	.quick-actions {

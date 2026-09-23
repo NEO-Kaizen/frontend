@@ -8,11 +8,12 @@
 	interface Props {
 		title: string;
 		onclose: () => void;
+		size?: 'sm' | 'lg' | 'default' | 'large';
 		children: Snippet;
-		size?: 'sm' | 'lg';
 	}
 
 	let { title, onclose, children, size = 'sm' }: Props = $props();
+	const resolvedSize = $derived(size === 'large' ? 'lg' : size === 'default' ? 'sm' : size);
 
 	const uid = $props.id();
 
@@ -58,7 +59,7 @@
 	<div
 		bind:this={shellElement}
 		class="modal-shell"
-		class:lg={size === 'lg'}
+		class:lg={resolvedSize === 'lg'}
 		role="dialog"
 		aria-modal="true"
 		tabindex="-1"
@@ -106,13 +107,16 @@
 		width: 100%;
 		max-width: 480px;
 		max-height: calc(100dvh - var(--spacing-xl));
-		overflow-y: auto;
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
 		background-color: var(--white);
 		border-radius: var(--radius-md);
 		box-shadow: var(--regular-shadow);
 	}
 
-	.modal-shell.lg {
+	.modal-shell.lg,
+	.modal-shell--large {
 		max-width: min(720px, 92vw);
 		max-height: 80dvh;
 		display: flex;
@@ -120,7 +124,8 @@
 		overflow: hidden;
 	}
 
-	.modal-shell.lg .modal-body {
+	.modal-shell.lg .modal-body,
+	.modal-shell--large .modal-body {
 		overflow: hidden;
 		flex: 1;
 		min-height: 0;
@@ -135,6 +140,7 @@
 		gap: var(--spacing-md);
 		padding: var(--spacing-md) var(--spacing-lg);
 		border-bottom: var(--border-default);
+		flex-shrink: 0;
 	}
 
 	.modal-header h3 {
@@ -167,5 +173,7 @@
 
 	.modal-body {
 		padding: var(--spacing-lg);
+		overflow-y: auto;
+		min-height: 0;
 	}
 </style>
