@@ -32,7 +32,7 @@
 		onFilterChange,
 		onClear,
 		search = '',
-		onSearch,
+		onSearch
 	}: Props = $props();
 
 	let searchValue = $derived('');

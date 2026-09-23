@@ -1,5 +1,6 @@
 <script lang="ts">
 	import FilterSelect from '$lib/components/FilterSelect.svelte';
+	import Icon from '$lib/components/Icon.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import Textarea from '$lib/components/Textarea.svelte';
 	import type { IconName } from '$lib/types/icons';
@@ -18,6 +19,9 @@
 		placeholder?: string;
 		hint?: string;
 		icon?: IconName;
+		pending?: boolean;
+		onPendencyClick?: () => void;
+		onPendencyRemove?: () => void;
 		onEditInput?: (value: string) => void;
 		onEditBlur?: () => void;
 	}
@@ -58,6 +62,9 @@
 		placeholder = '',
 		hint = '',
 		icon,
+		pending = false,
+		onPendencyClick,
+		onPendencyRemove,
 		onEditInput,
 		onEditBlur,
 		...variant
@@ -150,7 +157,52 @@
 	</div>
 {:else}
 	<div class="field" class:multiline={isMultiline}>
-		<span class="field-label">{label}</span>
+		<div class="field-label-row">
+			{#if onPendencyClick}
+				<button
+					type="button"
+					class="field-label"
+					class:marked={pending}
+					onclick={onPendencyClick}
+					aria-pressed={pending}
+					title={pending
+						? 'Editar justificativa desta marcação'
+						: 'Marcar este campo para solicitar alteração'}
+				>
+					{label}
+				</button>
+			{:else}
+				<span class="field-label">{label}</span>
+			{/if}
+			{#if onPendencyClick}
+				<button
+					type="button"
+					class="pending-btn"
+					class:marked={pending}
+					onclick={onPendencyClick}
+					aria-pressed={pending}
+					aria-label={pending
+						? `Campo "${label}" marcado para alteração. Clique para editar a justificativa.`
+						: `Solicitar alteração do campo "${label}".`}
+					title={pending
+						? 'Editar justificativa desta marcação'
+						: 'Marcar este campo para solicitar alteração'}
+				>
+					<Icon iconName="flag" iconSize="sm" />
+				</button>
+				{#if pending && onPendencyRemove}
+					<button
+						type="button"
+						class="pending-btn pending-remove"
+						onclick={onPendencyRemove}
+						aria-label={`Remover a marcação do campo "${label}".`}
+						title="Remover marcação"
+					>
+						<Icon iconName="close" iconSize="sm" />
+					</button>
+				{/if}
+			{/if}
+		</div>
 		<span class="field-value" class:is-fallback={isFallback}>{display}</span>
 	</div>
 {/if}
@@ -169,6 +221,87 @@
 		color: var(--gray);
 		letter-spacing: 0.03em;
 		line-height: 1.5;
+	}
+
+	button.field-label {
+		background: none;
+		border: none;
+		padding: 0;
+		cursor: pointer;
+		text-align: left;
+	}
+
+	button.field-label:hover {
+		text-decoration: underline;
+	}
+
+	button.field-label:focus-visible {
+		outline: 2px solid var(--secondary-color);
+		outline-offset: 2px;
+		border-radius: 2px;
+	}
+
+	.field-label-row {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		min-width: 0;
+	}
+
+	.field-label.marked {
+		color: var(--secondary-color);
+	}
+
+	.pending-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 20px;
+		height: 20px;
+		padding: 0;
+		border: 1px solid var(--white-gray);
+		border-radius: var(--radius-sm);
+		background: var(--white);
+		color: var(--gray);
+		cursor: pointer;
+		flex-shrink: 0;
+		transition:
+			background 150ms ease,
+			color 150ms ease,
+			border-color 150ms ease;
+	}
+
+	.pending-btn:hover {
+		border-color: var(--secondary-color);
+		color: var(--secondary-color);
+		background: var(--status-blue-bg);
+	}
+
+	.pending-btn:focus-visible {
+		outline: 2px solid var(--secondary-color);
+		outline-offset: 2px;
+	}
+
+	.pending-btn.marked {
+		border-color: var(--secondary-color);
+		color: var(--secondary-color);
+		background: var(--white);
+	}
+
+	.pending-btn.marked:hover {
+		background: var(--status-blue-bg);
+		color: var(--primary-color);
+		border-color: var(--primary-color);
+	}
+
+	.pending-remove {
+		color: var(--status-red);
+	}
+
+	.pending-remove:hover {
+		border-color: var(--status-red);
+		color: var(--status-red);
+		background: var(--status-red-bg);
 	}
 
 	.field-value {
