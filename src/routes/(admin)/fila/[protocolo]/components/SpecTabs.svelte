@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
+	import { onDestroy, tick } from 'svelte';
+	import { fade, fly } from 'svelte/transition';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Modal from '$lib/components/Modal.svelte';
-	import { canEditSolicitation } from '$lib/services/access.service';
+	import { canEditSolicitation, canViewTriage } from '$lib/services/access.service';
 	import {
 		buildCreatePendingItemsPayload,
 		findOpenBatch,
@@ -14,7 +16,13 @@
 	} from '$lib/services/pendency.service';
 	import { updateInternalRequest } from '$lib/services/request.service';
 	import { toastState } from '$lib/states/toast.svelte';
-	import type { InternalNote, InternalNotesResponse } from '$lib/types/internal-note';
+	import type {
+		InternalNotesResponse,
+		MappingHistoryEntry,
+		TimelineItem,
+		TimelineNote,
+		TriageHistoryEntry
+	} from '$lib/types/internal-note';
 	import type { ListPendenciesResponse, PendingBatch } from '$lib/types/pendency';
 	import type { InternalRequestDetail } from '$lib/types/request';
 	import type { Result } from '$lib/types/result';
@@ -23,8 +31,6 @@
 	import MappingSection from './mapping/MappingSection.svelte';
 	import PendingItemsModal from './pendency/PendingItemsModal.svelte';
 	import PendencyRequestModal from './pendency/PendencyRequestModal.svelte';
-	import { onDestroy, tick } from 'svelte';
-	import { fade, fly } from 'svelte/transition';
 	import InfoSection from './solicitation-info/InfoSection.svelte';
 	import TriageSection from './triagem/TriageSection.svelte';
 	import {
@@ -48,13 +54,12 @@
 		isPendencyMode?: boolean;
 		pendencyCount?: number;
 		isPendencySaving?: boolean;
-		pendingSuccessText?: string | null;
 		markedFieldKeys?: ReadonlySet<string>;
 		onFieldPendencyClick?: (path: string) => void;
 		onFieldPendencyRemove?: (path: string) => void;
 		onPendencySave?: () => void;
 		onPendencyCancel?: () => void;
-		onRequestFieldChange?: () => void;
+		onRequestFieldChange?: (draft?: { observation: string; requestAttachment: boolean }) => void;
 		onTriageSuccess?: (updated: InternalRequestDetail) => void;
 		onOpenCalculator?: () => void;
 	}
@@ -70,7 +75,6 @@
 		isPendencyMode = false,
 		pendencyCount = 0,
 		isPendencySaving = false,
-		pendingSuccessText = null,
 		markedFieldKeys = new Set<string>(),
 		onFieldPendencyClick,
 		onFieldPendencyRemove,
@@ -82,20 +86,30 @@
 	}: Props = $props();
 
 	function getInitialInternalNotesState(): {
-		items: InternalNote[];
+		// A página chega mais-recente-primeiro (D-N7) → invertida aqui para a
+		// ordem canônica exibida (mais antigo primeiro — §8).
+		items: TimelineItem[];
+		nextCursor: string | null;
 		unseenCount: number;
 		loadError: string | null;
 	} {
 		return {
-			items: [...(internalNotes?.items ?? [])],
+			items: [...(internalNotes?.items ?? [])].reverse(),
+			nextCursor: internalNotes?.nextCursor ?? null,
 			unseenCount: internalNotes?.unseenCount ?? 0,
 			loadError: internalNotesError
 		};
 	}
 
 	const initialInternalNotesState = getInitialInternalNotesState();
-	let internalNoteItems = $state<InternalNote[]>(initialInternalNotesState.items);
+	let timelineItems = $state<TimelineItem[]>(initialInternalNotesState.items);
+	let timelineNextCursor = $state<string | null>(initialInternalNotesState.nextCursor);
 	let internalNotesUnseenCount = $state(initialInternalNotesState.unseenCount);
+	// Históricos completos (D-N14) — não paginados, idênticos em toda página.
+	// Espelhos puros do server load: `$derived` mantém a aba sincronizada após
+	// `invalidateAll` (ex.: ao finalizar uma triagem) sem refetch próprio.
+	const triages: TriageHistoryEntry[] = $derived(internalNotes?.triages ?? []);
+	const mappings: MappingHistoryEntry[] = $derived(internalNotes?.mappings ?? []);
 	let internalNotesLoadError = $state<string | null>(initialInternalNotesState.loadError);
 
 	type SpecTabId = 'informacoes' | 'triagem' | 'mapeamento' | 'historico' | 'observacoes';
@@ -118,7 +132,7 @@
 	// Lotes visuais do histórico (uma pendência = um `batchId`, §5) a partir da
 	// listagem do server load. O badge conta itens `responded` — respostas
 	// aguardando revisão do analista.
-	const pendencyBatches = $derived<PendingBatch[]>(toPendingBatches(pendencies ?? []));
+	const pendencyBatches = $derived<PendingBatch[]>(toPendingBatches(pendencies));
 	const respondedPendencyCount = $derived(
 		pendencyBatches.reduce((count, batch) => count + batch.respondedCount, 0)
 	);
@@ -139,10 +153,14 @@
 
 	// Atalho do modal para o fluxo de alteração de campos do Quick Action
 	// (marcação por campo): fecha o modal e reutiliza aquele fluxo — sem
-	// duplicar a implementação.
-	function handleRequestFieldChange(): void {
+	// duplicar a implementação. Repassa o rascunho (observação + anexo)
+	// digitado no modal para que o fluxo de marcação o preserve.
+	function handleRequestFieldChange(draft?: {
+		observation: string;
+		requestAttachment: boolean;
+	}): void {
 		showCreateModal = false;
-		onRequestFieldChange?.();
+		onRequestFieldChange?.(draft);
 	}
 
 	async function handleCreateConfirm(value: {
@@ -201,7 +219,7 @@
 	// Gestor e demais perfis visualizam em somente leitura.
 	const currentUser = $derived(page.data.user);
 	const canEdit = $derived(canEditSolicitation(solicitation.assignee?.id, currentUser ?? null));
-	const canTriage = $derived(canEdit);
+	const canViewTriageTab = $derived(canViewTriage(solicitation.assignee?.id, currentUser ?? null));
 
 	// A permissão do mapeamento usa o responsável do mapeamento
 	// (`mappingAssignee`) do primeiro GET da solicitação + `/auth/me`
@@ -209,12 +227,12 @@
 	const mappingAssigneeId = $derived(solicitation.mappingAssignee?.id ?? null);
 	const canEditMapping = $derived(canEditSolicitation(mappingAssigneeId, currentUser ?? null));
 
-	const displayTabs = $derived(specTabs.filter((tab) => tab.id !== 'triagem' || canTriage));
+	const displayTabs = $derived(specTabs.filter((tab) => tab.id !== 'triagem' || canViewTriageTab));
 
 	function resolveActiveTab(param: string | null): SpecTabId {
 		const tab = specTabs.find((item) => item.id === param);
 		if (tab && tab.enabled) {
-			if (tab.id === 'triagem' && !canTriage) return DEFAULT_TAB_ID;
+			if (tab.id === 'triagem' && !canViewTriageTab) return DEFAULT_TAB_ID;
 			return tab.id;
 		}
 		return DEFAULT_TAB_ID;
@@ -234,7 +252,7 @@
 
 	function handleTabSelect(tab: SpecTabDefinition) {
 		if (!tab.enabled || isEditMode) return;
-		if (tab.id === 'triagem' && !canTriage) return;
+		if (tab.id === 'triagem' && !canViewTriageTab) return;
 		clearSaveSuccess();
 
 		const url = new URL(page.url);
@@ -290,22 +308,7 @@
 
 	onDestroy(clearSaveSuccess);
 
-	// Mensagem de sucesso do modo marcação vem do pai via prop; reutiliza o
-	// mesmo elemento e o mesmo timeout do modo edição, apenas escondendo a
-	// exibição após o intervalo (o estado do pai fica intacto).
-	let pendingSuccessDismissed = $state(false);
-	$effect(() => {
-		pendingSuccessDismissed = !pendingSuccessText;
-		if (!pendingSuccessText) return;
-		const timer = setTimeout(() => {
-			pendingSuccessDismissed = true;
-		}, SAVE_SUCCESS_TIMEOUT_MS);
-		return () => clearTimeout(timer);
-	});
-
-	const successMessage = $derived(
-		saveSuccess ?? (pendingSuccessDismissed ? null : pendingSuccessText)
-	);
+	const successMessage = $derived(saveSuccess);
 
 	const prefersReducedMotion =
 		typeof window !== 'undefined' &&
@@ -430,17 +433,33 @@
 	}
 
 	function handleInternalNotesLoaded(response: InternalNotesResponse): void {
-		internalNoteItems = response.items;
+		timelineItems = [...response.items].reverse();
+		timelineNextCursor = response.nextCursor;
 		internalNotesUnseenCount = response.unseenCount;
 		internalNotesLoadError = null;
+		// `triages`/`mappings` derivam do server load; revalida o load para
+		// manter os históricos em sincronia após um reload manual.
+		void invalidateAll();
+	}
+
+	// Página mais antiga (já em ordem canônica) entra acima da janela atual;
+	// unseenCount e históricos são idênticos em toda página (D-N9/D-N14) —
+	// este handler não toca neles.
+	function handleInternalNotesOlderLoaded(
+		olderItems: TimelineItem[],
+		nextCursor: string | null
+	): void {
+		timelineItems = [...olderItems, ...timelineItems];
+		timelineNextCursor = nextCursor;
 	}
 
 	function handleInternalNotesLoadError(message: string): void {
 		internalNotesLoadError = message;
 	}
 
-	function handleInternalNoteCreated(note: InternalNote): void {
-		internalNoteItems = [...internalNoteItems, note];
+	function handleInternalNoteCreated(note: TimelineNote): void {
+		// POST devolve a nota mais nova → fim da ordem canônica.
+		timelineItems = [...timelineItems, note];
 	}
 
 	function handleInternalNotesMarkedRead(): void {
@@ -646,10 +665,14 @@
 				{:else if activeTab === 'observacoes'}
 					<InternalNotesSection
 						protocol={solicitation.protocol}
-						notes={internalNoteItems}
+						items={timelineItems}
+						nextCursor={timelineNextCursor}
+						{triages}
+						{mappings}
 						loadError={internalNotesLoadError}
 						currentUserId={currentUser?.id ?? ''}
 						onNotesLoaded={handleInternalNotesLoaded}
+						onOlderLoaded={handleInternalNotesOlderLoaded}
 						onLoadError={handleInternalNotesLoadError}
 						onNoteCreated={handleInternalNoteCreated}
 						onMarkedRead={handleInternalNotesMarkedRead}
@@ -867,13 +890,6 @@
 		color: var(--gray);
 		padding: var(--spacing-md) 0;
 		margin: 0;
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.btn-save,
-		.btn-cancel {
-			transition: none;
-		}
 	}
 
 	@media (max-width: 768px) {

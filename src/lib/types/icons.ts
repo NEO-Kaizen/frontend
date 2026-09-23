@@ -59,6 +59,7 @@ export const iconDictionary = {
 	description: 'description',
 	send: 'send',
 	cloudUpload: 'cloud_upload',
+	download: 'download',
 	delete: 'delete',
 	dragIndicator: 'drag_indicator',
 	calendarMonth: 'calendar_month',

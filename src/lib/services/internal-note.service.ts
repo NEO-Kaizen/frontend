@@ -6,8 +6,9 @@ import {
 import {
 	INTERNAL_NOTE_MAX_LENGTH,
 	type CreateInternalNotePayload,
-	type InternalNote,
-	type InternalNotesResponse
+	type GetInternalNotesParams,
+	type InternalNotesResponse,
+	type TimelineNote
 } from '$lib/types/internal-note';
 import { ApiError, type Result } from '$lib/types/result';
 
@@ -33,10 +34,11 @@ export function validateInternalNoteContent(content: string): string | null {
 
 export async function getInternalNotes(
 	protocol: string,
+	params: GetInternalNotesParams = {},
 	fetchImpl?: typeof fetch
 ): Promise<Result<InternalNotesResponse>> {
 	try {
-		return { ok: true, data: await getInternalNotesApi(protocol, fetchImpl) };
+		return { ok: true, data: await getInternalNotesApi(protocol, params, fetchImpl) };
 	} catch (error) {
 		if (error instanceof ApiError) {
 			return {
@@ -57,7 +59,7 @@ export async function getInternalNotes(
 export async function createInternalNote(
 	protocol: string,
 	content: string
-): Promise<Result<InternalNote>> {
+): Promise<Result<TimelineNote>> {
 	const validationError = validateInternalNoteContent(content);
 	if (validationError) return { ok: false, error: { message: validationError } };
 

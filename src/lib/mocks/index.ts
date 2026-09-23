@@ -11,6 +11,7 @@ export const MOCKS_ENABLED = dev;
 type MockDomains = {
 	auth: true;
 	dashboard: true;
+	reports: true;
 	request: true;
 	portalConfig: true;
 	users: true;
@@ -26,6 +27,7 @@ export const MOCK_DOMAINS: false | MockDomains =
 	({
 		auth: true,
 		dashboard: true,
+		reports: true,
 		request: true,
 		portalConfig: true,
 		users: true,

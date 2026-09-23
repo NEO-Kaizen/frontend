@@ -2,15 +2,10 @@
 	import Button from '$lib/components/Button.svelte';
 	import { countUnreadRequesterItems, toPendingBatches } from '$lib/services/pendency.service';
 	import { getPendingItems } from '$lib/services/requester-tracking.service';
-	import type { PendingBatch, PendingItem } from '$lib/types/pendency';
+	import type { ListPendingItemsResponse, PendingBatch, PendingItem } from '$lib/types/pendency';
 	import type { RequesterIdentity } from '$lib/types/requester-tracking';
 	import PendencyCard from './PendencyCard.svelte';
 
-	// Pendências do solicitante (contrato v0.5): GET
-	// /requests/:protocol/pending-items → `PendingItem[]`, agrupado por
-	// `batchId` em um `PendencyCard` por lote. `unread` = itens `requested`
-	// (sem endpoint de "marcar como lido"). Sem chat: a resposta é o PATCH por
-	// item dentro de cada card.
 	interface Props {
 		protocol: string;
 		identity: RequesterIdentity | null;
@@ -21,11 +16,11 @@
 
 	let { protocol, identity, onUnauthorized, onUnreadChange, onDataChanged }: Props = $props();
 
-	let items = $state<PendingItem[]>([]);
+	let response = $state<ListPendingItemsResponse | null>(null);
 	let isLoading = $state(true);
 	let loadError = $state<string | null>(null);
 
-	const batches = $derived<PendingBatch[]>(toPendingBatches(items));
+	const batches = $derived<PendingBatch[]>(toPendingBatches(response));
 
 	function reportUnread(value: PendingItem[]): void {
 		onUnreadChange?.(countUnreadRequesterItems(value));
@@ -48,15 +43,11 @@
 			return;
 		}
 
-		items = result.data;
-		reportUnread(items);
+		response = result.data;
+		reportUnread(result.data.items);
 		isLoading = false;
 	}
 
-	// Revalidação SILENCIOSA após uma resposta: atualiza o estado sem passar
-	// por `isLoading` (não troca a tela por skeleton, nem perde scroll/aba).
-	// É a única fonte de verdade sobre o status geral da solicitação (o PATCH
-	// não devolve `solicitationStatus`).
 	async function revalidate(): Promise<void> {
 		if (!identity) {
 			// Fluxo autenticado: mantém a mesma busca com sessão.
@@ -68,18 +59,17 @@
 			if (result.error.status === 401) onUnauthorized();
 			return;
 		}
-		items = result.data;
-		reportUnread(items);
+		response = result.data;
+		reportUnread(result.data.items);
 	}
 
-	// Resposta local: aplica o `PendingItem` devolvido pelo PATCH no estado,
-	// atualizando o `PendencyCard` (campo vira `responded`) sem reload nem
-	// navegação. Em falhas de consistência (ex.: 409) o item chega
-	// `undefined` e optamos por revalidar em silêncio.
 	function applyUpdatedItem(updated?: PendingItem): void {
-		if (updated) {
-			items = items.map((item) => (item.id === updated.id ? updated : item));
-			reportUnread(items);
+		if (updated && response) {
+			response = {
+				...response,
+				items: response.items.map((item) => (item.id === updated.id ? updated : item))
+			};
+			reportUnread(response.items);
 		} else {
 			void revalidate();
 		}

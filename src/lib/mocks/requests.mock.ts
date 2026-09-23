@@ -1,3 +1,6 @@
+import { ApiError } from '$lib/types/result';
+import { computePrioritizationResult, getSavedPrioritizationNotes } from './prioritization.mock';
+import { mockUsers } from './users.mock';
 import type {
 	QueueAssignee,
 	QueueMetricsResponse,
@@ -16,10 +19,7 @@ import type {
 	UpdateInternalRequestPayload
 } from '$lib/types/request';
 import { DEFAULT_STATUSES } from '$lib/config/portal-defaults';
-import { ApiError } from '$lib/types/result';
-import { computePrioritizationResult, getSavedPrioritizationNotes } from './prioritization.mock';
 import type { CreateTriagePayload, TriageAssessment } from '$lib/types/triage';
-import { mockUsers } from './users.mock';
 
 // Status considerados "em andamento" para a métrica da fila: trabalho já em fluxo,
 // excluindo etapas de fila/priorização e estados terminais.
@@ -538,6 +538,7 @@ function registerCreatedRequest(protocol: string, payload: CreateRequestPayload)
 		prioritization: { score: null, maxScore: 50, label: null, notes: {} },
 		assignee: null,
 		mappingAssignee: null,
+		assigneeDeadline: null,
 		correctionAlert: null,
 		requester: payload.requester,
 		demand: payload.demand,
@@ -815,6 +816,7 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 			email: 'fernando.alves@maat.com.br'
 		},
 		mappingAssignee: null,
+		assigneeDeadline: null,
 		correctionAlert: null,
 		requester: {
 			fullName: 'Maria Oliveira',
@@ -910,6 +912,7 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 			email: 'fernando.alves@maat.com.br'
 		},
 		mappingAssignee: null,
+		assigneeDeadline: null,
 		correctionAlert: { count: 1, batchId: 'batch-2026-102' },
 		requester: {
 			fullName: 'Maria Oliveira',
@@ -969,6 +972,7 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 			email: 'carlos.mendes@maat.com.br'
 		},
 		mappingAssignee: null,
+		assigneeDeadline: null,
 		correctionAlert: null,
 		requester: {
 			fullName: 'Ana Souza',
@@ -1040,6 +1044,7 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 			email: 'lucas.gomes@maat.com.br'
 		},
 		mappingAssignee: null,
+		assigneeDeadline: null,
 		correctionAlert: null,
 		requester: {
 			fullName: 'João Santos',
@@ -1114,6 +1119,8 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 			name: 'Ana Souza',
 			email: 'ana.souza@maat.com.br'
 		},
+		mappingAssignee: null,
+		assigneeDeadline: null,
 		correctionAlert: null,
 		requester: {
 			fullName: 'Pedro Rocha',
@@ -1279,7 +1286,8 @@ export function getTriageMock(protocol: string): Promise<TriageAssessment | null
 export async function assignAnalystMock(
 	protocol: string,
 	analystId: string,
-	responsibility: 'triagem' | 'mapeamento' = 'triagem'
+	responsibility: 'triagem' | 'mapeamento' = 'triagem',
+	assigneeDeadline: string | null = null
 ): Promise<InternalRequestDetail> {
 	const normalized = protocol.toLowerCase().trim();
 	const detail = mockInternalRequestDetails.find(
@@ -1292,6 +1300,14 @@ export async function assignAnalystMock(
 
 	if (!analystId || !analystId.trim()) {
 		return Promise.reject(new ApiError(400, 'Analista não informado.'));
+	}
+
+	if (assigneeDeadline !== null && assigneeDeadline !== '') {
+		const today = new Date();
+		const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+		if (Number.isNaN(new Date(assigneeDeadline).getTime()) || assigneeDeadline < todayIso) {
+			return Promise.reject(new ApiError(400, 'O prazo não pode ser anterior a hoje.'));
+		}
 	}
 
 	const analyst = (
@@ -1319,21 +1335,31 @@ export async function assignAnalystMock(
 	};
 
 	if (responsibility === 'mapeamento') {
-		// Um único responsável por vez: assumir o Mapeamento libera a Triagem.
+		// Exclusividade: responsável pelo Mapeamento anula o da Triagem.
 		detail.mappingAssignee = assigneeValue;
 		detail.assignee = null;
+		detail.assigneeDeadline = assigneeDeadline && assigneeDeadline !== '' ? assigneeDeadline : null;
+
+		// A fila representa o responsável pela Triagem — sem triagem, fica sem responsável.
+		const queueItem = mockRequests.find((r) => r.protocol.toLowerCase().trim() === normalized);
+
+		if (queueItem) {
+			queueItem.assigneeId = null;
+			queueItem.assignee = null;
+		}
 	} else {
-		// Um único responsável por vez: assumir a Triagem libera o Mapeamento.
+		// Exclusividade: responsável pela Triagem anula o do Mapeamento.
 		detail.assignee = assigneeValue;
 		detail.mappingAssignee = null;
-	}
+		detail.assigneeDeadline = assigneeDeadline && assigneeDeadline !== '' ? assigneeDeadline : null;
 
-	// A fila representa o responsável único pela solicitação.
-	const queueItem = mockRequests.find((r) => r.protocol.toLowerCase().trim() === normalized);
+		// A fila representa o responsável pela Triagem.
+		const queueItem = mockRequests.find((r) => r.protocol.toLowerCase().trim() === normalized);
 
-	if (queueItem) {
-		queueItem.assigneeId = analyst.id;
-		queueItem.assignee = analyst.fullName;
+		if (queueItem) {
+			queueItem.assigneeId = analyst.id;
+			queueItem.assignee = analyst.fullName;
+		}
 	}
 
 	detail.lastUpdate = new Date().toISOString();

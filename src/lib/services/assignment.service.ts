@@ -3,6 +3,15 @@ import { listAnalysts as listAnalystsApi } from '$lib/api/user.api';
 import type { InternalRequestDetail } from '$lib/types/request';
 import { ApiError, type Result } from '$lib/types/result';
 import type { Analyst } from '$lib/types/user';
+import { isValidDate } from '$lib/utils/validations';
+
+function todayIsoDate(): string {
+	const now = new Date();
+	const year = now.getFullYear();
+	const month = String(now.getMonth() + 1).padStart(2, '0');
+	const day = String(now.getDate()).padStart(2, '0');
+	return `${year}-${month}-${day}`;
+}
 
 export async function listAnalysts(fetchImpl?: typeof fetch): Promise<Result<Analyst[]>> {
 	try {
@@ -36,6 +45,7 @@ export async function assignAnalyst(
 	protocol: string,
 	analystId: string,
 	responsibility: AssignResponsibility = 'triagem',
+	assigneeDeadline: string | null = null,
 	fetchImpl?: typeof fetch
 ): Promise<Result<InternalRequestDetail>> {
 	if (!analystId || !analystId.trim()) {
@@ -56,8 +66,25 @@ export async function assignAnalyst(
 		};
 	}
 
+	if (assigneeDeadline !== null && assigneeDeadline !== '') {
+		if (!isValidDate(assigneeDeadline) || assigneeDeadline < todayIsoDate()) {
+			return {
+				ok: false,
+				error: {
+					message: 'O prazo não pode ser anterior a hoje.'
+				}
+			};
+		}
+	}
+
 	try {
-		const data = await assignAnalystApi(protocol, analystId, responsibility, fetchImpl);
+		const data = await assignAnalystApi(
+			protocol,
+			analystId,
+			responsibility,
+			assigneeDeadline,
+			fetchImpl
+		);
 		return { ok: true, data };
 	} catch (error) {
 		if (error instanceof ApiError) {

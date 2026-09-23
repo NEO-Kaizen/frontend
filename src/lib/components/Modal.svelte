@@ -8,11 +8,12 @@
 	interface Props {
 		title: string;
 		onclose: () => void;
+		size?: 'sm' | 'lg' | 'default' | 'large';
 		children: Snippet;
-		size?: 'sm' | 'lg';
 	}
 
 	let { title, onclose, children, size = 'sm' }: Props = $props();
+	const resolvedSize = $derived(size === 'large' ? 'lg' : size === 'default' ? 'sm' : size);
 
 	const uid = $props.id();
 
@@ -58,7 +59,7 @@
 	<div
 		bind:this={shellElement}
 		class="modal-shell"
-		class:lg={size === 'lg'}
+		class:lg={resolvedSize === 'lg'}
 		role="dialog"
 		aria-modal="true"
 		tabindex="-1"

@@ -20,7 +20,6 @@
 		onClear?: () => void;
 		search?: string;
 		onSearch?: (term: string) => void;
-		onClearSearch?: () => void;
 	}
 
 	let {
@@ -33,15 +32,10 @@
 		onFilterChange,
 		onClear,
 		search = '',
-		onSearch,
-		onClearSearch
+		onSearch
 	}: Props = $props();
 
-	let searchValue = $state('');
-
-	$effect(() => {
-		searchValue = search;
-	});
+	let searchValue = $derived(search);
 
 	function handleSubmit(event?: Event) {
 		event?.preventDefault();
@@ -67,6 +61,7 @@
 						bind:value={searchValue}
 						actionIcon="search"
 						actionLabel="Buscar"
+						oninput={handleSubmit}
 						onAction={handleSubmit}
 					/>
 				</form>
@@ -129,12 +124,6 @@
 		background-color: var(--white);
 		border: 1px solid var(--border-color);
 		border-radius: var(--radius-lg);
-	}
-
-	.queue-filters__header {
-		display: flex;
-		align-items: center;
-		justify-content: flex-start;
 	}
 
 	.queue-filters__main {

@@ -98,10 +98,14 @@ export interface ReviewPendingItemsResponse {
 // já é respeitada na exibição do analista. Tipos apenas, sem chamada API.
 export type RespondPendingItemBody = { response: string } | { correctedValue: PendingFieldValue };
 
-// Listagem dedicada — GET /requests/:protocol/pending-items (contrato v0.5 §7):
-// retorna `PendingItem[]` direto, sem envelope paginado e sem query (lista
-// curta, ordem cronológica; o front agrupa por `batchId`).
-export type ListPendenciesResponse = PendingItem[];
+export interface ListPendingItemsResponse {
+	batchId: string | null;
+	requestAttachment: boolean;
+	items: PendingItem[];
+}
+
+/** Alias legado — preferir `ListPendingItemsResponse` (contrato oficial). */
+export type ListPendenciesResponse = ListPendingItemsResponse;
 
 // Leitura estendida do GET /requests/:protocol/internal (contrato v0.5 §7,
 // decisões D-P2/D-P21): `unread` é puramente derivado de `status` (internos
@@ -131,6 +135,7 @@ export interface PendingSummary {
 export interface PendingBatch {
 	batchId: string;
 	protocol: string;
+	requestAttachment: boolean;
 	/** Todos os itens do lote, em ordem cronológica de criação. */
 	items: PendingItem[];
 	/** Instrução/observação geral do lote, quando enviada. */

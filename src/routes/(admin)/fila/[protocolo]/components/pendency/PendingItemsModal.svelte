@@ -93,7 +93,7 @@
 		const result = await listPendencies(protocol);
 
 		if (result.ok) {
-			items = result.data;
+			items = result.data.items;
 		} else {
 			errorMessage = result.error.message;
 		}
@@ -187,12 +187,24 @@
 		return String(value);
 	}
 
+	// BUG 5: rótulo temporal por status, reutilizado nas três abas para manter
+	// o mesmo padrão de formatação já usado no componente.
+	function itemDateLabel(item: PendingItem): string {
+		if (item.status === 'validated') {
+			return `Validada em ${formatDateTime(item.validatedAt ?? item.createdAt)}`;
+		}
+		if (item.status === 'responded') {
+			return `Respondida em ${formatDateTime(item.respondedAt ?? item.createdAt)}`;
+		}
+		return `Solicitada em ${formatDateTime(item.createdAt)}`;
+	}
+
 	$effect(() => {
 		load();
 	});
 </script>
 
-<Modal title="Pendências por campo" size="lg" {onclose}>
+<Modal title="Pendências por campo" size="large" {onclose}>
 	<div class="pendency-view">
 		<div class="tabs" role="tablist" aria-label="Status das pendências">
 			{#each tabs as tab (tab.id)}
@@ -209,6 +221,44 @@
 				</button>
 			{/each}
 		</div>
+
+		{#snippet itemContext(item: PendingItem)}
+			{#if item.type === 'observation'}
+				{#if item.comment}
+					<p class="requested-note">{item.comment}</p>
+				{/if}
+			{:else}
+				{#if item.comment}
+					<p class="requested-note">{item.comment}</p>
+				{/if}
+				<div class="diff" aria-label="Comparação do valor">
+					<div class="diff-line diff-old">
+						<span class="diff-glyph" aria-hidden="true">−</span>
+						<span class="diff-value">{displayValue(item.field?.currentValue)}</span>
+					</div>
+					<div class="diff-line diff-new">
+						<span class="diff-glyph" aria-hidden="true">＋</span>
+						<span class="diff-value">{displayValue(item.correctedValue)}</span>
+					</div>
+				</div>
+			{/if}
+
+			{#if item.responseText}
+				<p class="response-note">{item.responseText}</p>
+			{/if}
+
+			{#if item.responseAttachments.length > 0}
+				<ul class="attachments-list">
+					{#each item.responseAttachments as attachment (attachment.fileName)}
+						<li class="attachment-item">
+							<Icon iconName="description" iconSize="sm" />
+							<span class="attachment-name">{attachment.fileName}</span>
+							<span class="attachment-meta">{formatBytes(attachment.sizeBytes)}</span>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+		{/snippet}
 
 		<div class="scroll-area">
 			{#if isLoading}
@@ -231,24 +281,15 @@
 				{:else}
 					<ul class="item-list">
 						{#each visibleItems as item (item.id)}
-							<li class="item-row">
-								<div class="item-content">
-									<span class="item-main">
+							<li>
+								<article class="item-card">
+									<header class="card-head">
 										<span class="item-label">{item.field?.fieldLabel ?? 'Observação geral'}</span>
-										<span class="item-value">
-											{displayValue(
-												item.status === 'validated' ? item.correctedValue : item.field?.currentValue
-											)}
-										</span>
-									</span>
-									<span class="item-meta">
-										<span class="item-date">
-											{item.status === 'validated'
-												? `Validada em ${formatDateTime(item.validatedAt ?? item.createdAt)}`
-												: `Solicitada em ${formatDateTime(item.createdAt)}`}
-										</span>
-									</span>
-								</div>
+										<span class="item-date">{itemDateLabel(item)}</span>
+									</header>
+
+									{@render itemContext(item)}
+								</article>
 							</li>
 						{/each}
 					</ul>
@@ -267,41 +308,10 @@
 									<article class="item-card">
 										<header class="card-head">
 											<span class="item-label">{item.field?.fieldLabel ?? 'Observação geral'}</span>
-											<span class="item-date">
-												Respondida em {formatDateTime(item.respondedAt ?? item.createdAt)}
-											</span>
+											<span class="item-date">{itemDateLabel(item)}</span>
 										</header>
 
-										{#if item.type === 'observation'}
-											<p class="requested-note">{item.comment}</p>
-										{:else}
-											<div class="diff" aria-label="Comparação do valor">
-												<div class="diff-line diff-old">
-													<span class="diff-glyph" aria-hidden="true">−</span>
-													<span class="diff-value">{displayValue(item.field?.currentValue)}</span>
-												</div>
-												<div class="diff-line diff-new">
-													<span class="diff-glyph" aria-hidden="true">＋</span>
-													<span class="diff-value">{displayValue(item.correctedValue)}</span>
-												</div>
-											</div>
-										{/if}
-
-										{#if item.responseText}
-											<p class="response-note">{item.responseText}</p>
-										{/if}
-
-										{#if item.responseAttachments.length > 0}
-											<ul class="attachments-list">
-												{#each item.responseAttachments as attachment (attachment.fileName)}
-													<li class="attachment-item">
-														<Icon iconName="description" iconSize="sm" />
-														<span class="attachment-name">{attachment.fileName}</span>
-														<span class="attachment-meta">{formatBytes(attachment.sizeBytes)}</span>
-													</li>
-												{/each}
-											</ul>
-										{/if}
+										{@render itemContext(item)}
 
 										{#if canReview}
 											<div class="decision">
@@ -500,49 +510,11 @@
 		gap: 12px;
 	}
 
-	.item-row {
-		border: var(--border-default);
-		border-radius: var(--radius-sm);
-		overflow: hidden;
-	}
-
-	.item-content {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: var(--spacing-md);
-		padding: 14px 16px;
-		background: var(--white);
-	}
-
-	.item-main {
-		display: flex;
-		flex-direction: column;
-		gap: 4px;
-		min-width: 0;
-	}
-
 	.item-label {
 		font-family: var(--font-inter);
 		font-size: 13px;
 		font-weight: 600;
 		color: var(--black);
-	}
-
-	.item-value {
-		font-family: var(--font-inter);
-		font-size: 12px;
-		color: var(--gray);
-		word-break: break-word;
-		overflow-wrap: anywhere;
-	}
-
-	.item-meta {
-		display: flex;
-		flex-direction: column;
-		align-items: flex-end;
-		gap: 4px;
-		flex-shrink: 0;
 	}
 
 	.item-date {
@@ -789,16 +761,6 @@
 
 		.scroll-area {
 			max-height: min(64dvh, 560px);
-		}
-
-		.item-content {
-			flex-direction: column;
-			align-items: flex-start;
-			padding: 12px 14px;
-		}
-
-		.item-meta {
-			align-items: flex-start;
 		}
 
 		.card-head {

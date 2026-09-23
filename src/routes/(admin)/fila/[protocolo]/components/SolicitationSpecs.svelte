@@ -15,14 +15,14 @@
 	import { statusThemeVars } from '$lib/utils/status';
 	import type { InternalNotesResponse } from '$lib/types/internal-note';
 	import type { InternalRequestDetail } from '$lib/types/request';
-	import { SvelteMap } from 'svelte/reactivity';
 	import type { CriterionNotes, PrioritizationResult } from '$lib/types/prioritization';
-	import { canAssignAnalyst, canCalculatePriority } from '$lib/services/access.service';
+	import { SvelteMap } from 'svelte/reactivity';
 	import { buildFieldLookup } from '$lib/pendency/field-catalog';
-	import AssignAction from './AssignAction.svelte';
-	import FloatingPrioritizationPanel from './prioritization/FloatingPrioritizationPanel.svelte';
+	import { canAssignAnalyst, canCalculatePriority } from '$lib/services/access.service';
 	import FieldPendencyModal from './pendency/FieldPendencyModal.svelte';
 	import PendencyRequestModal from './pendency/PendencyRequestModal.svelte';
+	import AssignAction from './AssignAction.svelte';
+	import FloatingPrioritizationPanel from './prioritization/FloatingPrioritizationPanel.svelte';
 	import QuickActions from './QuickActions.svelte';
 	import SpecTabs from './SpecTabs.svelte';
 
@@ -36,7 +36,6 @@
 		onSaveError?: (message: string) => void;
 		onTriageSuccess?: (updated: InternalRequestDetail) => void;
 		onPrioritizationSuccess?: (updated: InternalRequestDetail) => void;
-		onAssignmentSuccess?: (updated: InternalRequestDetail) => void;
 	}
 
 	let {
@@ -48,9 +47,10 @@
 		onSaveSuccess,
 		onSaveError,
 		onTriageSuccess,
-		onPrioritizationSuccess,
-		onAssignmentSuccess
+		onPrioritizationSuccess
 	}: Props = $props();
+
+	const currentUser = $derived(page.data.user);
 
 	async function handlePendencySaved(): Promise<void> {
 		await invalidateAll();
@@ -68,7 +68,6 @@
 	let pendingFieldPath = $state<string | null>(null);
 	let isPendencySaving = $state(false);
 	let pendencyError = $state<string | null>(null);
-	let pendingSuccess = $state<string | null>(null);
 	let showPendencyCancelConfirm = $state(false);
 	// Lote v0.4: observação geral + pedido de anexo (do lote) + campos do draft.
 	// Preenchidos no modal de solicitação; enviados em um único POST.
@@ -93,17 +92,20 @@
 	// Bloqueio de nova pendência (§4/§9): enquanto existir lote em aberto
 	// (qualquer item sem decisão), o analista não pode criar outra pendência.
 	// Recalculado a cada load — após criar/revisar, `invalidateAll` recarrega.
-	const openBatch = $derived(findOpenBatch(toPendingBatches(pendencies ?? [])));
+	const openBatch = $derived(findOpenBatch(toPendingBatches(pendencies)));
 	const isPendencyBlocked = $derived(openBatch !== null);
 
-	function enterPendencyMode(): void {
+	function enterPendencyMode(draft?: { observation: string; requestAttachment: boolean }): void {
 		if (isPendencyMode || isPendencyBlocked) return;
 		pendingDraft.clear();
 		pendingFieldPath = null;
 		pendencyError = null;
-		pendingSuccess = null;
-		pendingObservation = '';
-		pendingRequestAttachment = false;
+		// Rascunho compartilhado com o modal de criação pelo histórico
+		// (SpecTabs → PendencyRequestModal): preserva observação + anexo
+		// digitados antes de entrar na marcação por campo. Sem draft,
+		// começa vazio (fluxo do Quick Action).
+		pendingObservation = draft?.observation ?? '';
+		pendingRequestAttachment = draft?.requestAttachment ?? false;
 		showPendencyRequestModal = false;
 		showPendencyCancelConfirm = false;
 		isPendencyMode = true;
@@ -161,6 +163,14 @@
 		showPendencyRequestModal = true;
 	}
 
+	function handlePendencyDraftChange(draft: {
+		observation: string;
+		requestAttachment: boolean;
+	}): void {
+		pendingObservation = draft.observation;
+		pendingRequestAttachment = draft.requestAttachment;
+	}
+
 	// Confirmação do modal: um único POST com o lote inteiro (observação e/ou
 	// campos + requestAttachment do lote). Após sucesso: fecha o modal, limpa
 	// o draft, recarrega os dados e abre a aba de histórico — que passa a
@@ -180,13 +190,11 @@
 		});
 		isPendencySaving = true;
 		pendencyError = null;
-		pendingSuccess = null;
 		const result = await requestFieldChange(solicitation.protocol, payload);
 		isPendencySaving = false;
 		if (result.ok) {
 			showPendencyRequestModal = false;
 			exitPendencyMode();
-			pendingSuccess = 'Pendência solicitada ao solicitante.';
 			toastState.add('Pendência solicitada com sucesso.', 'success');
 			await invalidateAll();
 			const url = new URL(page.url);
@@ -261,19 +269,10 @@
 		priorityBadgeTheme(solicitation.prioritization.label, isPriorityCalculated)
 	);
 
-	const currentUser = $derived(page.data.user as import('$lib/types/auth').SessionUser | null);
-
-	// Responsável único pela solicitação — Triagem e Mapeamento são mutuamente
-	// exclusivos, então o header exibe quem estiver atribuído.
-	const ownerId = $derived(solicitation.assignee?.id ?? solicitation.mappingAssignee?.id ?? null);
-	const ownerName = $derived(
-		solicitation.assignee?.name ?? solicitation.mappingAssignee?.name ?? null
-	);
-
-	const canAssign = $derived(canAssignAnalyst(currentUser));
+	const canAssign = $derived(canAssignAnalyst(currentUser ?? null));
 
 	const canCalculate = $derived(
-		canCalculatePriority(currentUser, solicitation.assignee?.id ?? null)
+		canCalculatePriority(currentUser ?? null, solicitation.assignee?.id ?? null)
 	);
 
 	const hiddenQuickActionKeys = $derived.by(() => {
@@ -349,7 +348,6 @@
 
 	function handleAssignSuccess(updated: InternalRequestDetail): void {
 		solicitation = updated;
-		onAssignmentSuccess?.(updated);
 	}
 
 	function handleQuickAction(key: string) {
@@ -395,10 +393,10 @@
 				</span>
 				<span
 					class="responsible-value"
-					class:is-unassigned={!ownerName}
-					title={ownerName ?? 'Não atribuído'}
+					class:is-unassigned={!solicitation.assignee?.name && !solicitation.mappingAssignee?.name}
+					title={solicitation.assignee?.name ?? 'Não atribuído'}
 				>
-					{ownerName ?? 'Não atribuído'}
+					{solicitation.assignee?.name ?? solicitation.mappingAssignee?.name ?? 'Não atribuído'}
 				</span>
 			</div>
 		</div>
@@ -441,6 +439,13 @@
 		<p class="pendency-feedback pendency-error" role="alert">{pendencyError}</p>
 	{/if}
 
+	{#if isPendencyBlocked && !isPendencyMode}
+		<p class="pendency-feedback pendency-blocked" role="status">
+			Há uma pendência em aberto aguardando resposta ou revisão. Conclua todas as decisões na aba de
+			histórico para solicitar uma nova pendência.
+		</p>
+	{/if}
+
 	<SpecTabs
 		{solicitation}
 		{internalNotes}
@@ -450,17 +455,16 @@
 		{onSaveSuccess}
 		{onSaveError}
 		{onTriageSuccess}
+		onOpenCalculator={handleOpenCalculator}
 		{isPendencyMode}
 		{pendencyCount}
 		{isPendencySaving}
-		pendingSuccessText={pendingSuccess}
 		{markedFieldKeys}
 		onFieldPendencyClick={handleFieldPendencyClick}
 		onFieldPendencyRemove={handlePendencyRemove}
 		onPendencySave={handlePendencySaveRequest}
 		onPendencyCancel={handlePendencyCancelRequest}
 		onRequestFieldChange={enterPendencyMode}
-		onOpenCalculator={handleOpenCalculator}
 	/>
 
 	<QuickActions
@@ -497,8 +501,11 @@
 	{#if isAssignModalOpen && canAssign}
 		<AssignAction
 			protocol={solicitation.protocol}
-			currentAssigneeId={ownerId}
-			currentAssigneeName={ownerName}
+			currentAssigneeId={solicitation.assignee?.id ?? solicitation.mappingAssignee?.id ?? null}
+			currentAssigneeName={solicitation.assignee?.name ?? null}
+			currentMappingAssigneeId={solicitation.mappingAssignee?.id ?? null}
+			currentMappingAssigneeName={solicitation.mappingAssignee?.name ?? null}
+			currentAssigneeDeadline={solicitation.assigneeDeadline ?? null}
 			onclose={() => (isAssignModalOpen = false)}
 			onSuccess={handleAssignSuccess}
 		/>
@@ -526,6 +533,7 @@
 		serverError={pendencyError}
 		onConfirm={handlePendencyRequestConfirm}
 		onRemoveItem={handlePendencyRemove}
+		onDraftChange={handlePendencyDraftChange}
 		onclose={() => (showPendencyRequestModal = false)}
 	/>
 {/if}
@@ -637,6 +645,12 @@
 		background-color: var(--status-red-bg);
 		color: var(--status-red);
 		border: 1px solid var(--status-red);
+	}
+
+	.pendency-blocked {
+		background-color: var(--status-yellow-bg);
+		color: var(--status-yellow);
+		border: 1px solid var(--status-yellow);
 	}
 
 	.pendency-cancel-body {

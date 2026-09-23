@@ -26,13 +26,6 @@
 		// semanticamente exclusivo da Triagem.
 		solicitation = updated;
 	}
-
-	function handleAssignmentSuccess(updated: typeof solicitation) {
-		// A atribuição (Triagem ou Mapeamento) altera o responsável único;
-		// revalidamos para manter o restante da página consistente.
-		solicitation = updated;
-		void invalidateAll();
-	}
 </script>
 
 <svelte:head>
@@ -63,7 +56,6 @@
 			pendenciesError={data.pendenciesError}
 			onTriageSuccess={handleTriageSuccess}
 			onPrioritizationSuccess={handlePrioritizationSuccess}
-			onAssignmentSuccess={handleAssignmentSuccess}
 		/>
 	{:else if error && error.status === 404}
 		<NotFoundState

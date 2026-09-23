@@ -11,13 +11,10 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 
 	const [result, internalNotesResult, pendenciesResult] = await Promise.all([
 		getInternalRequest(protocol, fetch),
-		getInternalNotes(protocol, fetch),
+		getInternalNotes(protocol, {}, fetch),
 		listPendencies(protocol, fetch)
 	]);
 
-	// A leitura de pendências segue o contrato v0.4: em DEV o mock responde; em
-	// produção, sem endpoint dedicado de listagem, o histórico exibe o estado
-	// de erro com retry em vez de quebrar a página.
 	const pendencies = pendenciesResult.ok ? pendenciesResult.data : null;
 	const pendenciesError = pendenciesResult.ok ? null : pendenciesResult.error.message;
 

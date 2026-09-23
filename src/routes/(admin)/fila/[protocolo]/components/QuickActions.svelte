@@ -84,32 +84,31 @@
 		currentUser?.role === 'Administrador' ||
 			Boolean(currentUser && solicitation.assignee?.id === currentUser.id)
 	);
-
 	const visibleActions = $derived.by(() => {
-		let list = baseActions.filter((action) => !hiddenActionKeys.includes(action.key));
+		let filtered = baseActions.filter((a) => !hiddenActionKeys.includes(a.key));
 		if (!canRequestChange) {
-			list = list.filter((action) => action.key !== 'requestChange');
+			filtered = filtered.filter((a) => a.key !== 'requestChange');
 		}
-		return list.map((action) => {
-			if (action.key === 'priorityCalculator' && hasExistingPriority) {
+		return filtered.map((a) => {
+			if (a.key === 'priorityCalculator' && hasExistingPriority) {
 				return {
-					...action,
+					...a,
 					label: 'Alterar Prioridade',
 					hint: existingPriorityDisplay
 						? `Atual: ${existingPriorityDisplay}`
 						: 'Prioridade já calculada — alterar'
 				};
 			}
-			if (action.key === 'requestChange' && isRequestChangeBlocked) {
+			if (a.key === 'requestChange' && isRequestChangeBlocked) {
 				return {
-					...action,
+					...a,
 					disabled: true,
 					hint:
 						requestChangeBlockedHint ??
 						'Há uma pendência em aberto — conclua a revisão para solicitar outra'
 				};
 			}
-			return action;
+			return a;
 		});
 	});
 
@@ -133,9 +132,8 @@
 			onRequestChange?.();
 		} else if (actionKey === 'informPending') {
 			showPendingModal = true;
-		} else {
-			onAction?.(actionKey);
 		}
+		onAction?.(actionKey);
 	}
 
 	function handleKeydown(event: KeyboardEvent) {
