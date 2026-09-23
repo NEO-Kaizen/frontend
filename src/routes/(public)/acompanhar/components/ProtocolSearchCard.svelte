@@ -58,6 +58,25 @@
 		hasSubmitted = false;
 	}
 
+	function handleProtocolFocus(event: FocusEvent) {
+		const input = event.currentTarget as HTMLInputElement;
+		if (!protocol.trim()) {
+			const prefixed = `${protocolMask}-`;
+			protocol = prefixed;
+			requestAnimationFrame(() => {
+				input.value = prefixed;
+				input.setSelectionRange(prefixed.length, prefixed.length);
+			});
+		}
+	}
+
+	function handleProtocolBlur() {
+		if (protocol === `${protocolMask}-` || protocol === protocolMask) {
+			protocol = '';
+			hasSubmitted = false;
+		}
+	}
+
 	function handleEmailInput() {
 		hasSubmitted = false;
 	}
@@ -66,11 +85,12 @@
 		hasSubmitted && !protocol.trim() && !email.trim() ? 'Informe o protocolo ou o e-mail.' : ''
 	);
 
-	let protocolError = $derived(
-		protocol.trim() && !isProtocol(protocol.trim(), protocolMask)
-			? 'Informe um protocolo válido.'
-			: ''
-	);
+	let protocolError = $derived.by(() => {
+		const trimmed = protocol.trim();
+		if (!trimmed) return '';
+		if (trimmed === `${protocolMask}-` || trimmed === protocolMask) return '';
+		return !isProtocol(trimmed, protocolMask) ? 'Informe um protocolo válido.' : '';
+	});
 
 	let emailError = $derived(
 		email.trim() && !isValidEmail(email.trim()) ? 'Informe um e-mail válido.' : ''
@@ -136,6 +156,8 @@
 			maxlength={protocolMask.length + 10}
 			error={protocolError}
 			oninput={handleProtocolInput}
+			onfocus={handleProtocolFocus}
+			onblur={handleProtocolBlur}
 			bind:value={protocol}
 		/>
 	</div>
