@@ -53,7 +53,7 @@ export async function listRequests(
 
 	const params = new URLSearchParams();
 
-	params.set('email', query.email);
+	if (query.email) params.set('email', query.email);
 	if (query.search) params.set('search', query.search);
 	if (query.status) params.set('status', query.status);
 	if (query.page !== undefined) params.set('page', String(query.page));
@@ -150,6 +150,36 @@ export async function updateInternalRequest(
 		{
 			method: 'PATCH',
 			body: JSON.stringify(payload)
+		},
+		fetchImpl
+	);
+}
+
+export type AssignResponsibility = 'triagem' | 'mapeamento';
+
+export async function assignAnalyst(
+	protocol: string,
+	analystId: string,
+	responsibility: AssignResponsibility = 'triagem',
+	assigneeDeadline: string | null = null,
+	fetchImpl?: typeof fetch
+): Promise<InternalRequestDetail> {
+	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.request) {
+		const { assignAnalystMock } = await import('$lib/mocks/requests.mock');
+		return assignAnalystMock(protocol, analystId, responsibility, assigneeDeadline);
+	}
+
+	const encoded = encodeURIComponent(protocol);
+	// TODO: incluir assigneeDeadline no payload quando o contrato do backend
+	// passar a suportar oficialmente esse campo.
+	const body =
+		responsibility === 'mapeamento' ? { mappingAssigneeId: analystId } : { assigneeId: analystId };
+
+	return apiClient<InternalRequestDetail>(
+		`${REQUESTS_PATH}/${encoded}/internal/assignee`,
+		{
+			method: 'PATCH',
+			body: JSON.stringify(body)
 		},
 		fetchImpl
 	);

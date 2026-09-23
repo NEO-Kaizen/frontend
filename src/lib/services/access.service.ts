@@ -40,8 +40,32 @@ export function canEditSolicitation(
 	return Boolean(assigneeId && assigneeId === user.id);
 }
 
+// Visualização da triagem (`GET /triage`): Administrador e Gestor sempre
+// visualizam (o Gestor em somente leitura); o Analista apenas quando é o
+// responsável atual (`assignee`) da solicitação. A edição/finalização
+// permanece restrita a `canEditSolicitation` (Administrador ou responsável).
+export function canViewTriage(
+	assigneeId: string | null | undefined,
+	user: SessionUser | null
+): boolean {
+	if (!user) return false;
+	if (user.role === 'Administrador' || user.role === 'Gestor') return true;
+	return Boolean(assigneeId && assigneeId === user.id);
+}
+
 export function isProfileAllowed(role: UserType, profiles: 'any' | readonly UserType[]): boolean {
 	return profiles === 'any' || profiles.includes(role);
+}
+
+export function canAssignAnalyst(user: SessionUser | null): boolean {
+	return user?.role === 'Administrador';
+}
+
+export function canCalculatePriority(user: SessionUser | null, assigneeId: string | null): boolean {
+	if (!user) return false;
+	if (user.role === 'Administrador') return true;
+	if (user.role === 'Analista' && assigneeId !== null && user.id === assigneeId) return true;
+	return false;
 }
 
 export function isAllowedReturnTo(value: string): value is PostLoginRoute {

@@ -27,12 +27,13 @@ function resolveFetch(fetchImpl?: typeof fetch): typeof fetch {
 	throw error;
 }
 
-// FormData sem Content-Type: o browser gera o boundary do multipart.
-export async function apiClient<T>(
+// Requisições que precisam consumir corpo/headers fora do JSON padrão (como
+// downloads) usam esta função e preservam o mesmo tratamento de sessão/erro.
+export async function apiFetch(
 	path: string,
 	options: RequestInit = {},
 	fetchImpl?: typeof fetch
-): Promise<T> {
+): Promise<Response> {
 	const doFetch = resolveFetch(fetchImpl);
 	const isMultipart = options.body instanceof FormData;
 
@@ -48,6 +49,18 @@ export async function apiClient<T>(
 	if (!response.ok) {
 		throw new ApiError(response.status, await readErrorMessage(response));
 	}
+
+	return response;
+}
+
+// FormData sem Content-Type: o browser gera o boundary do multipart.
+export async function apiClient<T>(
+	path: string,
+	options: RequestInit = {},
+	fetchImpl?: typeof fetch
+): Promise<T> {
+	const response = await apiFetch(path, options, fetchImpl);
+
 	if (response.status === 204) {
 		return undefined as T;
 	}

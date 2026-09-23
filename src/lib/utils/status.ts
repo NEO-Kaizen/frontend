@@ -38,3 +38,14 @@ export function statusThemeVars(
 export function isClosingStatus(name: string, statuses: PortalStatus[]): boolean {
 	return findStatus(name, statuses)?.closesRequest ?? false;
 }
+
+export function isTriageExitStatus(id: number, statuses: PortalStatus[]): boolean {
+	const found = statuses.find((status) => status.id === id);
+	return found?.isActive === true && found?.isTriageExit === true;
+}
+
+export function triageExitOptions(statuses: PortalStatus[]): { value: string; label: string }[] {
+	return statuses
+		.filter((status) => status.isActive && status.isTriageExit)
+		.map((status) => ({ value: String(status.id), label: status.name }));
+}

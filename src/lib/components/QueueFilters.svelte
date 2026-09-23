@@ -2,6 +2,7 @@
 	import Button from './Button.svelte';
 	import FilterSelect from './FilterSelect.svelte';
 	import Icon from './Icon.svelte';
+	import Input from './Input.svelte';
 
 	type FilterOption = {
 		value: string;
@@ -18,7 +19,7 @@
 		onFilterChange: (filters: { status: string; priority: string; assignee: string }) => void;
 		onClear?: () => void;
 		search?: string;
-		onClearSearch?: () => void;
+		onSearch?: (term: string) => void;
 	}
 
 	let {
@@ -31,74 +32,95 @@
 		onFilterChange,
 		onClear,
 		search = '',
-		onClearSearch
+		onSearch,
 	}: Props = $props();
 
+	let searchValue = $derived('');
+
+	$effect(() => {
+		searchValue = search;
+	});
+
+	function handleSubmit(event?: Event) {
+		event?.preventDefault();
+		onSearch?.(searchValue.trim());
+	}
+
 	function clearFilters() {
+		searchValue = '';
 		onClear?.();
 	}
 </script>
 
 <div class="queue-filters">
-	<div class="filters">
-		<div class="filter-item">
-			<FilterSelect
-				icon="filterList"
-				label="Status"
-				ariaLabel="Filtrar por status"
-				value={status}
-				options={statusOptions}
-				clearValue="all"
-				onchange={(next) => onFilterChange({ status: next, priority, assignee })}
-			/>
+	<div class="queue-filters__main">
+		<div class="filters">
+			<div class="filter-item filter-item--search">
+				<form onsubmit={handleSubmit} role="search">
+					<Input
+						type="search"
+						label="Buscar"
+						aria-label="Buscar por protocolo, solicitante, título da demanda ou e-mail"
+						placeholder="Protocolo, solicitante, título da demanda ou e-mail"
+						bind:value={searchValue}
+						actionIcon="search"
+						actionLabel="Buscar"
+						oninput={handleSubmit}
+						onAction={handleSubmit}
+					/>
+				</form>
+			</div>
+
+			<div class="filter-item">
+				<FilterSelect
+					icon="filterList"
+					label="Status"
+					ariaLabel="Filtrar por status"
+					value={status}
+					options={statusOptions}
+					clearValue="all"
+					onchange={(next) => onFilterChange({ status: next, priority, assignee })}
+				/>
+			</div>
+
+			<div class="filter-item">
+				<FilterSelect
+					icon="filterList"
+					label="Prioridade"
+					ariaLabel="Filtrar por prioridade"
+					value={priority}
+					options={priorityOptions}
+					clearValue="all"
+					onchange={(next) => onFilterChange({ status, priority: next, assignee })}
+				/>
+			</div>
+
+			<div class="filter-item">
+				<FilterSelect
+					icon="filterList"
+					label="Responsável"
+					ariaLabel="Filtrar por responsável"
+					value={assignee}
+					options={assigneeOptions}
+					clearValue="all"
+					onchange={(next) => onFilterChange({ status, priority, assignee: next })}
+				/>
+			</div>
 		</div>
 
-		<div class="filter-item">
-			<FilterSelect
-				icon="filterList"
-				label="Prioridade"
-				ariaLabel="Filtrar por prioridade"
-				value={priority}
-				options={priorityOptions}
-				clearValue="all"
-				onchange={(next) => onFilterChange({ status, priority: next, assignee })}
-			/>
-		</div>
-
-		<div class="filter-item">
-			<FilterSelect
-				icon="filterList"
-				label="Responsável"
-				ariaLabel="Filtrar por responsável"
-				value={assignee}
-				options={assigneeOptions}
-				clearValue="all"
-				onchange={(next) => onFilterChange({ status, priority, assignee: next })}
-			/>
-		</div>
-	</div>
-
-	<div class="clear-action">
-		<Button variant="outline-neutral" onclick={clearFilters}>
-			<Icon iconName="close" iconSize="md" />
-			Limpar
-		</Button>
-	</div>
-
-	{#if search}
-		<div class="search-chip">
-			<span title={search}>Busca: &ldquo;{search}&rdquo;</span>
-			<button type="button" aria-label="Limpar busca" onclick={onClearSearch}>
+		<div class="clear-action">
+			<Button variant="outline-neutral" onclick={clearFilters}>
 				<Icon iconName="close" iconSize="md" />
-			</button>
+				Limpar
+			</Button>
 		</div>
-	{/if}
+	</div>
 </div>
 
 <style>
 	.queue-filters {
 		display: flex;
-		align-items: flex-end;
+		flex-direction: column;
 		gap: var(--spacing-sm);
 		width: 100%;
 		padding: var(--spacing-md);
@@ -106,6 +128,13 @@
 		background-color: var(--white);
 		border: 1px solid var(--border-color);
 		border-radius: var(--radius-lg);
+	}
+
+	.queue-filters__main {
+		display: flex;
+		align-items: flex-end;
+		gap: var(--spacing-sm);
+		width: 100%;
 	}
 
 	.filters {
@@ -120,44 +149,17 @@
 		flex-shrink: 0;
 	}
 
+	.filter-item--search {
+		width: 300px;
+		min-width: 260px;
+	}
+
 	.clear-action {
 		flex-shrink: 0;
 	}
 
-	.search-chip {
-		display: flex;
-		align-items: center;
-		gap: var(--spacing-xs);
-		min-width: 0;
-		max-width: 300px;
-		flex-shrink: 1;
-		padding: var(--spacing-xs) var(--spacing-sm);
-		background-color: rgba(0, 51, 153, 0.08);
-		color: var(--primary-color);
-		border-radius: var(--radius-sm);
-		font: var(--paragrafo);
-	}
-
-	.search-chip span {
-		min-width: 0;
-		padding: 0 var(--spacing-sm);
-		overflow: hidden;
-		white-space: nowrap;
-		text-overflow: ellipsis;
-	}
-
-	.search-chip button {
-		display: flex;
-		align-items: center;
-		flex-shrink: 0;
-		padding: 0;
-		border: none;
-		background: none;
-		color: inherit;
-		cursor: pointer;
-	}
 	@media (max-width: 900px) {
-		.queue-filters {
+		.queue-filters__main {
 			align-items: stretch;
 			flex-direction: column;
 		}

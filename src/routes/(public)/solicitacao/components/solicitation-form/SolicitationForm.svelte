@@ -9,6 +9,7 @@
 	import StepOperational from './StepOperational.svelte';
 	import StepsForm from './StepsForm.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import { clearProtocol, loadProtocol, saveProtocol } from '$lib/services/last-protocol.service';
 	import { submitDemand } from '$lib/services/request.service';
 	import {
 		clearDraft,
@@ -198,8 +199,21 @@
 		complementary = draft.complementary;
 	}
 
+	// Restaura a tela de sucesso após reload: o protocolo da última solicitação
+	// persiste na sessão (issue #147). Sem rascunho ativo, mostra a solicitação
+	// enviada — com o CTA de acompanhamento.
+	function restoreSubmittedScreen(): void {
+		const userId = user?.id ?? null;
+		const restoredProtocol = loadProtocol();
+		if (!loadDraft(userId) && restoredProtocol) {
+			submitted = true;
+			submittedProtocol = restoredProtocol;
+		}
+	}
+
 	if (browser) {
 		hydrateFromDraft();
+		restoreSubmittedScreen();
 	}
 
 	let draft = $derived<SolicitationDraft>({
@@ -224,7 +238,9 @@
 	});
 
 	$effect(() => {
-		saveDraft(draft, user?.id ?? null);
+		// Não grava rascunho após o envio (ou restauração da tela de sucesso):
+		// senão um rascunho vazio sobrescreveria a sessão no reload.
+		if (!submitted) saveDraft(draft, user?.id ?? null);
 	});
 
 	function validateCurrentStep(): boolean {
@@ -260,8 +276,14 @@
 		goto(resolve('/'));
 	}
 
+	async function goToSolicitation() {
+		if (!submittedProtocol) return;
+		await goto(resolve('/(public)/acompanhar/[protocolo]', { protocolo: submittedProtocol }));
+	}
+
 	function resetForm() {
 		clearDraft(user?.id ?? null);
+		clearProtocol();
 		currentStep = 1;
 		completedSteps = new Set();
 		visitedSteps = new Set([1]);
@@ -454,6 +476,7 @@
 			submittedProtocol = result.data.protocol;
 			submitted = true;
 			clearDraft(user?.id ?? null);
+			saveProtocol(result.data.protocol);
 		} else {
 			submitError = result.error.message;
 		}
@@ -482,25 +505,29 @@
 				</span>
 				<h3>Solicitação enviada com sucesso!</h3>
 				<p>Sua demanda foi registrada e será analisada pela equipe responsável.</p>
-				<p class="success-protocol">
-					Guarde o número do protocolo:
-					<button
-						type="button"
-						class="protocol-copy"
-						onclick={copyProtocol}
-						title="Copiar protocolo"
-					>
-						{submittedProtocol}
-						<Icon iconName="content_copy" />
-					</button>
-					{#if protocolCopied}
-						<span class="copy-feedback" role="status">copiado</span>
-					{/if}
-				</p>
+				{#if submittedProtocol}
+					<p class="success-protocol">
+						Guarde o número do protocolo:
+						<button
+							type="button"
+							class="protocol-copy"
+							onclick={copyProtocol}
+							title="Copiar protocolo"
+						>
+							{submittedProtocol}
+							<Icon iconName="content_copy" />
+						</button>
+						{#if protocolCopied}
+							<span class="copy-feedback" role="status">copiado</span>
+						{/if}
+					</p>
+				{:else}
+					<p class="success-protocol">Você pode acompanhar o andamento na página inicial.</p>
+				{/if}
 				<div class="success-btn">
-					<Button variant="primary" onclick={resetForm} loading={isSubmitting}>
-						<span>+</span> Nova Solicitação
-					</Button>
+					{#if submittedProtocol}
+						<Button variant="primary" onclick={goToSolicitation}>Ver Solicitação</Button>
+					{/if}
 					<Button variant="outline" onclick={handleCancel} loading={isSubmitting}>
 						<Icon iconName="home" />
 						Ir para início</Button
