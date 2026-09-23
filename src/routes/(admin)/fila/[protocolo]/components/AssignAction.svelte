@@ -379,7 +379,7 @@
 						<span class="radio-indicator" aria-hidden="true"></span>
 						Mapeamento
 					</label>
-				</div>
+				</div>		
 				<div class="deadline-field">
 					<span class="responsibility-title">Prazo:</span>
 					<Input
@@ -861,6 +861,8 @@
 		min-width: 160px;
 		max-width: 200px;
 		flex-shrink: 0;
+		/* Remover essa linha quando o prazo de assigneeDeadline existir no back*/
+		visibility: hidden;
 	}
 
 	.responsibility-title {

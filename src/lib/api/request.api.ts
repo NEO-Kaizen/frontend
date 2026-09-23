@@ -170,12 +170,10 @@ export async function assignAnalyst(
 	}
 
 	const encoded = encodeURIComponent(protocol);
-	// Exclusividade: apenas um responsável vigente — o campo oposto é
-	// explicitamente anulado para o backend limpar o vínculo anterior.
+	// TODO: incluir assigneeDeadline no payload quando o contrato do backend
+	// passar a suportar oficialmente esse campo.
 	const body =
-		responsibility === 'mapeamento'
-			? { mappingAssigneeId: analystId, assigneeId: null, assigneeDeadline }
-			: { assigneeId: analystId, mappingAssigneeId: null, assigneeDeadline };
+		responsibility === 'mapeamento' ? { mappingAssigneeId: analystId } : { assigneeId: analystId };
 
 	return apiClient<InternalRequestDetail>(
 		`${REQUESTS_PATH}/${encoded}/internal/assignee`,
