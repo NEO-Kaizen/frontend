@@ -226,8 +226,7 @@
 
 	function handleTabSelect(tab: SpecTabDefinition) {
 		if (!tab.enabled || isEditMode) return;
-	
-		const enteringHistorico = tab.id === 'historico' && activeTab !== 'historico';
+
 		clearSaveSuccess();
 
 		const url = new URL(page.url);
@@ -240,9 +239,6 @@
 			noScroll: true,
 			keepFocus: true
 		});
-		if (enteringHistorico) {
-			void invalidateAll();
-		}
 	}
 
 	function ensureInfoTab(): void {
