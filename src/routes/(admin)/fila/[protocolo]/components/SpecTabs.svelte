@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
+	import { onDestroy, tick } from 'svelte';
+	import { fade, fly } from 'svelte/transition';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Modal from '$lib/components/Modal.svelte';
-	import { canEditSolicitation } from '$lib/services/access.service';
+	import { canEditSolicitation, canViewTriage } from '$lib/services/access.service';
 	import {
 		buildCreatePendingItemsPayload,
 		findOpenBatch,
@@ -23,9 +25,8 @@
 	import MappingSection from './mapping/MappingSection.svelte';
 	import PendingItemsModal from './pendency/PendingItemsModal.svelte';
 	import PendencyRequestModal from './pendency/PendencyRequestModal.svelte';
-	import { onDestroy, tick } from 'svelte';
-	import { fly } from 'svelte/transition';
 	import InfoSection from './solicitation-info/InfoSection.svelte';
+	import TriageSection from './triagem/TriageSection.svelte';
 	import {
 		applyFieldChange,
 		checkDraftDirty,
@@ -53,6 +54,8 @@
 		onPendencySave?: () => void;
 		onPendencyCancel?: () => void;
 		onRequestFieldChange?: (draft?: { observation: string; requestAttachment: boolean }) => void;
+		onTriageSuccess?: (updated: InternalRequestDetail) => void;
+		onOpenCalculator?: () => void;
 	}
 
 	let {
@@ -71,7 +74,9 @@
 		onFieldPendencyRemove,
 		onPendencySave,
 		onPendencyCancel,
-		onRequestFieldChange
+		onRequestFieldChange,
+		onTriageSuccess,
+		onOpenCalculator
 	}: Props = $props();
 
 	function getInitialInternalNotesState(): {
@@ -170,7 +175,7 @@
 	// não notificações.
 	let specTabs = $derived<readonly SpecTabDefinition[]>([
 		{ id: 'informacoes', label: 'Informações', icon: 'description', enabled: true },
-		{ id: 'triagem', label: 'Triagem', icon: 'filter', enabled: false },
+		{ id: 'triagem', label: 'Triagem', icon: 'filter', enabled: true },
 		{
 			id: 'mapeamento',
 			label: 'Mapeamento',
@@ -193,9 +198,25 @@
 		}
 	]);
 
+	// Botão Editar visível apenas para quem pode editar o conteúdo interno
+	// (Administrador ou responsável atribuído — regra em `access.service`).
+	// Gestor e demais perfis visualizam em somente leitura.
+	const currentUser = $derived(page.data.user);
+	const canEdit = $derived(canEditSolicitation(solicitation.assignee?.id, currentUser ?? null));
+	const canViewTriageTab = $derived(canViewTriage(solicitation.assignee?.id, currentUser ?? null));
+
+	// A permissão do mapeamento usa o responsável do mapeamento
+	// (`mappingAssignee`) do primeiro GET da solicitação + `/auth/me`
+	// (via `page.data.user`) — nunca o GET do mapeamento.
+	const mappingAssigneeId = $derived(solicitation.mappingAssignee?.id ?? null);
+	const canEditMapping = $derived(canEditSolicitation(mappingAssigneeId, currentUser ?? null));
+
+	const displayTabs = $derived(specTabs.filter((tab) => tab.id !== 'triagem' || canViewTriageTab));
+
 	function resolveActiveTab(param: string | null): SpecTabId {
 		const tab = specTabs.find((item) => item.id === param);
 		if (tab && tab.enabled) {
+			if (tab.id === 'triagem' && !canViewTriageTab) return DEFAULT_TAB_ID;
 			return tab.id;
 		}
 		return DEFAULT_TAB_ID;
@@ -213,20 +234,9 @@
 			DEFAULT_TAB_ID
 	);
 
-	// Botão Editar visível apenas para quem pode editar o conteúdo interno
-	// (Administrador ou responsável atribuído — regra em `access.service`).
-	// Gestor e demais perfis visualizam em somente leitura.
-	// A permissão do mapeamento usa exclusivamente o responsável do mapeamento
-	// (`mappingAssigneeId`). A fonte é o primeiro GET da solicitação + `/auth/me`
-	// (via `page.data.user`) — nunca o GET do mapeamento.
-	const currentUser = $derived(page.data.user);
-	const mappingAssigneeId = $derived(solicitation.mappingAssigneeId);
-	const canEdit = $derived(canEditSolicitation(solicitation.assignee?.id, currentUser ?? null));
-	const canEditMapping = $derived(canEditSolicitation(mappingAssigneeId, currentUser ?? null));
-
 	function handleTabSelect(tab: SpecTabDefinition) {
 		if (!tab.enabled || isEditMode) return;
-
+		if (tab.id === 'triagem' && !canViewTriageTab) return;
 		clearSaveSuccess();
 
 		const url = new URL(page.url);
@@ -298,6 +308,8 @@
 		in: { x: 100, duration: prefersReducedMotion ? 0 : 160, delay: prefersReducedMotion ? 0 : 80 },
 		out: { x: 100, duration: prefersReducedMotion ? 0 : 140 }
 	};
+	const tabFlyIn = prefersReducedMotion ? { duration: 0 } : { y: 8, duration: 220, delay: 40 };
+	const tabFadeOut = prefersReducedMotion ? { duration: 0 } : { duration: 120 };
 
 	function focusFirstEditable(selectorScope: string | null): void {
 		const root = detailsCard;
@@ -371,6 +383,7 @@
 		errors = validation;
 		if (Object.keys(validation).length > 0) {
 			saveError = 'Revise os campos destacados antes de salvar.';
+			toastState.add('Revise os campos destacados antes de salvar.', 'error');
 			tick().then(() => focusFirstEditable('.field-editor.is-invalid'));
 			return;
 		}
@@ -392,11 +405,13 @@
 				saveSuccess = null;
 				saveSuccessTimer = undefined;
 			}, SAVE_SUCCESS_TIMEOUT_MS);
+			toastState.add('Alterações salvas com sucesso.', 'success');
 			onSaveSuccess?.(result.data);
 			await invalidateAll();
 			tick().then(() => editButton?.focus());
 		} else {
 			saveError = result.error.message;
+			toastState.add(result.error.message, 'error');
 			onSaveError?.(result.error.message);
 		}
 	}
@@ -450,7 +465,7 @@
 <section class="details-card" aria-label="Detalhes da solicitação" bind:this={detailsCard}>
 	<div class="tabs-bar" role="tablist" aria-label="Abas da solicitação">
 		<div class="tabs-left">
-			{#each specTabs as tab (tab.id)}
+			{#each displayTabs as tab (tab.id)}
 				<button
 					type="button"
 					role="tab"
@@ -578,46 +593,59 @@
 		role="tabpanel"
 		aria-labelledby={`spec-tab-${activeTab}`}
 	>
-		{#if activeTab === 'informacoes'}
-			<InfoSection
-				{solicitation}
-				{isEditMode}
-				{draft}
-				{errors}
-				onFieldChange={handleFieldChange}
-				onFieldBlur={handleFieldBlur}
-				{isPendencyMode}
-				{markedFieldKeys}
-				{onFieldPendencyClick}
-				{onFieldPendencyRemove}
-			/>
-		{:else if activeTab === 'mapeamento'}
-			<MappingSection {solicitation} canEdit={canEditMapping} />
-		{:else if activeTab === 'historico'}
-			<ConversationHistory
-				initialBatches={pendencyBatches}
-				initialLoading={false}
-				initialError={pendenciesError}
-				correctionAlertBatchId={solicitation.correctionAlert?.batchId ?? null}
-				canRequestCreate={!openBatch}
-				onRetry={handleRetryPendencies}
-				onReviewBatch={handleReviewBatch}
-				onRequestCreate={handleOpenCreate}
-			/>
-		{:else if activeTab === 'observacoes'}
-			<InternalNotesSection
-				protocol={solicitation.protocol}
-				notes={internalNoteItems}
-				loadError={internalNotesLoadError}
-				currentUserId={currentUser?.id ?? ''}
-				onNotesLoaded={handleInternalNotesLoaded}
-				onLoadError={handleInternalNotesLoadError}
-				onNoteCreated={handleInternalNoteCreated}
-				onMarkedRead={handleInternalNotesMarkedRead}
-			/>
-		{:else}
-			<p class="placeholder">Conteúdo de {activeTabLabel} — implementação futura</p>
-		{/if}
+		{#key activeTab}
+			<div class="tab-panel-inner" in:fly={tabFlyIn} out:fade={tabFadeOut}>
+				{#if activeTab === 'informacoes'}
+					<InfoSection
+						{solicitation}
+						{isEditMode}
+						{draft}
+						{errors}
+						onFieldChange={handleFieldChange}
+						onFieldBlur={handleFieldBlur}
+						{isPendencyMode}
+						{markedFieldKeys}
+						{onFieldPendencyClick}
+						{onFieldPendencyRemove}
+					/>
+				{:else if activeTab === 'triagem'}
+					<TriageSection
+						{solicitation}
+						onTriageSuccess={(updated) => {
+							onTriageSuccess?.(updated);
+							onSaveSuccess?.(updated);
+						}}
+						{onOpenCalculator}
+					/>
+				{:else if activeTab === 'mapeamento'}
+					<MappingSection {solicitation} canEdit={canEditMapping} />
+				{:else if activeTab === 'historico'}
+					<ConversationHistory
+						initialBatches={pendencyBatches}
+						initialLoading={false}
+						initialError={pendenciesError}
+						correctionAlertBatchId={solicitation.correctionAlert?.batchId ?? null}
+						canRequestCreate={!openBatch}
+						onRetry={handleRetryPendencies}
+						onReviewBatch={handleReviewBatch}
+						onRequestCreate={handleOpenCreate}
+					/>
+				{:else if activeTab === 'observacoes'}
+					<InternalNotesSection
+						protocol={solicitation.protocol}
+						notes={internalNoteItems}
+						loadError={internalNotesLoadError}
+						currentUserId={currentUser?.id ?? ''}
+						onNotesLoaded={handleInternalNotesLoaded}
+						onLoadError={handleInternalNotesLoadError}
+						onNoteCreated={handleInternalNoteCreated}
+						onMarkedRead={handleInternalNotesMarkedRead}
+					/>
+				{:else}
+					<p class="placeholder">Conteúdo de {activeTabLabel} — implementação futura</p>
+				{/if}
+			</div>
+		{/key}
 	</div>
 </section>
 

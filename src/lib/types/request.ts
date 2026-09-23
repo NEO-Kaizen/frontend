@@ -358,6 +358,7 @@ export interface PaginatedResponse<T> {
 export interface RequestSummary {
 	protocol: string;
 	createdAt: string;
+	demandTitle?: string;
 	processName: string;
 	priority: RequestPriority | null;
 	status: RequestStatus;
@@ -384,6 +385,8 @@ export interface RequestDetail {
 	} | null;
 }
 
+import type { TriageAssessment } from './triage';
+
 // ---- DTO interno (superconjunto) ----
 // Service: getInternalRequest(protocol: string): Promise<Result<InternalRequestDetail>>
 
@@ -403,6 +406,8 @@ export interface PrioritizationResult {
 	notes: CriterionNotes;
 }
 
+export type AnalystResponsibility = 'triagem' | 'mapeamento';
+
 export interface InternalRequestDetail {
 	protocol: string;
 	status: RequestStatus;
@@ -411,10 +416,16 @@ export interface InternalRequestDetail {
 	// ID do responsável (preparação para limitação por perfil — issue #121).
 	// `id` + `name` obrigatórios; ambos `null` apenas quando não atribuído.
 	assignee: { id: string | null; name: string | null; email?: string | null } | null;
-	// Responsável pelo mapeamento (contrato Front ↔ Back — Mapeamento): quando
-	// o backend expô-lo, ele prevalece sobre `assignee` na permissão de edição
-	// da aba Mapeamento. Ausente = usa `assignee`.
+	// Responsável pelo mapeamento (contrato Front ↔ Back — Mapeamento): o
+	// backend devolve o objeto ao receber `mappingAssigneeId` no PATCH.
+	// Apenas um responsável é vigente por vez: ao atribuir `assignee`,
+	// `mappingAssignee` é `null`, e vice-versa.
+	mappingAssignee?: { id: string | null; name: string | null; email?: string | null } | null;
+	// ID do responsável pelo mapeamento: quando o backend expô-lo, prevalece
+	// sobre `assignee` na permissão de edição da aba Mapeamento.
 	mappingAssigneeId?: string | null;
+	// Prazo da atribuição vigente (ISO "yyyy-mm-dd"). `null` quando não definido.
+	assigneeDeadline: string | null;
 	// Leitura estendida do detalhe (contrato de pendências v0.5 §7): alerta de
 	// respostas a aprovar + resumo + não-lidos derivados de `PendingItem`.
 	// `unread` é derivado de `status` (D-P21) — sem "marcar como lido".
@@ -435,6 +446,7 @@ export interface InternalRequestDetail {
 	openedAt: string;
 	lastUpdate: string;
 	internalObservations?: string | null;
+	triage?: TriageAssessment | null;
 }
 
 // PATCH /requests/:protocol/internal — proposta (backend definirá o contrato

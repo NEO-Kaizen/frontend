@@ -59,6 +59,7 @@ export const iconDictionary = {
 	description: 'description',
 	send: 'send',
 	cloudUpload: 'cloud_upload',
+	download: 'download',
 	delete: 'delete',
 	dragIndicator: 'drag_indicator',
 	calendarMonth: 'calendar_month',
@@ -68,7 +69,9 @@ export const iconDictionary = {
 	flag: 'flag',
 	lightMode: 'light_mode',
 	darkMode: 'dark_mode',
-	content_copy: 'content_copy'
+	content_copy: 'content_copy',
+	assignment: 'assignment_ind',
+	stacks: 'stacks'
 } as const;
 
 export type IconName = keyof typeof iconDictionary;
