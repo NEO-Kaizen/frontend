@@ -84,20 +84,32 @@
 		const normalizedProtocol = protocol.trim();
 		const normalizedEmail = email.trim();
 
-		if (!normalizedProtocol && !normalizedEmail) {
+		const hasInvalidProtocol =
+			Boolean(normalizedProtocol) && !isProtocol(normalizedProtocol, protocolMask);
+
+		const hasInvalidEmail = Boolean(normalizedEmail) && !isValidEmail(normalizedEmail);
+
+		if ((!normalizedProtocol && !normalizedEmail) || hasInvalidProtocol || hasInvalidEmail) {
 			return;
 		}
 
 		try {
-			if (isProtocol(normalizedProtocol, protocolMask)) {
+			if (normalizedProtocol) {
 				isSearching = true;
-				await goto(resolve('/(public)/acompanhar/[protocolo]', { protocolo: normalizedProtocol }));
+				await goto(
+					resolve('/(public)/acompanhar/[protocolo]', {
+						protocolo: normalizedProtocol
+					})
+				);
 				return;
 			}
 
-			if (isValidEmail(normalizedEmail)) {
+			if (normalizedEmail) {
 				isSearching = true;
-				const search = new URLSearchParams({ email: normalizedEmail }).toString();
+				const search = new URLSearchParams({
+					email: normalizedEmail
+				}).toString();
+
 				await goto(resolve(`/(public)/acompanhar?${search}`));
 			}
 		} finally {

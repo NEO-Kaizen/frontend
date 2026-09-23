@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import Icon from '$lib/components/Icon.svelte';
 	import NotFoundState from '$lib/components/NotFoundState.svelte';
 	import { formatDate, formatDateTime } from '$lib/utils/dates';
@@ -139,14 +140,40 @@
 		{/if}
 	</div>
 {:else}
-	<NotFoundState
-		title="Solicitação não encontrada"
-		message={`Não encontramos nenhuma solicitação cadastrada com o protocolo "${protocol ?? ''}".`}
-		hint="Verifique o número digitado e tente novamente."
-	/>
+	<div class="not-found-state">
+		<NotFoundState
+			title="Solicitação não encontrada"
+			message={`Não encontramos nenhuma solicitação cadastrada com o protocolo "${protocol ?? ''}".`}
+			hint="Verifique o número digitado e tente novamente."
+		/>
+
+		<a class="new-search-link" href={resolve('/(public)/acompanhar')}> Fazer nova consulta </a>
+	</div>
 {/if}
 
 <style>
+	.not-found-state {
+		text-align: center;
+	}
+
+	.new-search-link {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		margin-top: var(--spacing-md);
+		padding: 10px 18px;
+		background: var(--primary-color);
+		color: var(--on-primary);
+		border-radius: var(--radius-sm);
+		text-decoration: none;
+		font: var(--button);
+		transition: var(--transition-default);
+	}
+
+	.new-search-link:hover {
+		background: var(--secondary-color);
+	}
+
 	.error-state {
 		background: var(--white);
 		border: var(--border-default);
