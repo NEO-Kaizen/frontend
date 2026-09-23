@@ -10,7 +10,7 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 
 	const [result, internalNotesResult] = await Promise.all([
 		getInternalRequest(protocol, fetch),
-		getInternalNotes(protocol, fetch)
+		getInternalNotes(protocol, {}, fetch)
 	]);
 
 	if (result.ok) {

@@ -10,14 +10,28 @@
 export type Modality = 'REMOTE' | 'IN_PERSON';
 
 export interface Participant {
-	// Opcional de propósito: cadastrados podem ter `id`, externos não.
-	id?: string;
+	// Opcional de propósito: cadastrados têm `id`, externos `null` na resposta
+	// (DTO do backend) e omitido no payload.
+	id?: string | null;
 	name: string;
 	email: string;
 }
 
+// Designado para EXECUTAR o mapeamento — vínculo próprio e distinto do
+// responsável pela solicitação (espelho de `MappingAssignee` do backend).
+// `id` = `details_professional.professional_id` (uuid); `userId` = `users.user_id`.
+export interface MappingAssignee {
+	id: string;
+	userId: string;
+	name: string;
+	email: string;
+	jobTitle: string | null;
+}
+
 export interface MappingResponse {
 	protocol: string;
+	// `mapping_id` (uuid); `null` = estado vazio (sem mapeamento registrado).
+	id: string | null;
 	scheduledFor: string | null;
 	durationMinutes: number | null;
 	modality: Modality | null;
@@ -25,6 +39,7 @@ export interface MappingResponse {
 	location: string | null;
 	participants: Participant[];
 	notes: string | null;
+	mappingAssignee: MappingAssignee | null;
 }
 
 export interface MappingPayload {
