@@ -84,17 +84,20 @@
 		const normalizedProtocol = protocol.trim();
 		const normalizedEmail = email.trim();
 
-		const hasInvalidProtocol =
-			Boolean(normalizedProtocol) && !isProtocol(normalizedProtocol, protocolMask);
+		const hasValidProtocol =
+			Boolean(normalizedProtocol) && isProtocol(normalizedProtocol, protocolMask);
+		const hasValidEmail = Boolean(normalizedEmail) && isValidEmail(normalizedEmail);
 
-		const hasInvalidEmail = Boolean(normalizedEmail) && !isValidEmail(normalizedEmail);
+		if (!normalizedProtocol && !normalizedEmail) {
+			return;
+		}
 
-		if ((!normalizedProtocol && !normalizedEmail) || hasInvalidProtocol || hasInvalidEmail) {
+		if (!hasValidProtocol && !hasValidEmail) {
 			return;
 		}
 
 		try {
-			if (normalizedProtocol) {
+			if (hasValidProtocol) {
 				isSearching = true;
 				await goto(
 					resolve('/(public)/acompanhar/[protocolo]', {
@@ -104,7 +107,7 @@
 				return;
 			}
 
-			if (normalizedEmail) {
+			if (hasValidEmail) {
 				isSearching = true;
 				const search = new URLSearchParams({
 					email: normalizedEmail
