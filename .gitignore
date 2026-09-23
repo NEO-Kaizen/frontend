@@ -24,3 +24,6 @@ vite.config.ts.timestamp-*
 
 # Test artifacts
 .playwright-mcp/
+contratos/
+references/
+plans/
