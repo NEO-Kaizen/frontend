@@ -435,7 +435,6 @@
 		font-family: var(--font-inter);
 		font-size: 13px;
 		line-height: 1.5;
-		color: var(--rich-black);
 		white-space: pre-wrap;
 		word-break: break-word;
 	}
