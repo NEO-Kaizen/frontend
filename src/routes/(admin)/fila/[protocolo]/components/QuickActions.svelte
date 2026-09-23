@@ -11,9 +11,22 @@
 		currentUser?: SessionUser | null;
 		onSaved?: () => void;
 		onRequestChange?: () => void;
+		onAction?: (key: string) => void;
+		hiddenActionKeys?: readonly string[];
+		hasExistingPriority?: boolean;
+		existingPriorityDisplay?: string | null;
 	}
 
-	let { solicitation, currentUser = null, onSaved, onRequestChange }: Props = $props();
+	let {
+		solicitation,
+		currentUser = null,
+		onSaved,
+		onRequestChange,
+		onAction,
+		hiddenActionKeys = [],
+		hasExistingPriority = false,
+		existingPriorityDisplay = null
+	}: Props = $props();
 
 	let isOpen = $state(false);
 	let showPendingModal = $state(false);
@@ -28,7 +41,7 @@
 		icon: 'send' | 'group' | 'calculate' | 'pending' | 'info';
 	};
 
-	const actions: QuickAction[] = [
+	const baseActions: readonly QuickAction[] = [
 		{
 			key: 'requestChange',
 			label: 'Solicitar Alteração',
@@ -37,7 +50,7 @@
 		},
 		{
 			key: 'assignResponsible',
-			label: 'Atribuir Responsável',
+			label: 'Atribuir Analista',
 			hint: 'Atribuir ou Alterar',
 			icon: 'group'
 		},
@@ -65,9 +78,25 @@
 		currentUser?.role === 'Administrador' ||
 			Boolean(currentUser && solicitation.assignee?.id === currentUser.id)
 	);
-	const visibleActions = $derived(
-		canRequestChange ? actions : actions.filter((action) => action.key !== 'requestChange')
-	);
+
+	const visibleActions = $derived.by(() => {
+		let filtered = baseActions.filter((a) => !hiddenActionKeys.includes(a.key));
+		if (!canRequestChange) {
+			filtered = filtered.filter((a) => a.key !== 'requestChange');
+		}
+		return filtered.map((a) => {
+			if (a.key === 'priorityCalculator' && hasExistingPriority) {
+				return {
+					...a,
+					label: 'Alterar Prioridade',
+					hint: existingPriorityDisplay
+						? `Atual: ${existingPriorityDisplay}`
+						: 'Prioridade já calculada — alterar'
+				};
+			}
+			return a;
+		});
+	});
 
 	function toggle() {
 		isOpen = !isOpen;
@@ -88,6 +117,7 @@
 		} else if (actionKey === 'informPending') {
 			showPendingModal = true;
 		}
+		onAction?.(actionKey);
 	}
 
 	function handleKeydown(event: KeyboardEvent) {

@@ -335,7 +335,20 @@
 	title="3. Identidade visual: tokens de cor"
 	description="Configure as cores de cada tema e os tons de status. O usuário escolhe qual tema usar."
 >
-	{#snippet headerAction()}
+	{#snippet actions()}
+		<SectionActions
+			dirty={section.dirty}
+			saving={section.saving}
+			restorable={section.restorable}
+			{invalid}
+			{loadFailed}
+			onSave={handleSave}
+			onCancel={() => section.reset()}
+			onRestoreDefaults={() => section.restoreDefaults()}
+		/>
+	{/snippet}
+
+	<div class="palette-toolbar">
 		<div class="palette-switch" role="group" aria-label="Paleta em edição">
 			<button
 				class="palette-option"
@@ -360,20 +373,7 @@
 				Escuro
 			</button>
 		</div>
-	{/snippet}
-
-	{#snippet actions()}
-		<SectionActions
-			dirty={section.dirty}
-			saving={section.saving}
-			restorable={section.restorable}
-			{invalid}
-			{loadFailed}
-			onSave={handleSave}
-			onCancel={() => section.reset()}
-			onRestoreDefaults={() => section.restoreDefaults()}
-		/>
-	{/snippet}
+	</div>
 
 	<section class="section">
 		<h3 class="section-title">Tokens do tema</h3>
@@ -614,6 +614,10 @@
 />
 
 <style>
+	.palette-toolbar {
+		display: flex;
+	}
+
 	.palette-switch {
 		display: inline-flex;
 		border: var(--border-default);

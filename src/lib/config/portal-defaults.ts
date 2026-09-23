@@ -87,10 +87,12 @@ export const DEFAULT_CATEGORIES: PortalCategory[] = [
 ];
 
 // Status padrão do ciclo de vida das solicitações (Card 6) — matriz pública de
-// 17 valores (`RequestStatus`, contrato de solicitações). `closesRequest`
-// indica encerramento; `tone`/`visibility` são enums allowlist do contrato;
-// `isActive` é a ativação/inativação (não há exclusão). Servem de fallback do
-// service e de seed do backend/mock. Validado com produto
+// 17 valores (`RequestStatus`, contrato de solicitações) + 2 saídas de triagem
+// (`18 Fora do escopo`, `19 Duplicada`). `closesRequest` indica encerramento;
+// `isTriageExit` marca as saídas elegíveis da triagem (`4,9,12,13,17,18,19`);
+// `tone`/`visibility` são enums allowlist do contrato; `isActive` é a
+// ativação/inativação (não há exclusão). Servem de fallback do service e de
+// seed do backend/mock. Validado com produto
 // (`plans/validacao-status-defaults.md`); `PRIVATE` do produto corresponde a
 // `INTERNAL` no contrato.
 export const DEFAULT_STATUSES: PortalStatus[] = [
@@ -99,6 +101,7 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 		name: 'Solicitação enviada',
 		visibility: 'PUBLIC',
 		closesRequest: false,
+		isTriageExit: false,
 		tone: 'neutral',
 		isActive: true
 	},
@@ -107,6 +110,7 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 		name: 'Aguardando triagem',
 		visibility: 'PUBLIC',
 		closesRequest: false,
+		isTriageExit: false,
 		tone: 'info',
 		isActive: true
 	},
@@ -115,6 +119,7 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 		name: 'Em triagem',
 		visibility: 'PUBLIC',
 		closesRequest: false,
+		isTriageExit: false,
 		tone: 'info',
 		isActive: true
 	},
@@ -123,6 +128,7 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 		name: 'Pendente de informações',
 		visibility: 'PUBLIC',
 		closesRequest: false,
+		isTriageExit: true,
 		tone: 'warning',
 		isActive: true
 	},
@@ -131,6 +137,7 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 		name: 'Aguardando mapeamento',
 		visibility: 'PUBLIC',
 		closesRequest: false,
+		isTriageExit: false,
 		tone: 'info',
 		isActive: true
 	},
@@ -139,6 +146,7 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 		name: 'Mapeamento agendado',
 		visibility: 'PUBLIC',
 		closesRequest: false,
+		isTriageExit: false,
 		tone: 'info',
 		isActive: true
 	},
@@ -147,6 +155,7 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 		name: 'Em mapeamento',
 		visibility: 'PUBLIC',
 		closesRequest: false,
+		isTriageExit: false,
 		tone: 'info',
 		isActive: true
 	},
@@ -155,6 +164,7 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 		name: 'Em análise de viabilidade',
 		visibility: 'INTERNAL',
 		closesRequest: false,
+		isTriageExit: false,
 		tone: 'info',
 		isActive: true
 	},
@@ -163,6 +173,7 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 		name: 'Elegível',
 		visibility: 'INTERNAL',
 		closesRequest: false,
+		isTriageExit: true,
 		tone: 'success',
 		isActive: true
 	},
@@ -171,6 +182,7 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 		name: 'Não elegível',
 		visibility: 'INTERNAL',
 		closesRequest: false,
+		isTriageExit: false,
 		tone: 'error',
 		isActive: true
 	},
@@ -179,6 +191,7 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 		name: 'Priorizado',
 		visibility: 'INTERNAL',
 		closesRequest: false,
+		isTriageExit: false,
 		tone: 'warning',
 		isActive: true
 	},
@@ -187,6 +200,7 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 		name: 'Backlog',
 		visibility: 'INTERNAL',
 		closesRequest: false,
+		isTriageExit: true,
 		tone: 'neutral',
 		isActive: true
 	},
@@ -195,6 +209,7 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 		name: 'Direcionado para outra área',
 		visibility: 'INTERNAL',
 		closesRequest: false,
+		isTriageExit: true,
 		tone: 'neutral',
 		isActive: true
 	},
@@ -203,6 +218,7 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 		name: 'Em desenvolvimento',
 		visibility: 'INTERNAL',
 		closesRequest: false,
+		isTriageExit: false,
 		tone: 'info',
 		isActive: true
 	},
@@ -211,6 +227,7 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 		name: 'Em homologação',
 		visibility: 'INTERNAL',
 		closesRequest: false,
+		isTriageExit: false,
 		tone: 'info',
 		isActive: true
 	},
@@ -219,6 +236,7 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 		name: 'Concluído',
 		visibility: 'PUBLIC',
 		closesRequest: true,
+		isTriageExit: false,
 		tone: 'success',
 		isActive: true
 	},
@@ -227,7 +245,26 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 		name: 'Cancelado',
 		visibility: 'PUBLIC',
 		closesRequest: true,
+		isTriageExit: true,
 		tone: 'error',
+		isActive: true
+	},
+	{
+		id: 18,
+		name: 'Fora do escopo',
+		visibility: 'INTERNAL',
+		closesRequest: false,
+		isTriageExit: true,
+		tone: 'neutral',
+		isActive: true
+	},
+	{
+		id: 19,
+		name: 'Duplicada',
+		visibility: 'INTERNAL',
+		closesRequest: false,
+		isTriageExit: true,
+		tone: 'neutral',
 		isActive: true
 	}
 ];
