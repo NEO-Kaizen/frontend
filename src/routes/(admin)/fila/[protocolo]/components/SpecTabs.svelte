@@ -7,12 +7,24 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import { canEditSolicitation, canViewTriage } from '$lib/services/access.service';
+	import {
+		buildCreatePendingItemsPayload,
+		findOpenBatch,
+		listPendencies,
+		requestFieldChange,
+		toPendingBatches
+	} from '$lib/services/pendency.service';
 	import { updateInternalRequest } from '$lib/services/request.service';
 	import { toastState } from '$lib/states/toast.svelte';
 	import type { InternalNote, InternalNotesResponse } from '$lib/types/internal-note';
+	import type { ListPendenciesResponse, PendingBatch } from '$lib/types/pendency';
 	import type { InternalRequestDetail } from '$lib/types/request';
+	import type { Result } from '$lib/types/result';
 	import InternalNotesSection from './InternalNotesSection.svelte';
+	import ConversationHistory from './conversation/ConversationHistory.svelte';
 	import MappingSection from './mapping/MappingSection.svelte';
+	import PendingItemsModal from './pendency/PendingItemsModal.svelte';
+	import PendencyRequestModal from './pendency/PendencyRequestModal.svelte';
 	import InfoSection from './solicitation-info/InfoSection.svelte';
 	import TriageSection from './triagem/TriageSection.svelte';
 	import {
@@ -29,6 +41,8 @@
 		solicitation: InternalRequestDetail;
 		internalNotes: InternalNotesResponse | null;
 		internalNotesError: string | null;
+		pendencies: ListPendenciesResponse | null;
+		pendenciesError: string | null;
 		onSaveSuccess?: (updated: InternalRequestDetail) => void;
 		onSaveError?: (message: string) => void;
 		isPendencyMode?: boolean;
@@ -40,6 +54,7 @@
 		onFieldPendencyRemove?: (path: string) => void;
 		onPendencySave?: () => void;
 		onPendencyCancel?: () => void;
+		onRequestFieldChange?: () => void;
 		onTriageSuccess?: (updated: InternalRequestDetail) => void;
 		onOpenCalculator?: () => void;
 	}
@@ -48,6 +63,8 @@
 		solicitation,
 		internalNotes,
 		internalNotesError,
+		pendencies,
+		pendenciesError,
 		onSaveSuccess,
 		onSaveError,
 		isPendencyMode = false,
@@ -59,6 +76,7 @@
 		onFieldPendencyRemove,
 		onPendencySave,
 		onPendencyCancel,
+		onRequestFieldChange,
 		onTriageSuccess,
 		onOpenCalculator
 	}: Props = $props();
@@ -97,8 +115,62 @@
 	// a aba em `informacoes` para não perder o rascunho).
 	let isEditMode = $state(false);
 
+	// Lotes visuais do histórico (uma pendência = um `batchId`, §5) a partir da
+	// listagem do server load. O badge conta itens `responded` — respostas
+	// aguardando revisão do analista.
+	const pendencyBatches = $derived<PendingBatch[]>(toPendingBatches(pendencies ?? []));
+	const respondedPendencyCount = $derived(
+		pendencyBatches.reduce((count, batch) => count + batch.respondedCount, 0)
+	);
+
+	// Criação direta pela aba de histórico (§4): mesmo modal de lote único da
+	// 123, com seleção de campos interna. Bloqueada com lote em aberto (D-P22).
+	const openBatch = $derived(findOpenBatch(pendencyBatches));
+
+	let showCreateModal = $state(false);
+	let isCreateSaving = $state(false);
+	let createError = $state<string | null>(null);
+
+	function handleOpenCreate(): void {
+		if (openBatch) return;
+		createError = null;
+		showCreateModal = true;
+	}
+
+	// Atalho do modal para o fluxo de alteração de campos do Quick Action
+	// (marcação por campo): fecha o modal e reutiliza aquele fluxo — sem
+	// duplicar a implementação.
+	function handleRequestFieldChange(): void {
+		showCreateModal = false;
+		onRequestFieldChange?.();
+	}
+
+	async function handleCreateConfirm(value: {
+		observation: string;
+		requestAttachment: boolean;
+		items: { fieldKey: string; comment: string }[];
+	}): Promise<void> {
+		if (isCreateSaving || openBatch) return;
+		const payload = buildCreatePendingItemsPayload({
+			observation: value.observation,
+			requestAttachment: value.requestAttachment,
+			items: value.items
+		});
+		isCreateSaving = true;
+		createError = null;
+		const result = await requestFieldChange(solicitation.protocol, payload);
+		isCreateSaving = false;
+		if (result.ok) {
+			showCreateModal = false;
+			toastState.add('Pendência solicitada com sucesso.', 'success');
+			await invalidateAll();
+		} else {
+			createError = result.error.message;
+		}
+	}
+
 	// O badge de observações representa itens ainda não visualizados pelo usuário,
-	// não notificações. Histórico permanece desabilitado até seu domínio existir.
+	// não notificações.
 	let specTabs = $derived<readonly SpecTabDefinition[]>([
 		{ id: 'informacoes', label: 'Informações', icon: 'description', enabled: true },
 		{ id: 'triagem', label: 'Triagem', icon: 'filter', enabled: true },
@@ -112,7 +184,8 @@
 			id: 'historico',
 			label: 'Histórico de Conversa',
 			icon: 'history',
-			enabled: false
+			enabled: true,
+			badge: respondedPendencyCount > 0 ? respondedPendencyCount : undefined
 		},
 		{
 			id: 'observacoes',
@@ -197,9 +270,7 @@
 	let draft = $state<EditableDraft | null>(null);
 	let errors = $state<Record<string, string>>({});
 	let isSaving = $state(false);
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	let saveError = $state<string | null>(null);
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	let saveSuccess = $state<string | null>(null);
 	let showDiscardModal = $state(false);
 	let editButton = $state<HTMLButtonElement | null>(null);
@@ -375,6 +446,33 @@
 	function handleInternalNotesMarkedRead(): void {
 		internalNotesUnseenCount = 0;
 	}
+
+	// ---- Histórico de pendências (contrato v0.4, visão do analista) ----
+
+	async function handleRetryPendencies(): Promise<Result<ListPendenciesResponse>> {
+		return listPendencies(solicitation.protocol);
+	}
+
+	// A revisão (individual por item ou parcial do lote, §7–§8) vive no
+	// PendingItemsModal — o histórico só delega, sem duplicar a regra.
+	// `reviewFocusBatchId` abre o modal com a aba de respondidas e rola até o lote.
+	let showReviewModal = $state(false);
+	let reviewFocusBatchId = $state<string | null>(null);
+
+	function handleReviewBatch(batch: PendingBatch): void {
+		reviewFocusBatchId = batch.batchId;
+		showReviewModal = true;
+	}
+
+	function handleReviewModalClose(): void {
+		showReviewModal = false;
+		reviewFocusBatchId = null;
+	}
+
+	async function handleReviewSaved(): Promise<void> {
+		handleReviewModalClose();
+		await invalidateAll();
+	}
 </script>
 
 <section class="details-card" aria-label="Detalhes da solicitação" bind:this={detailsCard}>
@@ -399,7 +497,12 @@
 					<Icon iconName={tab.icon} iconSize="sm" />
 					<span>{tab.label}</span>
 					{#if tab.badge}
-						<span class="tab-badge" aria-label={`${tab.badge} observações ainda não visualizadas`}>
+						<span
+							class="tab-badge"
+							aria-label={tab.id === 'historico'
+								? `${tab.badge} respostas de pendência aguardando revisão`
+								: `${tab.badge} observações ainda não visualizadas`}
+						>
 							{tab.badge}
 						</span>
 					{/if}
@@ -529,6 +632,17 @@
 					/>
 				{:else if activeTab === 'mapeamento'}
 					<MappingSection {solicitation} canEdit={canEditMapping} />
+				{:else if activeTab === 'historico'}
+					<ConversationHistory
+						initialBatches={pendencyBatches}
+						initialLoading={false}
+						initialError={pendenciesError}
+						correctionAlertBatchId={solicitation.correctionAlert?.batchId ?? null}
+						canRequestCreate={!openBatch}
+						onRetry={handleRetryPendencies}
+						onReviewBatch={handleReviewBatch}
+						onRequestCreate={handleOpenCreate}
+					/>
 				{:else if activeTab === 'observacoes'}
 					<InternalNotesSection
 						protocol={solicitation.protocol}
@@ -547,6 +661,29 @@
 		{/key}
 	</div>
 </section>
+
+{#if showCreateModal}
+	<PendencyRequestModal
+		entries={[]}
+		isSaving={isCreateSaving}
+		serverError={createError}
+		onConfirm={(value) => void handleCreateConfirm(value)}
+		onRequestFieldChange={handleRequestFieldChange}
+		onclose={() => (showCreateModal = false)}
+	/>
+{/if}
+
+{#if showReviewModal}
+	<PendingItemsModal
+		protocol={solicitation.protocol}
+		{currentUser}
+		assigneeId={solicitation.assignee?.id ?? null}
+		initialTab="responded"
+		focusBatchId={reviewFocusBatchId}
+		onclose={handleReviewModalClose}
+		onSaved={() => void handleReviewSaved()}
+	/>
+{/if}
 
 {#if showDiscardModal}
 	<Modal title="Descartar alterações?" onclose={() => (showDiscardModal = false)}>

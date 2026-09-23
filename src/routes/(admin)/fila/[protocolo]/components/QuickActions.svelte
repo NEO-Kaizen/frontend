@@ -11,6 +11,9 @@
 		currentUser?: SessionUser | null;
 		onSaved?: () => void;
 		onRequestChange?: () => void;
+		/** Bloqueio de nova pendência (§4): há lote em aberto aguardando resposta/revisão. */
+		isRequestChangeBlocked?: boolean;
+		requestChangeBlockedHint?: string | null;
 		onAction?: (key: string) => void;
 		hiddenActionKeys?: readonly string[];
 		hasExistingPriority?: boolean;
@@ -22,6 +25,8 @@
 		currentUser = null,
 		onSaved,
 		onRequestChange,
+		isRequestChangeBlocked = false,
+		requestChangeBlockedHint = null,
 		onAction,
 		hiddenActionKeys = [],
 		hasExistingPriority = false,
@@ -39,6 +44,7 @@
 		label: string;
 		hint: string;
 		icon: 'send' | 'group' | 'calculate' | 'pending' | 'info';
+		disabled?: boolean;
 	};
 
 	const baseActions: readonly QuickAction[] = [
@@ -78,7 +84,6 @@
 		currentUser?.role === 'Administrador' ||
 			Boolean(currentUser && solicitation.assignee?.id === currentUser.id)
 	);
-
 	const visibleActions = $derived.by(() => {
 		let filtered = baseActions.filter((a) => !hiddenActionKeys.includes(a.key));
 		if (!canRequestChange) {
@@ -92,6 +97,15 @@
 					hint: existingPriorityDisplay
 						? `Atual: ${existingPriorityDisplay}`
 						: 'Prioridade já calculada — alterar'
+				};
+			}
+			if (a.key === 'requestChange' && isRequestChangeBlocked) {
+				return {
+					...a,
+					disabled: true,
+					hint:
+						requestChangeBlockedHint ??
+						'Há uma pendência em aberto — conclua a revisão para solicitar outra'
 				};
 			}
 			return a;
@@ -111,6 +125,8 @@
 	}
 
 	function handleAction(actionKey: string): void {
+		const action = visibleActions.find((candidate) => candidate.key === actionKey);
+		if (action?.disabled) return;
 		isOpen = false;
 		if (actionKey === 'requestChange') {
 			onRequestChange?.();
@@ -151,7 +167,14 @@
 						class="action-row"
 						style:animation-delay={`${prefersReducedMotion ? '0ms' : `${index * 30}ms`}`}
 					>
-						<button type="button" class="action-item" onclick={() => handleAction(action.key)}>
+						<button
+							type="button"
+							class="action-item"
+							class:disabled={action.disabled}
+							disabled={action.disabled}
+							title={action.disabled ? action.hint : undefined}
+							onclick={() => handleAction(action.key)}
+						>
 							<span class="action-icon" aria-hidden="true">
 								<Icon iconName={action.icon} iconSize="sm" />
 							</span>
@@ -256,6 +279,16 @@
 	.action-item:focus-visible {
 		outline: 2px solid var(--secondary-color);
 		outline-offset: 2px;
+	}
+
+	.action-item:disabled,
+	.action-item.disabled {
+		cursor: not-allowed;
+		opacity: 0.6;
+	}
+
+	.action-item:disabled:hover {
+		background: none;
 	}
 
 	.action-icon {

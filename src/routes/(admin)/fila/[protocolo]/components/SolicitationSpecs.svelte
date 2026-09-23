@@ -1,18 +1,20 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { invalidateAll } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import {
+		findOpenBatch,
 		requestFieldChange,
-		buildCreatePendingItemsPayload
+		buildCreatePendingItemsPayload,
+		toPendingBatches
 	} from '$lib/services/pendency.service';
-	import type { PendingFieldRef } from '$lib/types/pendency';
+	import type { ListPendenciesResponse, PendingFieldRef } from '$lib/types/pendency';
 	import { toastState } from '$lib/states/toast.svelte';
 	import { statusThemeVars } from '$lib/utils/status';
 	import type { InternalNotesResponse } from '$lib/types/internal-note';
-	import type { InternalRequestDetail, RequestStatus } from '$lib/types/request';
+	import type { InternalRequestDetail } from '$lib/types/request';
 	import type { CriterionNotes, PrioritizationResult } from '$lib/types/prioritization';
 	import { SvelteMap } from 'svelte/reactivity';
 	import { buildFieldLookup } from '$lib/pendency/field-catalog';
@@ -28,6 +30,8 @@
 		solicitation: InternalRequestDetail;
 		internalNotes: InternalNotesResponse | null;
 		internalNotesError: string | null;
+		pendencies: ListPendenciesResponse | null;
+		pendenciesError: string | null;
 		onSaveSuccess?: (updated: InternalRequestDetail) => void;
 		onSaveError?: (message: string) => void;
 		onTriageSuccess?: (updated: InternalRequestDetail) => void;
@@ -38,6 +42,8 @@
 		solicitation,
 		internalNotes,
 		internalNotesError,
+		pendencies,
+		pendenciesError,
 		onSaveSuccess,
 		onSaveError,
 		onTriageSuccess,
@@ -84,8 +90,14 @@
 		[...pendingDraft.values()].map(({ field, comment }) => ({ field, comment }))
 	);
 
+	// Bloqueio de nova pendência (§4/§9): enquanto existir lote em aberto
+	// (qualquer item sem decisão), o analista não pode criar outra pendência.
+	// Recalculado a cada load — após criar/revisar, `invalidateAll` recarrega.
+	const openBatch = $derived(findOpenBatch(toPendingBatches(pendencies ?? [])));
+	const isPendencyBlocked = $derived(openBatch !== null);
+
 	function enterPendencyMode(): void {
-		if (isPendencyMode) return;
+		if (isPendencyMode || isPendencyBlocked) return;
 		pendingDraft.clear();
 		pendingFieldPath = null;
 		pendencyError = null;
@@ -151,10 +163,12 @@
 
 	// Confirmação do modal: um único POST com o lote inteiro (observação e/ou
 	// campos + requestAttachment do lote). Após sucesso: fecha o modal, limpa
-	// o draft e mostra feedback — sem tela de histórico (etapas futuras).
+	// o draft, recarrega os dados e abre a aba de histórico — que passa a
+	// representar o novo estado (lote agrupado por `batchId`).
 	async function handlePendencyRequestConfirm(value: {
 		observation: string;
 		requestAttachment: boolean;
+		items: { fieldKey: string; comment: string }[];
 	}): Promise<void> {
 		if (isPendencySaving) return;
 		pendingObservation = value.observation;
@@ -162,10 +176,7 @@
 		const payload = buildCreatePendingItemsPayload({
 			observation: pendingObservation,
 			requestAttachment: pendingRequestAttachment,
-			items: [...pendingDraft.values()].map(({ field, comment }) => ({
-				fieldKey: field.fieldKey,
-				comment
-			}))
+			items: value.items
 		});
 		isPendencySaving = true;
 		pendencyError = null;
@@ -178,41 +189,16 @@
 			pendingSuccess = 'Pendência solicitada ao solicitante.';
 			toastState.add('Pendência solicitada com sucesso.', 'success');
 			await invalidateAll();
+			const url = new URL(page.url);
+			url.searchParams.set('aba', 'historico');
+			// Plugin não aceita query string após resolve() (eslint-plugin-svelte#1327).
+			// eslint-disable-next-line svelte/no-navigation-without-resolve
+			await goto(`${url.pathname}?${url.searchParams.toString()}`, {
+				noScroll: true,
+				keepFocus: true
+			});
 		} else {
 			pendencyError = result.error.message;
-		}
-	}
-
-	function getStatusTheme(status: RequestStatus): { bg: string; color: string; border: string } {
-		switch (status) {
-			case 'Concluído':
-			case 'Elegível':
-				return {
-					bg: 'var(--status-green-bg)',
-					color: 'var(--status-green)',
-					border: 'var(--status-green)'
-				};
-			case 'Pendente de informações':
-			case 'Aguardando triagem':
-			case 'Aguardando mapeamento':
-				return {
-					bg: 'var(--status-yellow-bg)',
-					color: 'var(--status-yellow)',
-					border: 'var(--status-yellow)'
-				};
-			case 'Cancelado':
-			case 'Não elegível':
-				return {
-					bg: 'var(--status-red-bg)',
-					color: 'var(--status-red)',
-					border: 'var(--status-red)'
-				};
-			default:
-				return {
-					bg: 'var(--status-blue-bg)',
-					color: 'var(--status-blue)',
-					border: 'var(--status-blue)'
-				};
 		}
 	}
 
@@ -445,10 +431,19 @@
 		<p class="pendency-feedback pendency-error" role="alert">{pendencyError}</p>
 	{/if}
 
+	{#if isPendencyBlocked && !isPendencyMode}
+		<p class="pendency-feedback pendency-blocked" role="status">
+			Há uma pendência em aberto aguardando resposta ou revisão. Conclua todas as decisões na aba de
+			histórico para solicitar uma nova pendência.
+		</p>
+	{/if}
+
 	<SpecTabs
 		{solicitation}
 		{internalNotes}
 		{internalNotesError}
+		{pendencies}
+		{pendenciesError}
 		{onSaveSuccess}
 		{onSaveError}
 		{onTriageSuccess}
@@ -462,6 +457,7 @@
 		onFieldPendencyRemove={handlePendencyRemove}
 		onPendencySave={handlePendencySaveRequest}
 		onPendencyCancel={handlePendencyCancelRequest}
+		onRequestFieldChange={enterPendencyMode}
 	/>
 
 	<QuickActions
@@ -469,6 +465,7 @@
 		{currentUser}
 		onSaved={handlePendencySaved}
 		onRequestChange={enterPendencyMode}
+		isRequestChangeBlocked={isPendencyBlocked}
 		hiddenActionKeys={hiddenQuickActionKeys}
 		hasExistingPriority={isPriorityCalculated}
 		existingPriorityDisplay={isPriorityCalculated
@@ -640,6 +637,12 @@
 		background-color: var(--status-red-bg);
 		color: var(--status-red);
 		border: 1px solid var(--status-red);
+	}
+
+	.pendency-blocked {
+		background-color: var(--status-yellow-bg);
+		color: var(--status-yellow);
+		border: 1px solid var(--status-yellow);
 	}
 
 	.pendency-cancel-body {

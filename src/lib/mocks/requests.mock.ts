@@ -817,7 +817,7 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 		},
 		mappingAssignee: null,
 		assigneeDeadline: null,
-		correctionAlert: { count: 2, message: 'Alteração respondida pelo solicitante (2 campos)' },
+		correctionAlert: null,
 		requester: {
 			fullName: 'Maria Oliveira',
 			corporateEmail: 'maria.oliveira@maat.com.br',
@@ -913,7 +913,7 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 		},
 		mappingAssignee: null,
 		assigneeDeadline: null,
-		correctionAlert: null,
+		correctionAlert: { count: 1, batchId: 'batch-2026-102' },
 		requester: {
 			fullName: 'Maria Oliveira',
 			corporateEmail: 'maria.oliveira@maat.com.br',

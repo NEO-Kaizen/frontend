@@ -188,16 +188,6 @@
 		await goto(target, { keepFocus: true, noScroll: true });
 	}
 
-	async function handleClearSearch(): Promise<void> {
-		const target = `${queuePath}${buildQueueParams({
-			page: null,
-			search: null
-		})}`;
-
-		// eslint-disable-next-line svelte/no-navigation-without-resolve
-		await goto(target, { keepFocus: true, noScroll: true });
-	}
-
 	function currentExportFilters(): QueueFilterQuery {
 		const filters: QueueFilterQuery = {};
 

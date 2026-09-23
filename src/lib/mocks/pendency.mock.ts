@@ -6,8 +6,6 @@ import type { RequestStatus } from '$lib/types/request';
 import type {
 	CreatePendingItemsBody,
 	CreatePendingItemsResponse,
-	ListPendenciesQuery,
-	ListPendenciesResponse,
 	PendingFieldValue,
 	PendingItem,
 	ReviewPendingItemsBody,
@@ -16,54 +14,33 @@ import type {
 
 const PENDING_STATUS: RequestStatus = 'Pendente de informações';
 
-// Fixtures do ciclo na tratativa MAAT-8K3P-9X2M (Em triagem). Uma pendência em
-// cada status para demonstrar o agrupamento por status e a revisão em lote.
-// Formato v0.4: `type` + `field` anulável + `responseText` + `deadline`.
+// Fixtures da tratativa MAAT-8K3P-9X2M (Em triagem), no formato v0.5
+// (`type` + `field` anulável + `responseText` + `deadline`). Cenários do
+// domínio: um lote misto único (1 observação + 10 campos em estados
+// diferentes) e um lote somente-observação (já respondido, para exercitar a
+// revisão de item `observation`). Um `batchId` = uma pendência.
 const seedItems: PendingItem[] = [
+	// Lote 100 — 1 observação + 10 campos (requested/responded/validated).
 	{
-		id: 'pnd-res-001',
+		id: 'pnd-100-obs',
 		protocol: 'MAAT-8K3P-9X2M',
-		batchId: 'batch-res-2026-001',
-		type: 'field_edit',
-		field: {
-			fieldKey: 'operational.systemsUsed',
-			fieldLabel: 'Sistemas Utilizados',
-			currentValue: 'E-mail corporativo, planilhas Excel'
-		},
-		comment: 'O processo de conferência passou a rodar no SAP. Atualize os sistemas utilizados.',
-		status: 'responded',
-		correctedValue: 'SAP, planilhas Excel',
-		responseText: 'Confirmado. O controle de diárias agora é feito no SAP.',
-		responseAttachments: [],
-		deadline: null,
-		createdAt: '2026-09-01T09:12:00.000Z',
-		respondedAt: '2026-09-04T15:40:00.000Z',
-		validatedAt: null
-	},
-	{
-		id: 'pnd-req-001',
-		protocol: 'MAAT-8K3P-9X2M',
-		batchId: 'batch-req-2026-002',
-		type: 'field_edit',
-		field: {
-			fieldKey: 'operational.volumetry',
-			fieldLabel: 'Volumetria Aproximada',
-			currentValue: '120'
-		},
-		comment: 'Informe a volumetria aproximada de comprovantes tratados por mês.',
+		batchId: 'batch-2026-100',
+		type: 'observation',
+		field: null,
+		comment: 'Precisamos corrigir os dados cadastrais e operacionais antes de priorizar a demanda.',
 		status: 'requested',
 		correctedValue: null,
 		responseText: null,
 		responseAttachments: [],
 		deadline: null,
-		createdAt: '2026-09-02T10:05:00.000Z',
+		createdAt: '2026-09-01T09:00:00.000Z',
 		respondedAt: null,
 		validatedAt: null
 	},
 	{
-		id: 'pnd-val-001',
+		id: 'pnd-100-f1',
 		protocol: 'MAAT-8K3P-9X2M',
-		batchId: 'batch-val-2026-003',
+		batchId: 'batch-2026-100',
 		type: 'field_edit',
 		field: {
 			fieldKey: 'demand.processName',
@@ -76,9 +53,217 @@ const seedItems: PendingItem[] = [
 		responseText: 'Corrigido conforme solicitado.',
 		responseAttachments: [],
 		deadline: null,
-		createdAt: '2026-08-28T14:22:00.000Z',
-		respondedAt: '2026-09-01T11:30:00.000Z',
-		validatedAt: '2026-09-02T09:15:00.000Z'
+		createdAt: '2026-09-01T09:00:00.000Z',
+		respondedAt: '2026-09-02T11:30:00.000Z',
+		validatedAt: '2026-09-03T09:15:00.000Z'
+	},
+	{
+		id: 'pnd-100-f2',
+		protocol: 'MAAT-8K3P-9X2M',
+		batchId: 'batch-2026-100',
+		type: 'field_edit',
+		field: {
+			fieldKey: 'operational.systemsUsed',
+			fieldLabel: 'Sistemas Utilizados',
+			currentValue: 'E-mail corporativo, planilhas Excel'
+		},
+		comment: 'O processo de conferência passou a rodar no SAP. Atualize os sistemas utilizados.',
+		status: 'responded',
+		correctedValue: 'SAP, planilhas Excel',
+		responseText: 'Confirmado. O controle de diárias agora é feito no SAP.',
+		responseAttachments: [
+			{
+				fileName: 'evidencia-sap.pdf',
+				mimeType: 'application/pdf',
+				sizeBytes: 184320,
+				downloadUrl: '/mocks/evidencia-sap.pdf',
+				canDownload: true
+			}
+		],
+		deadline: null,
+		createdAt: '2026-09-01T09:00:00.000Z',
+		respondedAt: '2026-09-04T15:40:00.000Z',
+		validatedAt: null
+	},
+	{
+		id: 'pnd-100-f3',
+		protocol: 'MAAT-8K3P-9X2M',
+		batchId: 'batch-2026-100',
+		type: 'field_edit',
+		field: {
+			fieldKey: 'operational.volumetry',
+			fieldLabel: 'Volumetria Aproximada',
+			currentValue: '120'
+		},
+		comment: 'Informe a volumetria aproximada de comprovantes tratados por mês.',
+		status: 'requested',
+		correctedValue: null,
+		responseText: null,
+		responseAttachments: [],
+		deadline: null,
+		createdAt: '2026-09-01T09:00:00.000Z',
+		respondedAt: null,
+		validatedAt: null
+	},
+	{
+		id: 'pnd-100-f4',
+		protocol: 'MAAT-8K3P-9X2M',
+		batchId: 'batch-2026-100',
+		type: 'field_edit',
+		field: {
+			fieldKey: 'demand.justification',
+			fieldLabel: 'Justificativa da solicitação',
+			currentValue: 'Reduzir o tempo de conferência e os erros de pagamento de diárias.'
+		},
+		comment: 'Detalhe o impacto financeiro atual para justificar a priorização.',
+		status: 'responded',
+		correctedValue:
+			'O retrabalho consome 30h mensais e gerou 12 pagamentos indevidos no último trimestre.',
+		responseText: 'Complementado com os números do último trimestre.',
+		responseAttachments: [],
+		deadline: null,
+		createdAt: '2026-09-01T09:00:00.000Z',
+		respondedAt: '2026-09-04T16:05:00.000Z',
+		validatedAt: null
+	},
+	{
+		id: 'pnd-100-f5',
+		protocol: 'MAAT-8K3P-9X2M',
+		batchId: 'batch-2026-100',
+		type: 'field_edit',
+		field: {
+			fieldKey: 'requester.area',
+			fieldLabel: 'Área do solicitante',
+			currentValue: 'Operações'
+		},
+		comment: 'Confirme a área responsável pela demanda.',
+		status: 'requested',
+		correctedValue: null,
+		responseText: null,
+		responseAttachments: [],
+		deadline: null,
+		createdAt: '2026-09-01T09:00:00.000Z',
+		respondedAt: null,
+		validatedAt: null
+	},
+	// Lote 102 — somente observação, já respondida (exercita validação de item
+	// `observation` e o desbloqueio de nova pendência após revisão total).
+	{
+		id: 'pnd-102-obs',
+		protocol: 'MAAT-8K3P-9X2M',
+		batchId: 'batch-2026-102',
+		type: 'observation',
+		field: null,
+		comment: 'Favor complementar os documentos do processo.',
+		status: 'responded',
+		correctedValue: null,
+		responseText: 'Documentos complementares anexados ao protocolo.',
+		responseAttachments: [],
+		deadline: null,
+		createdAt: '2026-09-05T10:20:00.000Z',
+		respondedAt: '2026-09-06T14:10:00.000Z',
+		validatedAt: null
+	},
+	// (continuação do lote 100 — mesmo `batchId`, mesma pendência).
+	{
+		id: 'pnd-100-f6',
+		protocol: 'MAAT-8K3P-9X2M',
+		batchId: 'batch-2026-100',
+		type: 'field_edit',
+		field: {
+			fieldKey: 'demand.title',
+			fieldLabel: 'Título Resumido',
+			currentValue: 'Automatizar conferência de diárias'
+		},
+		comment: 'Confirme se o título resume bem a necessidade.',
+		status: 'validated',
+		correctedValue: 'Automatizar conferência de diárias',
+		responseText: 'Título confirmado.',
+		responseAttachments: [],
+		deadline: null,
+		createdAt: '2026-09-01T09:00:00.000Z',
+		respondedAt: '2026-09-08T10:00:00.000Z',
+		validatedAt: '2026-09-08T11:00:00.000Z'
+	},
+	{
+		id: 'pnd-100-f7',
+		protocol: 'MAAT-8K3P-9X2M',
+		batchId: 'batch-2026-100',
+		type: 'field_edit',
+		field: {
+			fieldKey: 'demand.category',
+			fieldLabel: 'Categoria',
+			currentValue: 'Automação'
+		},
+		comment: 'Confirme a categoria da demanda.',
+		status: 'validated',
+		correctedValue: 'Automação',
+		responseText: 'Categoria confirmada.',
+		responseAttachments: [],
+		deadline: null,
+		createdAt: '2026-09-01T09:00:00.000Z',
+		respondedAt: '2026-09-08T10:00:00.000Z',
+		validatedAt: '2026-09-08T11:00:00.000Z'
+	},
+	{
+		id: 'pnd-100-f8',
+		protocol: 'MAAT-8K3P-9X2M',
+		batchId: 'batch-2026-100',
+		type: 'field_edit',
+		field: {
+			fieldKey: 'operational.processDescription',
+			fieldLabel: 'Descrição do Processo',
+			currentValue: 'Recebimento de comprovantes, conferência e pagamento de diárias.'
+		},
+		comment: 'Detalhe quem aprova cada etapa do processo.',
+		status: 'validated',
+		correctedValue: 'Recebimento, conferência dupla, aprovação da gestão e pagamento.',
+		responseText: 'Etapas detalhadas com responsáveis.',
+		responseAttachments: [],
+		deadline: null,
+		createdAt: '2026-09-01T09:00:00.000Z',
+		respondedAt: '2026-09-08T10:00:00.000Z',
+		validatedAt: '2026-09-08T11:00:00.000Z'
+	},
+	{
+		id: 'pnd-100-f9',
+		protocol: 'MAAT-8K3P-9X2M',
+		batchId: 'batch-2026-100',
+		type: 'field_edit',
+		field: {
+			fieldKey: 'operational.mainRisks',
+			fieldLabel: 'Principais Riscos',
+			currentValue: 'Pagamento indevido por erro de conferência.'
+		},
+		comment: 'Liste os riscos considerando o volume atual de comprovantes.',
+		status: 'responded',
+		correctedValue: 'Pagamento indevido e atraso no reembolso em picos de volume.',
+		responseText: 'Riscos atualizados com o cenário de pico.',
+		responseAttachments: [],
+		deadline: null,
+		createdAt: '2026-09-01T09:00:00.000Z',
+		respondedAt: '2026-09-09T13:20:00.000Z',
+		validatedAt: null
+	},
+	{
+		id: 'pnd-100-f10',
+		protocol: 'MAAT-8K3P-9X2M',
+		batchId: 'batch-2026-100',
+		type: 'field_edit',
+		field: {
+			fieldKey: 'operational.clientImpact',
+			fieldLabel: 'Impacto ao Cliente',
+			currentValue: 'Colaboradores com reembolso em atraso.'
+		},
+		comment: 'Descreva o impacto atual nos colaboradores.',
+		status: 'requested',
+		correctedValue: null,
+		responseText: null,
+		responseAttachments: [],
+		deadline: null,
+		createdAt: '2026-09-01T09:00:00.000Z',
+		respondedAt: null,
+		validatedAt: null
 	}
 ];
 
@@ -120,37 +305,17 @@ function findSolicitation(protocol: string) {
 	return detail;
 }
 
-export async function listPendingItemsMock(
-	protocol: string,
-	query: ListPendenciesQuery = {}
-): Promise<ListPendenciesResponse> {
+export async function listPendingItemsMock(protocol: string): Promise<PendingItem[]> {
 	const normalized = findByProtocol(protocol);
 
-	let items = store
+	const items = store
 		.filter((item) => item.protocol.toLowerCase().trim() === normalized)
-		.sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id));
+		.sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
 
-	if (query.status) {
-		items = items.filter((item) => item.status === query.status);
-	}
-
-	const page = query.page ?? 1;
-	const pageSize = query.pageSize ?? 20;
-	const total = items.length;
-	const totalPages = Math.ceil(total / pageSize);
-	const start = (page - 1) * pageSize;
-	const data = items.slice(start, start + pageSize);
-
-	return delay(400).then(() => ({
-		data: data.map((item) => structuredClone(item)),
-		page,
-		pageSize,
-		total,
-		totalPages
-	}));
+	return delay(400).then(() => items.map((item) => structuredClone(item)));
 }
 
-// §1 (v0.4) — criação em lote único: aceita `observation` e/ou `items` +
+// Criação em lote único (contrato v0.5 §6): aceita `observation` e/ou `items` +
 // `requestAttachment` do lote. Resolve `fieldLabel`/`currentValue` a partir
 // do catálogo (o mesmo papel que o backend terá), gera um `batchId` e muda
 // o status. Cenários suportados: somente observação, somente campo(s),
@@ -219,7 +384,7 @@ export async function createPendingItemsMock(
 
 	store.unshift(...created);
 
-	// Envio da pendência muda o status da solicitação (transação §1).
+	// Envio da pendência muda o status da solicitação (transação da criação).
 	solicitation.status = PENDING_STATUS;
 	solicitation.lastUpdate = now;
 
@@ -230,8 +395,15 @@ export async function createPendingItemsMock(
 	}));
 }
 
-// §3 — revisão em lote: valida todas as decisões antes de aplicar (atômico);
-// validação fecha o item; reabertura sobrescreve e volta para `requested`.
+// Revisão parcial do lote (contrato v0.5 §9, regra D-P23): valida todas as
+// decisões antes de aplicar (atômico); validação fecha o item; reabertura
+//
+// Revisão parcial (frontend §7/§8): o payload pode conter apenas um SUBCONJUNTO
+// dos itens `responded` — os não decididos ("revisar depois") permanecem
+// `responded` e a pendência continua aberta. O contrato anterior previa
+// revisão atômica do lote inteiro; aceitar subconjunto no mock antecipa o comportamento
+// necessário à revisão individual — a confirmar com o backend (sem inventar
+// endpoint: a rota e o formato do payload são os mesmos).
 export async function reviewPendingItemsMock(
 	protocol: string,
 	payload: ReviewPendingItemsBody
@@ -247,10 +419,8 @@ export async function reviewPendingItemsMock(
 		throw new ApiError(404, 'Lote de pendências não encontrado.');
 	}
 
-	const respondedItems = batchItems.filter((item) => item.status === 'responded');
-
-	if (respondedItems.some((item) => !payload.items.some((decision) => decision.id === item.id))) {
-		throw new ApiError(400, 'Decida todos os itens respondidos do lote.');
+	if (payload.items.length === 0) {
+		throw new ApiError(400, 'Decida ao menos um item para concluir a revisão.');
 	}
 
 	// Valida tudo antes de mutar (transação atômica).
@@ -279,11 +449,11 @@ export async function reviewPendingItemsMock(
 			item.validatedAt = now;
 		} else {
 			// Reabertura sobrescreve o item: volta a `requested` com novo comentário.
+			// Anexos da resposta são preservados (contrato v0.5 §6).
 			item.status = 'requested';
 			item.comment = decision.comment.trim();
 			item.responseText = null;
 			item.correctedValue = null;
-			item.responseAttachments = [];
 			item.respondedAt = null;
 			item.validatedAt = null;
 			item.createdAt = now;
@@ -292,17 +462,22 @@ export async function reviewPendingItemsMock(
 
 	solicitation.lastUpdate = now;
 
-	const hasReopen = payload.items.some((decision) => decision.decision === 'reopen');
+	if (payload.items.some((decision) => decision.decision === 'reopen')) {
+		solicitation.status = PENDING_STATUS;
+	}
+
+	// Resposta sem `solicitationStatus` (D-P18) e só com os itens decididos
+	// nesta chamada (contrato v0.5 §7).
+	const decidedIds = new Set(payload.items.map((decision) => decision.id));
 
 	return delay(500).then(() => ({
 		batchId: payload.batchId,
-		items: batchItems.map((item) => structuredClone(item)),
-		solicitationStatus: hasReopen ? PENDING_STATUS : solicitation.status
+		items: store.filter((item) => decidedIds.has(item.id)).map((item) => structuredClone(item))
 	}));
 }
 
 // Aplica o valor corrigido (diff aprovado) no campo da solicitação — no contrato
-// real o backend faz isso dentro da transação da revisão (§3).
+// real o backend faz isso dentro da transação da revisão (contrato v0.5 §9).
 function applyFieldValue(
 	detail: (typeof mockInternalRequestDetails)[number],
 	fieldKey: string,

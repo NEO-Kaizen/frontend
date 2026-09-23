@@ -1,18 +1,35 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { isRequired } from '$lib/utils/validations';
 	import type { PendingFieldRef } from '$lib/types/pendency';
 	import Button from '$lib/components/Button.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import Textarea from '$lib/components/Textarea.svelte';
 
+	export interface PendencyRequestItem {
+		fieldKey: string;
+		comment: string;
+	}
+
 	interface Props {
+		/** Itens pré-selecionados (fluxo de marcação por campo do Quick Action). */
 		entries: { field: PendingFieldRef; comment: string }[];
 		initialObservation?: string;
 		initialRequestAttachment?: boolean;
 		isSaving?: boolean;
 		serverError?: string | null;
-		onConfirm: (value: { observation: string; requestAttachment: boolean }) => void;
+		onConfirm: (value: {
+			observation: string;
+			requestAttachment: boolean;
+			items: PendencyRequestItem[];
+		}) => void;
 		onRemoveItem?: (fieldKey: string) => void;
+		/**
+		 * Abre o fluxo de alteração de campos do Quick Action (marcação por
+		 * campo). Quando informado, o modal exibe o botão correspondente e
+		 * fecha para dar lugar àquele fluxo — sem duplicar a implementação.
+		 */
+		onRequestFieldChange?: () => void;
 		onclose: () => void;
 	}
 
@@ -24,31 +41,47 @@
 		serverError = null,
 		onConfirm,
 		onRemoveItem,
+		onRequestFieldChange,
 		onclose
 	}: Props = $props();
 
 	// Cópia de trabalho do lote: observação geral + pedido de anexo. Os campos
-	// vêm do `pendingDraft` (seleção por campo) e são só leitura aqui.
+	// (fluxo de marcação) chegam prontos via `entries` e são só leitura aqui.
 	let observation = $state(untrack(() => initialObservation));
 	let requestAttachment = $state(untrack(() => initialRequestAttachment));
 	let formError = $state('');
 
+	function handleFieldChangeRequest(): void {
+		onclose();
+		onRequestFieldChange?.();
+	}
+
 	function handleConfirm(): void {
-		if (!observation.trim() && entries.length === 0) {
-			formError =
-				'Informe uma observação ou selecione ao menos um campo para solicitar a pendência.';
+		const items = entries.map(({ field, comment }) => ({
+			fieldKey: field.fieldKey,
+			comment: comment.trim()
+		}));
+		// Contrato v0.5 §6: pelo menos `observation` (trim não vazio) OU itens.
+		// Sem campos, a observação passa a ser obrigatória. Só-anexo não
+		// existe no contrato (`requestAttachment` sozinho não forma payload).
+		if (!isRequired(observation) && items.length === 0) {
+			formError = 'Informe uma observação ou solicite alterações de campos para criar a pendência.';
+			return;
+		}
+		if (items.some((item) => !isRequired(item.comment))) {
+			formError = 'Informe o comentário de cada campo selecionado.';
 			return;
 		}
 		formError = '';
-		onConfirm({ observation: observation.trim(), requestAttachment });
+		onConfirm({ observation: observation.trim(), requestAttachment, items });
 	}
 </script>
 
 <Modal title="Solicitar pendência" {onclose}>
 	<div class="field">
 		<Textarea
-			label="Observação geral"
-			placeholder="Ex.: Favor complementar a justificativa da solicitação."
+			label="Observação"
+			placeholder="Descreva o que precisa ser corrigido ou informado..."
 			bind:value={observation}
 			rows={4}
 			maxlength={2000}
@@ -57,8 +90,9 @@
 
 	<label class="attachment-check">
 		<input type="checkbox" bind:checked={requestAttachment} />
-		<span>Solicitar anexo ao solicitante</span>
+		<span>Solicitar anexo</span>
 	</label>
+	<p class="hint">O anexo é solicitado para a pendência inteira, não por campo.</p>
 
 	{#if entries.length > 0}
 		<div class="block">
@@ -85,10 +119,17 @@
 				{/each}
 			</ul>
 		</div>
-	{:else}
-		<p class="hint">
-			Nenhum campo marcado. A pendência será enviada somente com a observação geral.
-		</p>
+	{/if}
+
+	{#if onRequestFieldChange}
+		<Button
+			variant="outline-neutral"
+			size="full"
+			disabled={isSaving}
+			onclick={handleFieldChangeRequest}
+		>
+			Solicitar alterações de campos
+		</Button>
 	{/if}
 
 	{#if formError}
@@ -101,7 +142,7 @@
 	<div class="modal-actions">
 		<Button variant="outline-neutral" onclick={onclose} disabled={isSaving}>Cancelar</Button>
 		<Button variant="primary" onclick={handleConfirm} loading={isSaving}>
-			{isSaving ? 'Enviando…' : 'Confirmar solicitação'}
+			{isSaving ? 'Enviando…' : 'Solicitar pendência'}
 		</Button>
 	</div>
 </Modal>
@@ -115,7 +156,7 @@
 		display: flex;
 		align-items: center;
 		gap: 8px;
-		margin-bottom: var(--spacing-md);
+		margin-bottom: 4px;
 		font-family: var(--font-inter);
 		font-size: 13px;
 		font-weight: 600;
@@ -130,7 +171,7 @@
 	}
 
 	.block {
-		margin-bottom: var(--spacing-md);
+		margin: var(--spacing-md) 0;
 	}
 
 	.block-title {
@@ -218,7 +259,7 @@
 	}
 
 	.form-error {
-		margin: 0 0 var(--spacing-md) 0;
+		margin: var(--spacing-md) 0 0 0;
 		padding: var(--spacing-sm) var(--spacing-md);
 		background-color: var(--status-red-bg);
 		border-radius: var(--radius-sm);

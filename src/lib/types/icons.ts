@@ -65,7 +65,6 @@ export const iconDictionary = {
 	calendarMonth: 'calendar_month',
 	validate: 'verified',
 	reopen: 'replay',
-	error: 'error',
 	inbox: 'inbox',
 	flag: 'flag',
 	lightMode: 'light_mode',

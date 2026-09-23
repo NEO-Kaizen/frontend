@@ -8,9 +8,9 @@ import type {
 	CreatePendingItemsBody,
 	CreatePendingItemsResponse,
 	CreatePendingItemField,
-	ListPendenciesQuery,
 	ListPendenciesResponse,
 	PendencyGroup,
+	PendingBatch,
 	PendingItem,
 	ReviewPendingItemsBody,
 	ReviewPendingItemsResponse
@@ -19,10 +19,10 @@ import { ApiError, type Result } from '$lib/types/result';
 
 export async function listPendencies(
 	protocol: string,
-	query: ListPendenciesQuery = {}
+	fetchImpl?: typeof fetch
 ): Promise<Result<ListPendenciesResponse>> {
 	try {
-		const data = await getPendingItemsApi(protocol, query);
+		const data = await getPendingItemsApi(protocol, fetchImpl);
 		return { ok: true, data };
 	} catch (error) {
 		if (error instanceof ApiError) {
@@ -38,9 +38,10 @@ export async function listPendencies(
 	}
 }
 
-// §1 — envia a solicitação de pendência em lote único (observação e/ou
-// campos + pedido opcional de anexo) e muda o status para
-// "Pendente de informações". Validação espelhada no mock/backend.
+// Criação — POST /requests/:protocol/pending-items (contrato v0.5 §6). Lote
+// único (observação e/ou campos + anexo do lote). Validação espelhada no
+// mock/backend. O backend retorna 409 (D-P22) enquanto existir item
+// `requested`/`responded` para o protocolo — o frontend também bloqueia na UI.
 export async function requestFieldChange(
 	protocol: string,
 	payload: CreatePendingItemsBody,
@@ -60,7 +61,7 @@ export async function requestFieldChange(
 				error.status === 403
 					? 'Você não tem permissão para solicitar alterações nesta tratativa.'
 					: error.status === 409
-						? 'Esta solicitação não permite novas pendências no estado atual.'
+						? 'Já existe uma pendência em aberto para esta solicitação.'
 						: error.status === 404
 							? 'Solicitação não encontrada.'
 							: 'Não foi possível solicitar a alteração.';
@@ -70,8 +71,10 @@ export async function requestFieldChange(
 	}
 }
 
-// §3 — "Revisar alterações": decide CADA item `responded` de um lote em uma
-// única chamada atômica (validar fecha; reabrir solicita novamente).
+// Revisão parcial — PATCH /requests/:protocol/pending-items/review
+// (contrato v0.5 §9, regra D-P23). Envia somente os itens decididos (validar
+// fecha; reabrir volta para `requested`); os não enviados continuam
+// `responded` para revisão posterior — sem estado novo de "revisar depois".
 export async function reviewPendingItems(
 	protocol: string,
 	payload: ReviewPendingItemsBody,
@@ -152,11 +155,73 @@ export function canReopen(item: PendingItem): boolean {
 	return item.status === 'responded';
 }
 
+// ---- Regras do lote (uma pendência = um `batchId`) ----
+
+// Agrupa os itens em blocos de pendência para a visão do analista (§5).
+// Ordenação cronológica: lote mais antigo primeiro; dentro do lote, a
+// observação geral primeiro e depois os campos por criação.
+export function toPendingBatches(items: PendingItem[]): PendingBatch[] {
+	const byBatch = new Map<string, PendingItem[]>();
+	for (const item of items) {
+		const group = byBatch.get(item.batchId);
+		if (group) group.push(item);
+		else byBatch.set(item.batchId, [item]);
+	}
+
+	const batches: PendingBatch[] = [];
+	for (const [batchId, unsorted] of byBatch) {
+		const sorted = [...unsorted].sort(
+			(a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id)
+		);
+		const observation = sorted.find((item) => item.type === 'observation') ?? null;
+		const fields = sorted.filter((item) => item.type === 'field_edit');
+		const requestedCount = sorted.filter((item) => item.status === 'requested').length;
+		const respondedCount = sorted.filter((item) => item.status === 'responded').length;
+		const validatedCount = sorted.filter((item) => item.status === 'validated').length;
+		batches.push({
+			batchId,
+			protocol: sorted[0]?.protocol ?? '',
+			items: sorted,
+			observation,
+			fields,
+			fieldCount: fields.length,
+			requestedCount,
+			respondedCount,
+			validatedCount,
+			resolved: sorted.length > 0 && validatedCount === sorted.length,
+			createdAt: sorted[0]?.createdAt ?? ''
+		});
+	}
+
+	return batches.sort(
+		(a, b) => a.createdAt.localeCompare(b.createdAt) || a.batchId.localeCompare(b.batchId)
+	);
+}
+
+// Uma pendência só está resolvida quando TODOS os itens têm decisão — §9.
+// Enquanto existir item `requested` (aguardando solicitante) ou `responded`
+// (aguardando revisão, inclusive "revisar depois"), a pendência está aberta.
+export function isBatchResolved(batch: PendingBatch): boolean {
+	return batch.resolved;
+}
+
+// Bloqueio de nova pendência (§4): retorna o lote em aberto mais antigo, ou
+// `null` quando o analista pode criar uma nova pendência.
+export function findOpenBatch(batches: PendingBatch[]): PendingBatch | null {
+	return batches.find((batch) => !batch.resolved) ?? null;
+}
+
+/** Teto da observação na criação (contrato v0.5, decisão D-P16). */
+export const MAX_OBSERVATION_LENGTH = 2000;
+
 function validateCreatePayload(payload: CreatePendingItemsBody): string | null {
-	const hasObservation = (payload.observation?.trim() ?? '') !== '';
+	const observation = payload.observation?.trim() ?? '';
 	const items = payload.items ?? [];
-	if (!hasObservation && items.length === 0) {
+	if (!observation && items.length === 0) {
 		return 'Informe uma observação ou selecione ao menos um campo para solicitar a pendência.';
+	}
+	if (observation.length > MAX_OBSERVATION_LENGTH) {
+		return `A observação deve ter no máximo ${MAX_OBSERVATION_LENGTH} caracteres.`;
 	}
 	if (items.some((item) => !item.fieldKey.trim() || !item.comment.trim())) {
 		return 'Informe o motivo da alteração para todos os campos marcados.';

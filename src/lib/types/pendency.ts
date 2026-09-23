@@ -1,7 +1,8 @@
-import type { InternalAttachment, PaginatedResponse, RequestStatus } from './request';
+import type { InternalAttachment } from './request';
 
-// Ciclo de uma pendência por campo: solicitada → respondida → validada.
-// Valores em inglês espelham o contrato BACKEND-CONTRATO-PENDENCIAS-POR-CAMPO-0_2.md.
+// Ciclo de uma pendência: solicitada → respondida → validada.
+// Valores em inglês espelham o contrato de pendências (contract-pendencias v0.5).
+// `overdue` NÃO é status persistido: é view derivada de `requested` + `deadline` vencido.
 export type PendencyStatus = 'requested' | 'responded' | 'validated';
 
 export const PENDENCY_STATUS_LABELS: Record<PendencyStatus, string> = {
@@ -26,7 +27,9 @@ export interface PendingFieldRef {
 
 // Pendência de um campo/observação. Cada criação gera UM OU MAIS itens; os
 // itens criados juntos compartilham o mesmo `batchId` (o pedido de anexo é
-// do LOTE, não do item). Contrato v0.4 — POST /requests/:protocol/pending-items.
+// do LOTE, não do item). Contrato v0.5 — POST /requests/:protocol/pending-items.
+// A observação é um item próprio (`type: 'observation'`, `field: null`) —
+// nunca mensagem de chat.
 export type PendingItemType = 'field_edit' | 'observation';
 
 export interface PendingItem {
@@ -46,9 +49,10 @@ export interface PendingItem {
 	validatedAt: string | null;
 }
 
-// Body de POST /requests/:protocol/pending-items (contrato v0.4). Lote único:
-// `observation` geral (trim não vazio) e/ou `items` com ao menos um campo.
-// `requestAttachment` é do lote inteiro — nunca dentro de `items`.
+// Body de POST /requests/:protocol/pending-items (contrato v0.5). Lote único:
+// `observation` (trim não vazio) e/ou `items` com ao menos um campo — pelo
+// menos um dos dois deve existir. `requestAttachment` é do lote inteiro,
+// nunca dentro de `items`.
 export interface CreatePendingItemField {
 	fieldKey: string;
 	comment: string;
@@ -64,7 +68,7 @@ export interface CreatePendingItemsBody {
 export type CreatePendingItemEntry = CreatePendingItemField;
 export type CreatePendencyPayload = CreatePendingItemsBody;
 
-// Resposta de POST .../pending-items (contrato v0.4).
+// Resposta de POST .../pending-items (contrato v0.5).
 export interface CreatePendingItemsResponse {
 	batchId: string;
 	requestAttachment: boolean;
@@ -74,55 +78,83 @@ export interface CreatePendingItemsResponse {
 // Alias do contrato anterior.
 export type CreatePendencyResponse = CreatePendingItemsResponse;
 
-// Decisão do analista por item na revisão em lote (§3).
+// Decisão do analista por item na revisão parcial do lote (contrato v0.5 §9,
+// regra D-P23): somente os itens enviados são decididos; os demais continuam
+// `responded` para revisão posterior. Não existe estado de "revisar depois".
 export type ReviewPendingItemDecision =
 	| { id: string; decision: 'validate'; note?: string }
 	| { id: string; decision: 'reopen'; comment: string };
 
-// Body de POST .../pending-items/review (§3).
+// Body de PATCH .../pending-items/review (contrato v0.5 §9).
 export interface ReviewPendingItemsBody {
 	batchId: string;
 	requestAttachment?: boolean;
 	items: ReviewPendingItemDecision[];
 }
 
-// Resposta de POST .../pending-items/review (§3).
+// Resposta de PATCH .../pending-items/review (contrato v0.5 §9, decisão D-P18:
+// sem `solicitationStatus` — o backend aplica a transição e o frontend observa
+// via `GET /internal` / `tracking`. `items` traz os decididos nesta chamada.
 export interface ReviewPendingItemsResponse {
 	batchId: string;
 	items: PendingItem[];
-	solicitationStatus: RequestStatus;
 }
 
-// Corpo/resposta públicos de POST .../pending-items/respond (§2). Fluxo do
-// solicitante (identidade protocolo + e-mail) — tipos apenas por ora.
-export interface RespondPendingItemEntry {
-	id: string;
-	correctedValue: PendingFieldValue;
-	responseComment?: string;
+// Resposta do solicitante por item —
+// PATCH /requests/:protocol/pending-items/:pendingItemId (contrato v0.5 §8).
+// Fluxo do solicitante (outra branch): a observação responde com `response`
+// (vai para `responseText`); o campo responde com `correctedValue`. A distinção
+// já é respeitada na exibição do analista. Tipos apenas, sem chamada API.
+export type RespondPendingItemBody = { response: string } | { correctedValue: PendingFieldValue };
+
+// Listagem dedicada — GET /requests/:protocol/pending-items (contrato v0.5 §7):
+// retorna `PendingItem[]` direto, sem envelope paginado e sem query (lista
+// curta, ordem cronológica; o front agrupa por `batchId`).
+export type ListPendenciesResponse = PendingItem[];
+
+// Leitura estendida do GET /requests/:protocol/internal (contrato v0.5 §7,
+// decisões D-P2/D-P21): `unread` é puramente derivado de `status` (internos
+// contam `responded`), sem armazenamento e sem endpoint de "marcar como lido".
+export interface UnreadState {
+	count: number;
+	hasUnread: boolean;
+	lastUnreadAt: string | null;
 }
 
-export interface RespondPendingItemsBody {
+export interface CorrectionAlert {
+	count: number;
 	batchId: string;
-	email: string;
-	responseComment?: string;
-	items: RespondPendingItemEntry[];
 }
 
-export interface RespondPendingItemsResponse {
-	batchId: string;
-	items: PendingItem[];
-	solicitationStatus: RequestStatus;
+export interface PendingSummary {
+	total: number;
+	requested: number;
+	responded: number;
+	validated: number;
 }
-
-// Listagem apenas em mock (DEV): o contrato §4 não define GET dedicado — a
-// leitura real vem do canal/detalhe interno (#125) e do `correctionAlert`.
-export interface ListPendenciesQuery {
-	status?: PendencyStatus;
-	page?: number;
-	pageSize?: number;
-}
-
-export type ListPendenciesResponse = PaginatedResponse<PendingItem>;
 
 // Agrupamento por status — base do filtro da reunião (solicitadas/respondidas).
 export type PendencyGroup = Record<PendencyStatus, PendingItem[]>;
+
+// Bloco visual de UMA pendência: todos os itens criados juntos (mesmo
+// `batchId`), conforme §5 — "1 pendência → N campos", nunca "N pendências".
+// A observação geral é o item `type: 'observation'` (`field: null`); os
+// campos são os itens `type: 'field_edit'`.
+export interface PendingBatch {
+	batchId: string;
+	protocol: string;
+	/** Todos os itens do lote, em ordem cronológica de criação. */
+	items: PendingItem[];
+	/** Instrução/observação geral do lote, quando enviada. */
+	observation: PendingItem | null;
+	/** Campos solicitados no lote (`type: 'field_edit'`). */
+	fields: PendingItem[];
+	fieldCount: number;
+	requestedCount: number;
+	respondedCount: number;
+	validatedCount: number;
+	/** `true` somente quando TODOS os itens têm decisão (`validated`) — §9. */
+	resolved: boolean;
+	/** Criação do lote (menor `createdAt` dos itens). */
+	createdAt: string;
+}

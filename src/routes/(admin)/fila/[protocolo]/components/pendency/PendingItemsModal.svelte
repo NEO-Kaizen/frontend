@@ -4,6 +4,7 @@
 	import type { SessionUser } from '$lib/types/auth';
 	import { formatDateTime } from '$lib/utils/dates';
 	import { SvelteMap } from 'svelte/reactivity';
+	import { tick, untrack } from 'svelte';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Modal from '$lib/components/Modal.svelte';
@@ -16,11 +17,22 @@
 		protocol: string;
 		currentUser?: SessionUser | null;
 		assigneeId?: string | null;
+		initialTab?: TabStatus;
+		/** Lote a destacar: abre na aba de respondidas e rola até a seção do lote. */
+		focusBatchId?: string | null;
 		onclose: () => void;
 		onSaved?: () => void;
 	}
 
-	let { protocol, currentUser = null, assigneeId = null, onclose, onSaved }: Props = $props();
+	let {
+		protocol,
+		currentUser = null,
+		assigneeId = null,
+		initialTab = 'requested',
+		focusBatchId = null,
+		onclose,
+		onSaved
+	}: Props = $props();
 
 	// §3: revisar exige Administrador ou o responsável atribuído à tratativa.
 	const canReview = $derived(
@@ -33,12 +45,17 @@
 		{ id: 'validated', label: 'Validadas' }
 	];
 
-	let activeTab = $state<TabStatus>('requested');
+	// O modal é montado a cada abertura (`{#if}`), então a aba inicial pode ser
+	// lida uma única vez (`untrack` deixa explícita a leitura sem reatividade).
+	let activeTab = $state<TabStatus>(untrack(() => initialTab));
 	let items = $state<PendingItem[]>([]);
 	let isLoading = $state(true);
 	let errorMessage = $state('');
 	let isSubmitting = $state(false);
 	let reviewError = $state('');
+	// Decisão explícita por item (`responded` → `validated`/`requested`). Sem
+	// decisão, o item permanece `responded` para revisão posterior (D-P23) —
+	// não existe decisão `later` enviada ao backend.
 	let reviewDecisions = new SvelteMap<string, DecisionChoice>();
 	let reopenComments = $state<Record<string, string>>({});
 
@@ -73,14 +90,22 @@
 	async function load(): Promise<void> {
 		isLoading = true;
 		errorMessage = '';
-		const result = await listPendencies(protocol, { pageSize: 100 });
+		const result = await listPendencies(protocol);
 
 		if (result.ok) {
-			items = result.data.data;
+			items = result.data;
 		} else {
 			errorMessage = result.error.message;
 		}
 		isLoading = false;
+
+		if (focusBatchId) {
+			activeTab = 'responded';
+			await tick();
+			document
+				.getElementById(`review-batch-${focusBatchId}`)
+				?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		}
 	}
 
 	async function reload(): Promise<void> {
@@ -88,33 +113,46 @@
 		onSaved?.();
 	}
 
-	function setDecision(itemId: string, choice: DecisionChoice): void {
+	// Alternância de decisão por item: clicar no badge selecionado desmarca
+	// (o item fica sem decisão e permanece `responded`); clicar no outro badge
+	// substitui a seleção. Não há terceira decisão enviada ao backend (D-P23).
+	function toggleDecision(itemId: string, choice: DecisionChoice): void {
+		if (reviewDecisions.get(itemId) === choice) {
+			reviewDecisions.delete(itemId);
+			return;
+		}
 		reviewDecisions.set(itemId, choice);
 		if (choice === 'reopen' && reopenComments[itemId] === undefined) {
 			reopenComments[itemId] = '';
 		}
 	}
 
-	function decisionFor(itemId: string): DecisionChoice {
-		return reviewDecisions.get(itemId) ?? 'validate';
+	function decisionFor(itemId: string): DecisionChoice | null {
+		return reviewDecisions.get(itemId) ?? null;
 	}
 
-	function reviewComplete(batchItems: PendingItem[]): boolean {
-		return batchItems.every((item) => {
-			const decision = reviewDecisions.get(item.id);
-			if (!decision) return false;
-			if (decision === 'validate') return true;
-			return (reopenComments[item.id] ?? '').trim() !== '';
-		});
+	function isDecisionReady(item: PendingItem): boolean {
+		const decision = reviewDecisions.get(item.id);
+		if (!decision) return false;
+		if (decision === 'validate') return true;
+		return (reopenComments[item.id] ?? '').trim() !== '';
+	}
+
+	function decidedItems(batchItems: PendingItem[]): PendingItem[] {
+		return batchItems.filter((item) => isDecisionReady(item));
 	}
 
 	async function handleReviewSubmit(batchId: string): Promise<void> {
 		if (isSubmitting) return;
 		reviewError = '';
 		const batch = respondedBatches.find((group) => group.batchId === batchId);
-		if (!batch || !reviewComplete(batch.items)) return;
+		if (!batch) return;
+		// Uma única operação por ação agregada: envia os itens decididos em um
+		// único PATCH; os não enviados permanecem `responded` (D-P23).
+		const decided = decidedItems(batch.items);
+		if (decided.length === 0) return;
 
-		const decisions = batch.items.map((item) => {
+		const decisions = decided.map((item) => {
 			const decision = reviewDecisions.get(item.id) ?? 'validate';
 			return decision === 'reopen'
 				? {
@@ -224,7 +262,7 @@
 				{:else}
 					<div class="batches">
 						{#each respondedBatches as batch (batch.batchId)}
-							<section class="batch">
+							<section class="batch" id={`review-batch-${batch.batchId}`}>
 								{#each batch.items as item (item.id)}
 									<article class="item-card">
 										<header class="card-head">
@@ -234,16 +272,20 @@
 											</span>
 										</header>
 
-										<div class="diff" aria-label="Comparação do valor">
-											<div class="diff-line diff-old">
-												<span class="diff-glyph" aria-hidden="true">−</span>
-												<span class="diff-value">{displayValue(item.field?.currentValue)}</span>
+										{#if item.type === 'observation'}
+											<p class="requested-note">{item.comment}</p>
+										{:else}
+											<div class="diff" aria-label="Comparação do valor">
+												<div class="diff-line diff-old">
+													<span class="diff-glyph" aria-hidden="true">−</span>
+													<span class="diff-value">{displayValue(item.field?.currentValue)}</span>
+												</div>
+												<div class="diff-line diff-new">
+													<span class="diff-glyph" aria-hidden="true">＋</span>
+													<span class="diff-value">{displayValue(item.correctedValue)}</span>
+												</div>
 											</div>
-											<div class="diff-line diff-new">
-												<span class="diff-glyph" aria-hidden="true">＋</span>
-												<span class="diff-value">{displayValue(item.correctedValue)}</span>
-											</div>
-										</div>
+										{/if}
 
 										{#if item.responseText}
 											<p class="response-note">{item.responseText}</p>
@@ -272,7 +314,8 @@
 														type="button"
 														class="decision-option"
 														class:selected={decisionFor(item.id) === 'validate'}
-														onclick={() => setDecision(item.id, 'validate')}
+														aria-pressed={decisionFor(item.id) === 'validate'}
+														onclick={() => toggleDecision(item.id, 'validate')}
 													>
 														<Icon iconName="validate" iconSize="sm" />
 														Validar
@@ -281,7 +324,8 @@
 														type="button"
 														class="decision-option"
 														class:selected={decisionFor(item.id) === 'reopen'}
-														onclick={() => setDecision(item.id, 'reopen')}
+														aria-pressed={decisionFor(item.id) === 'reopen'}
+														onclick={() => toggleDecision(item.id, 'reopen')}
 													>
 														<Icon iconName="reopen" iconSize="sm" />
 														Solicitar novamente
@@ -309,17 +353,33 @@
 								{/each}
 
 								{#if canReview}
+									{@const decided = decidedItems(batch.items)}
+									{@const validateCount = decided.filter(
+										(item) => reviewDecisions.get(item.id) === 'validate'
+									).length}
 									<div class="batch-actions">
 										{#if reviewError}
 											<p class="form-error" role="alert">{reviewError}</p>
 										{/if}
+										{#if decided.length < batch.items.length}
+											{@const missing = batch.items.length - decided.length}
+											<p class="pending-hint" role="status">
+												{missing}
+												{missing === 1
+													? 'item sem decisão permanecerá como respondido'
+													: 'itens sem decisão permanecerão como respondidos'}.
+											</p>
+										{/if}
 										<Button
 											variant="primary"
 											loading={isSubmitting}
-											disabled={!reviewComplete(batch.items)}
+											disabled={decided.length === 0}
+											title={decided.length === 0
+												? 'Selecione ao menos um item para validar'
+												: 'Enviar as decisões selecionadas em um único PATCH'}
 											onclick={() => handleReviewSubmit(batch.batchId)}
 										>
-											Enviar revisão
+											{isSubmitting ? 'Enviando…' : `Validar (${validateCount})`}
 										</Button>
 									</div>
 								{/if}
@@ -587,6 +647,28 @@
 		color: var(--black);
 		line-height: 1.5;
 		white-space: pre-wrap;
+	}
+
+	.requested-note {
+		margin: 0;
+		padding: var(--spacing-sm) var(--spacing-md);
+		background: var(--status-blue-bg);
+		border-left: 3px solid var(--secondary-color);
+		border-radius: var(--radius-sm);
+		font-family: var(--font-inter);
+		font-size: 13px;
+		color: var(--black);
+		line-height: 1.5;
+		white-space: pre-wrap;
+		word-break: break-word;
+		overflow-wrap: anywhere;
+	}
+
+	.pending-hint {
+		margin: 0;
+		font-family: var(--font-inter);
+		font-size: 12px;
+		color: var(--gray);
 	}
 
 	.attachments-list {
