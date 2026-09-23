@@ -68,7 +68,6 @@
 	let pendingFieldPath = $state<string | null>(null);
 	let isPendencySaving = $state(false);
 	let pendencyError = $state<string | null>(null);
-	let pendingSuccess = $state<string | null>(null);
 	let showPendencyCancelConfirm = $state(false);
 	// Lote v0.4: observação geral + pedido de anexo (do lote) + campos do draft.
 	// Preenchidos no modal de solicitação; enviados em um único POST.
@@ -93,17 +92,20 @@
 	// Bloqueio de nova pendência (§4/§9): enquanto existir lote em aberto
 	// (qualquer item sem decisão), o analista não pode criar outra pendência.
 	// Recalculado a cada load — após criar/revisar, `invalidateAll` recarrega.
-	const openBatch = $derived(findOpenBatch(toPendingBatches(pendencies ?? [])));
+	const openBatch = $derived(findOpenBatch(toPendingBatches(pendencies)));
 	const isPendencyBlocked = $derived(openBatch !== null);
 
-	function enterPendencyMode(): void {
+	function enterPendencyMode(draft?: { observation: string; requestAttachment: boolean }): void {
 		if (isPendencyMode || isPendencyBlocked) return;
 		pendingDraft.clear();
 		pendingFieldPath = null;
 		pendencyError = null;
-		pendingSuccess = null;
-		pendingObservation = '';
-		pendingRequestAttachment = false;
+		// Rascunho compartilhado com o modal de criação pelo histórico
+		// (SpecTabs → PendencyRequestModal): preserva observação + anexo
+		// digitados antes de entrar na marcação por campo. Sem draft,
+		// começa vazio (fluxo do Quick Action).
+		pendingObservation = draft?.observation ?? '';
+		pendingRequestAttachment = draft?.requestAttachment ?? false;
 		showPendencyRequestModal = false;
 		showPendencyCancelConfirm = false;
 		isPendencyMode = true;
@@ -161,6 +163,14 @@
 		showPendencyRequestModal = true;
 	}
 
+	function handlePendencyDraftChange(draft: {
+		observation: string;
+		requestAttachment: boolean;
+	}): void {
+		pendingObservation = draft.observation;
+		pendingRequestAttachment = draft.requestAttachment;
+	}
+
 	// Confirmação do modal: um único POST com o lote inteiro (observação e/ou
 	// campos + requestAttachment do lote). Após sucesso: fecha o modal, limpa
 	// o draft, recarrega os dados e abre a aba de histórico — que passa a
@@ -180,13 +190,11 @@
 		});
 		isPendencySaving = true;
 		pendencyError = null;
-		pendingSuccess = null;
 		const result = await requestFieldChange(solicitation.protocol, payload);
 		isPendencySaving = false;
 		if (result.ok) {
 			showPendencyRequestModal = false;
 			exitPendencyMode();
-			pendingSuccess = 'Pendência solicitada ao solicitante.';
 			toastState.add('Pendência solicitada com sucesso.', 'success');
 			await invalidateAll();
 			const url = new URL(page.url);
@@ -451,7 +459,6 @@
 		{isPendencyMode}
 		{pendencyCount}
 		{isPendencySaving}
-		pendingSuccessText={pendingSuccess}
 		{markedFieldKeys}
 		onFieldPendencyClick={handleFieldPendencyClick}
 		onFieldPendencyRemove={handlePendencyRemove}
@@ -526,6 +533,7 @@
 		serverError={pendencyError}
 		onConfirm={handlePendencyRequestConfirm}
 		onRemoveItem={handlePendencyRemove}
+		onDraftChange={handlePendencyDraftChange}
 		onclose={() => (showPendencyRequestModal = false)}
 	/>
 {/if}

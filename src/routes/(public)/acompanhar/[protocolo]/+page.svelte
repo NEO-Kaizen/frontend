@@ -129,7 +129,7 @@
 			if (result.error.status === 401 && !viaSession) handleUnauthorized();
 			return;
 		}
-		unreadCount = countUnreadRequesterItems(result.data);
+		unreadCount = countUnreadRequesterItems(result.data.items);
 	}
 
 	function handleVerified(verified: { name: string; email: string }): void {

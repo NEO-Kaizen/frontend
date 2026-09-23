@@ -1,11 +1,16 @@
 import { mockInternalRequestDetails } from './requests.mock';
 import { ApiError } from '$lib/types/result';
 import { buildFieldLookup } from '$lib/pendency/field-catalog';
+import {
+	attachmentKeyOfMeta,
+	MAX_ATTACHMENTS
+} from '$lib/pendency/pending-attachments';
 
-import type { RequestStatus } from '$lib/types/request';
+import type { InternalAttachment, RequestStatus } from '$lib/types/request';
 import type {
 	CreatePendingItemsBody,
 	CreatePendingItemsResponse,
+	ListPendingItemsResponse,
 	PendingFieldValue,
 	PendingItem,
 	RespondPendingItemBody,
@@ -272,6 +277,27 @@ const seedItems: PendingItem[] = [
 // persistem durante o uso da aplicação (mesmo padrão dos fixtures de requests).
 const store: PendingItem[] = [...seedItems];
 
+
+const batchAttachment = new Map<string, boolean>([
+	['batch-2026-100', true],
+	['batch-2026-102', false]
+]);
+
+const seedBatchAttachment = new Map(batchAttachment);
+
+function batchRequestAttachment(batchId: string): boolean {
+	return batchAttachment.get(batchId) ?? false;
+}
+
+export function __setBatchAttachmentFlag(batchId: string, value: boolean): void {
+	batchAttachment.set(batchId, value);
+}
+
+export function __resetPendencyMocks(): void {
+	batchAttachment.clear();
+	for (const [batchId, value] of seedBatchAttachment) batchAttachment.set(batchId, value);
+}
+
 let idCounter = 0;
 let batchCounter = 0;
 
@@ -306,14 +332,32 @@ function findSolicitation(protocol: string) {
 	return detail;
 }
 
-export async function listPendingItemsMock(protocol: string): Promise<PendingItem[]> {
+// Listagem — GET /requests/:protocol/pending-items (contrato oficial):
+// retorna o envelope `ListPendingItemsResponse` (nunca um array direto).
+// `batchId`/`requestAttachment` descrevem o lote vigente — o primeiro lote com
+// item em aberto (`requested`/`responded`); quando tudo está `validated`, o
+// lote mais recente; sem itens, `{ batchId: null, requestAttachment: false,
+// items: [] }`. `items` traz TODAS as pendências do protocolo.
+export async function listPendingItemsMock(protocol: string): Promise<ListPendingItemsResponse> {
 	const normalized = findByProtocol(protocol);
 
 	const items = store
 		.filter((item) => item.protocol.toLowerCase().trim() === normalized)
 		.sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
 
-	return delay(400).then(() => items.map((item) => structuredClone(item)));
+	if (items.length === 0) {
+		return delay(400).then(() => ({ batchId: null, requestAttachment: false, items: [] }));
+	}
+
+	const openItem = items.find((item) => item.status === 'requested' || item.status === 'responded');
+	const target = openItem ?? items[items.length - 1];
+	const batchId = target.batchId;
+
+	return delay(400).then(() => ({
+		batchId,
+		requestAttachment: batchRequestAttachment(batchId),
+		items: items.map((item) => structuredClone(item))
+	}));
 }
 
 // Criação em lote único (contrato v0.5 §6): aceita `observation` e/ou `items` +
@@ -385,13 +429,17 @@ export async function createPendingItemsMock(
 
 	store.unshift(...created);
 
+	// A flag é do lote: registra para o GET vigente e para a revisão.
+	const requestAttachment = payload.requestAttachment === true;
+	batchAttachment.set(batchId, requestAttachment);
+
 	// Envio da pendência muda o status da solicitação (transação da criação).
 	solicitation.status = PENDING_STATUS;
 	solicitation.lastUpdate = now;
 
 	return delay(500).then(() => ({
 		batchId,
-		requestAttachment: payload.requestAttachment === true,
+		requestAttachment,
 		items: created.map((item) => structuredClone(item))
 	}));
 }
@@ -463,12 +511,15 @@ export interface MockAttachmentMeta {
 
 // Anexo do solicitante — POST .../pending-items/:pendingItemId/attachments
 // (contrato v0.5 §10): separado do PATCH; o upload pode acontecer em qualquer
-// item do lote. Valida tipo (PDF/DOCX/XLSX/PNG/JPG) e tamanho (10 MB).
+// item do lote. Resposta `201 InternalAttachment` (como o backend real).
+// Valida tipo (PDF/DOCX/XLSX/PNG/JPG, com fallback da extensão quando o
+// browser informa `type` vazio), tamanho (10 MB), limite de 3 anexos por lote
+// e duplicados (`name + size + type` no lote).
 export async function uploadPendingItemAttachmentMock(
 	protocol: string,
 	pendingItemId: string,
 	file: MockAttachmentMeta
-): Promise<PendingItem> {
+): Promise<InternalAttachment> {
 	const normalized = findByProtocol(protocol);
 	const item = store.find(
 		(candidate) =>
@@ -491,30 +542,47 @@ export async function uploadPendingItemAttachmentMock(
 		'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 	];
 	const extension = `.${file.fileName.split('.').pop()?.toLowerCase() ?? ''}`;
-	const allowedExtensions = ['.pdf', '.docx', '.xlsx', '.png', '.jpg'];
-	if (!allowedTypes.includes(file.mimeType) || !allowedExtensions.includes(extension)) {
+	const allowedExtensions = ['.pdf', '.docx', '.xlsx', '.png', '.jpg', '.jpeg'];
+	const typeEmpty = !file.mimeType || file.mimeType === 'application/octet-stream';
+	const typeValid = allowedTypes.includes(file.mimeType) || (typeEmpty && allowedExtensions.includes(extension));
+	if (!typeValid || !allowedExtensions.includes(extension)) {
 		throw new ApiError(400, 'Tipo de arquivo não permitido. Use PDF, DOCX, XLSX, PNG ou JPG.');
 	}
 	if (file.sizeBytes <= 0 || file.sizeBytes > 10 * 1024 * 1024) {
 		throw new ApiError(400, 'Arquivo excede o tamanho máximo de 10 MB.');
 	}
 
-	item.responseAttachments = [
-		...item.responseAttachments,
-		{
-			fileName: file.fileName,
-			mimeType: file.mimeType,
-			sizeBytes: file.sizeBytes,
-			downloadUrl: null,
-			canDownload: false
-		}
-	];
+	const batchItems = store.filter(
+		(candidate) =>
+			candidate.batchId === item.batchId && candidate.protocol.toLowerCase().trim() === normalized
+	);
+	const batchAttachments = batchItems.flatMap((candidate) => candidate.responseAttachments);
+	if (batchAttachments.length >= MAX_ATTACHMENTS) {
+		throw new ApiError(400, `Limite de ${MAX_ATTACHMENTS} anexos por pendência atingido.`);
+	}
+	const incomingKey = attachmentKeyOfMeta({
+		fileName: file.fileName,
+		sizeBytes: file.sizeBytes,
+		mimeType: file.mimeType
+	});
+	if (batchAttachments.some((attachment) => attachmentKeyOfMeta(attachment) === incomingKey)) {
+		throw new ApiError(409, 'Arquivo já anexado a esta pendência.');
+	}
+
+	const saved: InternalAttachment = {
+		fileName: file.fileName,
+		mimeType: file.mimeType,
+		sizeBytes: file.sizeBytes,
+		downloadUrl: null,
+		canDownload: false
+	};
+	item.responseAttachments = [...item.responseAttachments, saved];
 
 	const now = new Date().toISOString();
 	const solicitation = findSolicitation(protocol);
 	solicitation.lastUpdate = now;
 
-	return delay(400).then(() => structuredClone(item));
+	return delay(400).then(() => structuredClone(saved));
 }
 
 // Revisão parcial do lote (contrato v0.5 §9, regra D-P23): valida todas as
@@ -543,6 +611,11 @@ export async function reviewPendingItemsMock(
 
 	if (payload.items.length === 0) {
 		throw new ApiError(400, 'Decida ao menos um item para concluir a revisão.');
+	}
+
+	// A revisão pode (re)definir a flag do lote para a próxima rodada.
+	if (payload.requestAttachment !== undefined) {
+		batchAttachment.set(payload.batchId, payload.requestAttachment);
 	}
 
 	// Valida tudo antes de mutar (transação atômica).

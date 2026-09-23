@@ -48,13 +48,12 @@
 		isPendencyMode?: boolean;
 		pendencyCount?: number;
 		isPendencySaving?: boolean;
-		pendingSuccessText?: string | null;
 		markedFieldKeys?: ReadonlySet<string>;
 		onFieldPendencyClick?: (path: string) => void;
 		onFieldPendencyRemove?: (path: string) => void;
 		onPendencySave?: () => void;
 		onPendencyCancel?: () => void;
-		onRequestFieldChange?: () => void;
+		onRequestFieldChange?: (draft?: { observation: string; requestAttachment: boolean }) => void;
 		onTriageSuccess?: (updated: InternalRequestDetail) => void;
 		onOpenCalculator?: () => void;
 	}
@@ -70,7 +69,6 @@
 		isPendencyMode = false,
 		pendencyCount = 0,
 		isPendencySaving = false,
-		pendingSuccessText = null,
 		markedFieldKeys = new Set<string>(),
 		onFieldPendencyClick,
 		onFieldPendencyRemove,
@@ -118,7 +116,7 @@
 	// Lotes visuais do histórico (uma pendência = um `batchId`, §5) a partir da
 	// listagem do server load. O badge conta itens `responded` — respostas
 	// aguardando revisão do analista.
-	const pendencyBatches = $derived<PendingBatch[]>(toPendingBatches(pendencies ?? []));
+	const pendencyBatches = $derived<PendingBatch[]>(toPendingBatches(pendencies));
 	const respondedPendencyCount = $derived(
 		pendencyBatches.reduce((count, batch) => count + batch.respondedCount, 0)
 	);
@@ -139,10 +137,14 @@
 
 	// Atalho do modal para o fluxo de alteração de campos do Quick Action
 	// (marcação por campo): fecha o modal e reutiliza aquele fluxo — sem
-	// duplicar a implementação.
-	function handleRequestFieldChange(): void {
+	// duplicar a implementação. Repassa o rascunho (observação + anexo)
+	// digitado no modal para que o fluxo de marcação o preserve.
+	function handleRequestFieldChange(draft?: {
+		observation: string;
+		requestAttachment: boolean;
+	}): void {
 		showCreateModal = false;
-		onRequestFieldChange?.();
+		onRequestFieldChange?.(draft);
 	}
 
 	async function handleCreateConfirm(value: {
@@ -290,22 +292,7 @@
 
 	onDestroy(clearSaveSuccess);
 
-	// Mensagem de sucesso do modo marcação vem do pai via prop; reutiliza o
-	// mesmo elemento e o mesmo timeout do modo edição, apenas escondendo a
-	// exibição após o intervalo (o estado do pai fica intacto).
-	let pendingSuccessDismissed = $state(false);
-	$effect(() => {
-		pendingSuccessDismissed = !pendingSuccessText;
-		if (!pendingSuccessText) return;
-		const timer = setTimeout(() => {
-			pendingSuccessDismissed = true;
-		}, SAVE_SUCCESS_TIMEOUT_MS);
-		return () => clearTimeout(timer);
-	});
-
-	const successMessage = $derived(
-		saveSuccess ?? (pendingSuccessDismissed ? null : pendingSuccessText)
-	);
+	const successMessage = $derived(saveSuccess);
 
 	const prefersReducedMotion =
 		typeof window !== 'undefined' &&
@@ -867,13 +854,6 @@
 		color: var(--gray);
 		padding: var(--spacing-md) 0;
 		margin: 0;
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.btn-save,
-		.btn-cancel {
-			transition: none;
-		}
 	}
 
 	@media (max-width: 768px) {

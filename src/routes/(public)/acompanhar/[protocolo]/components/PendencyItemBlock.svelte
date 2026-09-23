@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Button from '$lib/components/Button.svelte';
 	import Input from '$lib/components/Input.svelte';
+	import PendencyFieldDiff from '$lib/components/PendencyFieldDiff.svelte';
 	import Select from '$lib/components/Select.svelte';
 	import Textarea from '$lib/components/Textarea.svelte';
 	import {
@@ -163,11 +164,11 @@
 		{#if showComment && item.comment}
 			<p class="analyst-comment">{item.comment}</p>
 		{/if}
-		<p class="current-value">
-			Valor atual: <strong>{formatFieldValue(item.field.currentValue)}</strong>
-		</p>
 
 		{#if isRequested}
+			<p class="current-value">
+				Valor atual: <strong>{formatFieldValue(item.field.currentValue)}</strong>
+			</p>
 			<div class="response-form">
 				{#if kind === 'yesno'}
 					<Select
@@ -236,12 +237,14 @@
 				</div>
 			</div>
 		{:else}
-			<p class="sent-value">
-				Sua resposta: <strong>{formatFieldValue(item.correctedValue)}</strong>
-				{#if item.respondedAt}
-					<span class="sent-at">· {formatDateTime(item.respondedAt)}</span>
-				{/if}
-			</p>
+			<PendencyFieldDiff
+				oldValue={formatFieldValue(item.field.currentValue)}
+				newValue={formatFieldValue(item.correctedValue)}
+				label={item.field.fieldLabel}
+			/>
+			{#if item.respondedAt}
+				<span class="item-date">Respondida em {formatDateTime(item.respondedAt)}</span>
+			{/if}
 			{#if item.status === 'validated'}
 				<p class="await-note validated-note">
 					✓ Validado em {formatDateTime(item.validatedAt ?? item.respondedAt ?? item.createdAt)}
@@ -370,6 +373,12 @@
 
 	.current-value strong {
 		color: var(--black);
+	}
+
+	.item-date {
+		font-family: var(--font-inter);
+		font-size: 11px;
+		color: var(--gray);
 	}
 
 	.response-form {

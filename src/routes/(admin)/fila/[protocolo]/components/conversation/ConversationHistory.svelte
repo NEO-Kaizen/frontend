@@ -181,7 +181,6 @@
 		font-family: var(--font-montserrat);
 		font-size: 16px;
 		font-weight: 700;
-		color: var(--rich-black);
 	}
 
 	.pendency-list {

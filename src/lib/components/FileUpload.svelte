@@ -132,7 +132,7 @@
 			bind:this={fileInput}
 			type="file"
 			multiple
-			accept=".pdf,.docx,.xlsx,.png,.jpg"
+			accept=".pdf,.docx,.xlsx,.png,.jpg,.jpeg"
 			onchange={handleFileChange}
 			aria-hidden="true"
 			tabindex="-1"
