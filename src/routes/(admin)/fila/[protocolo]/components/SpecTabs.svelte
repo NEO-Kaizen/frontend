@@ -91,17 +91,12 @@
 		items: TimelineItem[];
 		nextCursor: string | null;
 		unseenCount: number;
-		// Históricos completos (D-N14) — não paginados, idênticos em toda página.
-		triages: TriageHistoryEntry[];
-		mappings: MappingHistoryEntry[];
 		loadError: string | null;
 	} {
 		return {
 			items: [...(internalNotes?.items ?? [])].reverse(),
 			nextCursor: internalNotes?.nextCursor ?? null,
 			unseenCount: internalNotes?.unseenCount ?? 0,
-			triages: internalNotes?.triages ?? [],
-			mappings: internalNotes?.mappings ?? [],
 			loadError: internalNotesError
 		};
 	}
@@ -110,8 +105,11 @@
 	let timelineItems = $state<TimelineItem[]>(initialInternalNotesState.items);
 	let timelineNextCursor = $state<string | null>(initialInternalNotesState.nextCursor);
 	let internalNotesUnseenCount = $state(initialInternalNotesState.unseenCount);
-	let triages = $state<TriageHistoryEntry[]>(initialInternalNotesState.triages);
-	let mappings = $state<MappingHistoryEntry[]>(initialInternalNotesState.mappings);
+	// Históricos completos (D-N14) — não paginados, idênticos em toda página.
+	// Espelhos puros do server load: `$derived` mantém a aba sincronizada após
+	// `invalidateAll` (ex.: ao finalizar uma triagem) sem refetch próprio.
+	const triages: TriageHistoryEntry[] = $derived(internalNotes?.triages ?? []);
+	const mappings: MappingHistoryEntry[] = $derived(internalNotes?.mappings ?? []);
 	let internalNotesLoadError = $state<string | null>(initialInternalNotesState.loadError);
 
 	type SpecTabId = 'informacoes' | 'triagem' | 'mapeamento' | 'historico' | 'observacoes';
@@ -438,9 +436,10 @@
 		timelineItems = [...response.items].reverse();
 		timelineNextCursor = response.nextCursor;
 		internalNotesUnseenCount = response.unseenCount;
-		triages = response.triages;
-		mappings = response.mappings;
 		internalNotesLoadError = null;
+		// `triages`/`mappings` derivam do server load; revalida o load para
+		// manter os históricos em sincronia após um reload manual.
+		void invalidateAll();
 	}
 
 	// Página mais antiga (já em ordem canônica) entra acima da janela atual;
