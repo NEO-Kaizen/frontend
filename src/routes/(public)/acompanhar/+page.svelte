@@ -10,6 +10,7 @@
 	let { data }: PageProps = $props();
 
 	const searchedEmail = $derived(data.email);
+	const isOwnerView = $derived(Boolean((data as { isOwnerView?: boolean }).isOwnerView));
 
 	// Navegação pendente para a própria rota: estado de carregamento da tabela.
 	const isFetching = $derived(navigating.to?.route?.id === page.route.id);
@@ -17,7 +18,7 @@
 	function goToPage(pagina: number) {
 		const searchParams = new SvelteURLSearchParams();
 
-		if (searchedEmail) {
+		if (!isOwnerView && searchedEmail) {
 			searchParams.set('email', searchedEmail);
 		}
 
@@ -30,7 +31,7 @@
 		// Plugin não aceita query string após resolve() (eslint-plugin-svelte#1327);
 		// a navegação é validada em runtime pelo SvelteKit.
 		// eslint-disable-next-line svelte/no-navigation-without-resolve
-		void goto(`${resolve('/(public)/acompanhar')}?${query}`, {
+		void goto(`${resolve('/(public)/acompanhar')}${query ? `?${query}` : ''}`, {
 			keepFocus: true,
 			invalidateAll: true,
 			replaceState: true
@@ -48,7 +49,7 @@
 		<p>Consulte em tempo real os status da sua demanda institucional.</p>
 	</div>
 
-	<ProtocolSearchCard />
+	<ProtocolSearchCard isOwnerView={isOwnerView} />
 
 	<div style="margin-top: var(--spacing-xl);">
 		<SolicitationTable page={data.page} result={data.result} {isFetching} onpagechange={goToPage} />
