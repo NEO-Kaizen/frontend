@@ -19,6 +19,7 @@ const mappingStore = new Map<string, MappingResponse>([
 		'MAAT-8K3P-9X2M',
 		{
 			protocol: 'MAAT-8K3P-9X2M',
+			id: 'b7e4d9c1-2a3f-4e8b-9c6d-5f1a2b3c4d5e',
 			scheduledFor: '2026-10-15T10:30:00-03:00',
 			durationMinutes: 60,
 			modality: 'REMOTE',
@@ -28,20 +29,29 @@ const mappingStore = new Map<string, MappingResponse>([
 				{ id: 'mapping-seed-1', name: 'Maria Oliveira', email: 'maria.oliveira@maat.com.br' },
 				{ id: 'mapping-seed-2', name: 'Fernando Alves', email: 'fernando.alves@maat.com.br' }
 			],
-			notes: null
+			notes: null,
+			mappingAssignee: {
+				id: 'd3e2f1a0-b9c8-4d7e-8f6a-1b2c3d4e5f60',
+				userId: '9',
+				name: 'Júlia Reis',
+				email: 'julia.reis@exemplo.br',
+				jobTitle: 'Analista de Processos'
+			}
 		}
 	],
 	[
 		'MAAT-6N2W-8VBM',
 		{
 			protocol: 'MAAT-6N2W-8VBM',
+			id: null,
 			scheduledFor: null,
 			durationMinutes: null,
 			modality: null,
 			meetingLink: null,
 			location: null,
 			participants: [],
-			notes: null
+			notes: null,
+			mappingAssignee: null
 		}
 	]
 ]);
@@ -73,15 +83,18 @@ export function saveMappingMock(
 		name: participant.name,
 		email: participant.email
 	}));
+	const previous = mappingStore.get(normalized);
 	const detail: MappingResponse = {
 		protocol: normalized,
+		id: previous?.id ?? crypto.randomUUID(),
 		scheduledFor: payload.scheduledFor,
 		durationMinutes: payload.durationMinutes,
 		modality: payload.modality,
 		meetingLink: payload.meetingLink,
 		location: payload.location,
 		participants,
-		notes: payload.notes
+		notes: payload.notes,
+		mappingAssignee: previous?.mappingAssignee ?? null
 	};
 	mappingStore.set(normalized, detail);
 	return delay(MOCK_LATENCY_MS).then(() => structuredClone(detail));

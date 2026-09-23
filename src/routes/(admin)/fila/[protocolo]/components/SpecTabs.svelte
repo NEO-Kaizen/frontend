@@ -16,7 +16,13 @@
 	} from '$lib/services/pendency.service';
 	import { updateInternalRequest } from '$lib/services/request.service';
 	import { toastState } from '$lib/states/toast.svelte';
-	import type { InternalNote, InternalNotesResponse } from '$lib/types/internal-note';
+	import type {
+		InternalNotesResponse,
+		MappingHistoryEntry,
+		TimelineItem,
+		TimelineNote,
+		TriageHistoryEntry
+	} from '$lib/types/internal-note';
 	import type { ListPendenciesResponse, PendingBatch } from '$lib/types/pendency';
 	import type { InternalRequestDetail } from '$lib/types/request';
 	import type { Result } from '$lib/types/result';
@@ -80,20 +86,30 @@
 	}: Props = $props();
 
 	function getInitialInternalNotesState(): {
-		items: InternalNote[];
+		// A página chega mais-recente-primeiro (D-N7) → invertida aqui para a
+		// ordem canônica exibida (mais antigo primeiro — §8).
+		items: TimelineItem[];
+		nextCursor: string | null;
 		unseenCount: number;
 		loadError: string | null;
 	} {
 		return {
-			items: [...(internalNotes?.items ?? [])],
+			items: [...(internalNotes?.items ?? [])].reverse(),
+			nextCursor: internalNotes?.nextCursor ?? null,
 			unseenCount: internalNotes?.unseenCount ?? 0,
 			loadError: internalNotesError
 		};
 	}
 
 	const initialInternalNotesState = getInitialInternalNotesState();
-	let internalNoteItems = $state<InternalNote[]>(initialInternalNotesState.items);
+	let timelineItems = $state<TimelineItem[]>(initialInternalNotesState.items);
+	let timelineNextCursor = $state<string | null>(initialInternalNotesState.nextCursor);
 	let internalNotesUnseenCount = $state(initialInternalNotesState.unseenCount);
+	// Históricos completos (D-N14) — não paginados, idênticos em toda página.
+	// Espelhos puros do server load: `$derived` mantém a aba sincronizada após
+	// `invalidateAll` (ex.: ao finalizar uma triagem) sem refetch próprio.
+	const triages: TriageHistoryEntry[] = $derived(internalNotes?.triages ?? []);
+	const mappings: MappingHistoryEntry[] = $derived(internalNotes?.mappings ?? []);
 	let internalNotesLoadError = $state<string | null>(initialInternalNotesState.loadError);
 
 	type SpecTabId = 'informacoes' | 'triagem' | 'mapeamento' | 'historico' | 'observacoes';
@@ -417,17 +433,33 @@
 	}
 
 	function handleInternalNotesLoaded(response: InternalNotesResponse): void {
-		internalNoteItems = response.items;
+		timelineItems = [...response.items].reverse();
+		timelineNextCursor = response.nextCursor;
 		internalNotesUnseenCount = response.unseenCount;
 		internalNotesLoadError = null;
+		// `triages`/`mappings` derivam do server load; revalida o load para
+		// manter os históricos em sincronia após um reload manual.
+		void invalidateAll();
+	}
+
+	// Página mais antiga (já em ordem canônica) entra acima da janela atual;
+	// unseenCount e históricos são idênticos em toda página (D-N9/D-N14) —
+	// este handler não toca neles.
+	function handleInternalNotesOlderLoaded(
+		olderItems: TimelineItem[],
+		nextCursor: string | null
+	): void {
+		timelineItems = [...olderItems, ...timelineItems];
+		timelineNextCursor = nextCursor;
 	}
 
 	function handleInternalNotesLoadError(message: string): void {
 		internalNotesLoadError = message;
 	}
 
-	function handleInternalNoteCreated(note: InternalNote): void {
-		internalNoteItems = [...internalNoteItems, note];
+	function handleInternalNoteCreated(note: TimelineNote): void {
+		// POST devolve a nota mais nova → fim da ordem canônica.
+		timelineItems = [...timelineItems, note];
 	}
 
 	function handleInternalNotesMarkedRead(): void {
@@ -633,10 +665,14 @@
 				{:else if activeTab === 'observacoes'}
 					<InternalNotesSection
 						protocol={solicitation.protocol}
-						notes={internalNoteItems}
+						items={timelineItems}
+						nextCursor={timelineNextCursor}
+						{triages}
+						{mappings}
 						loadError={internalNotesLoadError}
 						currentUserId={currentUser?.id ?? ''}
 						onNotesLoaded={handleInternalNotesLoaded}
+						onOlderLoaded={handleInternalNotesOlderLoaded}
 						onLoadError={handleInternalNotesLoadError}
 						onNoteCreated={handleInternalNoteCreated}
 						onMarkedRead={handleInternalNotesMarkedRead}

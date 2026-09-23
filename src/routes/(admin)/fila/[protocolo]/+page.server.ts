@@ -11,10 +11,10 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 
 	const [result, internalNotesResult, pendenciesResult] = await Promise.all([
 		getInternalRequest(protocol, fetch),
-		getInternalNotes(protocol, fetch),
+		getInternalNotes(protocol, {}, fetch),
 		listPendencies(protocol, fetch)
 	]);
-	
+
 	const pendencies = pendenciesResult.ok ? pendenciesResult.data : null;
 	const pendenciesError = pendenciesResult.ok ? null : pendenciesResult.error.message;
 

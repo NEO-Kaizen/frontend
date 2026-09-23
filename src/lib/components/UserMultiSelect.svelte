@@ -12,7 +12,8 @@
 	interface Props {
 		label?: string;
 		placeholder?: string;
-		selected: { id?: string; name: string; email: string }[];
+		// `id` aceita `null`: participante externo vem do backend sem identity.
+		selected: { id?: string | null; name: string; email: string }[];
 		onSelect?: (user: AdminUser) => void;
 		onRemove?: (id: string) => void;
 		disabled?: boolean;
