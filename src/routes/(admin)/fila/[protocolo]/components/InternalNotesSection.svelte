@@ -21,6 +21,7 @@
 	} from '$lib/types/internal-note';
 	import type { IconName } from '$lib/types/icons';
 	import { formatDateTime } from '$lib/utils/dates';
+	import { getRoleDisplayLabel } from '$lib/utils/user';
 	import HistoryTables from './HistoryTables.svelte';
 
 	// A timeline chega do servidor em ordem mais-recente-primeiro (D-N7);
@@ -371,7 +372,7 @@
 								<article class="note-entry">
 									<div class="note-meta">
 										<strong>{item.author.name}</strong>
-										<span>({item.author.role})</span>
+										<span>({getRoleDisplayLabel(item.author.role)})</span>
 										{#if isCurrentUser(item)}<span>· você</span>{/if}
 										<time datetime={item.createdAt}>{formatDateTime(item.createdAt)}</time>
 									</div>
@@ -388,7 +389,7 @@
 									<div class="event-meta">
 										{#if item.actor}
 											<strong>{item.actor.name}</strong>
-											<span>({item.actor.role})</span>
+											<span>({getRoleDisplayLabel(item.actor.role)})</span>
 										{:else}
 											<span>Sistema</span>
 										{/if}

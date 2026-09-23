@@ -39,7 +39,7 @@
 		{ id: 'todos', label: 'Todos', profile: undefined },
 		{ id: 'administradores', label: 'Administradores', profile: 'administrador' },
 		{ id: 'analistas', label: 'Analistas', profile: 'analista' },
-		{ id: 'gestores', label: 'Gestores', profile: 'gestor' },
+		{ id: 'gestores', label: 'Visualizadores', profile: 'gestor' },
 		{ id: 'solicitantes', label: 'Solicitantes', profile: 'solicitante' }
 	] satisfies readonly { id: string; label: string; profile?: UserProfile }[];
 

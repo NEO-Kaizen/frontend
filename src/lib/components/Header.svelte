@@ -15,6 +15,7 @@
 	import { isInternalProfile } from '$lib/services/access.service';
 	import { onMount } from 'svelte';
 	import { getThemeMode, toggleTheme } from '$lib/states/theme.svelte';
+	import { getRoleDisplayLabel } from '$lib/utils/user';
 
 	// KNOWN ISSUE (svelte-check) — não estreitar este tipo sem entender a causa:
 	// `resolve(item.href)` (no helper `isActive` e abaixo, no markup) acusa erro
@@ -240,7 +241,7 @@
 				>
 					<div class="profile_block-identification">
 						<p class="profile_block-name">{currentUser?.name}</p>
-						<p class="profile_block-role">{currentUser?.role}</p>
+						<p class="profile_block-role">{getRoleDisplayLabel(currentUser?.role)}</p>
 					</div>
 					<span class="profile_block-avatar">
 						<AssetImage

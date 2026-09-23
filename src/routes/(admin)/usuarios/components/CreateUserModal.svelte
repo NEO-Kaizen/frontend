@@ -18,6 +18,7 @@
 		PROFILE_NOTES_MAX_LENGTH,
 		PROFILE_SPECIALTY_MAX_LENGTH
 	} from '$lib/utils/validations';
+	import { getRoleDisplayLabel } from '$lib/utils/user';
 
 	interface Props {
 		loading?: boolean;
@@ -30,17 +31,10 @@
 	let { loading = false, error = '', categories = [], onclose, oncreate }: Props = $props();
 
 	const roleOptions: { value: UserProfile; label: string }[] = [
-		{ value: 'solicitante', label: 'Solicitante' },
-		{ value: 'analista', label: 'Analista' },
-		{ value: 'gestor', label: 'Gestor' }
+		{ value: 'solicitante', label: getRoleDisplayLabel('solicitante') },
+		{ value: 'analista', label: getRoleDisplayLabel('analista') },
+		{ value: 'gestor', label: getRoleDisplayLabel('gestor') }
 	];
-
-	const roleLabels: Record<UserProfile, string> = {
-		solicitante: 'Solicitante',
-		analista: 'Analista',
-		gestor: 'Gestor',
-		administrador: 'Administrador'
-	};
 
 	let name = $state('');
 	let email = $state('');
@@ -207,7 +201,7 @@
 	{#if temporaryPassword}
 		<div class="success-content">
 			<p class="description">
-				O {roleLabels[createdUserRole].toLowerCase()} foi cadastrado com sucesso.
+				O {getRoleDisplayLabel(createdUserRole).toLowerCase()} foi cadastrado com sucesso.
 			</p>
 
 			<div class="success-box">
