@@ -10,6 +10,12 @@
 
 	const protocolMask = $derived(page.data.portalConfig.protocolMask);
 
+	interface Props {
+		isOwnerView?: boolean;
+	}
+
+	let { isOwnerView = false }: Props = $props();
+
 	let isSearching = $state(false);
 	let protocol = $state('');
 	let email = $state('');
@@ -63,7 +69,9 @@
 	}
 
 	let formError = $derived(
-		hasSubmitted && !protocol.trim() && !email.trim() ? 'Informe o protocolo ou o e-mail.' : ''
+		hasSubmitted && !protocol.trim() && (!isOwnerView && !email.trim())
+			? 'Informe o protocolo' + (isOwnerView ? '.' : ' ou o e-mail.')
+			: ''
 	);
 
 	let protocolError = $derived(
@@ -84,7 +92,10 @@
 		const normalizedProtocol = protocol.trim();
 		const normalizedEmail = email.trim();
 
-		if (!normalizedProtocol && !normalizedEmail) {
+		if (!normalizedProtocol && !isOwnerView && !normalizedEmail) {
+			return;
+		}
+		if (!normalizedProtocol && isOwnerView) {
 			return;
 		}
 
@@ -94,6 +105,8 @@
 				await goto(resolve('/(public)/acompanhar/[protocolo]', { protocolo: normalizedProtocol }));
 				return;
 			}
+
+			if (isOwnerView) return;
 
 			if (isValidEmail(normalizedEmail)) {
 				isSearching = true;
@@ -125,17 +138,19 @@
 		/>
 	</div>
 
-	<div class="field">
-		<Input
-			type="email"
-			label="E-mail Corporativo"
-			placeholder="emaildofulano@maat.com.br"
-			prefix="@"
-			error={emailError}
-			oninput={handleEmailInput}
-			bind:value={email}
-		/>
-	</div>
+	{#if !isOwnerView}
+		<div class="field">
+			<Input
+				type="email"
+				label="E-mail Corporativo"
+				placeholder="emaildofulano@maat.com.br"
+				prefix="@"
+				error={emailError}
+				oninput={handleEmailInput}
+				bind:value={email}
+			/>
+		</div>
+	{/if}
 
 	<div class="action">
 		<Button type="submit" disabled={isSearching}>

@@ -339,7 +339,7 @@ export interface PaginationQuery {
 }
 
 export interface ListRequestsQuery extends PaginationQuery {
-	email: string;
+	email?: string;
 	search?: string;
 	status?: RequestStatus;
 }
