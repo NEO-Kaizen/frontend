@@ -69,7 +69,7 @@
 	}
 
 	let formError = $derived(
-		hasSubmitted && !protocol.trim() && (!isOwnerView && !email.trim())
+		hasSubmitted && !protocol.trim() && !isOwnerView && !email.trim()
 			? 'Informe o protocolo' + (isOwnerView ? '.' : ' ou o e-mail.')
 			: ''
 	);
