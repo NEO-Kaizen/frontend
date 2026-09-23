@@ -11,9 +11,19 @@
 		children?: Snippet;
 		// Ações do card (Salvar/Cancelar/feedback) — cada seção é independente.
 		actions?: Snippet;
+		// Conteúdo opcional ao lado do título (ex.: tooltip explicativo).
+		titleAddon?: Snippet;
 	}
 
-	let { title, description = '', iconName, headerAction, children, actions }: Props = $props();
+	let {
+		title,
+		description = '',
+		iconName,
+		headerAction,
+		children,
+		actions,
+		titleAddon
+	}: Props = $props();
 </script>
 
 <article class="settings-card">
@@ -24,7 +34,14 @@
 			</span>
 		{/if}
 		<div class="settings-card-text">
-			<h2>{title}</h2>
+			<div class="settings-card-title-row">
+				<h2>{title}</h2>
+				{#if titleAddon}
+					<span class="settings-card-title-addon">
+						{@render titleAddon()}
+					</span>
+				{/if}
+			</div>
 			{#if description}
 				<p>{description}</p>
 			{/if}
@@ -84,6 +101,17 @@
 		display: flex;
 		flex-direction: column;
 		min-width: 0;
+	}
+
+	.settings-card-title-row {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-sm);
+	}
+
+	.settings-card-title-addon {
+		display: inline-flex;
+		align-items: center;
 	}
 
 	.settings-card-action {
