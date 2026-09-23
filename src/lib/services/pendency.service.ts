@@ -1,7 +1,9 @@
 import {
 	createPendingItems as createPendingItemsApi,
 	getPendingItems as getPendingItemsApi,
-	reviewPendingItems as reviewPendingItemsApi
+	respondPendingItem as respondPendingItemApi,
+	reviewPendingItems as reviewPendingItemsApi,
+	uploadPendingItemAttachment as uploadPendingItemAttachmentApi
 } from '$lib/api/pending-item.api';
 
 import type {
@@ -9,12 +11,14 @@ import type {
 	CreatePendingItemsResponse,
 	CreatePendingItemField,
 	ListPendenciesResponse,
-	PendencyGroup,
 	PendingBatch,
 	PendingItem,
+	RespondPendingItemBody,
 	ReviewPendingItemsBody,
 	ReviewPendingItemsResponse
 } from '$lib/types/pendency';
+import type { RequesterIdentity } from '$lib/types/requester-tracking';
+import { ALLOWED_FILE_EXTENSIONS, ALLOWED_FILE_TYPES, MAX_FILE_SIZE } from '$lib/types/request';
 import { ApiError, type Result } from '$lib/types/result';
 
 export async function listPendencies(
@@ -22,7 +26,7 @@ export async function listPendencies(
 	fetchImpl?: typeof fetch
 ): Promise<Result<ListPendenciesResponse>> {
 	try {
-		const data = await getPendingItemsApi(protocol, fetchImpl);
+		const data = await getPendingItemsApi(protocol, undefined, fetchImpl);
 		return { ok: true, data };
 	} catch (error) {
 		if (error instanceof ApiError) {
@@ -139,22 +143,6 @@ export function buildCreatePendingItemsPayload(draft: PendingBatchDraft): Create
 	return payload;
 }
 
-export function groupPendenciesByStatus(items: PendingItem[]): PendencyGroup {
-	const group: PendencyGroup = { requested: [], responded: [], validated: [] };
-	for (const item of items) {
-		group[item.status]?.push(item);
-	}
-	return group;
-}
-
-export function canValidate(item: PendingItem): boolean {
-	return item.status === 'responded';
-}
-
-export function canReopen(item: PendingItem): boolean {
-	return item.status === 'responded';
-}
-
 // ---- Regras do lote (uma pendência = um `batchId`) ----
 
 // Agrupa os itens em blocos de pendência para a visão do analista (§5).
@@ -198,13 +186,6 @@ export function toPendingBatches(items: PendingItem[]): PendingBatch[] {
 	);
 }
 
-// Uma pendência só está resolvida quando TODOS os itens têm decisão — §9.
-// Enquanto existir item `requested` (aguardando solicitante) ou `responded`
-// (aguardando revisão, inclusive "revisar depois"), a pendência está aberta.
-export function isBatchResolved(batch: PendingBatch): boolean {
-	return batch.resolved;
-}
-
 // Bloqueio de nova pendência (§4): retorna o lote em aberto mais antigo, ou
 // `null` quando o analista pode criar uma nova pendência.
 export function findOpenBatch(batches: PendingBatch[]): PendingBatch | null {
@@ -213,6 +194,172 @@ export function findOpenBatch(batches: PendingBatch[]): PendingBatch | null {
 
 /** Teto da observação na criação (contrato v0.5, decisão D-P16). */
 export const MAX_OBSERVATION_LENGTH = 2000;
+
+/** Teto da resposta do solicitante a uma observação (contrato v0.5 §8). */
+export const MAX_OBSERVATION_RESPONSE_LENGTH = 2000;
+
+// ---- Resposta do SOLICITANTE por item (contrato v0.5 §8) ----
+
+// Um item por request — PATCH /requests/:protocol/pending-items/:pendingItemId.
+// `field_edit` → `{ correctedValue }` (tipo preservado); `observation` →
+// `{ response }` (trim, 1..2000). Sem botão global, sem lote, sem
+// `solicitationStatus` na resposta (o status é observado via tracking).
+export async function respondPendingItemAsRequester(
+	protocol: string,
+	item: PendingItem,
+	body: RespondPendingItemBody,
+	identity?: RequesterIdentity | null,
+	fetchImpl?: typeof fetch
+): Promise<Result<PendingItem>> {
+	const validation = validateRespondBody(item, body);
+	if (validation) {
+		return { ok: false, error: { message: validation } };
+	}
+
+	try {
+		const data = await respondPendingItemApi(protocol, item.id, body, identity, fetchImpl);
+		return { ok: true, data };
+	} catch (error) {
+		if (error instanceof ApiError) {
+			const message =
+				error.status === 400
+					? 'Resposta inválida. Confira o valor informado.'
+					: error.status === 401
+						? 'Autorização expirada. Valide seus dados novamente.'
+						: error.status === 403
+							? 'Você não tem permissão para responder esta pendência.'
+							: error.status === 404
+								? 'Pendência não encontrada.'
+								: error.status === 409
+									? 'Esta pendência já foi respondida.'
+									: 'Não foi possível enviar a resposta.';
+			return { ok: false, error: { status: error.status, message } };
+		}
+		return { ok: false, error: { message: 'Não foi possível conectar ao servidor.' } };
+	}
+}
+
+// Anexo do solicitante — POST
+// .../pending-items/:pendingItemId/attachments (`multipart/form-data`, campo
+// `file`; PDF/DOCX/XLSX/PNG/JPG, 10 MB). Separado do PATCH; o upload pode
+// acontecer em qualquer item do lote (`requestAttachment` é do lote).
+export async function uploadPendingItemAttachmentAsRequester(
+	protocol: string,
+	pendingItemId: string,
+	file: File,
+	identity?: RequesterIdentity | null,
+	fetchImpl?: typeof fetch
+): Promise<Result<PendingItem>> {
+	const validation = validateAttachmentFile(file);
+	if (validation) {
+		return { ok: false, error: { message: validation } };
+	}
+
+	try {
+		const data = await uploadPendingItemAttachmentApi(
+			protocol,
+			pendingItemId,
+			file,
+			identity,
+			fetchImpl
+		);
+		return { ok: true, data };
+	} catch (error) {
+		if (error instanceof ApiError) {
+			const message =
+				error.status === 400
+					? 'Arquivo inválido. Use PDF, DOCX, XLSX, PNG ou JPG de até 10 MB.'
+					: error.status === 401
+						? 'Autorização expirada. Valide seus dados novamente.'
+						: error.status === 403
+							? 'Você não tem permissão para anexar arquivos nesta pendência.'
+							: error.status === 404
+								? 'Pendência não encontrada.'
+								: error.status === 409
+									? 'Esta pendência já foi respondida.'
+									: 'Não foi possível enviar o anexo.';
+			return { ok: false, error: { status: error.status, message } };
+		}
+		return { ok: false, error: { message: 'Não foi possível conectar ao servidor.' } };
+	}
+}
+
+export function validateAttachmentFile(file: File): string | null {
+	if (!file || file.size <= 0) return 'Selecione um arquivo para enviar.';
+	const extension = `.${file.name.split('.').pop()?.toLowerCase() ?? ''}`;
+	const typeValid = (ALLOWED_FILE_TYPES as readonly string[]).includes(file.type);
+	const extensionValid = (ALLOWED_FILE_EXTENSIONS as readonly string[]).includes(extension);
+	if (!typeValid || !extensionValid) {
+		return 'Tipo de arquivo não permitido. Use PDF, DOCX, XLSX, PNG ou JPG.';
+	}
+	if (file.size > MAX_FILE_SIZE) {
+		return 'Arquivo excede o tamanho máximo de 10 MB.';
+	}
+	return null;
+}
+
+function validateRespondBody(item: PendingItem, body: RespondPendingItemBody): string | null {
+	if (item.status !== 'requested') {
+		return 'Esta pendência já foi respondida.';
+	}
+	if (item.type === 'observation') {
+		if (!('response' in body)) return 'Informe a resposta da observação.';
+		const trimmed = body.response.trim();
+		if (!trimmed) return 'Descreva a resposta antes de enviar.';
+		if (trimmed.length > MAX_OBSERVATION_RESPONSE_LENGTH) {
+			return `A resposta deve ter no máximo ${MAX_OBSERVATION_RESPONSE_LENGTH} caracteres.`;
+		}
+		return null;
+	}
+	if (!('correctedValue' in body)) return 'Informe o valor corrigido.';
+	if (body.correctedValue === null) return 'Informe o valor corrigido.';
+	if (typeof body.correctedValue === 'string' && !body.correctedValue.trim()) {
+		return 'Informe o valor corrigido.';
+	}
+	return null;
+}
+
+// ---- Derivações de exibição do solicitante (contrato v0.5) ----
+
+// `overdue` NÃO é status persistido: é apresentação derivada de
+// `requested + deadline vencido`. Compara só a data (`yyyy-mm-dd`).
+export function isPendingItemOverdue(item: PendingItem, now: Date = new Date()): boolean {
+	if (item.status !== 'requested' || !item.deadline) return false;
+	const day = item.deadline.slice(0, 10);
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return false;
+	const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+	return day < today;
+}
+
+// Unread do solicitante: `requested` conta; `responded`/`validated`, não.
+// Sem endpoint de "marcar como lido", sem armazenamento local.
+export function countUnreadRequesterItems(items: PendingItem[]): number {
+	return items.filter((item) => item.status === 'requested').length;
+}
+
+// Exigência de anexo do LOTE (contrato v0.5 §10: `requestAttachment` é do
+// `batchId`, nunca do campo). O GET de listagem ainda não expõe o flag do
+// lote — lê defensivamente um eventual campo de lote futuro; quando ausente,
+// o upload continua disponível e o backend valida (ver §10 implementado no
+// card: anexos de qualquer item contam para o lote).
+export function doesBatchRequireAttachment(batch: PendingBatch): boolean {
+	for (const item of batch.items) {
+		const flag = (item as unknown as Record<string, unknown>)['requestAttachment'];
+		if (flag === true) return true;
+	}
+	return false;
+}
+
+// Lote completo para o solicitante: todos os itens `responded`/`validated` +
+// (quando o lote exige anexo) ao menos 1 anexo no lote.
+export function isBatchCompleteForRequester(batch: PendingBatch): boolean {
+	const allAnswered = batch.items.every(
+		(item) => item.status === 'responded' || item.status === 'validated'
+	);
+	if (!allAnswered) return false;
+	if (!doesBatchRequireAttachment(batch)) return true;
+	return batch.items.some((item) => item.responseAttachments.length > 0);
+}
 
 function validateCreatePayload(payload: CreatePendingItemsBody): string | null {
 	const observation = payload.observation?.trim() ?? '';

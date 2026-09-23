@@ -64,6 +64,13 @@ export function fetchPortalConfigMock(): Promise<PortalConfig> {
 	return delay(MOCK_LATENCY_MS).then(() => structuredClone(mockConfig));
 }
 
+// Leitura síncrona do modo atual — usada pelo mock de acompanhamento
+// (`requester-tracking.mock`) para reproduzir o 403 do backend quando o
+// portal está em AUTHENTICATED. Não altera comportamento existente.
+export function getMockSolicitationMode(): SolicitationMode {
+	return mockConfig.solicitationMode;
+}
+
 export function updateAccessMock(payload: UpdateAccessRequest): Promise<AccessSection> {
 	if (!SOLICITATION_MODES.includes(payload.solicitationMode)) {
 		throw new ApiError(400, 'Modo de solicitação inválido.');

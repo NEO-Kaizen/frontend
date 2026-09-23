@@ -11,8 +11,6 @@ export const PENDENCY_STATUS_LABELS: Record<PendencyStatus, string> = {
 	validated: 'Validada'
 };
 
-export const PENDENCY_STATUS_ORDER: PendencyStatus[] = ['requested', 'responded', 'validated'];
-
 // Valor escalar de um campo (tipos de api-requests.md).
 export type PendingFieldValue = string | number | boolean | null;
 
@@ -64,19 +62,12 @@ export interface CreatePendingItemsBody {
 	items?: CreatePendingItemField[];
 }
 
-// Aliases do contrato anterior — mantidos para não quebrar imports existentes.
-export type CreatePendingItemEntry = CreatePendingItemField;
-export type CreatePendencyPayload = CreatePendingItemsBody;
-
 // Resposta de POST .../pending-items (contrato v0.5).
 export interface CreatePendingItemsResponse {
 	batchId: string;
 	requestAttachment: boolean;
 	items: PendingItem[];
 }
-
-// Alias do contrato anterior.
-export type CreatePendencyResponse = CreatePendingItemsResponse;
 
 // Decisão do analista por item na revisão parcial do lote (contrato v0.5 §9,
 // regra D-P23): somente os itens enviados são decididos; os demais continuam
@@ -132,9 +123,6 @@ export interface PendingSummary {
 	responded: number;
 	validated: number;
 }
-
-// Agrupamento por status — base do filtro da reunião (solicitadas/respondidas).
-export type PendencyGroup = Record<PendencyStatus, PendingItem[]>;
 
 // Bloco visual de UMA pendência: todos os itens criados juntos (mesmo
 // `batchId`), conforme §5 — "1 pendência → N campos", nunca "N pendências".
