@@ -306,111 +306,111 @@
 				</p>
 			{/if}
 
-			<div class="attachments-block">
-				<p class="attachments-title">
-					<Icon iconName="cloudUpload" iconSize="sm" />
-					<span>Anexos do lote ({attachmentCounter})</span>
-					{#if requiresAttachment}
+			{#if requiresAttachment}
+				<div class="attachments-block">
+					<p class="attachments-title">
+						<Icon iconName="cloudUpload" iconSize="sm" />
+						<span>Anexos do lote ({attachmentCounter})</span>
 						<span class="required-tag">Solicitado pelo analista</span>
-					{/if}
-				</p>
-				{#if batchAttachments.length === 0}
-					<p class="attachments-empty">Nenhum anexo enviado neste lote.</p>
-				{:else}
-					<ul class="attachments-list">
-						{#each batchAttachments as entry (entry.itemId + entry.attachment.fileName + entry.attachment.sizeBytes)}
-							<li class="attachment-item">
-								<span class="attachment-name">{entry.attachment.fileName}</span>
-								<span class="attachment-meta">
-									{entry.attachment.mimeType} • {formatBytes(entry.attachment.sizeBytes)}
-								</span>
-								{#if entry.attachment.canDownload && entry.attachment.downloadUrl}
-									<a
-										href={entry.attachment.downloadUrl}
-										target="_blank"
-										rel="external noopener noreferrer"
-										class="attachment-link"
-									>
-										Visualizar
-									</a>
-								{/if}
-							</li>
-						{/each}
-					</ul>
-				{/if}
-				{#if canUpload}
-					<input
-						bind:this={fileInput}
-						type="file"
-						multiple
-						accept=".pdf,.docx,.xlsx,.png,.jpg,.jpeg"
-						onchange={handleFilesSelected}
-						aria-hidden="true"
-						tabindex="-1"
-						hidden
-					/>
-					{#if limitReached}
-						<p class="upload-hint" role="status">
-							Limite de {MAX_ATTACHMENTS} anexos por pendência atingido ({attachmentCounter}).
-						</p>
+					</p>
+					{#if batchAttachments.length === 0}
+						<p class="attachments-empty">Nenhum anexo enviado neste lote.</p>
 					{:else}
-						<div class="upload-row">
-							<Button variant="outline" disabled={isUploading} onclick={openFilePicker}>
-								{isUploading ? 'Enviando…' : 'Anexar arquivo'}
-							</Button>
-							<span class="upload-hint">
-								PDF, DOCX, XLSX, PNG ou JPG (Máx. 10 MB cada · {attachmentCounter}
-								{remainingSlots === 1 ? '· 1 vaga restante' : `· ${remainingSlots} vagas restantes`})
-							</span>
-						</div>
-					{/if}
-					{#if selectionErrors.length > 0}
-						<ul class="upload-error-list">
-							{#each selectionErrors as rejection (rejection.fileName + rejection.message)}
-								<li class="upload-error" role="alert">
-									“{rejection.fileName}”: {rejection.message}
-								</li>
-							{/each}
-						</ul>
-					{/if}
-					{#if pendingFiles.length > 0}
-						<ul class="pending-list" aria-label="Arquivos aguardando envio">
-							{#each pendingFiles as entry (entry.id)}
-								<li class="pending-item">
-									<span class="pending-name">{entry.file.name}</span>
-									<span class="pending-meta">{formatBytes(entry.file.size)}</span>
-									<button
-										type="button"
-										class="pending-remove"
-										disabled={isUploading}
-										aria-label={`Remover ${entry.file.name} da seleção`}
-										onclick={() => removePendingFile(entry.id)}
-									>
-										Remover
-									</button>
-									{#if entry.error}
-										<span class="pending-error" role="alert">{entry.error}</span>
+						<ul class="attachments-list">
+							{#each batchAttachments as entry (entry.itemId + entry.attachment.fileName + entry.attachment.sizeBytes)}
+								<li class="attachment-item">
+									<span class="attachment-name">{entry.attachment.fileName}</span>
+									<span class="attachment-meta">
+										{entry.attachment.mimeType} • {formatBytes(entry.attachment.sizeBytes)}
+									</span>
+									{#if entry.attachment.canDownload && entry.attachment.downloadUrl}
+										<a
+											href={entry.attachment.downloadUrl}
+											target="_blank"
+											rel="external noopener noreferrer"
+											class="attachment-link"
+										>
+											Visualizar
+										</a>
 									{/if}
 								</li>
 							{/each}
 						</ul>
-						<div class="upload-row">
-							<Button
-								variant="primary"
-								loading={isUploading}
-								disabled={isUploading}
-								onclick={() => void handleSendPending()}
-							>
-								{isUploading
-									? 'Enviando…'
-									: pendingFiles.length === 1
-										? 'Enviar 1 anexo'
-										: `Enviar ${pendingFiles.length} anexos`}
-							</Button>
-						</div>
 					{/if}
-				{/if}
-			</div>
+					{#if canUpload}
+						<input
+							bind:this={fileInput}
+							type="file"
+							multiple
+							accept=".pdf,.docx,.xlsx,.png,.jpg,.jpeg"
+							onchange={handleFilesSelected}
+							aria-hidden="true"
+							tabindex="-1"
+							hidden
+						/>
+						{#if limitReached}
+							<p class="upload-hint" role="status">
+								Limite de {MAX_ATTACHMENTS} anexos por pendência atingido ({attachmentCounter}).
+							</p>
+						{:else}
+							<div class="upload-row">
+								<Button variant="outline" disabled={isUploading} onclick={openFilePicker}>
+									{isUploading ? 'Enviando…' : 'Anexar arquivo'}
+								</Button>
+								<span class="upload-hint">
+									PDF, DOCX, XLSX, PNG ou JPG (Máx. 10 MB cada · {attachmentCounter}
+									{remainingSlots === 1 ? '· 1 vaga restante' : `· ${remainingSlots} vagas restantes`})
+								</span>
+							</div>
+						{/if}
+						{#if selectionErrors.length > 0}
+							<ul class="upload-error-list">
+								{#each selectionErrors as rejection (rejection.fileName + rejection.message)}
+									<li class="upload-error" role="alert">
+										“{rejection.fileName}”: {rejection.message}
+									</li>
+								{/each}
+							</ul>
+						{/if}
+						{#if pendingFiles.length > 0}
+							<ul class="pending-list" aria-label="Arquivos aguardando envio">
+								{#each pendingFiles as entry (entry.id)}
+									<li class="pending-item">
+										<span class="pending-name">{entry.file.name}</span>
+										<span class="pending-meta">{formatBytes(entry.file.size)}</span>
+										<button
+											type="button"
+											class="pending-remove"
+											disabled={isUploading}
+											aria-label={`Remover ${entry.file.name} da seleção`}
+											onclick={() => removePendingFile(entry.id)}
+										>
+											Remover
+										</button>
+										{#if entry.error}
+											<span class="pending-error" role="alert">{entry.error}</span>
+										{/if}
+									</li>
+								{/each}
+							</ul>
+							<div class="upload-row">
+								<Button
+									variant="primary"
+									loading={isUploading}
+									disabled={isUploading}
+									onclick={() => void handleSendPending()}
+								>
+									{isUploading
+										? 'Enviando…'
+										: pendingFiles.length === 1
+											? 'Enviar 1 anexo'
+											: `Enviar ${pendingFiles.length} anexos`}
+								</Button>
+							</div>
+						{/if}
+					{/if}
+				</div>
+			{/if}
 
 			<footer class="pendency-meta">
 				<span>{progressLabel}</span>
