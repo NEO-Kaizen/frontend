@@ -6,7 +6,7 @@
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Modal from '$lib/components/Modal.svelte';
-	import { canEditSolicitation } from '$lib/services/access.service';
+	import { canEditSolicitation, canViewTriage } from '$lib/services/access.service';
 	import { updateInternalRequest } from '$lib/services/request.service';
 	import { toastState } from '$lib/states/toast.svelte';
 	import type { InternalNote, InternalNotesResponse } from '$lib/types/internal-note';
@@ -110,7 +110,7 @@
 	// Gestor e demais perfis visualizam em somente leitura.
 	const currentUser = $derived(page.data.user);
 	const canEdit = $derived(canEditSolicitation(solicitation.assignee?.id, currentUser ?? null));
-	const canTriage = $derived(canEdit);
+	const canViewTriageTab = $derived(canViewTriage(solicitation.assignee?.id, currentUser ?? null));
 
 	// A permissão do mapeamento usa o responsável do mapeamento
 	// (`mappingAssignee`) do primeiro GET da solicitação + `/auth/me`
@@ -118,12 +118,12 @@
 	const mappingAssigneeId = $derived(solicitation.mappingAssignee?.id ?? null);
 	const canEditMapping = $derived(canEditSolicitation(mappingAssigneeId, currentUser ?? null));
 
-	const displayTabs = $derived(specTabs.filter((tab) => tab.id !== 'triagem' || canTriage));
+	const displayTabs = $derived(specTabs.filter((tab) => tab.id !== 'triagem' || canViewTriageTab));
 
 	function resolveActiveTab(param: string | null): SpecTabId {
 		const tab = specTabs.find((item) => item.id === param);
 		if (tab && tab.enabled) {
-			if (tab.id === 'triagem' && !canTriage) return DEFAULT_TAB_ID;
+			if (tab.id === 'triagem' && !canViewTriageTab) return DEFAULT_TAB_ID;
 			return tab.id;
 		}
 		return DEFAULT_TAB_ID;
@@ -143,7 +143,7 @@
 
 	function handleTabSelect(tab: SpecTabDefinition) {
 		if (!tab.enabled || isEditMode) return;
-		if (tab.id === 'triagem' && !canTriage) return;
+		if (tab.id === 'triagem' && !canViewTriageTab) return;
 		clearSaveSuccess();
 
 		const url = new URL(page.url);

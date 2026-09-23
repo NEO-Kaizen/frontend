@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { page } from '$app/state';
 	import { fly, fade, scale } from 'svelte/transition';
 	import { cubicInOut, cubicOut } from 'svelte/easing';
 	import Modal from '$lib/components/Modal.svelte';
@@ -7,7 +8,6 @@
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Input from '$lib/components/Input.svelte';
-	import { CATEGORY_OPTIONS } from '$lib/types/request';
 	import type { Analyst } from '$lib/types/user';
 	import { listAnalysts, assignAnalyst } from '$lib/services/assignment.service';
 	import type { InternalRequestDetail } from '$lib/types/request';
@@ -83,10 +83,13 @@
 			.trim();
 	}
 
+	const portalCategories = $derived(page.data.portalConfig.categories ?? []);
 	const categoryOptions = $derived.by(() => {
 		return [
 			{ value: '', label: 'Todas as categorias' },
-			...CATEGORY_OPTIONS.map((o) => ({ value: o.value, label: o.label }))
+			...portalCategories
+				.filter((category) => category.isActive)
+				.map((category) => ({ value: category.name, label: category.name }))
 		];
 	});
 
@@ -203,11 +206,15 @@
 			easing: cubicInOut
 		}}
 	>
-
 		{#if isReassign && currentAssigneeDisplayName}
 			<div class="current-banner" role="status" aria-label="Responsável atual">
 				<Icon iconName="person" iconSize="sm" />
-				<span>Responsável atual: <strong>{currentAssigneeDisplayName}</strong> — {currentAssigneeId === currentMappingAssigneeId ? "Mapeamento" : "Triagem"}</span>
+				<span
+					>Responsável atual: <strong>{currentAssigneeDisplayName}</strong> — {currentAssigneeId ===
+					currentMappingAssigneeId
+						? 'Mapeamento'
+						: 'Triagem'}</span
+				>
 			</div>
 		{/if}
 
@@ -307,7 +314,11 @@
 									<span class="name-row">
 										<span class="analyst-name">{analyst.fullName}</span>
 										{#if analyst.id === currentAssigneeId}
-											<span class="current-badge" aria-label="Responsável atual">Atual: {currentAssigneeId === currentMappingAssigneeId ? "mapeamento" : "pela triagem"}</span>
+											<span class="current-badge" aria-label="Responsável atual"
+												>Atual: {currentAssigneeId === currentMappingAssigneeId
+													? 'mapeamento'
+													: 'pela triagem'}</span
+											>
 										{/if}
 									</span>
 									{#if analyst.specialty && analyst.specialty.trim()}
@@ -379,7 +390,7 @@
 						<span class="radio-indicator" aria-hidden="true"></span>
 						Mapeamento
 					</label>
-				</div>		
+				</div>
 				<div class="deadline-field">
 					<span class="responsibility-title">Prazo:</span>
 					<Input

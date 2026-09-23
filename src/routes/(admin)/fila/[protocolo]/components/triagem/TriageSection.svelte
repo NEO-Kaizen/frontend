@@ -53,7 +53,7 @@
 		categories: portalCategories
 	});
 
-	const canTriage = $derived(
+	const canEditTriage = $derived(
 		canEditSolicitation(solicitation.assignee?.id, page.data.user ?? null)
 	);
 
@@ -62,7 +62,11 @@
 	let serverTriage = $state<TriageAssessment | null>(null);
 	let triageLoaded = $state(false);
 	let isCreatingNew = $state(false);
-	const isReadonly = $derived(triageLoaded && serverTriage !== null && !isCreatingNew);
+	const isLoading = $derived(!triageLoaded);
+	const isFinalized = $derived(triageLoaded && serverTriage !== null && !isCreatingNew);
+	// Somente leitura quando a triagem está finalizada ou quando o perfil não
+	// pode editar (ex.: Gestor). Enquanto carrega, o formulário fica bloqueado.
+	const isReadonly = $derived(triageLoaded && (!canEditTriage || isFinalized));
 
 	function applyDraftPrecedence(protocol: string, fetched: TriageAssessment | null) {
 		// Rascunho local representa trabalho ainda não salvo e pode ter precedência.
@@ -124,7 +128,8 @@
 	// salvo por cima da triagem finalizada e depois relido pelo
 	// `applyDraftPrecedence`, deixando o formulário em somente leitura em branco.
 	$effect(() => {
-		if (!triageLoaded) return;
+		// Perfis sem permissão de edição (ex.: Gestor) não persistem rascunho.
+		if (!triageLoaded || !canEditTriage) return;
 
 		const snapshot = $state.snapshot(draft);
 		const serverDraft = toTriageDraft(serverTriage);
@@ -139,6 +144,9 @@
 	});
 	let errors = $state<Record<string, string>>({});
 	let isSaving = $state(false);
+	// Bloqueia toda edição enquanto a triagem carrega, salvando ou em somente
+	// leitura — evita digitação perdida pela hidratação dos dados do servidor.
+	const isFormDisabled = $derived(isLoading || isSaving || isReadonly);
 	let showConfirm = $state(false);
 	let sectionRoot = $state<HTMLElement | null>(null);
 
@@ -313,7 +321,11 @@
 		<p class="triage-loading" aria-busy="true">Carregando triagem…</p>
 	{:else if isReadonly}
 		<p class="triage-readonly-note" role="status">
-			Triagem finalizada — os campos estão em somente leitura.
+			{#if !canEditTriage}
+				Você tem acesso somente para visualização da triagem.
+			{:else}
+				Triagem finalizada — os campos estão em somente leitura.
+			{/if}
 		</p>
 	{/if}
 
@@ -327,7 +339,7 @@
 					value={draft.adherentToScope}
 					onchange={(v) => handleFieldChange('adherentToScope', v)}
 					placeholder="Selecione"
-					disabled={isSaving || isReadonly}
+					disabled={isFormDisabled}
 					error={errors['adherentToScope'] ?? ''}
 				/>
 			</div>
@@ -337,7 +349,7 @@
 					placeholder="Informe a justificativa"
 					bind:value={draft.adherentJustification}
 					maxlength={1000}
-					disabled={isSaving || isReadonly || isJustificationDisabled()}
+					disabled={isFormDisabled || isJustificationDisabled()}
 					error={errors['adherentJustification'] ?? ''}
 					oninput={() => clearFieldError('adherentJustification')}
 					onblur={() => handleBlur('adherentJustification')}
@@ -354,7 +366,7 @@
 					value={draft.changeCategory}
 					onchange={(v) => handleFieldChange('changeCategory', v)}
 					placeholder="Selecione"
-					disabled={isSaving || isReadonly}
+					disabled={isFormDisabled}
 					error={errors['changeCategory'] ?? ''}
 				/>
 			</div>
@@ -372,7 +384,7 @@
 							value={draft.newCategory}
 							onchange={(v) => handleFieldChange('newCategory', v)}
 							placeholder="Selecione"
-							disabled={isSaving || isReadonly || isNewCategoryDisabled()}
+							disabled={isFormDisabled || isNewCategoryDisabled()}
 							error={errors['newCategory'] ?? ''}
 						/>
 					</div>
@@ -388,7 +400,7 @@
 			bind:value={draft.preliminaryComplexity}
 			maxlength={4000}
 			rows={4}
-			disabled={isSaving || isReadonly}
+			disabled={isFormDisabled}
 			error={errors['preliminaryComplexity'] ?? ''}
 			oninput={() => clearFieldError('preliminaryComplexity')}
 		/>
@@ -401,7 +413,7 @@
 			bind:value={draft.perceivedRisks}
 			maxlength={4000}
 			rows={4}
-			disabled={isSaving || isReadonly}
+			disabled={isFormDisabled}
 			error={errors['perceivedRisks'] ?? ''}
 			oninput={() => clearFieldError('perceivedRisks')}
 		/>
@@ -415,7 +427,7 @@
 				placeholder="Informe o Analista"
 				bind:value={draft.suggestedResponsible}
 				maxlength={150}
-				disabled={isSaving || isReadonly}
+				disabled={isFormDisabled}
 				error={errors['suggestedResponsible'] ?? ''}
 				oninput={() => clearFieldError('suggestedResponsible')}
 				onblur={() => handleBlur('suggestedResponsible')}
@@ -425,7 +437,7 @@
 				placeholder="Informe a justificativa"
 				bind:value={draft.suggestedResponsibleJustification}
 				maxlength={1000}
-				disabled={isSaving || isReadonly}
+				disabled={isFormDisabled}
 				error={errors['suggestedResponsibleJustification'] ?? ''}
 				oninput={() => clearFieldError('suggestedResponsibleJustification')}
 				onblur={() => handleBlur('suggestedResponsibleJustification')}
@@ -445,7 +457,7 @@
 					value={draft.exitStatus === '' ? '' : String(draft.exitStatus)}
 					onchange={handleExitStatusChange}
 					placeholder="Selecione"
-					disabled={isSaving || isReadonly}
+					disabled={isFormDisabled}
 					error={errors['exitStatus'] ?? ''}
 				/>
 			</div>
@@ -455,7 +467,7 @@
 					placeholder="Informe o resultado"
 					bind:value={draft.result}
 					maxlength={1000}
-					disabled={isSaving || isReadonly}
+					disabled={isFormDisabled}
 					error={errors['result'] ?? ''}
 					oninput={() => clearFieldError('result')}
 					onblur={() => handleBlur('result')}
@@ -471,7 +483,7 @@
 			bind:value={draft.conclusionJustification}
 			maxlength={4000}
 			rows={5}
-			disabled={isSaving || isReadonly}
+			disabled={isFormDisabled}
 			error={errors['conclusionJustification'] ?? ''}
 			oninput={() => clearFieldError('conclusionJustification')}
 		/>
@@ -486,31 +498,35 @@
 		</p>
 	{/if}
 
-	<div class="footer-actions">
-		{#if isReadonly}
-			{#if canTriage}
-				<Button variant="primary" disabled={isSaving} onclick={handleStartNewTriage}>
-					<Icon iconName="addCircle" iconSize="sm" />
-					Começar Nova Triagem
+	{#if triageLoaded}
+		<div class="footer-actions">
+			{#if isReadonly}
+				{#if canEditTriage}
+					<Button variant="primary" disabled={isSaving} onclick={handleStartNewTriage}>
+						<Icon iconName="addCircle" iconSize="sm" />
+						Começar Nova Triagem
+					</Button>
+				{/if}
+			{:else}
+				<Button variant="outline-neutral" disabled={isSaving} onclick={handleCancel}
+					>Cancelar</Button
+				>
+				<Button variant="secondary" disabled={isSaving} onclick={handleCalculatePriority}>
+					<Icon iconName="calculate" iconSize="sm" />
+					{hasCalculatedPriority() ? 'Alterar Prioridade' : 'Calcular Prioridade'}
+				</Button>
+				<Button
+					variant="primary"
+					disabled={isSaving}
+					loading={isSaving}
+					onclick={handleFinalizeClick}
+				>
+					<Icon iconName="check" iconSize="sm" />
+					Finalizar Triagem
 				</Button>
 			{/if}
-		{:else}
-			<Button variant="outline-neutral" disabled={isSaving} onclick={handleCancel}>Cancelar</Button>
-			<Button variant="secondary" disabled={isSaving} onclick={handleCalculatePriority}>
-				<Icon iconName="calculate" iconSize="sm" />
-				{hasCalculatedPriority() ? 'Alterar Prioridade' : 'Calcular Prioridade'}
-			</Button>
-			<Button
-				variant="primary"
-				disabled={isSaving || !triageLoaded}
-				loading={isSaving}
-				onclick={handleFinalizeClick}
-			>
-				<Icon iconName="check" iconSize="sm" />
-				Finalizar Triagem
-			</Button>
-		{/if}
-	</div>
+		</div>
+	{/if}
 </section>
 
 {#if showConfirm}
