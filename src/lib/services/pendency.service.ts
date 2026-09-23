@@ -11,15 +11,21 @@ import type {
 	CreatePendingItemsResponse,
 	CreatePendingItemField,
 	ListPendenciesResponse,
+	ListPendingItemsResponse,
 	PendingBatch,
 	PendingItem,
 	RespondPendingItemBody,
 	ReviewPendingItemsBody,
 	ReviewPendingItemsResponse
 } from '$lib/types/pendency';
+import type { InternalAttachment } from '$lib/types/request';
 import type { RequesterIdentity } from '$lib/types/requester-tracking';
-import { ALLOWED_FILE_EXTENSIONS, ALLOWED_FILE_TYPES, MAX_FILE_SIZE } from '$lib/types/request';
 import { ApiError, type Result } from '$lib/types/result';
+import {
+	MAX_ATTACHMENTS,
+	validatePendingAttachmentBatch,
+	validatePendingAttachmentFile
+} from '$lib/pendency/pending-attachments';
 
 export async function listPendencies(
 	protocol: string,
@@ -145,10 +151,31 @@ export function buildCreatePendingItemsPayload(draft: PendingBatchDraft): Create
 
 // ---- Regras do lote (uma pendência = um `batchId`) ----
 
-// Agrupa os itens em blocos de pendência para a visão do analista (§5).
+// Agrupa os itens em blocos de pendência (§5). Aceita o envelope do GET
+// (`ListPendingItemsResponse`) ou o array de itens — a flag `requestAttachment`
+// do lote vigente vem do envelope e é a ÚNICA fonte de verdade para o upload
+// (nunca `?? true`: lote sem flag conhecida não exibe upload).
 // Ordenação cronológica: lote mais antigo primeiro; dentro do lote, a
 // observação geral primeiro e depois os campos por criação.
-export function toPendingBatches(items: PendingItem[]): PendingBatch[] {
+export function toPendingBatches(
+	input: PendingItem[] | ListPendingItemsResponse | null | undefined,
+	flagsByBatch?: ReadonlyMap<string, boolean> | Record<string, boolean>
+): PendingBatch[] {
+	const items: PendingItem[] = Array.isArray(input)
+		? input
+		: (input?.items ?? []);
+	const envelope: ListPendingItemsResponse | null =
+		input && !Array.isArray(input) ? input : null;
+
+	const flagOf = (batchId: string): boolean => {
+		if (flagsByBatch instanceof Map) return flagsByBatch.get(batchId) ?? false;
+		if (flagsByBatch) {
+			return (flagsByBatch as Record<string, boolean | undefined>)[batchId] ?? false;
+		}
+		if (envelope && envelope.batchId === batchId) return envelope.requestAttachment === true;
+		return false;
+	};
+
 	const byBatch = new Map<string, PendingItem[]>();
 	for (const item of items) {
 		const group = byBatch.get(item.batchId);
@@ -169,6 +196,7 @@ export function toPendingBatches(items: PendingItem[]): PendingBatch[] {
 		batches.push({
 			batchId,
 			protocol: sorted[0]?.protocol ?? '',
+			requestAttachment: flagOf(batchId),
 			items: sorted,
 			observation,
 			fields,
@@ -241,15 +269,16 @@ export async function respondPendingItemAsRequester(
 
 // Anexo do solicitante — POST
 // .../pending-items/:pendingItemId/attachments (`multipart/form-data`, campo
-// `file`; PDF/DOCX/XLSX/PNG/JPG, 10 MB). Separado do PATCH; o upload pode
-// acontecer em qualquer item do lote (`requestAttachment` é do lote).
+// `file`; PDF/DOCX/XLSX/PNG/JPG, 10 MB; resposta `201 InternalAttachment`).
+// Separado do PATCH; o upload pode acontecer em qualquer item do lote
+// (`requestAttachment` é do lote). A validação de arquivo roda antes do envio.
 export async function uploadPendingItemAttachmentAsRequester(
 	protocol: string,
 	pendingItemId: string,
 	file: File,
 	identity?: RequesterIdentity | null,
 	fetchImpl?: typeof fetch
-): Promise<Result<PendingItem>> {
+): Promise<Result<InternalAttachment>> {
 	const validation = validateAttachmentFile(file);
 	if (validation) {
 		return { ok: false, error: { message: validation } };
@@ -284,19 +313,42 @@ export async function uploadPendingItemAttachmentAsRequester(
 	}
 }
 
+// Validação de UM arquivo antes do upload (tipo → tamanho). Para as regras
+// do lote (máximo de 3, duplicados), usar `validatePendingAttachmentSelection`
+// com os anexos já enviados/selecionados.
 export function validateAttachmentFile(file: File): string | null {
-	if (!file || file.size <= 0) return 'Selecione um arquivo para enviar.';
-	const extension = `.${file.name.split('.').pop()?.toLowerCase() ?? ''}`;
-	const typeValid = (ALLOWED_FILE_TYPES as readonly string[]).includes(file.type);
-	const extensionValid = (ALLOWED_FILE_EXTENSIONS as readonly string[]).includes(extension);
-	if (!typeValid || !extensionValid) {
-		return 'Tipo de arquivo não permitido. Use PDF, DOCX, XLSX, PNG ou JPG.';
-	}
-	if (file.size > MAX_FILE_SIZE) {
-		return 'Arquivo excede o tamanho máximo de 10 MB.';
-	}
-	return null;
+	return validatePendingAttachmentFile(file);
 }
+
+export interface PendingAttachmentSelection {
+	valid: File[];
+	rejected: { file: File; message: string }[];
+}
+
+/**
+ * Valida uma seleção de arquivos contra o estado do lote: máximo de
+ * `MAX_ATTACHMENTS` (enviados + seleção atual), 10 MB por arquivo,
+ * PDF/DOCX/XLSX/PNG/JPG e sem duplicados (`name + size + type`). Não envia
+ * nada — só classifica em `valid`/`rejected` para a UI exibir por arquivo.
+ */
+export function validatePendingAttachmentSelection(
+	files: readonly File[],
+	options: {
+		sentAttachments?: readonly InternalAttachment[];
+		alreadySelected?: readonly File[];
+	} = {}
+): PendingAttachmentSelection {
+	return validatePendingAttachmentBatch(files, {
+		sentAttachments: (options.sentAttachments ?? []).map((attachment) => ({
+			fileName: attachment.fileName,
+			sizeBytes: attachment.sizeBytes,
+			mimeType: attachment.mimeType
+		})),
+		alreadySelected: options.alreadySelected
+	});
+}
+
+export { MAX_ATTACHMENTS };
 
 function validateRespondBody(item: PendingItem, body: RespondPendingItemBody): string | null {
 	if (item.status !== 'requested') {
@@ -337,17 +389,11 @@ export function countUnreadRequesterItems(items: PendingItem[]): number {
 	return items.filter((item) => item.status === 'requested').length;
 }
 
-// Exigência de anexo do LOTE (contrato v0.5 §10: `requestAttachment` é do
-// `batchId`, nunca do campo). O GET de listagem ainda não expõe o flag do
-// lote — lê defensivamente um eventual campo de lote futuro; quando ausente,
-// o upload continua disponível e o backend valida (ver §10 implementado no
-// card: anexos de qualquer item contam para o lote).
+// Exigência de anexo do LOTE: `requestAttachment` é flag do `batchId` vinda
+// do GET (`ListPendingItemsResponse`) — nunca de campo individual e nunca com
+// fallback para `true`. Somente `=== true` exibe o upload no solicitante.
 export function doesBatchRequireAttachment(batch: PendingBatch): boolean {
-	for (const item of batch.items) {
-		const flag = (item as unknown as Record<string, unknown>)['requestAttachment'];
-		if (flag === true) return true;
-	}
-	return false;
+	return batch.requestAttachment === true;
 }
 
 // Lote completo para o solicitante: todos os itens `responded`/`validated` +

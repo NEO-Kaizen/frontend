@@ -11,6 +11,7 @@ import type {
 	ReviewPendingItemsBody,
 	ReviewPendingItemsResponse
 } from '$lib/types/pendency';
+import type { InternalAttachment } from '$lib/types/request';
 import type { RequesterIdentity } from '$lib/types/requester-tracking';
 
 // Contrato de pendências (contract-pendencias v0.5).
@@ -19,10 +20,6 @@ function pendingItemsPath(protocol: string): string {
 	return `/requests/${encoded}/pending-items`;
 }
 
-// Listagem — GET /requests/:protocol/pending-items (contrato v0.5 §7):
-// retorna `PendingItem[]` direto, sem envelope paginado e sem query (lista
-// curta, ordem cronológica; o front agrupa por `batchId`). O backend já filtra
-// a visibilidade. `fetchImpl` é o fetch do `load` quando chamado no servidor.
 export async function getPendingItems(
 	protocol: string,
 	identity?: RequesterIdentity | null,
@@ -101,18 +98,13 @@ export async function respondPendingItem(
 	);
 }
 
-// Anexo do solicitante — POST
-// /requests/:protocol/pending-items/:pendingItemId/attachments (contrato v0.5
-// §9): `multipart/form-data`, campo `file`. Separado do PATCH de resposta.
-// O upload pode acontecer em qualquer item do lote (`requestAttachment` é do
-// lote, não do item).
 export async function uploadPendingItemAttachment(
 	protocol: string,
 	pendingItemId: string,
 	file: File,
 	identity?: RequesterIdentity | null,
 	fetchImpl?: typeof fetch
-): Promise<PendingItem> {
+): Promise<InternalAttachment> {
 	if (!file) {
 		throw new ApiError(400, 'Selecione um arquivo para enviar.');
 	}
@@ -135,7 +127,7 @@ export async function uploadPendingItemAttachment(
 	const formData = new FormData();
 	formData.append('file', file);
 
-	return apiClient<PendingItem>(
+	return apiClient<InternalAttachment>(
 		`${pendingItemsPath(protocol)}/${encodeURIComponent(pendingItemId)}/attachments`,
 		{
 			method: 'POST',

@@ -96,9 +96,11 @@ export function getSessionTracking(
 	});
 }
 
-// GET /requests/:protocol/pending-items (contrato v0.5 §7): `PendingItem[]`
-// sem paginação; o backend filtra a visibilidade. O front agrupa por `batchId`
-// (`toPendingBatches` em `pendency.service.ts`).
+// GET /requests/:protocol/pending-items (contrato v0.5 §7): envelope
+// `ListPendingItemsResponse` (`batchId` + `requestAttachment` do lote vigente +
+// `items`); o front agrupa por `batchId` (`toPendingBatches` em
+// `pendency.service.ts`) e usa `requestAttachment` como única fonte de verdade
+// para exibir o upload.
 export function getPendingItems(
 	protocol: string,
 	identity?: RequesterIdentity | null,

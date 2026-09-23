@@ -5,8 +5,9 @@
 		doesBatchRequireAttachment,
 		isBatchCompleteForRequester,
 		isPendingItemOverdue,
+		MAX_ATTACHMENTS,
 		uploadPendingItemAttachmentAsRequester,
-		validateAttachmentFile
+		validatePendingAttachmentSelection
 	} from '$lib/services/pendency.service';
 	import { toastState } from '$lib/states/toast.svelte';
 	import type { PendingBatch, PendingItem } from '$lib/types/pendency';
@@ -91,12 +92,25 @@
 		batch.items.map((item) => item.deadline).filter((value) => value != null)
 	);
 
+	interface PendingUploadEntry {
+		id: string;
+		file: File;
+		error: string | null;
+	}
+
 	let fileInput: HTMLInputElement | null = $state(null);
-	let uploadError = $state<string | null>(null);
+	let pendingFiles = $state<PendingUploadEntry[]>([]);
+	let selectionErrors = $state<{ fileName: string; message: string }[]>([]);
 	let isUploading = $state(false);
+	let uploadSequence = $state(0);
+
+	const sentCount = $derived(batchAttachments.length);
+	const attachmentCounter = $derived(`${sentCount}/${MAX_ATTACHMENTS}`);
+	const remainingSlots = $derived(MAX_ATTACHMENTS - sentCount - pendingFiles.length);
+	const canUpload = $derived(requiresAttachment && uploadTargetId !== null);
+	const limitReached = $derived(sentCount + pendingFiles.length >= MAX_ATTACHMENTS);
 
 	function openFilePicker(): void {
-		uploadError = null;
 		fileInput?.click();
 	}
 
@@ -106,45 +120,87 @@
 		return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 	}
 
-	async function handleFileChange(event: Event): Promise<void> {
+	function handleFilesSelected(event: Event): void {
 		const input = event.target as HTMLInputElement;
-		const file = input.files?.[0] ?? null;
+		const files = input.files ? Array.from(input.files) : [];
 		input.value = '';
-		if (!file || !uploadTargetId || isUploading) return;
+		if (files.length === 0 || isUploading) return;
 
-		const validation = validateAttachmentFile(file);
-		if (validation) {
-			uploadError = validation;
-			return;
+		const { valid, rejected } = validatePendingAttachmentSelection(files, {
+			sentAttachments: batchAttachments.map((entry) => entry.attachment),
+			alreadySelected: pendingFiles.map((entry) => entry.file)
+		});
+
+		selectionErrors = rejected.map(({ file, message }) => ({
+			fileName: file.name,
+			message
+		}));
+
+		if (valid.length > 0) {
+			pendingFiles = [
+				...pendingFiles,
+				...valid.map((file) => {
+					uploadSequence += 1;
+					return { id: `pending-${uploadSequence}`, file, error: null };
+				})
+			];
 		}
+	}
+
+	function removePendingFile(id: string): void {
+		if (isUploading) return;
+		pendingFiles = pendingFiles.filter((entry) => entry.id !== id);
+	}
+
+	async function handleSendPending(): Promise<void> {
+		if (isUploading || pendingFiles.length === 0 || !uploadTargetId) return;
 
 		isUploading = true;
-		uploadError = null;
-		const result = await uploadPendingItemAttachmentAsRequester(
-			protocol,
-			uploadTargetId,
-			file,
-			identity
-		);
-		isUploading = false;
+		let sent = 0;
 
-		if (!result.ok) {
+		for (const entry of pendingFiles) {
+			pendingFiles = pendingFiles.map((candidate) =>
+				candidate.id === entry.id ? { ...candidate, error: null } : candidate
+			);
+
+			const result = await uploadPendingItemAttachmentAsRequester(
+				protocol,
+				uploadTargetId,
+				entry.file,
+				identity
+			);
+
+			if (result.ok) {
+				sent += 1;
+				pendingFiles = pendingFiles.filter((candidate) => candidate.id !== entry.id);
+				continue;
+			}
+
 			if (result.error.status === 401) {
 				onUnauthorized();
-				return;
+				break;
 			}
 			if (result.error.status === 409) {
 				toastState.add(result.error.message, 'error');
 				onRevalidate();
-				return;
+				break;
 			}
-			uploadError = result.error.message;
-			toastState.add(result.error.message, 'error');
-			return;
+			pendingFiles = pendingFiles.map((candidate) =>
+				candidate.id === entry.id ? { ...candidate, error: result.error.message } : candidate
+			);
+			toastState.add(`“${entry.file.name}”: ${result.error.message}`, 'error');
 		}
 
-		toastState.add('Anexo enviado com sucesso.', 'success');
-		onRevalidate();
+		isUploading = false;
+
+		if (sent > 0) {
+			toastState.add(
+				sent === 1 ? 'Anexo enviado com sucesso.' : `${sent} anexos enviados com sucesso.`,
+				'success'
+			);
+			selectionErrors = [];
+			onRevalidate();
+		}
 	}
 </script>
 
@@ -253,7 +309,7 @@
 			<div class="attachments-block">
 				<p class="attachments-title">
 					<Icon iconName="cloudUpload" iconSize="sm" />
-					<span>Anexos do lote</span>
+					<span>Anexos do lote ({attachmentCounter})</span>
 					{#if requiresAttachment}
 						<span class="required-tag">Solicitado pelo analista</span>
 					{/if}
@@ -262,7 +318,7 @@
 					<p class="attachments-empty">Nenhum anexo enviado neste lote.</p>
 				{:else}
 					<ul class="attachments-list">
-						{#each batchAttachments as entry (entry.itemId + entry.attachment.fileName)}
+						{#each batchAttachments as entry (entry.itemId + entry.attachment.fileName + entry.attachment.sizeBytes)}
 							<li class="attachment-item">
 								<span class="attachment-name">{entry.attachment.fileName}</span>
 								<span class="attachment-meta">
@@ -282,24 +338,76 @@
 						{/each}
 					</ul>
 				{/if}
-				{#if uploadTargetId}
+				{#if canUpload}
 					<input
 						bind:this={fileInput}
 						type="file"
-						accept=".pdf,.docx,.xlsx,.png,.jpg"
-						onchange={handleFileChange}
+						multiple
+						accept=".pdf,.docx,.xlsx,.png,.jpg,.jpeg"
+						onchange={handleFilesSelected}
 						aria-hidden="true"
 						tabindex="-1"
 						hidden
 					/>
-					<div class="upload-row">
-						<Button variant="outline" disabled={isUploading} onclick={openFilePicker}>
-							{isUploading ? 'Enviando…' : 'Anexar arquivo'}
-						</Button>
-						<span class="upload-hint">PDF, DOCX, XLSX, PNG ou JPG (Máx. 10 MB)</span>
-					</div>
-					{#if uploadError}
-						<p class="upload-error" role="alert">{uploadError}</p>
+					{#if limitReached}
+						<p class="upload-hint" role="status">
+							Limite de {MAX_ATTACHMENTS} anexos por pendência atingido ({attachmentCounter}).
+						</p>
+					{:else}
+						<div class="upload-row">
+							<Button variant="outline" disabled={isUploading} onclick={openFilePicker}>
+								{isUploading ? 'Enviando…' : 'Anexar arquivo'}
+							</Button>
+							<span class="upload-hint">
+								PDF, DOCX, XLSX, PNG ou JPG (Máx. 10 MB cada · {attachmentCounter}
+								{remainingSlots === 1 ? '· 1 vaga restante' : `· ${remainingSlots} vagas restantes`})
+							</span>
+						</div>
+					{/if}
+					{#if selectionErrors.length > 0}
+						<ul class="upload-error-list">
+							{#each selectionErrors as rejection (rejection.fileName + rejection.message)}
+								<li class="upload-error" role="alert">
+									“{rejection.fileName}”: {rejection.message}
+								</li>
+							{/each}
+						</ul>
+					{/if}
+					{#if pendingFiles.length > 0}
+						<ul class="pending-list" aria-label="Arquivos aguardando envio">
+							{#each pendingFiles as entry (entry.id)}
+								<li class="pending-item">
+									<span class="pending-name">{entry.file.name}</span>
+									<span class="pending-meta">{formatBytes(entry.file.size)}</span>
+									<button
+										type="button"
+										class="pending-remove"
+										disabled={isUploading}
+										aria-label={`Remover ${entry.file.name} da seleção`}
+										onclick={() => removePendingFile(entry.id)}
+									>
+										Remover
+									</button>
+									{#if entry.error}
+										<span class="pending-error" role="alert">{entry.error}</span>
+									{/if}
+								</li>
+							{/each}
+						</ul>
+						<div class="upload-row">
+							<Button
+								variant="primary"
+								loading={isUploading}
+								disabled={isUploading}
+								onclick={() => void handleSendPending()}
+							>
+								{isUploading
+									? 'Enviando…'
+									: pendingFiles.length === 1
+										? 'Enviar 1 anexo'
+										: `Enviar ${pendingFiles.length} anexos`}
+							</Button>
+						</div>
 					{/if}
 				{/if}
 			</div>
@@ -640,6 +748,77 @@
 		margin: 0;
 		font-family: var(--font-inter);
 		font-size: 13px;
+		color: var(--status-red);
+	}
+
+	.upload-error-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+	}
+
+	.pending-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+	}
+
+	.pending-item {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		flex-wrap: wrap;
+		padding: 6px 10px;
+		background: var(--background-color);
+		border-radius: var(--radius-sm);
+		font-family: var(--font-inter);
+		font-size: 13px;
+	}
+
+	.pending-name {
+		font-weight: 600;
+		color: var(--black);
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
+
+	.pending-meta {
+		font-size: 12px;
+		color: var(--gray);
+	}
+
+	.pending-remove {
+		margin-left: auto;
+		padding: 2px 8px;
+		border: var(--border-default);
+		border-radius: var(--radius-sm);
+		background: var(--white);
+		color: var(--gray);
+		font-family: var(--font-inter);
+		font-size: 12px;
+		font-weight: 600;
+		cursor: pointer;
+	}
+
+	.pending-remove:hover:not(:disabled) {
+		color: var(--status-red);
+		border-color: var(--status-red);
+	}
+
+	.pending-remove:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
+	}
+
+	.pending-error {
+		flex-basis: 100%;
+		font-size: 12px;
 		color: var(--status-red);
 	}
 

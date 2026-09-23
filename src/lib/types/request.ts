@@ -328,9 +328,11 @@ export const ALLOWED_FILE_TYPES = [
 	'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 ] as const;
 
-export const ALLOWED_FILE_EXTENSIONS = ['.pdf', '.docx', '.xlsx', '.png', '.jpg'] as const;
+export const ALLOWED_FILE_EXTENSIONS = ['.pdf', '.docx', '.xlsx', '.png', '.jpg', '.jpeg'] as const;
 
 export const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+export const MAX_PENDING_ATTACHMENTS_PER_BATCH = 3;
 
 // ---- Endpoints GET (contrato firmado; páginas futuras) ----
 

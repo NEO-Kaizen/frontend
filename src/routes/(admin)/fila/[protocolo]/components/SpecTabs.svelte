@@ -111,7 +111,7 @@
 	// Lotes visuais do histórico (uma pendência = um `batchId`, §5) a partir da
 	// listagem do server load. O badge conta itens `responded` — respostas
 	// aguardando revisão do analista.
-	const pendencyBatches = $derived<PendingBatch[]>(toPendingBatches(pendencies ?? []));
+	const pendencyBatches = $derived<PendingBatch[]>(toPendingBatches(pendencies));
 	const respondedPendencyCount = $derived(
 		pendencyBatches.reduce((count, batch) => count + batch.respondedCount, 0)
 	);

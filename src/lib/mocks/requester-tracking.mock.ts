@@ -7,7 +7,12 @@ import type {
 	RequesterRequestDetails,
 	TrackingDetailsResponse
 } from '$lib/types/requester-tracking';
-import type { PendingItem, RespondPendingItemBody } from '$lib/types/pendency';
+import type {
+	ListPendingItemsResponse,
+	PendingItem,
+	RespondPendingItemBody
+} from '$lib/types/pendency';
+import type { InternalAttachment } from '$lib/types/request';
 import type { MockAttachmentMeta } from './pendency.mock';
 import { ApiError } from '$lib/types/result';
 
@@ -257,7 +262,9 @@ export function getSessionTrackingMock(protocol: string): Promise<TrackingDetail
 // do analista); aqui só se exige a validação pública antes de delegar. O
 // fluxo autenticado usa `pendency.mock` direto (sem gating).
 
-export async function listPendingItemsPublicMock(protocol: string): Promise<PendingItem[]> {
+export async function listPendingItemsPublicMock(
+	protocol: string
+): Promise<ListPendingItemsResponse> {
 	requirePublicAccess(protocol);
 	if (!findFixture(protocol)) throw new ApiError(404, 'Solicitação não encontrada');
 	const { listPendingItemsMock } = await import('./pendency.mock');
@@ -278,7 +285,7 @@ export async function uploadPendingItemAttachmentPublicMock(
 	protocol: string,
 	pendingItemId: string,
 	file: MockAttachmentMeta
-): Promise<PendingItem> {
+): Promise<InternalAttachment> {
 	requirePublicAccess(protocol);
 	const { uploadPendingItemAttachmentMock } = await import('./pendency.mock');
 	return uploadPendingItemAttachmentMock(protocol, pendingItemId, file);

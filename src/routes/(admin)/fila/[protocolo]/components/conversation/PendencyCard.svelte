@@ -83,6 +83,9 @@
 		} else if (statusConfig.summaryStatus) {
 			parts.push(statusConfig.summaryStatus);
 		}
+		if (batch.requestAttachment) {
+			parts.push('anexo solicitado');
+		}
 		if (attachmentCount > 0) {
 			parts.push(`${attachmentCount} ${pluralize(attachmentCount, 'anexo', 'anexos')}`);
 		}

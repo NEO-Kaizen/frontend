@@ -93,7 +93,7 @@
 		const result = await listPendencies(protocol);
 
 		if (result.ok) {
-			items = result.data;
+			items = result.data.items;
 		} else {
 			errorMessage = result.error.message;
 		}

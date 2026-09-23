@@ -84,7 +84,7 @@
 	// Bloqueio de nova pendência (§4/§9): enquanto existir lote em aberto
 	// (qualquer item sem decisão), o analista não pode criar outra pendência.
 	// Recalculado a cada load — após criar/revisar, `invalidateAll` recarrega.
-	const openBatch = $derived(findOpenBatch(toPendingBatches(pendencies ?? [])));
+	const openBatch = $derived(findOpenBatch(toPendingBatches(pendencies)));
 	const isPendencyBlocked = $derived(openBatch !== null);
 
 	function enterPendencyMode(draft?: { observation: string; requestAttachment: boolean }): void {
