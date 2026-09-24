@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { invalidateAll, goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onDestroy, tick } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
@@ -7,12 +7,30 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import { canEditSolicitation, canViewTriage } from '$lib/services/access.service';
+	import {
+		buildCreatePendingItemsPayload,
+		findOpenBatch,
+		listPendencies,
+		requestFieldChange,
+		toPendingBatches
+	} from '$lib/services/pendency.service';
 	import { updateInternalRequest } from '$lib/services/request.service';
 	import { toastState } from '$lib/states/toast.svelte';
-	import type { InternalNote, InternalNotesResponse } from '$lib/types/internal-note';
+	import type {
+		InternalNotesResponse,
+		MappingHistoryEntry,
+		TimelineItem,
+		TimelineNote,
+		TriageHistoryEntry
+	} from '$lib/types/internal-note';
+	import type { ListPendenciesResponse, PendingBatch } from '$lib/types/pendency';
 	import type { InternalRequestDetail } from '$lib/types/request';
+	import type { Result } from '$lib/types/result';
 	import InternalNotesSection from './InternalNotesSection.svelte';
+	import ConversationHistory from './conversation/ConversationHistory.svelte';
 	import MappingSection from './mapping/MappingSection.svelte';
+	import PendingItemsModal from './pendency/PendingItemsModal.svelte';
+	import PendencyRequestModal from './pendency/PendencyRequestModal.svelte';
 	import InfoSection from './solicitation-info/InfoSection.svelte';
 	import TriageSection from './triagem/TriageSection.svelte';
 	import {
@@ -29,8 +47,19 @@
 		solicitation: InternalRequestDetail;
 		internalNotes: InternalNotesResponse | null;
 		internalNotesError: string | null;
+		pendencies: ListPendenciesResponse | null;
+		pendenciesError: string | null;
 		onSaveSuccess?: (updated: InternalRequestDetail) => void;
 		onSaveError?: (message: string) => void;
+		isPendencyMode?: boolean;
+		pendencyCount?: number;
+		isPendencySaving?: boolean;
+		markedFieldKeys?: ReadonlySet<string>;
+		onFieldPendencyClick?: (path: string) => void;
+		onFieldPendencyRemove?: (path: string) => void;
+		onPendencySave?: () => void;
+		onPendencyCancel?: () => void;
+		onRequestFieldChange?: (draft?: { observation: string; requestAttachment: boolean }) => void;
 		onTriageSuccess?: (updated: InternalRequestDetail) => void;
 		onOpenCalculator?: () => void;
 	}
@@ -39,27 +68,48 @@
 		solicitation,
 		internalNotes,
 		internalNotesError,
+		pendencies,
+		pendenciesError,
 		onSaveSuccess,
 		onSaveError,
+		isPendencyMode = false,
+		pendencyCount = 0,
+		isPendencySaving = false,
+		markedFieldKeys = new Set<string>(),
+		onFieldPendencyClick,
+		onFieldPendencyRemove,
+		onPendencySave,
+		onPendencyCancel,
+		onRequestFieldChange,
 		onTriageSuccess,
 		onOpenCalculator
 	}: Props = $props();
 
 	function getInitialInternalNotesState(): {
-		items: InternalNote[];
+		// A página chega mais-recente-primeiro (D-N7) → invertida aqui para a
+		// ordem canônica exibida (mais antigo primeiro — §8).
+		items: TimelineItem[];
+		nextCursor: string | null;
 		unseenCount: number;
 		loadError: string | null;
 	} {
 		return {
-			items: [...(internalNotes?.items ?? [])],
+			items: [...(internalNotes?.items ?? [])].reverse(),
+			nextCursor: internalNotes?.nextCursor ?? null,
 			unseenCount: internalNotes?.unseenCount ?? 0,
 			loadError: internalNotesError
 		};
 	}
 
 	const initialInternalNotesState = getInitialInternalNotesState();
-	let internalNoteItems = $state<InternalNote[]>(initialInternalNotesState.items);
+	let timelineItems = $state<TimelineItem[]>(initialInternalNotesState.items);
+	let timelineNextCursor = $state<string | null>(initialInternalNotesState.nextCursor);
 	let internalNotesUnseenCount = $state(initialInternalNotesState.unseenCount);
+	// Históricos completos (D-N14) — não paginados, idênticos em toda página.
+	// Espelhos puros do server load: `$derived` mantém a aba sincronizada após
+	// `invalidateAll` (ex.: ao finalizar uma triagem) sem refetch próprio.
+	const triages: TriageHistoryEntry[] = $derived(internalNotes?.triages ?? []);
+	const mappings: MappingHistoryEntry[] = $derived(internalNotes?.mappings ?? []);
 	let internalNotesLoadError = $state<string | null>(initialInternalNotesState.loadError);
 
 	type SpecTabId = 'informacoes' | 'triagem' | 'mapeamento' | 'historico' | 'observacoes';
@@ -79,8 +129,66 @@
 	// a aba em `informacoes` para não perder o rascunho).
 	let isEditMode = $state(false);
 
+	// Lotes visuais do histórico (uma pendência = um `batchId`, §5) a partir da
+	// listagem do server load. O badge conta itens `responded` — respostas
+	// aguardando revisão do analista.
+	const pendencyBatches = $derived<PendingBatch[]>(toPendingBatches(pendencies));
+	const respondedPendencyCount = $derived(
+		pendencyBatches.reduce((count, batch) => count + batch.respondedCount, 0)
+	);
+
+	// Criação direta pela aba de histórico (§4): mesmo modal de lote único da
+	// 123, com seleção de campos interna. Bloqueada com lote em aberto (D-P22).
+	const openBatch = $derived(findOpenBatch(pendencyBatches));
+
+	let showCreateModal = $state(false);
+	let isCreateSaving = $state(false);
+	let createError = $state<string | null>(null);
+
+	function handleOpenCreate(): void {
+		if (openBatch) return;
+		createError = null;
+		showCreateModal = true;
+	}
+
+	// Atalho do modal para o fluxo de alteração de campos do Quick Action
+	// (marcação por campo): fecha o modal e reutiliza aquele fluxo — sem
+	// duplicar a implementação. Repassa o rascunho (observação + anexo)
+	// digitado no modal para que o fluxo de marcação o preserve.
+	function handleRequestFieldChange(draft?: {
+		observation: string;
+		requestAttachment: boolean;
+	}): void {
+		showCreateModal = false;
+		onRequestFieldChange?.(draft);
+	}
+
+	async function handleCreateConfirm(value: {
+		observation: string;
+		requestAttachment: boolean;
+		items: { fieldKey: string; comment: string }[];
+	}): Promise<void> {
+		if (isCreateSaving || openBatch) return;
+		const payload = buildCreatePendingItemsPayload({
+			observation: value.observation,
+			requestAttachment: value.requestAttachment,
+			items: value.items
+		});
+		isCreateSaving = true;
+		createError = null;
+		const result = await requestFieldChange(solicitation.protocol, payload);
+		isCreateSaving = false;
+		if (result.ok) {
+			showCreateModal = false;
+			toastState.add('Pendência solicitada com sucesso.', 'success');
+			await invalidateAll();
+		} else {
+			createError = result.error.message;
+		}
+	}
+
 	// O badge de observações representa itens ainda não visualizados pelo usuário,
-	// não notificações. Histórico permanece desabilitado até seu domínio existir.
+	// não notificações.
 	let specTabs = $derived<readonly SpecTabDefinition[]>([
 		{ id: 'informacoes', label: 'Informações', icon: 'description', enabled: true },
 		{ id: 'triagem', label: 'Triagem', icon: 'filter', enabled: true },
@@ -92,9 +200,10 @@
 		},
 		{
 			id: 'historico',
-			label: 'Histórico de Conversa',
+			label: 'Histórico de Pendências',
 			icon: 'history',
-			enabled: false
+			enabled: true,
+			badge: respondedPendencyCount > 0 ? respondedPendencyCount : undefined
 		},
 		{
 			id: 'observacoes',
@@ -165,18 +274,26 @@
 		}
 	}
 
+	// Ao entrar no modo de marcação, a aba de Informações é obrigatória (é onde
+	// os campos editáveis ficam visíveis). Rascunho é mantido entre abas.
+	$effect(() => {
+		if (isPendencyMode && !wasPendencyMode) {
+			ensureInfoTab();
+		}
+		wasPendencyMode = isPendencyMode;
+	});
+
 	// ---- Modo de edição (issue #121) ----
 
 	let draft = $state<EditableDraft | null>(null);
 	let errors = $state<Record<string, string>>({});
 	let isSaving = $state(false);
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	let saveError = $state<string | null>(null);
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	let saveSuccess = $state<string | null>(null);
 	let showDiscardModal = $state(false);
 	let editButton = $state<HTMLButtonElement | null>(null);
 	let detailsCard = $state<HTMLElement | null>(null);
+	let wasPendencyMode = false;
 
 	const SAVE_SUCCESS_TIMEOUT_MS = 4000;
 	let saveSuccessTimer: ReturnType<typeof setTimeout> | undefined;
@@ -190,6 +307,8 @@
 	}
 
 	onDestroy(clearSaveSuccess);
+
+	const successMessage = $derived(saveSuccess);
 
 	const prefersReducedMotion =
 		typeof window !== 'undefined' &&
@@ -314,21 +433,64 @@
 	}
 
 	function handleInternalNotesLoaded(response: InternalNotesResponse): void {
-		internalNoteItems = response.items;
+		timelineItems = [...response.items].reverse();
+		timelineNextCursor = response.nextCursor;
 		internalNotesUnseenCount = response.unseenCount;
 		internalNotesLoadError = null;
+		// `triages`/`mappings` derivam do server load; revalida o load para
+		// manter os históricos em sincronia após um reload manual.
+		void invalidateAll();
+	}
+
+	// Página mais antiga (já em ordem canônica) entra acima da janela atual;
+	// unseenCount e históricos são idênticos em toda página (D-N9/D-N14) —
+	// este handler não toca neles.
+	function handleInternalNotesOlderLoaded(
+		olderItems: TimelineItem[],
+		nextCursor: string | null
+	): void {
+		timelineItems = [...olderItems, ...timelineItems];
+		timelineNextCursor = nextCursor;
 	}
 
 	function handleInternalNotesLoadError(message: string): void {
 		internalNotesLoadError = message;
 	}
 
-	function handleInternalNoteCreated(note: InternalNote): void {
-		internalNoteItems = [...internalNoteItems, note];
+	function handleInternalNoteCreated(note: TimelineNote): void {
+		// POST devolve a nota mais nova → fim da ordem canônica.
+		timelineItems = [...timelineItems, note];
 	}
 
 	function handleInternalNotesMarkedRead(): void {
 		internalNotesUnseenCount = 0;
+	}
+
+	// ---- Histórico de pendências (contrato v0.4, visão do analista) ----
+
+	async function handleRetryPendencies(): Promise<Result<ListPendenciesResponse>> {
+		return listPendencies(solicitation.protocol);
+	}
+
+	// A revisão (individual por item ou parcial do lote, §7–§8) vive no
+	// PendingItemsModal — o histórico só delega, sem duplicar a regra.
+	// `reviewFocusBatchId` abre o modal com a aba de respondidas e rola até o lote.
+	let showReviewModal = $state(false);
+	let reviewFocusBatchId = $state<string | null>(null);
+
+	function handleReviewBatch(batch: PendingBatch): void {
+		reviewFocusBatchId = batch.batchId;
+		showReviewModal = true;
+	}
+
+	function handleReviewModalClose(): void {
+		showReviewModal = false;
+		reviewFocusBatchId = null;
+	}
+
+	async function handleReviewSaved(): Promise<void> {
+		handleReviewModalClose();
+		await invalidateAll();
 	}
 </script>
 
@@ -354,7 +516,12 @@
 					<Icon iconName={tab.icon} iconSize="sm" />
 					<span>{tab.label}</span>
 					{#if tab.badge}
-						<span class="tab-badge" aria-label={`${tab.badge} observações ainda não visualizadas`}>
+						<span
+							class="tab-badge"
+							aria-label={tab.id === 'historico'
+								? `${tab.badge} respostas de pendência aguardando revisão`
+								: `${tab.badge} observações ainda não visualizadas`}
+						>
 							{tab.badge}
 						</span>
 					{/if}
@@ -370,27 +537,63 @@
 					in:fly={editActionsFlight.in}
 					out:fly={editActionsFlight.out}
 				>
-					<button
-						type="button"
-						class="btn-save"
+					<Button
+						variant="primary"
 						disabled={isSaving}
-						aria-busy={isSaving}
+						loading={isSaving}
 						title={isSaving ? 'Salvando alterações…' : 'Salvar alterações'}
 						onclick={handleSave}
 					>
 						<Icon iconName="check" iconSize="sm" />
 						<span>{isSaving ? 'Salvando…' : 'Salvar'}</span>
-					</button>
-					<button
-						type="button"
-						class="btn-cancel"
+					</Button>
+					<Button
+						variant="outline-neutral"
 						disabled={isSaving}
 						title="Descartar alterações e voltar"
 						onclick={handleCancel}
 					>
 						<Icon iconName="close" iconSize="sm" />
 						<span>Cancelar</span>
-					</button>
+					</Button>
+				</div>
+			{:else if isPendencyMode}
+				<div
+					class="edit-actions"
+					role="group"
+					aria-label="Ações de solicitação de alteração"
+					in:fly={editActionsFlight.in}
+					out:fly={editActionsFlight.out}
+				>
+					<Button
+						variant="primary"
+						disabled={isPendencySaving}
+						loading={isPendencySaving}
+						title={isPendencySaving
+							? 'Enviando solicitação…'
+							: pendencyCount === 0
+								? 'Solicitar pendência (observação e/ou campos)'
+								: 'Revisar e solicitar pendência'}
+						onclick={onPendencySave}
+					>
+						<Icon iconName="flag" iconSize="sm" />
+						<span>
+							{isPendencySaving
+								? 'Enviando…'
+								: pendencyCount === 0
+									? 'Solicitar pendência'
+									: `Solicitar pendência (${pendencyCount})`}
+						</span>
+					</Button>
+					<Button
+						variant="outline-neutral"
+						disabled={isPendencySaving}
+						title="Cancelar solicitação de alteração"
+						onclick={onPendencyCancel}
+					>
+						<Icon iconName="close" iconSize="sm" />
+						<span>Cancelar</span>
+					</Button>
 				</div>
 			{:else if canEdit && activeTab === 'informacoes'}
 				<button
@@ -409,7 +612,12 @@
 		</div>
 	</div>
 
-	<!-- Feedback de edição via toast bar (toastState) -->
+	{#if saveError}
+		<p class="save-feedback save-error" role="alert">{saveError}</p>
+	{/if}
+	{#if successMessage && !isEditMode}
+		<p class="save-feedback save-success" role="status">{successMessage}</p>
+	{/if}
 
 	<div
 		id="spec-panel"
@@ -427,6 +635,10 @@
 						{errors}
 						onFieldChange={handleFieldChange}
 						onFieldBlur={handleFieldBlur}
+						{isPendencyMode}
+						{markedFieldKeys}
+						{onFieldPendencyClick}
+						{onFieldPendencyRemove}
 					/>
 				{:else if activeTab === 'triagem'}
 					<TriageSection
@@ -439,13 +651,28 @@
 					/>
 				{:else if activeTab === 'mapeamento'}
 					<MappingSection {solicitation} canEdit={canEditMapping} />
+				{:else if activeTab === 'historico'}
+					<ConversationHistory
+						initialBatches={pendencyBatches}
+						initialLoading={false}
+						initialError={pendenciesError}
+						correctionAlertBatchId={solicitation.correctionAlert?.batchId ?? null}
+						canRequestCreate={!openBatch}
+						onRetry={handleRetryPendencies}
+						onReviewBatch={handleReviewBatch}
+						onRequestCreate={handleOpenCreate}
+					/>
 				{:else if activeTab === 'observacoes'}
 					<InternalNotesSection
 						protocol={solicitation.protocol}
-						notes={internalNoteItems}
+						items={timelineItems}
+						nextCursor={timelineNextCursor}
+						{triages}
+						{mappings}
 						loadError={internalNotesLoadError}
 						currentUserId={currentUser?.id ?? ''}
 						onNotesLoaded={handleInternalNotesLoaded}
+						onOlderLoaded={handleInternalNotesOlderLoaded}
 						onLoadError={handleInternalNotesLoadError}
 						onNoteCreated={handleInternalNoteCreated}
 						onMarkedRead={handleInternalNotesMarkedRead}
@@ -457,6 +684,29 @@
 		{/key}
 	</div>
 </section>
+
+{#if showCreateModal}
+	<PendencyRequestModal
+		entries={[]}
+		isSaving={isCreateSaving}
+		serverError={createError}
+		onConfirm={(value) => void handleCreateConfirm(value)}
+		onRequestFieldChange={handleRequestFieldChange}
+		onclose={() => (showCreateModal = false)}
+	/>
+{/if}
+
+{#if showReviewModal}
+	<PendingItemsModal
+		protocol={solicitation.protocol}
+		{currentUser}
+		assigneeId={solicitation.assignee?.id ?? null}
+		initialTab="responded"
+		focusBatchId={reviewFocusBatchId}
+		onclose={handleReviewModalClose}
+		onSaved={() => void handleReviewSaved()}
+	/>
+{/if}
 
 {#if showDiscardModal}
 	<Modal title="Descartar alterações?" onclose={() => (showDiscardModal = false)}>
@@ -586,52 +836,6 @@
 		gap: 8px;
 	}
 
-	.btn-save,
-	.btn-cancel {
-		display: inline-flex;
-		align-items: center;
-		gap: 6px;
-		padding: 8px 14px;
-		border-radius: var(--radius-sm);
-		border: 1px solid transparent;
-		font-family: var(--font-inter);
-		font-size: 13px;
-		font-weight: 600;
-		color: var(--white);
-		cursor: pointer;
-		white-space: nowrap;
-		transition:
-			opacity 150ms ease,
-			background 150ms ease;
-	}
-
-	.btn-save {
-		background-color: var(--status-green);
-		border-color: var(--status-green);
-	}
-
-	.btn-cancel {
-		background-color: var(--status-red);
-		border-color: var(--status-red);
-	}
-
-	.btn-save:hover:not(:disabled),
-	.btn-cancel:hover:not(:disabled) {
-		opacity: 0.9;
-	}
-
-	.btn-save:focus-visible,
-	.btn-cancel:focus-visible {
-		outline: 2px solid var(--secondary-color);
-		outline-offset: 2px;
-	}
-
-	.btn-save:disabled,
-	.btn-cancel:disabled {
-		cursor: not-allowed;
-		opacity: 0.6;
-	}
-
 	.save-feedback {
 		margin: 0;
 		padding: 10px 14px;
@@ -686,13 +890,6 @@
 		color: var(--gray);
 		padding: var(--spacing-md) 0;
 		margin: 0;
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.btn-save,
-		.btn-cancel {
-			transition: none;
-		}
 	}
 
 	@media (max-width: 768px) {

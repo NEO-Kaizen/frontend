@@ -1,4 +1,5 @@
 import type { CriterionNotes } from './prioritization';
+import type { CorrectionAlert, PendingSummary, UnreadState } from './pendency';
 
 export type RequestStatus =
 	| 'Solicitação enviada'
@@ -327,9 +328,11 @@ export const ALLOWED_FILE_TYPES = [
 	'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 ] as const;
 
-export const ALLOWED_FILE_EXTENSIONS = ['.pdf', '.docx', '.xlsx', '.png', '.jpg'] as const;
+export const ALLOWED_FILE_EXTENSIONS = ['.pdf', '.docx', '.xlsx', '.png', '.jpg', '.jpeg'] as const;
 
 export const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+export const MAX_PENDING_ATTACHMENTS_PER_BATCH = 3;
 
 // ---- Endpoints GET (contrato firmado; páginas futuras) ----
 
@@ -418,9 +421,17 @@ export interface InternalRequestDetail {
 	// Apenas um responsável é vigente por vez: ao atribuir `assignee`,
 	// `mappingAssignee` é `null`, e vice-versa.
 	mappingAssignee?: { id: string | null; name: string | null; email?: string | null } | null;
+	// ID do responsável pelo mapeamento: quando o backend expô-lo, prevalece
+	// sobre `assignee` na permissão de edição da aba Mapeamento.
+	mappingAssigneeId?: string | null;
 	// Prazo da atribuição vigente (ISO "yyyy-mm-dd"). `null` quando não definido.
 	assigneeDeadline: string | null;
-	correctionAlert?: { count: number; message: string } | null;
+	// Leitura estendida do detalhe (contrato de pendências v0.5 §7): alerta de
+	// respostas a aprovar + resumo + não-lidos derivados de `PendingItem`.
+	// `unread` é derivado de `status` (D-P21) — sem "marcar como lido".
+	correctionAlert?: CorrectionAlert | null;
+	pendingSummary?: PendingSummary;
+	unread?: UnreadState;
 
 	// blocos da solicitação
 	requester: RequesterBlock;
