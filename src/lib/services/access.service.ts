@@ -7,7 +7,8 @@ const LOGIN_PATH = '/login' as const;
 const UNAUTHORIZED_PATH = '/sem-autorizacao' as const;
 const CHANGE_PASSWORD_PATH = '/redefinir-senha' as const;
 const HOME_PATH = '/' as const;
-const DASHBOARD_PATH = '/(admin)/home' as const;
+const DASHBOARD_ROUTE = '/(admin)/home' as const;
+const DASHBOARD_PATH = '/home' as const;
 
 type PostLoginRoute = typeof CHANGE_PASSWORD_PATH | typeof DASHBOARD_PATH | typeof HOME_PATH;
 
@@ -99,7 +100,7 @@ export function getHomeRedirect(
 	user: SessionUser | null
 ): Extract<RouteId, '/(admin)/home'> | null {
 	if (user && isInternalProfile(user.role)) {
-		return '/(admin)/home';
+		return DASHBOARD_ROUTE;
 	}
 	return null;
 }
