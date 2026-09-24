@@ -23,14 +23,10 @@ import type {
 const PORTAL_CONFIG_PATH = '/portal-config';
 const ASSETS_SECTION_PATH = `${PORTAL_CONFIG_PATH}/assets`;
 
-function useMock(): boolean {
-	return import.meta.env.DEV && Boolean(MOCK_DOMAINS && MOCK_DOMAINS.portalConfig);
-}
-
 // Leitura da configuração pública do portal (GET). O endpoint real é definido
 // pela issue #90; em dev o mock retorna o estado em memória.
 export async function fetchPortalConfig(fetchImpl?: typeof fetch): Promise<PortalConfig> {
-	if (useMock()) {
+	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.portalConfig) {
 		const { fetchPortalConfigMock } = await import('$lib/mocks/portal-config.mock');
 		return fetchPortalConfigMock();
 	}
@@ -48,7 +44,7 @@ async function patchSection<T>(section: string, body: unknown): Promise<T> {
 }
 
 export async function updateAccess(payload: UpdateAccessRequest): Promise<AccessSection> {
-	if (useMock()) {
+	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.portalConfig) {
 		const { updateAccessMock } = await import('$lib/mocks/portal-config.mock');
 		return updateAccessMock(payload);
 	}
@@ -57,7 +53,7 @@ export async function updateAccess(payload: UpdateAccessRequest): Promise<Access
 }
 
 export async function updateIdentity(payload: UpdateIdentityRequest): Promise<IdentitySection> {
-	if (useMock()) {
+	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.portalConfig) {
 		const { updateIdentityMock } = await import('$lib/mocks/portal-config.mock');
 		return updateIdentityMock(payload);
 	}
@@ -66,7 +62,7 @@ export async function updateIdentity(payload: UpdateIdentityRequest): Promise<Id
 }
 
 export async function updateTheme(payload: UpdateThemeRequest): Promise<ThemeSection> {
-	if (useMock()) {
+	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.portalConfig) {
 		const { updateThemeMock } = await import('$lib/mocks/portal-config.mock');
 		return updateThemeMock(payload);
 	}
@@ -97,7 +93,7 @@ export async function updateAssets(
 		if (file) body.append(key, file);
 	}
 
-	if (useMock()) {
+	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.portalConfig) {
 		const { updateAssetsMock } = await import('$lib/mocks/portal-config.mock');
 		return updateAssetsMock(patch, files);
 	}
@@ -108,7 +104,7 @@ export async function updateAssets(
 export async function updateCategories(
 	payload: UpdateCategoriesRequest
 ): Promise<CategoriesSection> {
-	if (useMock()) {
+	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.portalConfig) {
 		const { updateCategoriesMock } = await import('$lib/mocks/portal-config.mock');
 		return updateCategoriesMock(payload);
 	}
@@ -117,7 +113,7 @@ export async function updateCategories(
 }
 
 export async function updateStatuses(payload: UpdateStatusesRequest): Promise<StatusesSection> {
-	if (useMock()) {
+	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.portalConfig) {
 		const { updateStatusesMock } = await import('$lib/mocks/portal-config.mock');
 		return updateStatusesMock(payload);
 	}
@@ -128,7 +124,7 @@ export async function updateStatuses(payload: UpdateStatusesRequest): Promise<St
 export async function updatePrioritizationWeights(
 	payload: UpdatePrioritizationWeightsRequest
 ): Promise<PrioritizationWeightsSection> {
-	if (useMock()) {
+	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.portalConfig) {
 		const { updatePrioritizationWeightsMock } = await import('$lib/mocks/portal-config.mock');
 		return updatePrioritizationWeightsMock(payload);
 	}
