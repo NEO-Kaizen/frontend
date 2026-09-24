@@ -171,9 +171,13 @@
 	}
 
 	function handleGradientAngleInput(event: Event): void {
-		const value = Number((event.currentTarget as HTMLInputElement).value);
-		if (!Number.isFinite(value)) return;
-		setThemeGradient(editingPalette, { angle: Math.min(360, Math.max(0, Math.round(value))) });
+		const input = event.currentTarget as HTMLInputElement;
+		// Só dígitos, no máximo 3 — escreve o valor normalizado de volta no
+		// campo para que nenhum caractere extra permaneça após virar 360.
+		const digits = input.value.replace(/\D+/g, '').slice(0, 3);
+		const angle = digits === '' ? null : Math.min(360, Math.round(Number(digits)));
+		input.value = String(angle ?? palette.gradient.angle ?? 143);
+		if (angle !== null) setThemeGradient(editingPalette, { angle });
 	}
 
 	const TOKEN_LABELS: Record<ThemeTokenKey, string> = {
