@@ -650,7 +650,11 @@
 						{onOpenCalculator}
 					/>
 				{:else if activeTab === 'mapeamento'}
-					<MappingSection {solicitation} canEdit={canEditMapping} />
+					<MappingSection
+						{solicitation}
+						canEdit={canEditMapping}
+						statuses={page.data.portalConfig.statuses ?? []}
+					/>
 				{:else if activeTab === 'historico'}
 					<ConversationHistory
 						initialBatches={pendencyBatches}
