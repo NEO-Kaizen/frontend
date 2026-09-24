@@ -1,6 +1,7 @@
 import { ApiError } from '$lib/types/result';
 import { computePrioritizationResult, getSavedPrioritizationNotes } from './prioritization.mock';
 import { mockUsers } from './users.mock';
+import { getMeMock } from './auth.mock';
 import type {
 	QueueAssignee,
 	QueueMetricsResponse,
@@ -1397,8 +1398,34 @@ export async function updateRequestStatusMock(
 	if (detail.status === target.name) {
 		return Promise.reject(new ApiError(422, 'Status já é o atual.'));
 	}
-	// Mock não distingue ADMIN vs analista — aceita free ou qualquer isActive (bypass simulado)
-	// Priorizado (isRestricted) só deveria passar se fosse ADMIN; aqui aceita para demo e retorna OVERRIDE
+
+	// Guardas §3.3 espelhadas no DEV: Administrador faz bypass (qualquer
+	// `isActive`); analista exige custódia, solicitação não-terminal e alvo
+	// `free` (isRestricted=false e triageMode/mappingMode === free).
+	const me = await getMeMock();
+	if (me.role !== 'Administrador') {
+		const hasCustody =
+			(detail.assignee?.id != null && detail.assignee.id === me.id) ||
+			(detail.mappingAssignee?.id != null && detail.mappingAssignee.id === me.id) ||
+			(detail.mappingAssigneeId != null && detail.mappingAssigneeId === me.id);
+		if (!hasCustody) {
+			return Promise.reject(
+				new ApiError(403, 'Ação restrita ao Administrador ou ao responsável pela demanda.')
+			);
+		}
+		const current = statuses.find((s) => s.name === detail.status);
+		if (current?.isTerminal) {
+			return Promise.reject(
+				new ApiError(403, 'Solicitação terminal — alteração de status restrita ao Administrador.')
+			);
+		}
+		const isFree =
+			!target.isRestricted && (target.triageMode === 'free' || target.mappingMode === 'free');
+		if (!isFree) {
+			return Promise.reject(new ApiError(403, 'Status alvo não permitido para o seu perfil.'));
+		}
+	}
+
 	const previous = detail.status;
 	(detail as unknown as { status: string }).status = target.name;
 	detail.lastUpdate = new Date().toISOString();
