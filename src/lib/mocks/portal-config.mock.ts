@@ -22,7 +22,6 @@ import {
 	ASSET_KEYS,
 	PRIORITIZATION_CRITERIA,
 	STATUS_TONES,
-	STATUS_VISIBILITIES,
 	THEME_TOKEN_KEYS,
 	type AssetKey,
 	type AccessSection,
@@ -319,9 +318,9 @@ function validateCategories(categories: PortalCategory[]): void {
 	}
 }
 
-// A lista de status é atômica: 1..50 itens, ids presentes, visibility/tone na
-// allowlist, closesRequest/isTriageExit/isActive booleanos, nomes únicos (sem
-// diferenciar maiúsculas) e ao menos um status ativo.
+// A lista de status é atômica: 1..50 itens, ids presentes, order 1..50 único,
+// isCore/isPublic/isTerminal/triageMode/mappingMode/isRestricted, nomes únicos
+// e ao menos um ativo. 409 para rename/remove core (6 vitais).
 function validateStatuses(statuses: PortalStatus[]): void {
 	if (!Array.isArray(statuses) || statuses.length === 0 || statuses.length > MAX_STATUSES) {
 		throw new ApiError(400, 'A lista de status deve ter entre 1 e 50 itens.');
@@ -337,25 +336,69 @@ function validateStatuses(statuses: PortalStatus[]): void {
 				'Nome do status deve ter entre 1 e 40 caracteres (após remover espaços).'
 			);
 		}
-		if (!STATUS_VISIBILITIES.includes(status.visibility)) {
-			throw new ApiError(400, 'Visibilidade deve ser "PUBLIC" ou "INTERNAL".');
+		if (!Number.isInteger(status.order) || status.order < 1 || status.order > 50) {
+			throw new ApiError(400, 'Campo "order" deve ser inteiro 1..50.');
 		}
-		if (typeof status.closesRequest !== 'boolean') {
-			throw new ApiError(400, 'Campo "closesRequest" deve ser booleano.');
+		if (typeof status.isCore !== 'boolean') {
+			throw new ApiError(400, 'Campo "isCore" deve ser booleano.');
 		}
-		if (typeof status.isTriageExit !== 'boolean') {
-			throw new ApiError(400, 'Campo "isTriageExit" deve ser booleano.');
+		if (typeof status.isPublic !== 'boolean') {
+			throw new ApiError(400, 'Campo "isPublic" deve ser booleano.');
+		}
+		if (typeof status.isTerminal !== 'boolean') {
+			throw new ApiError(400, 'Campo "isTerminal" deve ser booleano.');
+		}
+		if (!STATUS_TONES.includes(status.tone)) {
+			throw new ApiError(400, 'Tom visual não permitido para o status.');
 		}
 		if (typeof status.isActive !== 'boolean') {
 			throw new ApiError(400, 'Campo "isActive" deve ser booleano.');
 		}
-		if (!STATUS_TONES.includes(status.tone)) {
-			throw new ApiError(400, 'Tom visual não permitido para o status.');
+		if (!['none', 'free', 'conclusion_only'].includes(status.triageMode as string)) {
+			throw new ApiError(400, 'Campo "triageMode" deve ser none|free|conclusion_only.');
+		}
+		if (!['none', 'free', 'conclusion_only'].includes(status.mappingMode as string)) {
+			throw new ApiError(400, 'Campo "mappingMode" deve ser none|free|conclusion_only.');
+		}
+		if (typeof status.isRestricted !== 'boolean') {
+			throw new ApiError(400, 'Campo "isRestricted" deve ser booleano.');
 		}
 	}
 
 	if (!areStatusNamesUnique(statuses)) {
 		throw new ApiError(400, 'Nomes de status não podem se repetir.');
+	}
+	{
+		const seen = new Set<number>();
+		for (const s of statuses) {
+			if (seen.has(s.order)) throw new ApiError(400, 'Ordem dos status não pode se repetir.');
+			seen.add(s.order);
+		}
+	}
+	if (statuses.some((s) => s.isCore && !s.isActive)) {
+		throw new ApiError(400, 'Status vital (isCore) não pode ser inativado.');
+	}
+	if (
+		statuses.some((s) => s.isRestricted && (s.triageMode !== 'none' || s.mappingMode !== 'none'))
+	) {
+		throw new ApiError(400, 'Status restrito deve ter triageMode e mappingMode como "none".');
+	}
+	const defaultNames = new Map<number, string>([
+		[1, 'Solicitação enviada'],
+		[3, 'Em triagem'],
+		[4, 'Pendente de informações'],
+		[7, 'Em mapeamento'],
+		[16, 'Concluído'],
+		[17, 'Cancelado']
+	]);
+	for (const s of statuses) {
+		const expected = defaultNames.get(s.id);
+		if (expected && s.name !== expected) {
+			throw new ApiError(409, `Status vital "${expected}" não pode ser renomeado.`);
+		}
+	}
+	if (statuses.filter((s) => [1, 3, 4, 7, 16, 17].includes(s.id)).length !== 6) {
+		throw new ApiError(409, 'Status vitais não podem ser removidos.');
 	}
 
 	if (!hasActiveStatus(statuses)) {

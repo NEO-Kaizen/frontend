@@ -1366,3 +1366,49 @@ export async function assignAnalystMock(
 
 	return delay(MOCK_LATENCY_MS).then(() => structuredClone(detail));
 }
+
+export async function updateRequestStatusMock(
+	protocol: string,
+	payload: { targetStatus: number; justification: string },
+	_fetchImpl?: unknown
+): Promise<{
+	protocol: string;
+	status: string;
+	previous: string;
+	next: string;
+	lastUpdate: string;
+}> {
+	void _fetchImpl;
+	const normalized = protocol.toLowerCase().trim();
+	const detail = mockInternalRequestDetails.find(
+		(d) => d.protocol.toLowerCase().trim() === normalized
+	);
+	if (!detail) return Promise.reject(new ApiError(404, 'Solicitação não encontrada.'));
+	const statuses = (await import('$lib/config/portal-defaults')).DEFAULT_PORTAL_CONFIG.statuses;
+	// Para mock, usa DEFAULT_STATUSES como fonte (espelha backend seed)
+	const target = statuses.find((s) => s.id === payload.targetStatus);
+	if (!target) return Promise.reject(new ApiError(404, 'Status alvo não encontrado.'));
+	if (!target.isActive)
+		return Promise.reject(new ApiError(409, 'Status inativo não pode ser alvo.'));
+	const justification = payload.justification?.trim() ?? '';
+	if (justification.length < 1 || justification.length > 4000) {
+		return Promise.reject(new ApiError(400, 'Campo justification obrigatório 1..4000.'));
+	}
+	if (detail.status === target.name) {
+		return Promise.reject(new ApiError(422, 'Status já é o atual.'));
+	}
+	// Mock não distingue ADMIN vs analista — aceita free ou qualquer isActive (bypass simulado)
+	// Priorizado (isRestricted) só deveria passar se fosse ADMIN; aqui aceita para demo e retorna OVERRIDE
+	const previous = detail.status;
+	(detail as unknown as { status: string }).status = target.name;
+	detail.lastUpdate = new Date().toISOString();
+	const queueItem = mockRequests.find((r) => r.protocol.toLowerCase().trim() === normalized);
+	if (queueItem) (queueItem as unknown as { status: string }).status = target.name;
+	return delay(MOCK_LATENCY_MS).then(() => ({
+		protocol,
+		status: target.name,
+		previous,
+		next: target.name,
+		lastUpdate: detail.lastUpdate
+	}));
+}
