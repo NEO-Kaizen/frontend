@@ -352,7 +352,7 @@
 		<LegendPill
 			label="Vital"
 			variant="encerramento"
-			tooltip="Cadeado significa travado: 6 opções que não podem ser apagadas, renomeadas ou desativadas — Solicitação enviada, Em triagem, Pendente de informações, Em mapeamento, Concluído e Cancelado."
+			tooltip="Cadeado significa travado: 7 opções que não podem ser apagadas, renomeadas ou desativadas — Solicitação enviada, Em triagem, Pendente de informações, Mapeamento agendado, Em mapeamento, Concluído e Cancelado."
 		/>
 		<LegendPill
 			label="Visibilidade"

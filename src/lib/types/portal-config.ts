@@ -71,7 +71,7 @@ export const STATUS_MODES = ['none', 'free', 'conclusion_only'] as const;
 export type StatusMode = (typeof STATUS_MODES)[number];
 
 // ids vitais não apagam/renomeiam/desativam — substitui PROTECTED_STATUS_NAMES.
-export const CORE_STATUS_IDS = [1, 3, 4, 7, 16, 17] as const;
+export const CORE_STATUS_IDS = [1, 3, 4, 6, 7, 16, 17] as const;
 
 export type CoreStatusId = (typeof CORE_STATUS_IDS)[number];
 
@@ -140,7 +140,7 @@ export interface PortalTheme {
 export type ThemePalette = keyof PortalTheme;
 
 // Status do ciclo de vida da solicitação (Card 6) — v4 (amend §Tipos).
-// `isCore` substitui PROTECTED_STATUS_NAMES (8→6), `isTerminal` encerra a
+// `isCore` substitui PROTECTED_STATUS_NAMES (8→7), `isTerminal` encerra a
 // solicitação (qualquer status pode ser terminal; por padrão só 16,17), `isPublic`
 // substitui visibility (false = só equipe, solicitante vê último público),
 // `triageMode/mappingMode` normalizam Acessível+Apenas, `isRestricted` substitui

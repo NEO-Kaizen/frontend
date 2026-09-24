@@ -88,7 +88,7 @@ export const DEFAULT_CATEGORIES: PortalCategory[] = [
 
 // Status padrão do ciclo de vida das solicitações (Card 6) — 17 linhas v4
 // (amend Anexo A). `18 Fora do escopo, 19 Duplicada` removidos (eram saídas
-// `isTriageExit` de `contract-triage_04.md`). `isCore` 6 vitais `1,3,4,7,16,17`,
+// `isTriageExit` de `contract-triage_04.md`). `isCore` 7 vitais `1,3,4,6,7,16,17`,
 // `isTerminal` só `16,17`, `isRestricted` só `11 Priorizado none/none`.
 export const DEFAULT_STATUSES: PortalStatus[] = [
 	{
@@ -154,7 +154,7 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 	{
 		id: 6,
 		name: 'Mapeamento agendado',
-		isCore: false,
+		isCore: true,
 		isPublic: false,
 		isTerminal: false,
 		triageMode: 'none',

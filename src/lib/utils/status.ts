@@ -50,11 +50,13 @@ export function isTerminalStatus(id: number, statuses: PortalStatus[]): boolean 
 }
 
 // v4: triageMode/mappingMode + isRestricted
+// Conclusões de fase (POST triage / PUT mapping) aceitam apenas
+// `conclusion_only`; `free` fica reservado ao `PATCH /status`.
 export function isTriageExitStatus(id: number, statuses: PortalStatus[]): boolean {
 	const s = findStatusById(id, statuses);
 	if (!s || s.isActive !== true || s.isRestricted) return false;
-	const mode = s.triageMode ?? (s.isTriageExit ? 'free' : 'none');
-	return mode === 'free' || mode === 'conclusion_only';
+	const mode = s.triageMode ?? (s.isTriageExit ? 'conclusion_only' : 'none');
+	return mode === 'conclusion_only';
 }
 
 export function isFreeStatus(id: number, statuses: PortalStatus[]): boolean {
@@ -71,12 +73,7 @@ export function isConclusionStatus(id: number, statuses: PortalStatus[]): boolea
 
 export function triageExitOptions(statuses: PortalStatus[]): { value: string; label: string }[] {
 	return statuses
-		.filter(
-			(s) =>
-				s.isActive &&
-				!s.isRestricted &&
-				(s.triageMode === 'free' || s.triageMode === 'conclusion_only')
-		)
+		.filter((s) => s.isActive && !s.isRestricted && s.triageMode === 'conclusion_only')
 		.map((status) => ({ value: String(status.id), label: status.name }));
 }
 
@@ -90,12 +87,7 @@ export function mappingConclusionOptions(
 	statuses: PortalStatus[]
 ): { value: string; label: string }[] {
 	return statuses
-		.filter(
-			(s) =>
-				s.isActive &&
-				!s.isRestricted &&
-				(s.mappingMode === 'free' || s.mappingMode === 'conclusion_only')
-		)
+		.filter((s) => s.isActive && !s.isRestricted && s.mappingMode === 'conclusion_only')
 		.map((status) => ({ value: String(status.id), label: status.name }));
 }
 

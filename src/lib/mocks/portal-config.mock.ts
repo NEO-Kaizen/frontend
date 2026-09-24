@@ -330,7 +330,7 @@ function validateCategories(categories: PortalCategory[]): void {
 // A lista de status é atômica: 1..50 itens, ids presentes,
 // isCore/isPublic/isTerminal/triageMode/mappingMode/isRestricted, nomes únicos
 // e ao menos um ativo. A ordem de exibição é a ordem do array. 409 para
-// rename/remove core (6 vitais).
+// rename/remove core (7 vitais).
 function validateStatuses(statuses: PortalStatus[]): void {
 	if (!Array.isArray(statuses) || statuses.length === 0 || statuses.length > MAX_STATUSES) {
 		throw new ApiError(400, 'A lista de status deve ter entre 1 e 50 itens.');
@@ -400,6 +400,7 @@ function validateStatuses(statuses: PortalStatus[]): void {
 		[1, 'Solicitação enviada'],
 		[3, 'Em triagem'],
 		[4, 'Pendente de informações'],
+		[6, 'Mapeamento agendado'],
 		[7, 'Em mapeamento'],
 		[16, 'Concluído'],
 		[17, 'Cancelado']
@@ -410,7 +411,7 @@ function validateStatuses(statuses: PortalStatus[]): void {
 			throw new ApiError(409, `Status vital "${expected}" não pode ser renomeado.`);
 		}
 	}
-	if (statuses.filter((s) => [1, 3, 4, 7, 16, 17].includes(s.id)).length !== 6) {
+	if (statuses.filter((s) => [1, 3, 4, 6, 7, 16, 17].includes(s.id)).length !== 7) {
 		throw new ApiError(409, 'Status vitais não podem ser removidos.');
 	}
 
