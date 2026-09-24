@@ -171,9 +171,13 @@
 	}
 
 	function handleGradientAngleInput(event: Event): void {
-		const value = Number((event.currentTarget as HTMLInputElement).value);
-		if (!Number.isFinite(value)) return;
-		setThemeGradient(editingPalette, { angle: Math.min(360, Math.max(0, Math.round(value))) });
+		const input = event.currentTarget as HTMLInputElement;
+		// Só dígitos, no máximo 3 — escreve o valor normalizado de volta no
+		// campo para que nenhum caractere extra permaneça após virar 360.
+		const digits = input.value.replace(/\D+/g, '').slice(0, 3);
+		const angle = digits === '' ? null : Math.min(360, Math.round(Number(digits)));
+		input.value = String(angle ?? palette.gradient.angle ?? 143);
+		if (angle !== null) setThemeGradient(editingPalette, { angle });
 	}
 
 	const TOKEN_LABELS: Record<ThemeTokenKey, string> = {
@@ -192,18 +196,21 @@
 		onGradient: 'Texto sobre o gradiente'
 	};
 
-	// Uso de cada token (fonte: doc de dark mode), exibido como hint acessível.
-	// Sem hint onde o rótulo e o preview já bastam (background e os "texto sobre").
-	const TOKEN_HINTS: Partial<Record<ThemeTokenKey, string>> = {
-		surface: 'Cards, painéis e modais.',
-		border: 'Linhas, separadores e contornos.',
-		textPrimary: 'Corpo de texto e labels.',
-		textSecondary: 'Legendas e texto auxiliar.',
+	// Uso de cada token, exibido como hint acessível e no tooltip do rótulo.
+	const TOKEN_HINTS: Record<ThemeTokenKey, string> = {
+		background: 'Fundo das páginas do portal — usado em toda a tela.',
+		surface: 'Fundo de cards, painéis e modais, sobre o fundo da página.',
+		border: 'Linhas, separadores e contornos de componentes.',
+		textPrimary: 'Corpo de texto e rótulos de campos e botões.',
+		textSecondary: 'Legendas, datas e texto auxiliar.',
 		heading: 'Títulos de página e de seção.',
-		richBlack: 'Barra de navegação / sidebar.',
-		primary: 'CTAs e botões primários.',
-		secondary: 'Links e ícones de destaque.',
-		tint: 'Hover e seleção.'
+		richBlack: 'Barra de navegação / sidebar — o texto sobre ela usa "onDark".',
+		primary: 'Botões primários, CTAs e links principais.',
+		secondary: 'Botão secundário, links e ícones de destaque.',
+		tint: 'Realce em hover e seleção de tabelas e listas.',
+		onPrimary: 'Texto e ícones sobre elementos na cor primária.',
+		onDark: 'Texto e ícones sobre a barra escura (richBlack).',
+		onGradient: 'Texto sobre o gradiente do cabeçalho.'
 	};
 
 	// Agrupamento apenas de exibição — não altera a allowlist `THEME_TOKEN_KEYS`
@@ -387,6 +394,7 @@
 							<ColorField
 								label={field.label}
 								hint={field.hint}
+								tooltip={field.hint}
 								reserveHint={field.reserveHint}
 								value={field.value}
 								previewBackground={field.previewBackground}
