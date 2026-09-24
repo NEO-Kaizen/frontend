@@ -40,6 +40,10 @@ export interface MappingResponse {
 	participants: Participant[];
 	notes: string | null;
 	mappingAssignee: MappingAssignee | null;
+	// v4 — PUT mapping pode designar mapeador e avançar status (ids ecoados no
+	// GET para edição/conclusão; o objeto resolvido fica em `mappingAssignee`).
+	mappingAssigneeId?: string | null;
+	targetStatus?: number | null;
 }
 
 export interface MappingPayload {
@@ -52,6 +56,10 @@ export interface MappingPayload {
 	notes: string | null;
 	// `true` conclui (backend valida e muda o status). O frontend envia sempre `true`.
 	completeMapping: boolean;
+	// v4 — designação e avanço de status na conclusão
+	mappingAssigneeId?: string | null;
+	targetStatus?: number | null;
+	justification?: string | null;
 }
 
 export type MappingModality = MappingResponse['modality'];
@@ -76,6 +84,9 @@ export interface MappingDraft {
 	location: string;
 	participants: MappingParticipant[];
 	notes: string;
+	targetStatus?: string;
+	justification?: string;
+	mappingAssigneeId?: string;
 }
 
 export const MAPPING_MODALITY_OPTIONS: { value: Modality; label: string }[] = [

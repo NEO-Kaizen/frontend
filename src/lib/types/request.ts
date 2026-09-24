@@ -406,6 +406,20 @@ export interface PrioritizationResult {
 	notes: CriterionNotes;
 }
 
+// PATCH /requests/:protocol/status — v4 único (free + ADMIN bypass)
+export interface UpdateStatusRequest {
+	targetStatus: number;
+	justification: string;
+}
+
+export interface UpdateStatusResponse {
+	protocol: string;
+	status: string;
+	previous: string;
+	next: string;
+	lastUpdate: string;
+}
+
 export type AnalystResponsibility = 'triagem' | 'mapeamento';
 
 export interface InternalRequestDetail {
