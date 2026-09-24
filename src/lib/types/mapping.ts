@@ -43,6 +43,8 @@ export interface MappingResponse {
 }
 
 export interface MappingPayload {
+	id?: string;
+	mappingAssigneeId?: string | null;
 	scheduledFor: string | null;
 	durationMinutes: number | null;
 	modality: Modality | null;
