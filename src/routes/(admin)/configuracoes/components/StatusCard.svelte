@@ -55,10 +55,12 @@
 		if (!areStatusNamesUnique(statuses)) return 'Nomes de status não podem se repetir.';
 		if (statuses.some((s) => s.isCore && !s.isActive))
 			return 'Status vital (isCore) não pode ser inativado.';
-		if (
-			statuses.some((s) => s.isRestricted && (s.triageMode !== 'none' || s.mappingMode !== 'none'))
-		)
-			return 'Status restrito (Priorizado) deve ter triageMode e mappingMode como "none".';
+		const restrictedConflict = statuses.find(
+			(s) => s.isRestricted && (s.triageMode !== 'none' || s.mappingMode !== 'none')
+		);
+		if (restrictedConflict) {
+			return `O status “${restrictedConflict.name}” está Restrito mas tem ${configuredModes(restrictedConflict)}. Defina ambos como “—” antes de salvar.`;
+		}
 		return null;
 	});
 
@@ -213,6 +215,27 @@
 		conclusion_only: 'Conclusão'
 	};
 
+	// Descreve, com os rótulos que o usuário vê, quais modos impedem marcar o
+	// status como Restrito (o contrato exige Triagem e Mapeamento em “—”).
+	function configuredModes(status: PortalStatus): string {
+		const parts: string[] = [];
+		if (status.triageMode !== 'none') {
+			parts.push(`Triagem como “${STATUS_MODE_LABELS[status.triageMode]}”`);
+		}
+		if (status.mappingMode !== 'none') {
+			parts.push(`Mapeamento como “${STATUS_MODE_LABELS[status.mappingMode]}”`);
+		}
+		return parts.join(' e ');
+	}
+
+	// Mensagem exibida ao tentar escolher um modo enquanto o status está Restrito:
+	// nomeia o status e explica que Restrito só admite os modos em “—” (o caminho
+	// de saída é desativar Restrito).
+	function restrictedModeChangeMessage(status: PortalStatus, value: string): string {
+		const label = STATUS_MODE_LABELS[value as StatusMode] ?? value;
+		return `O status “${status.name}” está como Restrito e só permite Triagem e Mapeamento em “—”. Desative Restrito para escolher “${label}”.`;
+	}
+
 	const TONE_LABELS: Record<StatusTone, string> = {
 		error: 'Erro',
 		success: 'Sucesso',
@@ -276,14 +299,14 @@
 		switch (field) {
 			case 'triageMode':
 				if (status.isRestricted && value !== 'none') {
-					notifyError('Status restrito deve ter triageMode "none".');
+					notifyError(restrictedModeChangeMessage(status, value));
 					break;
 				}
 				updateStatus(status.id, { triageMode: value as StatusMode });
 				break;
 			case 'mappingMode':
 				if (status.isRestricted && value !== 'none') {
-					notifyError('Status restrito deve ter mappingMode "none".');
+					notifyError(restrictedModeChangeMessage(status, value));
 					break;
 				}
 				updateStatus(status.id, { mappingMode: value as StatusMode });
@@ -555,7 +578,9 @@
 								}))}
 								variant="mode"
 								ariaLabel={`Mapeamento de ${status.name}`}
-								disabled={section.saving || loadFailed}
+								disabled={section.saving ||
+									loadFailed ||
+									(status.isRestricted && status.mappingMode === 'none')}
 								onChange={(v) => commitCellSelect(status, 'mappingMode', v)}
 							/>
 						</td>
@@ -569,12 +594,14 @@
 								disabled={section.saving || loadFailed}
 								onclick={(event) => {
 									popToggle(event);
-									if (
-										!status.isRestricted &&
-										(status.triageMode !== 'none' || status.mappingMode !== 'none')
-									) {
-										notifyError('Só none/none pode ser restrito (Priorizado).');
-										return;
+									if (!status.isRestricted) {
+										const configured = configuredModes(status);
+										if (configured) {
+											notifyError(
+												`O status “${status.name}” não pode ser restrito enquanto tiver ${configured}. Defina ambos como “—” para ativar Restrito.`
+											);
+											return;
+										}
 									}
 									updateStatus(status.id, { isRestricted: !status.isRestricted });
 								}}

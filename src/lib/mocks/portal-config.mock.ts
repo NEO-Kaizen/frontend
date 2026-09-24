@@ -59,6 +59,15 @@ const SOLICITATION_MODES: readonly SolicitationMode[] = ['PUBLIC', 'AUTHENTICATE
 
 const MOCK_LATENCY_MS = 500;
 
+// Rótulos de exibição dos modos — usados nas mensagens de erro do mock para
+// refletir o que o usuário vê na tela (colunas Triagem/Mapeamento), não o
+// valor técnico do contrato (`none`/`free`/`conclusion_only`).
+const STATUS_MODE_LABELS: Record<string, string> = {
+	none: '—',
+	free: 'Livre',
+	conclusion_only: 'Conclusão'
+};
+
 export function fetchPortalConfigMock(): Promise<PortalConfig> {
 	return delay(MOCK_LATENCY_MS).then(() => structuredClone(mockConfig));
 }
@@ -372,7 +381,20 @@ function validateStatuses(statuses: PortalStatus[]): void {
 	if (
 		statuses.some((s) => s.isRestricted && (s.triageMode !== 'none' || s.mappingMode !== 'none'))
 	) {
-		throw new ApiError(400, 'Status restrito deve ter triageMode e mappingMode como "none".');
+		const conflict = statuses.find(
+			(s) => s.isRestricted && (s.triageMode !== 'none' || s.mappingMode !== 'none')
+		) as PortalStatus;
+		const parts: string[] = [];
+		if (conflict.triageMode !== 'none') {
+			parts.push(`Triagem como “${STATUS_MODE_LABELS[conflict.triageMode]}”`);
+		}
+		if (conflict.mappingMode !== 'none') {
+			parts.push(`Mapeamento como “${STATUS_MODE_LABELS[conflict.mappingMode]}”`);
+		}
+		throw new ApiError(
+			400,
+			`O status “${conflict.name}” está Restrito mas tem ${parts.join(' e ')}. Defina ambos como “—” antes de salvar.`
+		);
 	}
 	const defaultNames = new Map<number, string>([
 		[1, 'Solicitação enviada'],
