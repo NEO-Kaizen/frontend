@@ -42,7 +42,9 @@ const timelineStore = new Map<string, TimelineItem[]>([
 				text: 'Status alterado: Em triagem',
 				occurredAt: '2026-09-18T15:02:10.000Z',
 				actor: { id: '1', name: 'Ana Souza', role: 'Analista' },
-				changeOrigin: 'admin'
+				changeOrigin: 'admin',
+				justification:
+					'Triagem iniciada após conferência das informações obrigatórias do formulário.'
 			},
 			{
 				type: 'event',
@@ -94,7 +96,20 @@ const timelineStore = new Map<string, TimelineItem[]>([
 				text: 'Status alterado: Mapeamento agendado',
 				occurredAt: '2026-09-19T14:11:03.000Z',
 				actor: null,
-				changeOrigin: 'system'
+				changeOrigin: 'system',
+				justification:
+					'Agendamento concluído pelo fluxo de mapeamento; reunião marcada com a área responsável.'
+			},
+			{
+				type: 'event',
+				id: 'audit:71',
+				action: 'request.status_change',
+				text: 'Status alterado: Concluído',
+				occurredAt: '2026-09-21T16:40:00.000Z',
+				actor: { id: '9', name: 'Júlia Reis', role: 'Analista' },
+				changeOrigin: 'admin',
+				justification:
+					'Autonomia validada em produção por 30 dias sem divergências; demanda atendida dentro do escopo.'
 			}
 		]
 	]
@@ -124,7 +139,10 @@ const historyStore = new Map<string, HistoryStore>([
 						suggestedResponsibleJustification: '',
 						exitStatus: 4,
 						result: 'Pendente de informações',
-						conclusionJustification: 'Aguardando retorno do solicitante sobre as credenciais.'
+						conclusionJustification: 'Aguardando retorno do solicitante sobre as credenciais.',
+						lastTechnicalMessage:
+							'Precisamos que você detalhe o volume mensal de solicitações para dimensionarmos a automação.',
+						assignee: { id: '1', name: 'Ana Souza' }
 					},
 					occurredAt: '2026-09-17T10:00:00.000Z'
 				},
@@ -143,7 +161,8 @@ const historyStore = new Map<string, HistoryStore>([
 							'Conhece a integração ERP anterior do mesmo fornecedor.',
 						exitStatus: 9,
 						result: 'Elegível para avaliação',
-						conclusionJustification: 'Dentro do escopo do NEO; seguir para priorização.'
+						conclusionJustification: 'Dentro do escopo do NEO; seguir para priorização.',
+						assignee: { id: '9', name: 'Júlia Reis' }
 					},
 					// Mesmo instante do evento audit:44 — exercita o desempate
 					// evento (rank 1) antes de ref (rank 2) na ordem canônica.
@@ -171,10 +190,39 @@ const historyStore = new Map<string, HistoryStore>([
 							name: 'Júlia Reis',
 							email: 'julia.reis@exemplo.br',
 							jobTitle: 'Analista de Processos'
-						}
+						},
+						targetStatus: 6,
+						justification: null,
+						lastTechnicalMessage: null
 					},
 					// Mesmo instante do evento audit:58 — mesmo desempate acima.
 					occurredAt: '2026-09-19T14:11:02.000Z'
+				},
+				{
+					mapping: {
+						protocol: 'MAAT-8K3P-9X2M',
+						id: 'c8f5a0b2-4d1e-4f3a-9b7c-6e2d3f4a5b6c',
+						scheduledFor: null,
+						durationMinutes: null,
+						modality: null,
+						meetingLink: null,
+						location: null,
+						participants: [],
+						notes: null,
+						mappingAssignee: {
+							id: 'd3e2f1a0-b9c8-4d7e-8f6a-1b2c3d4e5f60',
+							userId: '9',
+							name: 'Júlia Reis',
+							email: 'julia.reis@exemplo.br',
+							jobTitle: 'Analista de Processos'
+						},
+						targetStatus: 16,
+						justification:
+							'Autonomia validada em produção por 30 dias sem divergências; demanda atendida dentro do escopo.',
+						lastTechnicalMessage:
+							'Boa notícia! A automação da conferência de diárias já está ativa e os comprovantes estão sendo validados automaticamente.'
+					},
+					occurredAt: '2026-09-21T16:40:00.000Z'
 				}
 			]
 		}

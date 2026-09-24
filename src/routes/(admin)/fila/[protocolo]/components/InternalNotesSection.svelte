@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
+	import { page } from '$app/state';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Textarea from '$lib/components/Textarea.svelte';
@@ -103,6 +104,11 @@
 	let mappingsOpen = $state(false);
 	let openTriageId = $state<string | null>(null);
 	let openMappingId = $state<string | null>(null);
+	function mappingDestinationLabel(targetStatus: number | null | undefined): string | null {
+		if (targetStatus === null || targetStatus === undefined) return null;
+		const statuses = page.data.portalConfig.statuses ?? [];
+		return statuses.find((s) => s.id === targetStatus)?.name ?? String(targetStatus);
+	}
 
 	function toggleTriages(): void {
 		triagesOpen = !triagesOpen;
@@ -148,15 +154,20 @@
 			occurredAt: entry.occurredAt,
 			summary: entry.triage.result || '---'
 		}));
-		const mappingRefs: HistoryRef[] = mappings.map((entry) => ({
-			type: 'ref',
-			kind: 'mapping',
-			id: entry.mapping.id ?? `mapping-${entry.occurredAt}`,
-			occurredAt: entry.occurredAt,
-			summary: entry.mapping.scheduledFor
-				? formatDateTime(entry.mapping.scheduledFor)
-				: 'Sem agendamento'
-		}));
+		const mappingRefs: HistoryRef[] = mappings.map((entry) => {
+			const destination = mappingDestinationLabel(entry.mapping.targetStatus);
+			return {
+				type: 'ref',
+				kind: 'mapping',
+				id: entry.mapping.id ?? `mapping-${entry.occurredAt}`,
+				occurredAt: entry.occurredAt,
+				summary: entry.mapping.scheduledFor
+					? formatDateTime(entry.mapping.scheduledFor)
+					: destination
+						? `Sem agendamento — ${destination}`
+						: 'Sem agendamento'
+			};
+		});
 		return [...triageRefs, ...mappingRefs];
 	}
 
@@ -380,11 +391,16 @@
 							</li>
 						{:else if item.type === 'event'}
 							<li class="event-row">
-								<span class="event-icon" aria-hidden="true">
-									<Icon iconName={EVENT_ICONS[item.action]} iconSize="sm" />
-								</span>
 								<div class="event-entry">
-									<p class="event-text">{item.text}</p>
+									<p class="event-text">
+										<span class="event-icon" aria-hidden="true">
+											<Icon iconName={EVENT_ICONS[item.action]} iconSize="sm" />
+										</span>
+										{item.text}
+									</p>
+									{#if item.justification && item.justification.trim() !== ''}
+										<p class="justification-text">{item.justification}</p>
+									{/if}
 									<div class="event-meta">
 										{#if item.actor}
 											<strong>{item.actor.name}</strong>
@@ -688,8 +704,8 @@
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		width: 28px;
-		height: 28px;
+		width: 24px;
+		height: 24px;
 		border-radius: 50%;
 		background: var(--background-color);
 		border: var(--border-default);
@@ -700,6 +716,7 @@
 	.event-entry {
 		display: flex;
 		flex-direction: column;
+		align-items: center;
 		gap: 3px;
 		min-width: 0;
 		max-width: 520px;
@@ -707,15 +724,33 @@
 	}
 
 	.event-text {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 6px;
 		font-family: var(--font-inter);
 		font-size: 13px;
 		color: var(--black);
 		overflow-wrap: anywhere;
 	}
 
+	.justification-text {
+		margin: 0;
+		align-self: stretch;
+		padding: 8px 10px;
+		border-radius: var(--radius-sm);
+		background: var(--background-color);
+		font-family: var(--font-inter);
+		font-size: 12px;
+		color: var(--black);
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+	}
+
 	.event-meta {
 		display: flex;
 		align-items: baseline;
+		justify-content: center;
 		gap: 4px;
 		flex-wrap: wrap;
 		font-family: var(--font-inter);

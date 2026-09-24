@@ -38,14 +38,24 @@
 		onToggleMappingRow
 	}: Props = $props();
 
-	// exitStatus é PortalStatus.id — resolvido contra a config do portal;
-	// `''` (formulário vazio) exibe `---`.
-	function exitStatusLabel(exitStatus: number | ''): string {
-		if (exitStatus === '') return '---';
+	// exitStatus/targetStatus é PortalStatus.id — resolvido contra a config do
+	// portal; `''`/`null` (formulário vazio) exibe `---`.
+	function exitStatusLabel(exitStatus: number | '' | null | undefined): string {
+		if (exitStatus === '' || exitStatus === null || exitStatus === undefined) return '---';
 		return (
 			page.data.portalConfig.statuses.find((status) => status.id === exitStatus)?.name ??
 			String(exitStatus)
 		);
+	}
+
+	function targetStatusLabel(targetStatus: number | null | undefined): string {
+		return exitStatusLabel(targetStatus ?? '');
+	}
+
+	// Linhas sem valor não são renderizadas — evita fileiras de `---` no
+	// histórico (ex.: conclusão sem reunião).
+	function hasValue(value: string | number | null | undefined): boolean {
+		return value !== null && value !== undefined && value !== '';
 	}
 
 	function durationLabel(durationMinutes: number | null): string {
@@ -94,6 +104,7 @@
 					<thead>
 						<tr>
 							<th scope="col">Data</th>
+							<th scope="col">Analista</th>
 							<th scope="col">Resultado</th>
 							<th scope="col"><span class="sr-only">Detalhes</span></th>
 						</tr>
@@ -103,6 +114,7 @@
 							{@const open = openTriageId === entry.triage.id}
 							<tr class="body-row" class:open onclick={() => onToggleTriageRow(entry.triage.id)}>
 								<td><time datetime={entry.occurredAt}>{formatDateTime(entry.occurredAt)}</time></td>
+								<td>{entry.triage.assignee?.name ?? '---'}</td>
 								<td>{entry.triage.result || '---'}</td>
 								<td class="toggle-cell">
 									<button
@@ -123,52 +135,80 @@
 							</tr>
 							{#if open}
 								<tr class="detail-row">
-									<td colspan="3">
+									<td colspan="4">
 										<dl class="record-fields">
-											<div>
-												<dt>Aderente ao escopo</dt>
-												<dd>{entry.triage.adherentToScope || '---'}</dd>
-											</div>
-											<div>
-												<dt>Mudança de categoria</dt>
-												<dd>{entry.triage.changeCategory || '---'}</dd>
-											</div>
-											<div>
-												<dt>Status de saída</dt>
-												<dd>{exitStatusLabel(entry.triage.exitStatus)}</dd>
-											</div>
-											<div>
-												<dt>Nova categoria</dt>
-												<dd>{entry.triage.newCategory || '---'}</dd>
-											</div>
-											<div>
-												<dt>Responsável sugerido</dt>
-												<dd>{entry.triage.suggestedResponsible || '---'}</dd>
-											</div>
-											<div>
-												<dt>Justificativa de aderência</dt>
-												<dd>{entry.triage.adherentJustification || '---'}</dd>
-											</div>
-											<div class="full">
-												<dt>Complexidade preliminar</dt>
-												<dd>{entry.triage.preliminaryComplexity || '---'}</dd>
-											</div>
-											<div class="full">
-												<dt>Riscos percebidos</dt>
-												<dd>{entry.triage.perceivedRisks || '---'}</dd>
-											</div>
-											<div class="full">
-												<dt>Justificativa do responsável sugerido</dt>
-												<dd>{entry.triage.suggestedResponsibleJustification || '---'}</dd>
-											</div>
-											<div class="full">
-												<dt>Resultado</dt>
-												<dd>{entry.triage.result || '---'}</dd>
-											</div>
-											<div class="full">
-												<dt>Justificativa da conclusão</dt>
-												<dd>{entry.triage.conclusionJustification || '---'}</dd>
-											</div>
+											{#if hasValue(entry.triage.adherentToScope)}
+												<div>
+													<dt>Aderente ao escopo</dt>
+													<dd>{entry.triage.adherentToScope}</dd>
+												</div>
+											{/if}
+											{#if hasValue(entry.triage.changeCategory)}
+												<div>
+													<dt>Mudança de categoria</dt>
+													<dd>{entry.triage.changeCategory}</dd>
+												</div>
+											{/if}
+											{#if hasValue(entry.triage.exitStatus)}
+												<div>
+													<dt>Status de saída</dt>
+													<dd>{exitStatusLabel(entry.triage.exitStatus)}</dd>
+												</div>
+											{/if}
+											{#if hasValue(entry.triage.newCategory)}
+												<div>
+													<dt>Nova categoria</dt>
+													<dd>{entry.triage.newCategory}</dd>
+												</div>
+											{/if}
+											{#if hasValue(entry.triage.suggestedResponsible)}
+												<div>
+													<dt>Responsável sugerido</dt>
+													<dd>{entry.triage.suggestedResponsible}</dd>
+												</div>
+											{/if}
+											{#if hasValue(entry.triage.adherentJustification)}
+												<div>
+													<dt>Justificativa de aderência</dt>
+													<dd>{entry.triage.adherentJustification}</dd>
+												</div>
+											{/if}
+											{#if hasValue(entry.triage.preliminaryComplexity)}
+												<div class="full">
+													<dt>Complexidade preliminar</dt>
+													<dd>{entry.triage.preliminaryComplexity}</dd>
+												</div>
+											{/if}
+											{#if hasValue(entry.triage.perceivedRisks)}
+												<div class="full">
+													<dt>Riscos percebidos</dt>
+													<dd>{entry.triage.perceivedRisks}</dd>
+												</div>
+											{/if}
+											{#if hasValue(entry.triage.suggestedResponsibleJustification)}
+												<div class="full">
+													<dt>Justificativa do responsável sugerido</dt>
+													<dd>{entry.triage.suggestedResponsibleJustification}</dd>
+												</div>
+											{/if}
+											{#if hasValue(entry.triage.result)}
+												<div class="full">
+													<dt>Resultado</dt>
+													<dd>{entry.triage.result}</dd>
+												</div>
+											{/if}
+											{#if hasValue(entry.triage.conclusionJustification)}
+												<div class="full">
+													<dt>Justificativa da conclusão</dt>
+													<dd>{entry.triage.conclusionJustification}</dd>
+												</div>
+											{/if}
+											{#if hasValue(entry.triage.lastTechnicalMessage)}
+												<div class="full">
+													<dt>Retorno ao solicitante</dt>
+													<dd>{entry.triage.lastTechnicalMessage}</dd>
+												</div>
+											{/if}
 										</dl>
 									</td>
 								</tr>
@@ -203,6 +243,7 @@
 						<tr>
 							<th scope="col">Data</th>
 							<th scope="col">Agendamento</th>
+							<th scope="col">Destino</th>
 							<th scope="col">Responsável</th>
 							<th scope="col"><span class="sr-only">Detalhes</span></th>
 						</tr>
@@ -220,6 +261,7 @@
 								<td>
 									{entry.mapping.scheduledFor ? formatDateTime(entry.mapping.scheduledFor) : '---'}
 								</td>
+								<td>{targetStatusLabel(entry.mapping.targetStatus)}</td>
 								<td>{entry.mapping.mappingAssignee?.name ?? '---'}</td>
 								<td class="toggle-cell">
 									<button
@@ -240,73 +282,91 @@
 							</tr>
 							{#if open}
 								<tr class="detail-row">
-									<td colspan="4">
+									<td colspan="5">
 										<dl class="record-fields">
-											<div>
-												<dt>Agendamento</dt>
-												<dd>
-													{entry.mapping.scheduledFor
-														? formatDateTime(entry.mapping.scheduledFor)
-														: '---'}
-												</dd>
-											</div>
-											<div>
-												<dt>Duração</dt>
-												<dd>{durationLabel(entry.mapping.durationMinutes)}</dd>
-											</div>
-											<div>
-												<dt>Modalidade</dt>
-												<dd>{modalityLabel(entry.mapping.modality)}</dd>
-											</div>
-											<div>
-												<dt>Responsável</dt>
-												<dd>
-													{#if entry.mapping.mappingAssignee}
+											{#if hasValue(entry.mapping.scheduledFor)}
+												<div>
+													<dt>Agendamento</dt>
+													<dd>{formatDateTime(entry.mapping.scheduledFor)}</dd>
+												</div>
+											{/if}
+											{#if hasValue(entry.mapping.durationMinutes)}
+												<div>
+													<dt>Duração</dt>
+													<dd>{durationLabel(entry.mapping.durationMinutes)}</dd>
+												</div>
+											{/if}
+											{#if hasValue(entry.mapping.modality)}
+												<div>
+													<dt>Modalidade</dt>
+													<dd>{modalityLabel(entry.mapping.modality)}</dd>
+												</div>
+											{/if}
+											{#if entry.mapping.mappingAssignee}
+												<div>
+													<dt>Responsável</dt>
+													<dd>
 														{entry.mapping.mappingAssignee.name}{entry.mapping.mappingAssignee
 															.jobTitle
 															? ` · ${entry.mapping.mappingAssignee.jobTitle}`
 															: ''}
-													{:else}
-														---
-													{/if}
-												</dd>
-											</div>
-											<div class="full">
-												<dt>Local</dt>
-												<dd>{entry.mapping.location || '---'}</dd>
-											</div>
-											<div class="full">
-												<dt>Link da reunião</dt>
-												<dd>
-													{#if entry.mapping.meetingLink}
+													</dd>
+												</div>
+											{/if}
+											{#if hasValue(entry.mapping.location)}
+												<div class="full">
+													<dt>Local</dt>
+													<dd>{entry.mapping.location}</dd>
+												</div>
+											{/if}
+											{#if hasValue(entry.mapping.meetingLink)}
+												<div class="full">
+													<dt>Link da reunião</dt>
+													<dd>
 														<a
 															href={entry.mapping.meetingLink}
 															target="_blank"
 															rel="external noopener noreferrer">{entry.mapping.meetingLink}</a
 														>
-													{:else}
-														---
-													{/if}
-												</dd>
-											</div>
-											<div class="full">
-												<dt>Participantes</dt>
-												<dd>
-													{#if entry.mapping.participants.length === 0}
-														---
-													{:else}
+													</dd>
+												</div>
+											{/if}
+											{#if entry.mapping.participants.length > 0}
+												<div class="full">
+													<dt>Participantes</dt>
+													<dd>
 														<ul class="participants">
 															{#each entry.mapping.participants as participant (participant.email)}
 																<li>{participant.name} — {participant.email}</li>
 															{/each}
 														</ul>
-													{/if}
-												</dd>
-											</div>
-											<div class="full">
-												<dt>Notas</dt>
-												<dd>{entry.mapping.notes || '---'}</dd>
-											</div>
+													</dd>
+												</div>
+											{/if}
+											{#if hasValue(entry.mapping.notes)}
+												<div class="full">
+													<dt>Notas</dt>
+													<dd>{entry.mapping.notes}</dd>
+												</div>
+											{/if}
+											{#if hasValue(entry.mapping.targetStatus)}
+												<div>
+													<dt>Status de destino</dt>
+													<dd>{targetStatusLabel(entry.mapping.targetStatus)}</dd>
+												</div>
+											{/if}
+											{#if hasValue(entry.mapping.justification)}
+												<div class="full">
+													<dt>Justificativa</dt>
+													<dd>{entry.mapping.justification}</dd>
+												</div>
+											{/if}
+											{#if hasValue(entry.mapping.lastTechnicalMessage)}
+												<div class="full">
+													<dt>Retorno ao solicitante</dt>
+													<dd>{entry.mapping.lastTechnicalMessage}</dd>
+												</div>
+											{/if}
 										</dl>
 									</td>
 								</tr>
