@@ -422,8 +422,8 @@
 		outline-offset: 2px;
 	}
 
-	.disclosure :global(svg),
-	.disclosure :global(.material-symbols-outlined) {
+	.disclosure > :global(svg),
+	.disclosure > :global(.material-symbols-outlined) {
 		margin-left: auto;
 	}
 
