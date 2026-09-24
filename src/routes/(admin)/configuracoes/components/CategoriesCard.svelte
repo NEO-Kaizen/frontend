@@ -60,9 +60,9 @@
 		section.draft.categories.some((category) => category.name.trim() === '')
 	);
 
-	// Validação da linha em edição (Card 5) — nome obrigatório/único e descrição
-	// dentro do limite.
-	function categoryRowError(name: string, description: string, id: number): string | null {
+	// Validações por célula (Card 5) — nome obrigatório/único e descrição
+	// dentro do limite. Cada célula reporta apenas o próprio erro.
+	function categoryNameError(name: string, id: number): string | null {
 		if (!isValidCategoryName(name)) return 'Preencha o nome da categoria (até 40 caracteres).';
 
 		const duplicated = section.draft.categories.some(
@@ -71,6 +71,10 @@
 		);
 		if (duplicated) return 'Nomes de categoria não podem se repetir.';
 
+		return null;
+	}
+
+	function categoryDescriptionError(description: string): string | null {
 		if (!isValidCategoryDescription(description)) {
 			return 'A descrição da categoria deve ter até 200 caracteres.';
 		}
@@ -101,11 +105,6 @@
 		setCategories(replaceById<PortalCategory>(section.draft.categories, id, patch));
 	}
 
-	function toggleCategory(id: number) {
-		const current = section.draft.categories.find((category) => category.id === id);
-		updateCategory(id, { isActive: !current?.isActive });
-	}
-
 	function removeCategory(id: number) {
 		setCategories(removeById(section.draft.categories, id));
 	}
@@ -121,55 +120,85 @@
 		setCategories(reordered);
 	}
 
-	// Categoria em edição (nome/descrição locais do input); `null` = nenhuma.
-	let editing = $state<{ id: number; name: string; description: string } | null>(null);
-
-	// Foca o input de nome assim que a linha entra em edição.
+	// Foca o input assim que a célula entra em edição.
 	function focusOnMount(node: HTMLInputElement) {
 		node.focus();
 	}
 
-	// Só marca a linha como inválida depois que o usuário tenta confirmá-la.
-	let rowError = $state(false);
-	const nameInvalid = $derived(rowError && editing !== null && !isValidCategoryName(editing.name));
+	type EditableCategoryField = 'name' | 'description';
+
+	// Célula em edição (nome ou descrição); `null` = nenhuma.
+	let editingCell = $state<{ id: number; field: EditableCategoryField } | null>(null);
+	let editingName = $state('');
+	let editingDescription = $state('');
+
+	// Só marca a célula como inválida depois que o usuário tenta confirmá-la.
+	let nameError = $state(false);
+	let descriptionError = $state(false);
+	const nameInvalid = $derived(
+		nameError && editingCell?.field === 'name' && !isValidCategoryName(editingName)
+	);
 	const descriptionInvalid = $derived(
-		rowError && editing !== null && !isValidCategoryDescription(editing.description)
+		descriptionError &&
+			editingCell?.field === 'description' &&
+			!isValidCategoryDescription(editingDescription)
 	);
 
 	function handleAdd() {
 		addCategory();
 		const added = section.draft.categories[0];
-		editing = added ? { id: added.id, name: added.name, description: added.description } : null;
-		rowError = false;
+		if (!added) return;
+		editingCell = { id: added.id, field: 'name' };
+		editingName = added.name;
+		nameError = false;
 	}
 
-	function handleEdit(category: PortalCategory) {
-		editing = { id: category.id, name: category.name, description: category.description };
-		rowError = false;
+	function openCellEditor(category: PortalCategory, field: EditableCategoryField) {
+		if (section.saving || loadFailed) return;
+		editingCell = { id: category.id, field };
+		nameError = false;
+		descriptionError = false;
+		if (field === 'name') {
+			editingName = category.name;
+		} else {
+			editingDescription = category.description;
+		}
 	}
 
-	function handleSaveEdit() {
-		if (!editing) return;
+	function closeCellEditor() {
+		editingCell = null;
+		nameError = false;
+		descriptionError = false;
+	}
 
-		const error = categoryRowError(editing.name, editing.description, editing.id);
+	function commitNameEdit(category: PortalCategory) {
+		const error = categoryNameError(editingName, category.id);
 		if (error) {
-			rowError = true;
+			nameError = true;
 			notifyError(error);
 			return;
 		}
-
-		updateCategory(editing.id, { name: editing.name, description: editing.description });
-		editing = null;
-		rowError = false;
+		updateCategory(category.id, { name: editingName.trim() });
+		closeCellEditor();
 	}
 
-	function handleCancelEdit(category: PortalCategory) {
+	function commitDescriptionEdit(category: PortalCategory) {
+		const error = categoryDescriptionError(editingDescription);
+		if (error) {
+			descriptionError = true;
+			notifyError(error);
+			return;
+		}
+		updateCategory(category.id, { description: editingDescription });
+		closeCellEditor();
+	}
+
+	function cancelEdit(category: PortalCategory) {
 		// Cancelar uma categoria recém-adicionada (ainda sem nome) remove a linha.
 		if (category.name.trim() === '') {
 			removeCategory(category.id);
 		}
-		editing = null;
-		rowError = false;
+		closeCellEditor();
 	}
 
 	// Impede desativar a última categoria ativa.
@@ -268,7 +297,7 @@
 			/>
 		</div>
 
-		{#if categoriesError && !editing}
+		{#if categoriesError && !editingCell}
 			<p class="categories-error" role="alert">{categoriesError}</p>
 		{/if}
 
@@ -279,7 +308,6 @@
 						<th scope="col" class="col-name">Nome da categoria</th>
 						<th scope="col" class="col-description">Descrição</th>
 						<th scope="col" class="col-status">Status</th>
-						<th scope="col" class="col-actions">Ações</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -311,11 +339,11 @@
 										aria-label="Reordenar categoria"
 										draggable={!section.saving &&
 											!loadFailed &&
-											!(editing && editing.id === category.id)}
+											!(editingCell && editingCell.id === category.id)}
 										ondragstart={(event) => handleDragStart(event, category.id)}
 										ondragend={handleDragEnd}
 										onkeydown={(event) => {
-											if (editing && editing.id === category.id) return;
+											if (editingCell && editingCell.id === category.id) return;
 											if (event.key === 'ArrowUp') {
 												event.preventDefault();
 												handleMoveByKeyboard(category.id, -1);
@@ -327,7 +355,7 @@
 									>
 										<Icon iconName="dragIndicator" iconSize="sm" />
 									</span>
-									{#if editing && editing.id === category.id}
+									{#if editingCell?.id === category.id && editingCell.field === 'name'}
 										<input
 											class="edit-input"
 											class:invalid={nameInvalid}
@@ -336,15 +364,28 @@
 											aria-label="Nome da categoria"
 											aria-invalid={nameInvalid}
 											{@attach focusOnMount}
-											bind:value={editing.name}
+											bind:value={editingName}
+											onkeydown={(event) => {
+												if (event.key === 'Enter') commitNameEdit(category);
+												else if (event.key === 'Escape') cancelEdit(category);
+											}}
+											onblur={() => commitNameEdit(category)}
 										/>
 									{:else}
-										{category.name}
+										<button
+											type="button"
+											class="cell-button name-button"
+											aria-label="Editar nome de {category.name}"
+											disabled={section.saving || loadFailed}
+											onclick={() => openCellEditor(category, 'name')}
+										>
+											<span class="cell-text">{category.name}</span>
+										</button>
 									{/if}
 								</span>
 							</td>
 							<td class="col-description">
-								{#if editing && editing.id === category.id}
+								{#if editingCell?.id === category.id && editingCell.field === 'description'}
 									<input
 										class="edit-input"
 										class:invalid={descriptionInvalid}
@@ -352,71 +393,43 @@
 										maxlength={MAX_CATEGORY_DESCRIPTION_LENGTH}
 										aria-label="Descrição da categoria"
 										aria-invalid={descriptionInvalid}
-										bind:value={editing.description}
+										{@attach focusOnMount}
+										bind:value={editingDescription}
+										onkeydown={(event) => {
+											if (event.key === 'Enter') commitDescriptionEdit(category);
+											else if (event.key === 'Escape') cancelEdit(category);
+										}}
+										onblur={() => commitDescriptionEdit(category)}
 									/>
-								{:else if category.description}
-									<span class="description-text">{category.description}</span>
-									<span class="description-tooltip" aria-hidden="true">{category.description}</span>
 								{:else}
-									—
+									<button
+										type="button"
+										class="cell-button description-button"
+										aria-label="Editar descrição de {category.name}"
+										disabled={section.saving || loadFailed}
+										onclick={() => openCellEditor(category, 'description')}
+									>
+										<span class="cell-text">{category.description || '—'}</span>
+									</button>
+									{#if category.description}
+										<span class="description-tooltip" aria-hidden="true"
+											>{category.description}</span
+										>
+									{/if}
 								{/if}
 							</td>
 							<td class="col-status">
-								{#if editing && editing.id === category.id}
-									<label class="toggle">
-										<input
-											type="checkbox"
-											checked={category.isActive}
-											disabled={!canToggleInactive(category)}
-											onchange={() => toggleCategory(category.id)}
-										/>
-										<span>Ativa</span>
-									</label>
-								{:else}
-									<span class="badge {category.isActive ? 'badge-active' : 'badge-inactive'}">
-										{category.isActive ? 'Ativa' : 'Inativa'}
-									</span>
-								{/if}
-							</td>
-							<td class="col-actions">
-								{#if editing && editing.id === category.id}
-									<button
-										class="icon-btn"
-										type="button"
-										aria-label="Salvar categoria"
-										onclick={handleSaveEdit}
-									>
-										<Icon iconName="check" iconSize="sm" />
-									</button>
-									<button
-										class="icon-btn"
-										type="button"
-										aria-label="Cancelar edição"
-										onclick={() => handleCancelEdit(category)}
-									>
-										<Icon iconName="close" iconSize="sm" />
-									</button>
-								{:else}
-									<button
-										class="icon-btn"
-										type="button"
-										aria-label="Editar categoria"
-										disabled={section.saving || loadFailed}
-										onclick={() => handleEdit(category)}
-									>
-										<Icon iconName="edit" iconSize="sm" />
-									</button>
-									<button
-										class="icon-btn"
-										type="button"
-										aria-label={category.isActive ? 'Inativar categoria' : 'Ativar categoria'}
-										title={category.isActive ? 'Inativar categoria' : 'Ativar categoria'}
-										disabled={section.saving || loadFailed || !canToggleInactive(category)}
-										onclick={() => toggleActive(category)}
-									>
-										<Icon iconName={category.isActive ? 'block' : 'check'} iconSize="sm" />
-									</button>
-								{/if}
+								<button
+									type="button"
+									class="badge badge-toggle {category.isActive ? 'badge-active' : 'badge-inactive'}"
+									aria-pressed={category.isActive}
+									aria-label={category.isActive ? 'Inativar categoria' : 'Ativar categoria'}
+									title={category.isActive ? 'Inativar categoria' : 'Ativar categoria'}
+									disabled={section.saving || loadFailed || !canToggleInactive(category)}
+									onclick={() => toggleActive(category)}
+								>
+									{category.isActive ? 'Ativa' : 'Inativa'}
+								</button>
 							</td>
 						</tr>
 					{/each}
@@ -498,23 +511,15 @@
 	}
 
 	.col-name {
-		width: 30%;
+		width: 32%;
 	}
 
 	.col-description {
 		position: relative;
-		width: 34%;
+		width: 52%;
 		max-width: 0;
 		overflow: visible;
 		text-align: center;
-	}
-
-	.description-text {
-		display: block;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-		cursor: help;
 	}
 
 	.description-tooltip {
@@ -539,19 +544,14 @@
 		transition: var(--transition-default);
 	}
 
-	.description-text:hover + .description-tooltip {
+	.description-button:hover + .description-tooltip {
 		opacity: 1;
 		transform: translate(-50%, 0);
 	}
 
 	.col-status {
 		width: 16%;
-	}
-
-	.col-actions {
-		width: 20%;
-		text-align: end;
-		white-space: nowrap;
+		text-align: center;
 	}
 
 	.name-field {
@@ -607,27 +607,51 @@
 		border-color: var(--status-error);
 	}
 
-	.icon-btn {
+	.cell-button {
 		display: inline-flex;
 		align-items: center;
-		justify-content: center;
-		margin-left: var(--spacing-sm);
-		padding: 4px;
-		border: none;
+		gap: 6px;
+		min-width: 0;
+		max-width: 100%;
+		padding: 2px 4px;
+		border: 1px solid transparent;
 		border-radius: var(--radius-sm);
-		background-color: transparent;
-		color: var(--gray);
+		background: none;
+		color: inherit;
+		font: inherit;
 		cursor: pointer;
+		transition:
+			background-color var(--transition-default),
+			border-color var(--transition-default);
 	}
 
-	.icon-btn:hover:not(:disabled) {
+	.cell-button:hover:not(:disabled) {
+		border-color: var(--border-color);
 		background-color: var(--background-color);
-		color: var(--secondary-color);
 	}
 
-	.icon-btn:disabled {
-		opacity: 0.4;
-		cursor: not-allowed;
+	.cell-button:disabled {
+		cursor: default;
+	}
+
+	.cell-button .cell-text {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.name-button {
+		flex: 1;
+		min-width: 0;
+		max-width: 100%;
+	}
+
+	.description-button {
+		display: inline-flex;
+		width: 100%;
+		min-width: 0;
+		max-width: 100%;
 	}
 
 	.badge {
@@ -648,16 +672,27 @@
 		color: var(--gray);
 	}
 
-	.toggle {
-		display: inline-flex;
-		align-items: center;
-		gap: 4px;
-		font-size: 12px;
-		color: var(--gray);
+	.badge-toggle {
+		border: 1px solid transparent;
+		cursor: pointer;
+		transition:
+			background-color var(--transition-default),
+			border-color var(--transition-default),
+			transform 120ms ease;
 	}
 
-	.toggle input {
-		accent-color: var(--secondary-color);
+	.badge-toggle:hover:not(:disabled) {
+		filter: brightness(0.98);
+		border-color: currentColor;
+	}
+
+	.badge-toggle:active:not(:disabled) {
+		transform: scale(0.96);
+	}
+
+	.badge-toggle:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
 	}
 
 	.categories-error {
