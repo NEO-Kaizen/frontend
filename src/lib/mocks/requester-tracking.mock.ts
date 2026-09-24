@@ -140,6 +140,7 @@ function toPublicDetails(protocol: string): PublicRequestDetails {
 		openedAt: fixture.openedAt,
 		lastUpdate: fixture.lastUpdate,
 		meeting: fixture.meeting,
+		lastTechnicalMessage: fixture.lastTechnicalMessage ?? null,
 		requester: {
 			fullName: fixture.requester.fullName,
 			area: fixture.requester.area,

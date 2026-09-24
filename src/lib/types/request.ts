@@ -459,6 +459,9 @@ export interface InternalRequestDetail {
 	attachments: InternalAttachment[];
 	openedAt: string;
 	lastUpdate: string;
+	// Último retorno público da equipe (escrito nas transições para status
+	// público; lido no /acompanhar e no detalhe interno M3).
+	lastTechnicalMessage?: string | null;
 	internalObservations?: string | null;
 	triage?: TriageAssessment | null;
 }

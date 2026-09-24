@@ -52,6 +52,11 @@
 </script>
 
 <div class="requester-details">
+	{#if details.lastTechnicalMessage && details.lastTechnicalMessage.trim() !== ''}
+		<ToggleSection id="tracking-return" title="RETORNO DA EQUIPE" open={true}>
+			<Field label="Mensagem da equipe" value={details.lastTechnicalMessage} multiline />
+		</ToggleSection>
+	{/if}
 	<ToggleSection id="tracking-requester" title="IDENTIFICAÇÃO DO SOLICITANTE" open={true}>
 		<div class="grid">
 			<Field label="Nome" value={details.requester.fullName} />
