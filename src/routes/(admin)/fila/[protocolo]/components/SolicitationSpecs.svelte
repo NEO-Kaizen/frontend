@@ -12,19 +12,24 @@
 	} from '$lib/services/pendency.service';
 	import type { ListPendenciesResponse, PendingFieldRef } from '$lib/types/pendency';
 	import { toastState } from '$lib/states/toast.svelte';
-	import { statusThemeVars } from '$lib/utils/status';
+	import { isTerminalStatus, statusChangeTargets, statusThemeVars } from '$lib/utils/status';
 	import type { InternalNotesResponse } from '$lib/types/internal-note';
 	import type { InternalRequestDetail } from '$lib/types/request';
 	import type { CriterionNotes, PrioritizationResult } from '$lib/types/prioritization';
 	import { SvelteMap } from 'svelte/reactivity';
 	import { buildFieldLookup } from '$lib/pendency/field-catalog';
-	import { canAssignAnalyst, canCalculatePriority } from '$lib/services/access.service';
+	import {
+		canAssignAnalyst,
+		canCalculatePriority,
+		canChangeStatusRole
+	} from '$lib/services/access.service';
 	import FieldPendencyModal from './pendency/FieldPendencyModal.svelte';
 	import PendencyRequestModal from './pendency/PendencyRequestModal.svelte';
 	import AssignAction from './AssignAction.svelte';
 	import FloatingPrioritizationPanel from './prioritization/FloatingPrioritizationPanel.svelte';
 	import QuickActions from './QuickActions.svelte';
 	import SpecTabs from './SpecTabs.svelte';
+	import StatusChangeModal from './status/StatusChangeModal.svelte';
 
 	interface Props {
 		solicitation: InternalRequestDetail;
@@ -275,6 +280,26 @@
 		canCalculatePriority(currentUser ?? null, solicitation.assignee?.id ?? null)
 	);
 
+	// "Alterar Status" (`PATCH /requests/:protocol/status` §3.3): Administrador
+	// (bypass) ou Analista com custódia e solicitação não-terminal. Os alvos vêm
+	// do PortalConfig (admin: qualquer ativo; analista: apenas free).
+	const portalStatuses = $derived(page.data.portalConfig.statuses ?? []);
+	const currentStatusId = $derived(
+		portalStatuses.find((status) => status.name === solicitation.status)?.id ?? null
+	);
+	const statusChangeMode = $derived(
+		canChangeStatusRole(
+			currentUser ?? null,
+			solicitation.assignee?.id,
+			solicitation.mappingAssignee?.id ?? solicitation.mappingAssigneeId,
+			currentStatusId !== null && isTerminalStatus(currentStatusId, portalStatuses)
+		)
+	);
+	const statusChangeOptions = $derived(
+		statusChangeMode ? statusChangeTargets(statusChangeMode, portalStatuses, currentStatusId) : []
+	);
+	const canChangeStatus = $derived(statusChangeOptions.length > 0);
+
 	const hiddenQuickActionKeys = $derived.by(() => {
 		const hidden: string[] = [];
 
@@ -284,6 +309,10 @@
 
 		if (!canCalculate) {
 			hidden.push('priorityCalculator');
+		}
+
+		if (!canChangeStatus) {
+			hidden.push('changeStatus');
 		}
 
 		return hidden;
@@ -305,6 +334,7 @@
 	let calculatorPos = $state<{ x: number; y: number } | null>(null);
 
 	let isAssignModalOpen = $state(false);
+	let isStatusModalOpen = $state(false);
 
 	function handleOpenCalculator() {
 		if (!canCalculate) {
@@ -350,6 +380,11 @@
 		solicitation = updated;
 	}
 
+	async function handleStatusChangeSaved(): Promise<void> {
+		// A resposta do PATCH não traz o detalhe completo — recarrega o load.
+		await invalidateAll();
+	}
+
 	function handleQuickAction(key: string) {
 		if (key === 'priorityCalculator') {
 			if (!canCalculate) {
@@ -363,6 +398,12 @@
 			}
 
 			isAssignModalOpen = true;
+		} else if (key === 'changeStatus') {
+			if (!canChangeStatus) {
+				return;
+			}
+
+			isStatusModalOpen = true;
 		}
 	}
 </script>
@@ -508,6 +549,17 @@
 			currentAssigneeDeadline={solicitation.assigneeDeadline ?? null}
 			onclose={() => (isAssignModalOpen = false)}
 			onSuccess={handleAssignSuccess}
+		/>
+	{/if}
+
+	{#if isStatusModalOpen && canChangeStatus}
+		<StatusChangeModal
+			protocol={solicitation.protocol}
+			currentStatusName={solicitation.status}
+			statuses={portalStatuses}
+			targets={statusChangeOptions}
+			onSaved={handleStatusChangeSaved}
+			onclose={() => (isStatusModalOpen = false)}
 		/>
 	{/if}
 </div>
