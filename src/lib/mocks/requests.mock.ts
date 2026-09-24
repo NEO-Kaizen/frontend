@@ -235,7 +235,7 @@ export const mockRequestDetails: RequestDetail[] = [
 		protocol: 'MAAT-8K3P-9X2M',
 		demandTitle: 'Automatizar conferência de diárias',
 		processName: 'Pagamento de diárias',
-		status: 'Em triagem',
+		status: 'Concluído',
 		assigneeName: 'Fernando Alves',
 		openedAt: '2026-08-25T14:03:11.000Z',
 		estimatedCompletion: '2026-10-18',
@@ -247,7 +247,7 @@ export const mockRequestDetails: RequestDetail[] = [
 		pendingIssues: [],
 		nextStep: 'Aguarde o contato do analista',
 		lastTechnicalMessage:
-			'Sua solicitação está em análise. Assim que houver uma atualização, entraremos em contato.',
+			'Boa notícia! A automação da conferência de diárias já está ativa e os comprovantes estão sendo validados automaticamente.',
 		lastUpdate: '2026-08-26T10:12:40.000Z',
 		conclusion: null
 	},
@@ -904,7 +904,7 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 	},
 	{
 		protocol: 'MAAT-8K3P-9X2M',
-		status: 'Em triagem',
+		status: 'Concluído',
 		priority: null,
 		prioritization: { score: null, maxScore: 50, label: null, notes: {} },
 		assignee: {
@@ -959,6 +959,8 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 		attachments: [],
 		openedAt: '2026-08-25T14:03:11.000Z',
 		lastUpdate: '2026-08-26T10:12:40.000Z',
+		lastTechnicalMessage:
+			'Boa notícia! A automação da conferência de diárias já está ativa e os comprovantes estão sendo validados automaticamente.',
 		internalObservations: null,
 		triage: null
 	},
@@ -1260,6 +1262,9 @@ export function createTriageMock(
 	detail.triage = structuredClone(triage);
 	if (payload.changeCategory === 'Sim' && payload.newCategory) {
 		detail.demand.category = payload.newCategory;
+	}
+	if (payload.lastTechnicalMessage && payload.lastTechnicalMessage.trim() !== '') {
+		detail.lastTechnicalMessage = payload.lastTechnicalMessage;
 	}
 	const derivedStatus = resolveStatusName(payload.exitStatus);
 	if (derivedStatus) {

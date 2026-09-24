@@ -33,7 +33,11 @@ export function toTriageDraft(source: TriageAssessment | null | undefined): Tria
 		suggestedResponsibleJustification: source.suggestedResponsibleJustification ?? '',
 		exitStatus: source.exitStatus ?? '',
 		result: source.result ?? '',
-		conclusionJustification: source.conclusionJustification ?? ''
+		conclusionJustification: source.conclusionJustification ?? '',
+		// `lastTechnicalMessage` é write-only para o formulário de edição, mas o
+		// GET da triagem finalizada devolve o valor armazenado — hidratado aqui
+		// para a aba exibir em somente leitura.
+		lastTechnicalMessage: source.lastTechnicalMessage ?? ''
 	};
 }
 
@@ -55,7 +59,8 @@ export function toTriagePayload(draft: TriageAssessment): CreateTriagePayload {
 		suggestedResponsibleJustification: trim(draft.suggestedResponsibleJustification),
 		exitStatus: draft.exitStatus,
 		result: trim(draft.result),
-		conclusionJustification: trim(draft.conclusionJustification)
+		conclusionJustification: trim(draft.conclusionJustification),
+		lastTechnicalMessage: trim(draft.lastTechnicalMessage ?? '')
 	};
 }
 
@@ -99,11 +104,15 @@ export function validateTriageDraft(
 		}
 	}
 
+	let exitIsPublic = false;
 	if (draft.exitStatus === '' || draft.exitStatus === null || draft.exitStatus === undefined) {
 		errors['exitStatus'] = 'Selecione o status de saída.';
 	} else if (context.statuses && !isTriageExitStatus(Number(draft.exitStatus), context.statuses)) {
 		errors['exitStatus'] =
-			'Status de saída deve ser um status ativo com triageMode free ou conclusion_only e isRestricted=false.';
+			'Status de saída deve ser um status ativo com triageMode conclusion_only e isRestricted=false.';
+	} else if (context.statuses) {
+		exitIsPublic =
+			context.statuses.find((s) => s.id === Number(draft.exitStatus))?.isPublic ?? false;
 	}
 
 	if (!isRequired(draft.result)) {
@@ -112,6 +121,14 @@ export function validateTriageDraft(
 
 	if (!isRequired(draft.conclusionJustification)) {
 		errors['conclusionJustification'] = 'Informe a justificativa da conclusão.';
+	}
+
+	if (exitIsPublic) {
+		if (!isRequired(draft.lastTechnicalMessage ?? '')) {
+			errors['lastTechnicalMessage'] = 'Informe o retorno ao solicitante (1..4000 caracteres).';
+		} else if (trim(draft.lastTechnicalMessage ?? '').length > 4000) {
+			errors['lastTechnicalMessage'] = 'Limite de 4000 caracteres excedido.';
+		}
 	}
 
 	// maxlength checks (trimmed length)
@@ -135,6 +152,9 @@ export function validateTriageDraft(
 	}
 	if (trim(draft.conclusionJustification).length > 4000) {
 		errors['conclusionJustification'] = 'Limite de 4000 caracteres excedido.';
+	}
+	if (draft.lastTechnicalMessage !== undefined && trim(draft.lastTechnicalMessage).length > 4000) {
+		errors['lastTechnicalMessage'] = 'Limite de 4000 caracteres excedido.';
 	}
 
 	return errors;
@@ -160,7 +180,8 @@ export function validateTriageField(
 		adherentJustification: ['adherentJustification', 'adherentToScope'],
 		changeCategory: ['changeCategory', 'newCategory'],
 		newCategory: ['newCategory', 'changeCategory'],
-		exitStatus: ['exitStatus'],
+		exitStatus: ['exitStatus', 'lastTechnicalMessage'],
+		lastTechnicalMessage: ['lastTechnicalMessage', 'exitStatus'],
 		result: ['result'],
 		conclusionJustification: ['conclusionJustification'],
 		preliminaryComplexity: ['preliminaryComplexity'],

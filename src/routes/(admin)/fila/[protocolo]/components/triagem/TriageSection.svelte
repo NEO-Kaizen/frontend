@@ -143,6 +143,11 @@
 		saveDraftToSession(solicitation.protocol, snapshot);
 	});
 	let errors = $state<Record<string, string>>({});
+	const exitStatusIsPublic = $derived(
+		draft.exitStatus === ''
+			? false
+			: (portalStatuses.find((s) => s.id === Number(draft.exitStatus))?.isPublic ?? false)
+	);
 	let isSaving = $state(false);
 	// Bloqueia toda edição enquanto a triagem carrega, salvando ou em somente
 	// leitura — evita digitação perdida pela hidratação dos dados do servidor.
@@ -180,6 +185,9 @@
 		if (path === 'changeCategory') {
 			delete errors['newCategory'];
 		}
+		if (path === 'exitStatus') {
+			delete errors['lastTechnicalMessage'];
+		}
 	}
 
 	function handleFieldChange(path: keyof TriageAssessment, value: string) {
@@ -203,6 +211,7 @@
 		// FilterSelect trafega string; o contrato exige FK numérica no payload.
 		draft.exitStatus = value === '' ? '' : Number(value);
 		clearFieldError('exitStatus');
+		delete errors['lastTechnicalMessage'];
 		persistDraft();
 	}
 
@@ -488,6 +497,21 @@
 			oninput={() => clearFieldError('conclusionJustification')}
 		/>
 	</div>
+
+	{#if exitStatusIsPublic}
+		<div class="field-75">
+			<Textarea
+				label="Retorno ao solicitante"
+				placeholder="Mensagem visível ao solicitante no /acompanhar"
+				bind:value={draft.lastTechnicalMessage}
+				maxlength={4000}
+				rows={4}
+				disabled={isFormDisabled}
+				error={errors['lastTechnicalMessage'] ?? ''}
+				oninput={() => clearFieldError('lastTechnicalMessage')}
+			/>
+		</div>
+	{/if}
 
 	{#if errors['prioritization']}
 		<p class="priority-gate-error" role="alert" tabindex="-1" data-priority-gate>
