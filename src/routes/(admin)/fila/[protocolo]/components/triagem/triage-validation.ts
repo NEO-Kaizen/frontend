@@ -101,8 +101,9 @@ export function validateTriageDraft(
 
 	if (draft.exitStatus === '' || draft.exitStatus === null || draft.exitStatus === undefined) {
 		errors['exitStatus'] = 'Selecione o status de saída.';
-	} else if (context.statuses && !isTriageExitStatus(draft.exitStatus, context.statuses)) {
-		errors['exitStatus'] = 'Status de saída deve ser um status ativo elegível para triagem.';
+	} else if (context.statuses && !isTriageExitStatus(Number(draft.exitStatus), context.statuses)) {
+		errors['exitStatus'] =
+			'Status de saída deve ser um status ativo com triageMode free ou conclusion_only e isRestricted=false.';
 	}
 
 	if (!isRequired(draft.result)) {

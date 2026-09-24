@@ -34,7 +34,10 @@ export function emptyMappingDraft(): MappingDraft {
 		meetingLink: '',
 		location: '',
 		participants: [],
-		notes: ''
+		notes: '',
+		targetStatus: '',
+		justification: '',
+		mappingAssigneeId: ''
 	};
 }
 
@@ -59,7 +62,10 @@ export function toMappingDraft(
 		meetingLink: saved.meetingLink ?? '',
 		location: saved.location ?? '',
 		participants: saved.participants.map((participant) => ({ ...participant })),
-		notes: saved.notes ?? ''
+		notes: saved.notes ?? '',
+		targetStatus: saved.targetStatus ? String(saved.targetStatus) : '',
+		justification: '',
+		mappingAssigneeId: saved.mappingAssigneeId ?? ''
 	};
 }
 
@@ -70,7 +76,15 @@ export function isMappingEmpty(saved: MappingResponse | null): boolean {
 
 export function applyMappingChange(
 	draft: MappingDraft,
-	path: 'scheduledFor' | 'durationMinutes' | 'meetingLink' | 'location' | 'notes',
+	path:
+		| 'scheduledFor'
+		| 'durationMinutes'
+		| 'meetingLink'
+		| 'location'
+		| 'notes'
+		| 'targetStatus'
+		| 'justification'
+		| 'mappingAssigneeId',
 	value: string
 ): void {
 	switch (path) {
@@ -88,6 +102,15 @@ export function applyMappingChange(
 			break;
 		case 'notes':
 			draft.notes = value;
+			break;
+		case 'targetStatus':
+			draft.targetStatus = value;
+			break;
+		case 'justification':
+			draft.justification = value;
+			break;
+		case 'mappingAssigneeId':
+			draft.mappingAssigneeId = value;
 			break;
 	}
 }
@@ -117,10 +140,13 @@ function validateParticipants(draft: MappingDraft): string | null {
 }
 
 // Validação completa do formulário de conclusão. Chave = nome
-// do campo no draft. `nowRef` permite testar sem depender do relógio.
+// do campo no draft. `nowRef` permite testar sem depender do relógio. v4:
+// valida `targetStatus` (mappingMode free|conclusion_only && !isRestricted)
+// e `justification 1..4000` quando `completeMapping` implícito (sempre true no PUT).
 export function validateMappingDraft(
 	draft: MappingDraft,
-	nowRef: string = nowLocalMinute()
+	nowRef: string = nowLocalMinute(),
+	statuses: import('$lib/types/portal-config').PortalStatus[] = []
 ): Record<string, string> {
 	const errors: Record<string, string> = {};
 
@@ -163,8 +189,31 @@ export function validateMappingDraft(
 		errors['participants'] = participantsError;
 	}
 
-	if (draft.notes.trim().length > MAPPING_NOTES_MAXLENGTH) {
+	if ((draft.notes ?? '').trim().length > MAPPING_NOTES_MAXLENGTH) {
 		errors['notes'] = `As observações devem ter no máximo ${MAPPING_NOTES_MAXLENGTH} caracteres.`;
+	}
+
+	// v4 — targetStatus obrigatório em conclusão (PUT mapping com completeMapping:true)
+	if (!draft.targetStatus || draft.targetStatus.toString().trim() === '') {
+		errors['targetStatus'] = 'Selecione o status de destino do mapeamento.';
+	} else if (statuses.length > 0) {
+		const id = Number(draft.targetStatus);
+		const s = statuses.find((st) => st.id === id);
+		if (
+			!s ||
+			!s.isActive ||
+			s.isRestricted ||
+			(s.mappingMode !== 'free' && s.mappingMode !== 'conclusion_only')
+		) {
+			errors['targetStatus'] =
+				'Status deve ter mappingMode free ou conclusion_only e isRestricted=false.';
+		}
+	}
+
+	if (!isRequired(draft.justification ?? '')) {
+		errors['justification'] = 'Informe a justificativa (1..4000 caracteres).';
+	} else if ((draft.justification ?? '').trim().length > 4000) {
+		errors['justification'] = 'Limite de 4000 caracteres excedido.';
 	}
 
 	return errors;
@@ -172,8 +221,12 @@ export function validateMappingDraft(
 
 // Validação de um único campo (blur): reaproveita a validação completa e
 // devolve só a chave do campo.
-export function validateMappingField(draft: MappingDraft, path: string): Record<string, string> {
-	const all = validateMappingDraft(draft);
+export function validateMappingField(
+	draft: MappingDraft,
+	path: string,
+	statuses: import('$lib/types/portal-config').PortalStatus[] = []
+): Record<string, string> {
+	const all = validateMappingDraft(draft, undefined, statuses);
 	if (all[path]) return { [path]: all[path] };
 	return {};
 }
