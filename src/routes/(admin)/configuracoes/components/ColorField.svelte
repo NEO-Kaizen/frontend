@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import InfoTip from '$lib/components/InfoTip.svelte';
 	import { isValidHexColor } from '$lib/utils/validations';
 
 	interface Props {
@@ -9,6 +10,8 @@
 		// Exibe o slider de opacidade (alpha) — usado só onde a cor aceita alpha.
 		allowAlpha?: boolean; // Texto auxiliar de uso, exibido sob o rótulo e ligado via aria-describedby.
 		hint?: string;
+		// Tooltip "i" ao lado do rótulo com a explicação de uso da cor.
+		tooltip?: string;
 		// Amostra "Aa": fundo (cor ou gradiente) + cor do texto.
 		previewBackground?: string;
 		previewForeground?: string;
@@ -27,6 +30,7 @@
 		onchange,
 		allowAlpha = false,
 		hint,
+		tooltip,
 		previewBackground,
 		previewForeground,
 		reserveHint = false,
@@ -117,7 +121,12 @@
 </script>
 
 <label class="color-field" class:invalid={isInvalid}>
-	<span class="color-field-label">{label}</span>
+	<span class="color-field-label">
+		{label}
+		{#if tooltip}
+			<InfoTip label={`Informação sobre ${label}`} text={tooltip} />
+		{/if}
+	</span>
 	{#if hint || reserveHint}
 		<span
 			class="color-field-hint"
@@ -194,6 +203,9 @@
 	}
 
 	.color-field-label {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
 		font: var(--label);
 		font-size: 13px;
 		color: var(--text-color-primary);
