@@ -249,6 +249,8 @@ export const PASSWORD_REQUIREMENTS = ['Mínimo de 8 caracteres', 'Contém letras
 // `users.schema.ts`) para o formulário bloquear antes do request.
 export const PROFILE_AREA_MAX_LENGTH = 100;
 
+export const PROFILE_FULL_NAME_MAX_LENGTH = 150;
+
 export const PROFILE_DEPARTMENT_MAX_LENGTH = 100;
 
 export const PROFILE_MANAGER_MAX_LENGTH = 150;

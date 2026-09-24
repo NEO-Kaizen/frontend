@@ -8,7 +8,7 @@ export type UserProfile = 'solicitante' | 'analista' | 'administrador' | 'gestor
 
 export type UserStatus = 'Ativo' | 'Inativo';
 
-export type UserAction = 'activate' | 'deactivate' | 'reset';
+export type UserAction = 'activate' | 'deactivate' | 'reset' | 'edit';
 
 export interface AdminUser {
 	id: string;
@@ -62,6 +62,7 @@ export interface CreateUserFormData {
 	department?: string;
 	manager: string;
 	additionalContact?: string;
+	professional?: UpdateProfessionalBlock;
 }
 
 export interface CreateUserPayload {
@@ -74,6 +75,7 @@ export interface CreateUserPayload {
 		manager: string;
 		additionalContact?: string;
 	};
+	professional?: UpdateProfessionalBlock;
 }
 
 export interface CreateUserResponse {
@@ -128,16 +130,14 @@ export interface UserProfileResponse {
 	professional: ProfessionalProfileBlock | null;
 }
 
-// Payload de PUT /users/me (multipart: campo `payload` = JSON). Enviar apenas
-// os blocos alterados; `fullName`/`email`/`role` são imutáveis por contrato.
-// `area`/`department`/`manager` são preenchidos pelo administrador no cadastro
-// e recusados pelo backend no self-service (403) — o próprio usuário só envia
-// `additionalContact`, por isso todos os campos são opcionais.
+// Payload de PUT /users/me (multipart: campo `payload` = JSON). Nome, contato
+// adicional e foto são autoeditáveis por todos. O próprio Administrador também
+// pode alterar seus dados administrativos de solicitante.
 export interface UpdateRequesterBlock {
 	area?: string;
-	department?: string;
+	department?: string | null;
 	manager?: string;
-	additionalContact?: string;
+	additionalContact?: string | null;
 }
 
 export interface UpdateProfessionalBlock {
@@ -148,8 +148,18 @@ export interface UpdateProfessionalBlock {
 }
 
 export interface UpdateMyProfileInput {
+	fullName?: string;
 	requester?: UpdateRequesterBlock;
-	professional?: UpdateProfessionalBlock;
 	removeAvatar?: boolean;
 	avatar?: File;
+}
+
+export interface UpdateUserInput {
+	fullName?: string;
+	requester?: {
+		area?: string;
+		department?: string | null;
+		manager?: string;
+	};
+	professional?: UpdateProfessionalBlock;
 }

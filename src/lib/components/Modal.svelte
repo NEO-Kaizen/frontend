@@ -115,8 +115,7 @@
 		box-shadow: var(--regular-shadow);
 	}
 
-	.modal-shell.lg,
-	.modal-shell--large {
+	.modal-shell.lg {
 		max-width: min(720px, 92vw);
 		max-height: 80dvh;
 		display: flex;
@@ -124,9 +123,8 @@
 		overflow: hidden;
 	}
 
-	.modal-shell.lg .modal-body,
-	.modal-shell--large .modal-body {
-		overflow: hidden;
+	.modal-shell.lg .modal-body {
+		overflow-y: auto;
 		flex: 1;
 		min-height: 0;
 		display: flex;

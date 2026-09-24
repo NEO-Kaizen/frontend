@@ -6,25 +6,31 @@
 	import Input from '$lib/components/Input.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import Select from '$lib/components/Select.svelte';
+	import type { PortalCategory } from '$lib/types/portal-config';
 	import type { CreateUserFormData, CreateUserResponse, UserProfile } from '$lib/types/user';
 	import {
 		PROFILE_ADDITIONAL_CONTACT_MAX_LENGTH,
 		PROFILE_AREA_MAX_LENGTH,
 		PROFILE_DEPARTMENT_MAX_LENGTH,
+		PROFILE_JOB_TITLE_MAX_LENGTH,
 		PROFILE_MANAGER_MAX_LENGTH,
+		PROFILE_NOTES_MAX_LENGTH,
+		PROFILE_SPECIALTY_MAX_LENGTH,
 		isRequired,
 		isValidEmail,
 		isValidText
 	} from '$lib/utils/validations';
+	import ProfessionalFields from './ProfessionalFields.svelte';
 
 	interface Props {
 		loading?: boolean;
 		error?: string;
+		categories: PortalCategory[];
 		onclose: () => void;
 		oncreate: (data: CreateUserFormData) => Promise<CreateUserResponse>;
 	}
 
-	let { loading = false, error = '', onclose, oncreate }: Props = $props();
+	let { loading = false, error = '', categories, onclose, oncreate }: Props = $props();
 
 	const roleOptions: { value: UserProfile; label: string }[] = [
 		{ value: 'solicitante', label: 'Solicitante' },
@@ -46,6 +52,10 @@
 	let department = $state('');
 	let manager = $state('');
 	let additionalContact = $state('');
+	let jobTitle = $state('');
+	let specialties = $state<string[]>([]);
+	let attendedCategoryIds = $state<number[]>([]);
+	let professionalNotes = $state('');
 
 	let nameError = $state('');
 	let emailError = $state('');
@@ -54,6 +64,10 @@
 	let departmentError = $state('');
 	let managerError = $state('');
 	let additionalContactError = $state('');
+	let jobTitleError = $state('');
+	let specialtiesError = $state('');
+	let categoriesError = $state('');
+	let professionalNotesError = $state('');
 
 	let temporaryPassword = $state('');
 	let createdUserName = $state('');
@@ -67,6 +81,10 @@
 		departmentError = '';
 		managerError = '';
 		additionalContactError = '';
+		jobTitleError = '';
+		specialtiesError = '';
+		categoriesError = '';
+		professionalNotesError = '';
 
 		const trimmedName = name.trim();
 		const trimmedEmail = email.trim();
@@ -125,6 +143,29 @@
 			}
 		}
 
+		if (role === 'analista') {
+			const trimmedJobTitle = jobTitle.trim();
+			if (!isRequired(trimmedJobTitle)) {
+				jobTitleError = 'Informe o cargo do analista.';
+			} else if (trimmedJobTitle.length > PROFILE_JOB_TITLE_MAX_LENGTH) {
+				jobTitleError = `O cargo deve ter no máximo ${PROFILE_JOB_TITLE_MAX_LENGTH} caracteres.`;
+			}
+
+			if (specialties.length === 0) {
+				specialtiesError = 'Informe ao menos uma especialidade.';
+			} else if (specialties.some((item) => item.length > PROFILE_SPECIALTY_MAX_LENGTH)) {
+				specialtiesError = `Cada especialidade deve ter no máximo ${PROFILE_SPECIALTY_MAX_LENGTH} caracteres.`;
+			}
+
+			if (attendedCategoryIds.length === 0) {
+				categoriesError = 'Selecione ao menos uma categoria atendida.';
+			}
+
+			if (professionalNotes.length > PROFILE_NOTES_MAX_LENGTH) {
+				professionalNotesError = `As observações devem ter no máximo ${PROFILE_NOTES_MAX_LENGTH} caracteres.`;
+			}
+		}
+
 		return (
 			!nameError &&
 			!emailError &&
@@ -132,7 +173,11 @@
 			!areaError &&
 			!departmentError &&
 			!managerError &&
-			!additionalContactError
+			!additionalContactError &&
+			!jobTitleError &&
+			!specialtiesError &&
+			!categoriesError &&
+			!professionalNotesError
 		);
 	}
 
@@ -149,7 +194,16 @@
 				area: area.trim(),
 				department: department.trim() || undefined,
 				manager: manager.trim(),
-				additionalContact: additionalContact.trim() || undefined
+				additionalContact: additionalContact.trim() || undefined,
+				professional:
+					role === 'analista'
+						? {
+								jobTitle: jobTitle.trim(),
+								specialties: specialties.map((item) => item.trim()),
+								attendedCategoryIds,
+								notes: professionalNotes.trim() || undefined
+							}
+						: undefined
 			});
 
 			createdUserName = result.fullName;
@@ -168,6 +222,10 @@
 		department = '';
 		manager = '';
 		additionalContact = '';
+		jobTitle = '';
+		specialties = [];
+		attendedCategoryIds = [];
+		professionalNotes = '';
 
 		nameError = '';
 		emailError = '';
@@ -176,6 +234,10 @@
 		departmentError = '';
 		managerError = '';
 		additionalContactError = '';
+		jobTitleError = '';
+		specialtiesError = '';
+		categoriesError = '';
+		professionalNotesError = '';
 
 		temporaryPassword = '';
 		createdUserName = '';
@@ -185,7 +247,11 @@
 	}
 </script>
 
-<Modal title={temporaryPassword ? 'Usuário cadastrado' : 'Adicionar usuário'} onclose={handleClose}>
+<Modal
+	title={temporaryPassword ? 'Usuário cadastrado' : 'Adicionar usuário'}
+	onclose={handleClose}
+	size="lg"
+>
 	{#if temporaryPassword}
 		<div class="success-content">
 			<p class="description">
@@ -256,6 +322,21 @@
 					<div class="readonly-field">Ativo</div>
 				</div>
 			</div>
+
+			{#if role === 'analista'}
+				<ProfessionalFields
+					categories={categories.filter((category) => category.isActive)}
+					bind:jobTitle
+					bind:specialties
+					bind:attendedCategoryIds
+					bind:notes={professionalNotes}
+					{jobTitleError}
+					{specialtiesError}
+					{categoriesError}
+					notesError={professionalNotesError}
+					disabled={loading}
+				/>
+			{/if}
 
 			<div class="field">
 				<span class="field-label">Área do solicitante *</span>

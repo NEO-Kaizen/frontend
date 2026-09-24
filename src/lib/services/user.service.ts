@@ -1,10 +1,12 @@
 import {
 	createUser as createUserApi,
+	getUser as getUserApi,
 	getMyProfile as getMyProfileApi,
 	getUserStats as getUserStatsApi,
 	listUsers as listUsersApi,
 	resetUserPassword as resetUserPasswordApi,
 	updateMyProfile as updateMyProfileApi,
+	updateUser as updateUserApi,
 	updateUserStatus as updateUserStatusApi
 } from '$lib/api/user.api';
 
@@ -18,6 +20,7 @@ import type {
 	ListUsersQuery,
 	ResetPasswordResponse,
 	UpdateMyProfileInput,
+	UpdateUserInput,
 	UpdateUserStatusResponse,
 	UserProfileResponse,
 	UserStats,
@@ -33,7 +36,10 @@ import {
 	PROFILE_ADDITIONAL_CONTACT_MAX_LENGTH,
 	PROFILE_AREA_MAX_LENGTH,
 	PROFILE_DEPARTMENT_MAX_LENGTH,
-	PROFILE_MANAGER_MAX_LENGTH
+	PROFILE_JOB_TITLE_MAX_LENGTH,
+	PROFILE_MANAGER_MAX_LENGTH,
+	PROFILE_NOTES_MAX_LENGTH,
+	PROFILE_SPECIALTY_MAX_LENGTH
 } from '$lib/utils/validations';
 
 export async function listUsers(
@@ -94,7 +100,8 @@ export async function createUser(data: CreateUserFormData): Promise<Result<Creat
 				department: data.department?.trim() || undefined,
 				manager: data.manager.trim(),
 				additionalContact: data.additionalContact?.trim() || undefined
-			}
+			},
+			professional: data.professional
 		});
 
 		return {
@@ -180,9 +187,9 @@ export async function resetUserPassword(id: string): Promise<Result<ResetPasswor
 	}
 }
 
-// "Meus dados" — leitura e gravação do próprio perfil. O backend decide
-// bloqueios (bloco professional só para Analista, campos imutáveis ignorados);
-// o service apenas transporta e traduz o erro para a UI.
+// "Meus dados" — leitura e gravação do próprio perfil. Nome, contato adicional
+// e avatar são autoeditáveis; o Administrador também pode editar seus próprios
+// área, departamento e gestor. O service traduz erros da API.
 export async function getMyProfile(fetchImpl?: typeof fetch): Promise<Result<UserProfileResponse>> {
 	try {
 		const data = await getMyProfileApi(fetchImpl);
@@ -206,6 +213,25 @@ export async function updateMyProfile(
 			ok: true,
 			data
 		};
+	} catch (error) {
+		return mapApiError(error);
+	}
+}
+
+export async function getUser(id: string): Promise<Result<UserProfileResponse>> {
+	try {
+		return { ok: true, data: await getUserApi(id) };
+	} catch (error) {
+		return mapApiError(error);
+	}
+}
+
+export async function updateUser(
+	id: string,
+	input: UpdateUserInput
+): Promise<Result<UserProfileResponse>> {
+	try {
+		return { ok: true, data: await updateUserApi(id, input) };
 	} catch (error) {
 		return mapApiError(error);
 	}
@@ -326,6 +352,32 @@ function validateCreateUser(data: CreateUserFormData): { message: string } | nul
 		return {
 			message: `O contato deve ter no máximo ${PROFILE_ADDITIONAL_CONTACT_MAX_LENGTH} caracteres.`
 		};
+	}
+
+	if (data.role === 'analista') {
+		const professional = data.professional;
+		if (!professional?.jobTitle.trim()) {
+			return { message: 'Informe o cargo do analista.' };
+		}
+		if (professional.jobTitle.trim().length > PROFILE_JOB_TITLE_MAX_LENGTH) {
+			return { message: `O cargo deve ter no máximo ${PROFILE_JOB_TITLE_MAX_LENGTH} caracteres.` };
+		}
+		if (professional.specialties.length === 0) {
+			return { message: 'Informe ao menos uma especialidade.' };
+		}
+		if (professional.specialties.some((item) => item.length > PROFILE_SPECIALTY_MAX_LENGTH)) {
+			return {
+				message: `Cada especialidade deve ter no máximo ${PROFILE_SPECIALTY_MAX_LENGTH} caracteres.`
+			};
+		}
+		if (professional.attendedCategoryIds.length === 0) {
+			return { message: 'Selecione ao menos uma categoria atendida.' };
+		}
+		if ((professional.notes?.length ?? 0) > PROFILE_NOTES_MAX_LENGTH) {
+			return {
+				message: `As observações devem ter no máximo ${PROFILE_NOTES_MAX_LENGTH} caracteres.`
+			};
+		}
 	}
 
 	return null;

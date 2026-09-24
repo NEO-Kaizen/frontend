@@ -5,56 +5,106 @@
 	import { untrack } from 'svelte';
 	import type { RequesterProfileBlock } from '$lib/types/user';
 	import { notifySectionSave } from '$lib/utils/feedback';
-	import { PROFILE_ADDITIONAL_CONTACT_MAX_LENGTH } from '$lib/utils/validations';
-	import { optionalFieldError } from '../profile-validation';
+	import {
+		isValidText,
+		PROFILE_ADDITIONAL_CONTACT_MAX_LENGTH,
+		PROFILE_AREA_MAX_LENGTH,
+		PROFILE_DEPARTMENT_MAX_LENGTH,
+		PROFILE_MANAGER_MAX_LENGTH
+	} from '$lib/utils/validations';
+	import { optionalFieldError, requiredFieldError } from '../profile-validation';
 	import ProfileCard from './ProfileCard.svelte';
 	import ProfileSectionActions from './ProfileSectionActions.svelte';
 
 	interface Props {
 		requester: RequesterProfileBlock | null;
+		canEditAdministrativeFields: boolean;
 		onSaved: () => void;
 	}
 
-	let { requester, onSaved }: Props = $props();
+	type RequesterDraft = {
+		area: string;
+		department: string;
+		manager: string;
+		additionalContact: string;
+	};
+
+	let { requester, canEditAdministrativeFields, onSaved }: Props = $props();
 
 	let submitted = $state(false);
 
-	function toContact(block: RequesterProfileBlock | null): string {
-		return block?.additionalContact ?? '';
+	function toDraft(block: RequesterProfileBlock | null): RequesterDraft {
+		return {
+			area: block?.area ?? '',
+			department: block?.department ?? '',
+			manager: block?.manager ?? '',
+			additionalContact: block?.additionalContact ?? ''
+		};
 	}
 
-	const initialContact = untrack(() => toContact(requester));
-	const initial = { additionalContact: initialContact };
+	const initial = untrack(() => toDraft(requester));
 
-	const section = new SectionState<{ additionalContact: string }>(
-		initial,
-		initial,
-		async (draft) => {
-			// Área/Departamento/Gestor são preenchidos pelo administrador no
-			// cadastro; o backend recusa esses campos no self-service (403). O
-			// solicitante envia apenas o bloco parcial com `additionalContact`.
-			const result = await updateMyProfile({
-				requester: { additionalContact: draft.additionalContact.trim() || undefined }
-			});
+	const section = new SectionState<RequesterDraft>(initial, initial, async (draft) => {
+		const administrativeFields = canEditAdministrativeFields
+			? {
+					area: draft.area.trim(),
+					department: draft.department.trim() || null,
+					manager: draft.manager.trim()
+				}
+			: {};
 
-			if (!result.ok) return result;
+		const result = await updateMyProfile({
+			requester: {
+				...administrativeFields,
+				additionalContact: draft.additionalContact.trim() || null
+			}
+		});
 
-			return {
-				ok: true,
-				data: { additionalContact: result.data.requester?.additionalContact ?? '' }
-			};
-		}
-	);
+		if (!result.ok) return result;
+
+		return {
+			ok: true,
+			data: toDraft(result.data.requester)
+		};
+	});
+
+	function requiredTextError(value: string, label: string, maxLength: number): string {
+		const basicError = requiredFieldError(value, label, maxLength);
+		if (basicError) return basicError;
+		const sentenceLabel = label.charAt(0).toUpperCase() + label.slice(1);
+		return isValidText(value.trim()) ? '' : `${sentenceLabel} deve conter apenas letras e espaços.`;
+	}
+
+	function optionalTextError(value: string, label: string, maxLength: number): string {
+		const trimmed = value.trim();
+		if (!trimmed) return '';
+		const sentenceLabel = label.charAt(0).toUpperCase() + label.slice(1);
+		if (!isValidText(trimmed)) return `${sentenceLabel} deve conter apenas letras e espaços.`;
+		return optionalFieldError(trimmed, maxLength);
+	}
 
 	const errors = $derived({
+		area: canEditAdministrativeFields
+			? requiredTextError(section.draft.area, 'a área', PROFILE_AREA_MAX_LENGTH)
+			: '',
+		department: canEditAdministrativeFields
+			? optionalTextError(section.draft.department, 'o departamento', PROFILE_DEPARTMENT_MAX_LENGTH)
+			: '',
+		manager: canEditAdministrativeFields
+			? requiredTextError(section.draft.manager, 'o gestor', PROFILE_MANAGER_MAX_LENGTH)
+			: '',
 		additionalContact: optionalFieldError(
 			section.draft.additionalContact,
 			PROFILE_ADDITIONAL_CONTACT_MAX_LENGTH
 		)
 	});
 
-	const invalid = $derived(Boolean(errors.additionalContact));
-	const isPendingAdmin = $derived(!requester?.area?.trim() || !requester?.manager?.trim());
+	const invalid = $derived(
+		Boolean(errors.area || errors.department || errors.manager || errors.additionalContact)
+	);
+	const isPendingAdmin = $derived(
+		!canEditAdministrativeFields && (!requester?.area?.trim() || !requester?.manager?.trim())
+	);
 
 	async function handleSave() {
 		submitted = true;
@@ -79,7 +129,9 @@
 
 <ProfileCard
 	title="Dados de solicitante"
-	description="Informações usadas nas solicitações que você abre no portal. Área, departamento e gestor são preenchidos pelo administrador."
+	description={canEditAdministrativeFields
+		? 'Informações administrativas usadas nas solicitações que você abre no portal.'
+		: 'Informações usadas nas solicitações que você abre no portal. Área, departamento e gestor são preenchidos pelo administrador.'}
 >
 	{#snippet actions()}
 		<ProfileSectionActions
@@ -91,20 +143,49 @@
 	{/snippet}
 
 	<div class="requester-fields">
-		<div class="readonly-field">
-			<span class="readonly-label">Área do solicitante *</span>
-			<p class="readonly-value">{display(requester?.area)}</p>
-		</div>
+		{#if canEditAdministrativeFields}
+			<Input
+				label="Área do solicitante *"
+				name="area"
+				placeholder="Ex.: Tecnologia"
+				maxlength={PROFILE_AREA_MAX_LENGTH}
+				bind:value={section.draft.area}
+				error={submitted ? errors.area : ''}
+			/>
 
-		<div class="readonly-field">
-			<span class="readonly-label">Departamento</span>
-			<p class="readonly-value">{display(requester?.department)}</p>
-		</div>
+			<Input
+				label="Departamento"
+				name="department"
+				placeholder="Ex.: Desenvolvimento"
+				maxlength={PROFILE_DEPARTMENT_MAX_LENGTH}
+				bind:value={section.draft.department}
+				error={submitted ? errors.department : ''}
+			/>
 
-		<div class="readonly-field">
-			<span class="readonly-label">Gestor responsável *</span>
-			<p class="readonly-value">{display(requester?.manager)}</p>
-		</div>
+			<Input
+				label="Gestor responsável *"
+				name="manager"
+				placeholder="Nome do gestor"
+				maxlength={PROFILE_MANAGER_MAX_LENGTH}
+				bind:value={section.draft.manager}
+				error={submitted ? errors.manager : ''}
+			/>
+		{:else}
+			<div class="readonly-field">
+				<span class="readonly-label">Área do solicitante *</span>
+				<p class="readonly-value">{display(requester?.area)}</p>
+			</div>
+
+			<div class="readonly-field">
+				<span class="readonly-label">Departamento</span>
+				<p class="readonly-value">{display(requester?.department)}</p>
+			</div>
+
+			<div class="readonly-field">
+				<span class="readonly-label">Gestor responsável *</span>
+				<p class="readonly-value">{display(requester?.manager)}</p>
+			</div>
+		{/if}
 
 		<Input
 			label="Contato adicional"

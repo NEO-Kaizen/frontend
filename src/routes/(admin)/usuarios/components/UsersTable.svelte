@@ -118,6 +118,19 @@
 											<button
 												type="button"
 												class="menu-item"
+												onclick={() => handleAction(user, 'edit')}
+											>
+												<span class="menu-icon">
+													<Icon iconName="edit" iconSize="sm" />
+												</span>
+												<span>Alterar dados</span>
+											</button>
+
+											<div class="menu-divider"></div>
+
+											<button
+												type="button"
+												class="menu-item"
 												onclick={() => handleAction(user, 'reset')}
 											>
 												<span class="menu-icon">
