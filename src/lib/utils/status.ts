@@ -108,16 +108,21 @@ export function freeStatusOptions(statuses: PortalStatus[]): { value: string; la
 }
 
 // Fallback isPublic: solicitante vê último status público quando status atual é interno
+// Ordem de exibição = ordem do array. Sem `order` explícito, o "último público"
+// é o último status público que antecede o atual na lista.
 export function displayStatusName(name: string, statuses: PortalStatus[]): string {
-	const s = findStatus(name, statuses);
-	if (!s) return name;
-	const isPublic = s.isPublic ?? s.visibility === 'PUBLIC';
+	const index = statuses.findIndex((status) => status.name === name);
+	if (index === -1) return name;
+	const status = statuses[index];
+	const isPublic = status.isPublic ?? status.visibility === 'PUBLIC';
 	if (isPublic) return name;
-	const lastPublic = [...statuses]
-		.sort((a, b) => a.order - b.order)
-		.findLast((st) => (st.isPublic ?? st.visibility === 'PUBLIC') && st.order < s.order);
+	const lastPublic = statuses
+		.slice(0, index)
+		.findLast((candidate) => candidate.isPublic ?? candidate.visibility === 'PUBLIC');
 	if (lastPublic) return lastPublic.name;
-	const firstPublic = statuses.find((st) => st.isPublic ?? st.visibility === 'PUBLIC');
+	const firstPublic = statuses.find(
+		(candidate) => candidate.isPublic ?? candidate.visibility === 'PUBLIC'
+	);
 	return firstPublic?.name ?? name;
 }
 

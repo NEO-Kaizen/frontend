@@ -94,7 +94,6 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 	{
 		id: 1,
 		name: 'Solicitação enviada',
-		order: 1,
 		isCore: true,
 		isPublic: true,
 		isTerminal: false,
@@ -107,7 +106,6 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 	{
 		id: 2,
 		name: 'Aguardando triagem',
-		order: 2,
 		isCore: false,
 		isPublic: true,
 		isTerminal: false,
@@ -120,7 +118,6 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 	{
 		id: 3,
 		name: 'Em triagem',
-		order: 3,
 		isCore: true,
 		isPublic: true,
 		isTerminal: false,
@@ -133,7 +130,6 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 	{
 		id: 4,
 		name: 'Pendente de informações',
-		order: 4,
 		isCore: true,
 		isPublic: true,
 		isTerminal: false,
@@ -146,7 +142,6 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 	{
 		id: 5,
 		name: 'Aguardando mapeamento',
-		order: 5,
 		isCore: false,
 		isPublic: true,
 		isTerminal: false,
@@ -159,7 +154,6 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 	{
 		id: 6,
 		name: 'Mapeamento agendado',
-		order: 6,
 		isCore: false,
 		isPublic: false,
 		isTerminal: false,
@@ -172,7 +166,6 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 	{
 		id: 7,
 		name: 'Em mapeamento',
-		order: 7,
 		isCore: true,
 		isPublic: true,
 		isTerminal: false,
@@ -185,7 +178,6 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 	{
 		id: 8,
 		name: 'Em análise de viabilidade',
-		order: 8,
 		isCore: false,
 		isPublic: false,
 		isTerminal: false,
@@ -198,7 +190,6 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 	{
 		id: 9,
 		name: 'Elegível',
-		order: 9,
 		isCore: false,
 		isPublic: false,
 		isTerminal: false,
@@ -211,7 +202,6 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 	{
 		id: 10,
 		name: 'Não elegível',
-		order: 10,
 		isCore: false,
 		isPublic: false,
 		isTerminal: false,
@@ -224,7 +214,6 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 	{
 		id: 11,
 		name: 'Priorizado',
-		order: 11,
 		isCore: false,
 		isPublic: false,
 		isTerminal: false,
@@ -237,7 +226,6 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 	{
 		id: 12,
 		name: 'Backlog',
-		order: 12,
 		isCore: false,
 		isPublic: false,
 		isTerminal: false,
@@ -250,7 +238,6 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 	{
 		id: 13,
 		name: 'Direcionado para outra área',
-		order: 13,
 		isCore: false,
 		isPublic: false,
 		isTerminal: false,
@@ -263,7 +250,6 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 	{
 		id: 14,
 		name: 'Em desenvolvimento',
-		order: 14,
 		isCore: false,
 		isPublic: false,
 		isTerminal: false,
@@ -276,7 +262,6 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 	{
 		id: 15,
 		name: 'Em homologação',
-		order: 15,
 		isCore: false,
 		isPublic: false,
 		isTerminal: false,
@@ -289,7 +274,6 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 	{
 		id: 16,
 		name: 'Concluído',
-		order: 16,
 		isCore: true,
 		isPublic: true,
 		isTerminal: true,
@@ -302,7 +286,6 @@ export const DEFAULT_STATUSES: PortalStatus[] = [
 	{
 		id: 17,
 		name: 'Cancelado',
-		order: 17,
 		isCore: true,
 		isPublic: true,
 		isTerminal: true,

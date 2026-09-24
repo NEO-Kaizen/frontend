@@ -23,7 +23,6 @@
 	import { nextId, removeById, replaceById } from '$lib/utils/lists';
 	import {
 		areStatusNamesUnique,
-		areStatusOrdersUnique,
 		isValidStatusName,
 		MAX_STATUSES,
 		MAX_STATUS_NAME_LENGTH
@@ -54,9 +53,6 @@
 			return 'Preencha o nome (até 40 caracteres) de cada status.';
 		}
 		if (!areStatusNamesUnique(statuses)) return 'Nomes de status não podem se repetir.';
-		if (!areStatusOrdersUnique(statuses))
-			return 'Ordem dos status não pode se repetir (1..50 único).';
-		if (statuses.some((s) => s.order < 1 || s.order > 50)) return 'Ordem deve ser entre 1 e 50.';
 		if (statuses.some((s) => s.isCore && !s.isActive))
 			return 'Status vital (isCore) não pode ser inativado.';
 		if (
@@ -91,13 +87,10 @@
 	}
 
 	function addStatus() {
-		const nextOrder = Math.max(0, ...section.draft.statuses.map((s) => s.order)) + 1;
-		const safeOrder = Math.min(50, nextOrder <= 50 ? nextOrder : 50);
 		setStatuses([
 			{
 				id: nextId(section.draft.statuses),
 				name: '',
-				order: safeOrder,
 				isCore: false,
 				isPublic: false,
 				isTerminal: false,
@@ -124,20 +117,13 @@
 		return () => {};
 	}
 
-	type EditableStatusField = 'name' | 'order';
+	type EditableStatusField = 'name';
 	let editingCell = $state<{ id: number; field: EditableStatusField } | null>(null);
 	let editingName = $state('');
-	let editingOrder = $state('');
 
 	let nameError = $state(false);
 	const nameInvalid = $derived(
 		nameError && editingCell?.field === 'name' && !isValidStatusName(editingName)
-	);
-	const orderInvalid = $derived(
-		editingCell?.field === 'order' &&
-			(Number(editingOrder) < 1 ||
-				Number(editingOrder) > 50 ||
-				!Number.isInteger(Number(editingOrder)))
 	);
 
 	type BooleanFilter = 'all' | 'true' | 'false';
@@ -148,16 +134,14 @@
 	let showRestrictedOnly = $state(false);
 
 	const visibleStatuses = $derived(
-		section.draft.statuses
-			.filter(
-				(status) =>
-					(showInactive || status.isActive) &&
-					(isTerminalFilter === 'all' || String(status.isTerminal) === isTerminalFilter) &&
-					(triageModeFilter === 'all' || status.triageMode === triageModeFilter) &&
-					(mappingModeFilter === 'all' || status.mappingMode === mappingModeFilter) &&
-					(!showRestrictedOnly || status.isRestricted)
-			)
-			.sort((a, b) => a.order - b.order)
+		section.draft.statuses.filter(
+			(status) =>
+				(showInactive || status.isActive) &&
+				(isTerminalFilter === 'all' || String(status.isTerminal) === isTerminalFilter) &&
+				(triageModeFilter === 'all' || status.triageMode === triageModeFilter) &&
+				(mappingModeFilter === 'all' || status.mappingMode === mappingModeFilter) &&
+				(!showRestrictedOnly || status.isRestricted)
+		)
 	);
 	const inactiveCount = $derived(section.draft.statuses.filter((s) => !s.isActive).length);
 	const hasActiveFilters = $derived(
@@ -254,11 +238,7 @@
 		}
 		editingCell = { id: status.id, field };
 		nameError = false;
-		if (field === 'name') {
-			editingName = status.name;
-		} else if (field === 'order') {
-			editingOrder = String(status.order);
-		}
+		editingName = status.name;
 	}
 
 	function closeCellEditor() {
@@ -278,20 +258,6 @@
 			return;
 		}
 		updateStatus(status.id, { name: editingName.trim() });
-		closeCellEditor();
-	}
-
-	function commitOrderEdit(status: PortalStatus) {
-		const n = Number(editingOrder);
-		if (!Number.isInteger(n) || n < 1 || n > 50) {
-			notifyError('Ordem deve ser inteiro 1..50 único.');
-			return;
-		}
-		if (section.draft.statuses.some((s) => s.id !== status.id && s.order === n)) {
-			notifyError('Ordem já utilizada por outro status.');
-			return;
-		}
-		updateStatus(status.id, { order: n });
 		closeCellEditor();
 	}
 
@@ -333,12 +299,12 @@
 <SettingsCard
 	iconName="pending"
 	title="7. Status"
-	description="Defina como cada status aparece, quem vê, se finaliza, onde pode ser usado e sua cor. Identidade: nome e ordem; Vital: travados; Visibilidade: quem vê; Encerramento: se finaliza; Fluxo: onde pode ser escolhido; Tema: cor personalizável no tema."
+	description="Defina como cada status aparece, quem vê, se finaliza, onde pode ser usado e sua cor. Identidade: nome; Vital: travados; Visibilidade: quem vê; Encerramento: se finaliza; Fluxo: onde pode ser escolhido; Tema: cor personalizável no tema."
 >
 	{#snippet titleAddon()}
 		<InfoTip
 			label="Como funciona cada grupo"
-			text="Identidade: nome e ordem na lista. Vital são 6 travados com cadeado. Visibilidade: quem enxerga — público todo mundo vê, interno só equipe (solicitante segue no último público). Encerramento: se a demanda acaba (qualquer status pode ser final). Fluxo: onde você consegue mover (Livre a qualquer momento, Conclusão só ao finalizar Triagem/Mapeamento, Restrito só Admin). Tema: só a cor, personalizável no tema claro/escuro."
+			text="Identidade: nome na lista. Vital são 6 travados com cadeado. Visibilidade: quem enxerga — público todo mundo vê, interno só equipe (solicitante segue no último público). Encerramento: se a demanda acaba (qualquer status pode ser final). Fluxo: onde você consegue mover (Livre a qualquer momento, Conclusão só ao finalizar Triagem/Mapeamento, Restrito só Admin). Tema: só a cor, personalizável no tema claro/escuro."
 		/>
 	{/snippet}
 	{#snippet actions()}
@@ -358,7 +324,7 @@
 		<LegendPill
 			label="Identidade"
 			variant="identidade"
-			tooltip="O nome que aparece para quem solicitou e a ordem na lista e na linha do tempo."
+			tooltip="O nome que aparece para quem solicitou e na linha do tempo."
 		/>
 		<LegendPill
 			label="Vital"
@@ -474,7 +440,6 @@
 		<table>
 			<thead>
 				<tr>
-					<th scope="col" class="col-order">Ordem</th>
 					<th scope="col" class="col-name">Nome (Identidade)</th>
 					<th scope="col" class="col-public">Público</th>
 					<th scope="col" class="col-terminal">Terminal</th>
@@ -494,36 +459,6 @@
 						out:fade={{ duration: ROW_TRANSITION_MS }}
 						animate:flip={{ duration: ROW_TRANSITION_MS }}
 					>
-						<td class="col-order">
-							{#if editingCell?.id === status.id && editingCell.field === 'order'}
-								<input
-									class="edit-input order-input"
-									class:invalid={orderInvalid}
-									type="number"
-									min="1"
-									max="50"
-									aria-label="Ordem de {status.name}"
-									aria-invalid={orderInvalid}
-									{@attach focusOnMount}
-									bind:value={editingOrder}
-									onkeydown={(event) => {
-										if (event.key === 'Enter') commitOrderEdit(status);
-										else if (event.key === 'Escape') closeCellEditor();
-									}}
-									onblur={() => commitOrderEdit(status)}
-								/>
-							{:else}
-								<button
-									type="button"
-									class="cell-button"
-									aria-label="Editar ordem de {status.name}"
-									disabled={section.saving || loadFailed}
-									onclick={() => openCellEditor(status, 'order')}
-								>
-									{status.order}
-								</button>
-							{/if}
-						</td>
 						<td class="col-name">
 							<span class="name-field">
 								{#if status.isCore}
@@ -867,10 +802,6 @@
 	tbody tr:last-child td {
 		border-bottom: none;
 	}
-	.col-order {
-		width: 70px;
-		text-align: center;
-	}
 	.col-name {
 		width: 190px;
 	}
@@ -1016,9 +947,6 @@
 	}
 	.edit-input.invalid {
 		border-color: var(--status-error);
-	}
-	.order-input {
-		width: 64px;
 	}
 	.icon-btn {
 		display: inline-flex;

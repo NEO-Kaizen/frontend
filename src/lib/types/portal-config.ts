@@ -144,13 +144,13 @@ export type ThemePalette = keyof PortalTheme;
 // solicitação (qualquer status pode ser terminal; por padrão só 16,17), `isPublic`
 // substitui visibility (false = só equipe, solicitante vê último público),
 // `triageMode/mappingMode` normalizam Acessível+Apenas, `isRestricted` substitui
-// allowedRoles. `order 1..50` único define exibição; `isActive` mantém semântica de
-// ativação (não há exclusão). Campos legados `visibility/closesRequest/
-// isTriageExit` aceitos como alias na leitura (sanitize) durante rollout.
+// allowedRoles. A ordem de exibição é a ordem do array (sem `order` explícito);
+// `isActive` mantém semântica de ativação (não há exclusão). Campos legados
+// `visibility/closesRequest/isTriageExit` aceitos como alias na leitura
+// (sanitize) durante rollout.
 export interface PortalStatus {
 	id: number;
 	name: string;
-	order: number;
 	isCore: boolean;
 	isPublic: boolean;
 	isTerminal: boolean;

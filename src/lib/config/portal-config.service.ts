@@ -16,7 +16,6 @@ import {
 	isValidCategoryName,
 	isValidCategoryDescription,
 	isValidStatusName,
-	isValidStatusOrder,
 	isValidPlatformName,
 	isValidProtocolMask,
 	isValidPrioritizationWeight,
@@ -24,7 +23,6 @@ import {
 	areCategoryNamesUnique,
 	hasActiveCategory,
 	areStatusNamesUnique,
-	areStatusOrdersUnique,
 	hasActiveStatus,
 	MAX_CATEGORIES,
 	MAX_STATUSES,
@@ -430,8 +428,9 @@ function sanitizeCategories(value: unknown): PortalCategory[] {
 // Status do ciclo de vida vindos da API ou do payload — v4 (amend §2).
 // Aceita alias legados `visibility/closesRequest/isTriageExit` e booleans
 // legados durante rollout; emite apenas v4. Descarta item inválido; se nada
-// restar, exceder limite, repetir nome/order, violar isCore/isRestricted ou
-// nenhum ativo, cai nos defaults. Ordem de chaves espelha `portal-defaults.ts`.
+// restar, exceder limite, repetir nome, violar isCore/isRestricted ou
+// nenhum ativo, cai nos defaults. Ordem de exibição = ordem do array; ordem de
+// chaves espelha `portal-defaults.ts`.
 function sanitizeStatuses(value: unknown): PortalStatus[] {
 	if (!Array.isArray(value)) return structuredClone(DEFAULT_PORTAL_CONFIG.statuses);
 
@@ -451,10 +450,6 @@ function sanitizeStatuses(value: unknown): PortalStatus[] {
 
 		const tone = sanitizeStatusTone(item.tone);
 		const isActive = item.isActive !== false;
-
-		// order 1..50 — fallback para id quando ausente/inválido (compat 0_4)
-		const rawOrder = isValidStatusOrder(item.order) ? (item.order as number) : item.id;
-		const order = isValidStatusOrder(rawOrder) ? (rawOrder as number) : item.id;
 
 		// isCore — explícito no payload; fallback busca default pelo id para compat legado
 		const defaultCore =
@@ -498,7 +493,6 @@ function sanitizeStatuses(value: unknown): PortalStatus[] {
 		statuses.push({
 			id: item.id,
 			name,
-			order,
 			isCore,
 			isPublic,
 			isTerminal,
@@ -513,16 +507,12 @@ function sanitizeStatuses(value: unknown): PortalStatus[] {
 	if (statuses.length === 0) return structuredClone(DEFAULT_PORTAL_CONFIG.statuses);
 	if (statuses.length > MAX_STATUSES) return structuredClone(DEFAULT_PORTAL_CONFIG.statuses);
 	if (!areStatusNamesUnique(statuses)) return structuredClone(DEFAULT_PORTAL_CONFIG.statuses);
-	if (!areStatusOrdersUnique(statuses)) return structuredClone(DEFAULT_PORTAL_CONFIG.statuses);
 	if (!hasActiveStatus(statuses)) return structuredClone(DEFAULT_PORTAL_CONFIG.statuses);
 	// Guards v4: isCore não desativa; isRestricted só com none/none
 	if (statuses.some((s) => s.isCore && !s.isActive))
 		return structuredClone(DEFAULT_PORTAL_CONFIG.statuses);
 	if (statuses.some((s) => s.isRestricted && (s.triageMode !== 'none' || s.mappingMode !== 'none')))
 		return structuredClone(DEFAULT_PORTAL_CONFIG.statuses);
-
-	// Ordena por order para exibição estável (contrato: order=exibição)
-	statuses.sort((a, b) => a.order - b.order);
 
 	return statuses;
 }

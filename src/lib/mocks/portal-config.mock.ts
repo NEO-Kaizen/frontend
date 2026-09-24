@@ -318,9 +318,10 @@ function validateCategories(categories: PortalCategory[]): void {
 	}
 }
 
-// A lista de status é atômica: 1..50 itens, ids presentes, order 1..50 único,
+// A lista de status é atômica: 1..50 itens, ids presentes,
 // isCore/isPublic/isTerminal/triageMode/mappingMode/isRestricted, nomes únicos
-// e ao menos um ativo. 409 para rename/remove core (6 vitais).
+// e ao menos um ativo. A ordem de exibição é a ordem do array. 409 para
+// rename/remove core (6 vitais).
 function validateStatuses(statuses: PortalStatus[]): void {
 	if (!Array.isArray(statuses) || statuses.length === 0 || statuses.length > MAX_STATUSES) {
 		throw new ApiError(400, 'A lista de status deve ter entre 1 e 50 itens.');
@@ -335,9 +336,6 @@ function validateStatuses(statuses: PortalStatus[]): void {
 				400,
 				'Nome do status deve ter entre 1 e 40 caracteres (após remover espaços).'
 			);
-		}
-		if (!Number.isInteger(status.order) || status.order < 1 || status.order > 50) {
-			throw new ApiError(400, 'Campo "order" deve ser inteiro 1..50.');
 		}
 		if (typeof status.isCore !== 'boolean') {
 			throw new ApiError(400, 'Campo "isCore" deve ser booleano.');
@@ -367,13 +365,6 @@ function validateStatuses(statuses: PortalStatus[]): void {
 
 	if (!areStatusNamesUnique(statuses)) {
 		throw new ApiError(400, 'Nomes de status não podem se repetir.');
-	}
-	{
-		const seen = new Set<number>();
-		for (const s of statuses) {
-			if (seen.has(s.order)) throw new ApiError(400, 'Ordem dos status não pode se repetir.');
-			seen.add(s.order);
-		}
 	}
 	if (statuses.some((s) => s.isCore && !s.isActive)) {
 		throw new ApiError(400, 'Status vital (isCore) não pode ser inativado.');

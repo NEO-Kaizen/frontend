@@ -128,10 +128,6 @@ export const MAX_STATUSES = 50;
 
 export const MAX_STATUS_NAME_LENGTH = 40;
 
-export const MIN_STATUS_ORDER = 1;
-
-export const MAX_STATUS_ORDER = 50;
-
 export const MIN_JUSTIFICATION_LENGTH = 1;
 
 export const MAX_JUSTIFICATION_LENGTH = 4000;
@@ -139,15 +135,6 @@ export const MAX_JUSTIFICATION_LENGTH = 4000;
 export function isValidStatusName(value: string): boolean {
 	const trimmed = value.trim();
 	return trimmed.length > 0 && trimmed.length <= MAX_STATUS_NAME_LENGTH;
-}
-
-export function isValidStatusOrder(value: unknown): boolean {
-	return (
-		typeof value === 'number' &&
-		Number.isInteger(value) &&
-		value >= MIN_STATUS_ORDER &&
-		value <= MAX_STATUS_ORDER
-	);
 }
 
 export function isValidStatusMode(value: unknown): boolean {
@@ -166,15 +153,6 @@ export function areStatusNamesUnique(statuses: readonly PortalStatus[]): boolean
 		const normalized = status.name.trim().toLowerCase();
 		if (seen.has(normalized)) return false;
 		seen.add(normalized);
-	}
-	return true;
-}
-
-export function areStatusOrdersUnique(statuses: readonly PortalStatus[]): boolean {
-	const seen = new Set<number>();
-	for (const status of statuses) {
-		if (seen.has(status.order)) return false;
-		seen.add(status.order);
 	}
 	return true;
 }
