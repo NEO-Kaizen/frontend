@@ -103,7 +103,9 @@
 
 	function toggleCategory(id: number) {
 		const current = section.draft.categories.find((category) => category.id === id);
-		updateCategory(id, { isActive: !current?.isActive });
+		if (!current) return;
+		if (current.isActive && isUnsavedCategory(current)) return;
+		updateCategory(id, { isActive: !current.isActive });
 	}
 
 	function removeCategory(id: number) {
@@ -179,6 +181,12 @@
 		return activeCategories.length > 1;
 	}
 
+	// Categoria ainda não persistida (id fora do que está salvo): só pode ser
+	// criada ativa — não é possível ocultá-la antes do primeiro salvamento.
+	function isUnsavedCategory(category: PortalCategory): boolean {
+		return !section.pristine.categories.some((item) => item.id === category.id);
+	}
+
 	// Categoria arrastada para reordenação (Card 5); `null` = nenhuma.
 	let draggingId = $state<number | null>(null);
 	let dropTargetId = $state<number | null>(null);
@@ -192,6 +200,7 @@
 
 	// Ativa/inativa é a única ação de "saída" — não há exclusão de item salvo.
 	function toggleActive(category: PortalCategory) {
+		if (category.isActive && isUnsavedCategory(category)) return;
 		updateCategory(category.id, { isActive: !category.isActive });
 	}
 
@@ -367,7 +376,7 @@
 										<input
 											type="checkbox"
 											checked={category.isActive}
-											disabled={!canToggleInactive(category)}
+											disabled={!canToggleInactive(category) || isUnsavedCategory(category)}
 											onchange={() => toggleCategory(category.id)}
 										/>
 										<span>Ativa</span>
@@ -411,7 +420,10 @@
 										type="button"
 										aria-label={category.isActive ? 'Inativar categoria' : 'Ativar categoria'}
 										title={category.isActive ? 'Inativar categoria' : 'Ativar categoria'}
-										disabled={section.saving || loadFailed || !canToggleInactive(category)}
+										disabled={section.saving ||
+											loadFailed ||
+											!canToggleInactive(category) ||
+											(category.isActive && isUnsavedCategory(category))}
 										onclick={() => toggleActive(category)}
 									>
 										<Icon iconName={category.isActive ? 'block' : 'check'} iconSize="sm" />
