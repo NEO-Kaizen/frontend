@@ -122,15 +122,41 @@ export function hasActiveCategory(categories: readonly PortalCategory[]): boolea
 	return categories.some((category) => category.isActive);
 }
 
-// ---- Status do ciclo de vida (Card 6 / CONTRATO-BACKEND.md) ----
+// ---- Status do ciclo de vida (Card 6 / amend v4) ----
 
 export const MAX_STATUSES = 50;
 
 export const MAX_STATUS_NAME_LENGTH = 40;
 
+export const MIN_STATUS_ORDER = 1;
+
+export const MAX_STATUS_ORDER = 50;
+
+export const MIN_JUSTIFICATION_LENGTH = 1;
+
+export const MAX_JUSTIFICATION_LENGTH = 4000;
+
 export function isValidStatusName(value: string): boolean {
 	const trimmed = value.trim();
 	return trimmed.length > 0 && trimmed.length <= MAX_STATUS_NAME_LENGTH;
+}
+
+export function isValidStatusOrder(value: unknown): boolean {
+	return (
+		typeof value === 'number' &&
+		Number.isInteger(value) &&
+		value >= MIN_STATUS_ORDER &&
+		value <= MAX_STATUS_ORDER
+	);
+}
+
+export function isValidStatusMode(value: unknown): boolean {
+	return value === 'none' || value === 'free' || value === 'conclusion_only';
+}
+
+export function isValidJustification(value: string): boolean {
+	const trimmed = value.trim();
+	return trimmed.length >= MIN_JUSTIFICATION_LENGTH && trimmed.length <= MAX_JUSTIFICATION_LENGTH;
 }
 
 // Nomes únicos comparando depois do trim, sem diferenciar maiúsculas.
@@ -144,8 +170,21 @@ export function areStatusNamesUnique(statuses: readonly PortalStatus[]): boolean
 	return true;
 }
 
+export function areStatusOrdersUnique(statuses: readonly PortalStatus[]): boolean {
+	const seen = new Set<number>();
+	for (const status of statuses) {
+		if (seen.has(status.order)) return false;
+		seen.add(status.order);
+	}
+	return true;
+}
+
 export function hasActiveStatus(statuses: readonly PortalStatus[]): boolean {
 	return statuses.some((status) => status.isActive);
+}
+
+export function hasTerminalStatus(statuses: readonly PortalStatus[]): boolean {
+	return statuses.some((status) => status.isTerminal);
 }
 
 // ---- Pesos da priorização (Card 7 / CONTRATO-BACKEND.md) ----
