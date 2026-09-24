@@ -9,6 +9,7 @@ import type {
 	StatusToneTokens
 } from '$lib/types/portal-config';
 import logoAsset from '$lib/assets/MAAT-logo.svg';
+import logoNeoAsset from '$lib/assets/NEO.svg?no-inline';
 import avatarAsset from '$lib/assets/avatar-default.svg';
 import faviconAsset from '$lib/assets/favicon.svg';
 import loginImageAsset from '$lib/assets/login.png';
@@ -404,8 +405,8 @@ export const NEO_THEME: PortalTheme = {
 // Assets de exemplo para o botão "Exemplo": imagem de login escura em ambos os
 // temas e logo colorido pela primária. Favicon inalterado.
 export const NEO_EXAMPLE_ASSETS: PortalAssets = {
-	logoLightUrl: logoAsset,
-	logoDarkUrl: logoAsset,
+	logoLightUrl: logoNeoAsset,
+	logoDarkUrl: logoNeoAsset,
 	logoUsePrimaryColor: true,
 	avatarLightUrl: avatarAsset,
 	avatarDarkUrl: avatarAsset,
