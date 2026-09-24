@@ -43,19 +43,23 @@ function normalizeParticipants(participants: MappingParticipant[]): MappingPaylo
 
 // Monta o payload do PUT a partir do rascunho do formulário. O frontend envia
 // somente conclusão (`completeMapping: true`); o backend valida, persiste e
-// muda o status — o frontend nunca altera status diretamente.
+// muda o status — o frontend nunca altera status diretamente. v4 inclui
+// `targetStatus/mappingAssigneeId/justification` quando em conclusão.
 export function buildMappingPayload(draft: MappingDraft): MappingPayload {
 	const modality = draft.modality === '' ? null : draft.modality;
-	const duration = parseNumber(draft.durationMinutes.trim());
+	const duration = parseNumber((draft.durationMinutes ?? '').trim());
 	return {
 		scheduledFor: datetimeLocalToIso(draft.scheduledFor),
 		durationMinutes: duration === null ? null : duration,
 		modality,
-		meetingLink: modality === 'REMOTE' ? emptyToNull(draft.meetingLink) : null,
-		location: modality === 'IN_PERSON' ? emptyToNull(draft.location) : null,
+		meetingLink: modality === 'REMOTE' ? emptyToNull(draft.meetingLink ?? '') : null,
+		location: modality === 'IN_PERSON' ? emptyToNull(draft.location ?? '') : null,
 		participants: normalizeParticipants(draft.participants),
-		notes: emptyToNull(draft.notes),
-		completeMapping: true
+		notes: emptyToNull(draft.notes ?? ''),
+		completeMapping: true,
+		targetStatus: draft.targetStatus ? Number(draft.targetStatus) : null,
+		mappingAssigneeId: draft.mappingAssigneeId?.trim() ? draft.mappingAssigneeId.trim() : null,
+		justification: draft.justification?.trim() ? draft.justification.trim() : null
 	};
 }
 
