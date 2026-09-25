@@ -100,7 +100,7 @@
 	<div class="field">
 		<Input
 			label="Número do Protocolo"
-			placeholder={`Ex: ${protocolMask}-2026-0001`}
+			placeholder={`Ex: ${protocolMask}-A1B2-C3D4`}
 			prefix="#"
 			maxlength={protocolMask.length + 10}
 			error={protocolError}
