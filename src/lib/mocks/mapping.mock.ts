@@ -67,9 +67,10 @@ export function getMappingMock(protocol: string): Promise<MappingResponse | null
 	return delay(MOCK_LATENCY_MS).then(() => (found ? structuredClone(found) : null));
 }
 
-// PUT: persiste os dados; `completeMapping: true` apenas persiste (no backend
-// real ele também muda o status para "Mapeamento agendado" — o frontend nunca
-// altera status diretamente, então o mock não toca na solicitação).
+// PUT: persiste os dados; `completeMapping: true` valida/ecoa `targetStatus`
+// (no backend real ele também muda o status para o alvo e persiste
+// `lastTechnicalMessage`/`lastUpdate` — o frontend nunca altera status
+// diretamente, então o mock só espelha os campos v4 na resposta).
 export function saveMappingMock(
 	protocol: string,
 	payload: MappingPayload
@@ -77,6 +78,12 @@ export function saveMappingMock(
 	const normalized = normalizeProtocol(protocol);
 	if (!normalized) {
 		return Promise.reject(new ApiError(404, 'Solicitação não encontrada.'));
+	}
+	if (
+		payload.completeMapping &&
+		(payload.targetStatus === null || payload.targetStatus === undefined)
+	) {
+		return Promise.reject(new ApiError(422, 'Selecione o status de destino do mapeamento.'));
 	}
 	const participants: MappingParticipant[] = payload.participants.map((participant) => ({
 		...(participant.id ? { id: participant.id } : {}),
@@ -94,7 +101,11 @@ export function saveMappingMock(
 		location: payload.location,
 		participants,
 		notes: payload.notes,
-		mappingAssignee: previous?.mappingAssignee ?? null
+		mappingAssignee: previous?.mappingAssignee ?? null,
+		mappingAssigneeId: payload.mappingAssigneeId ?? previous?.mappingAssigneeId ?? null,
+		targetStatus: payload.targetStatus ?? previous?.targetStatus ?? null,
+		justification: payload.justification ?? null,
+		lastTechnicalMessage: payload.lastTechnicalMessage ?? null
 	};
 	mappingStore.set(normalized, detail);
 	return delay(MOCK_LATENCY_MS).then(() => structuredClone(detail));

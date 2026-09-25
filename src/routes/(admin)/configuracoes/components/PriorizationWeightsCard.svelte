@@ -69,7 +69,7 @@
 
 <SettingsCard
 	iconName="calculate"
-	title="7. Pesos da priorização"
+	title="6. Pesos da priorização"
 	description="Defina a influência de cada critério no cálculo da prioridade."
 >
 	{#snippet actions()}

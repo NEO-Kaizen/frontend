@@ -30,7 +30,20 @@ function isValidTriage(value: unknown): value is TriageAssessment {
 		typeof v.suggestedResponsibleJustification === 'string' &&
 		(v.exitStatus === '' || typeof v.exitStatus === 'number') &&
 		typeof v.result === 'string' &&
-		typeof v.conclusionJustification === 'string'
+		typeof v.conclusionJustification === 'string' &&
+		(v.lastTechnicalMessage === undefined || typeof v.lastTechnicalMessage === 'string') &&
+		isValidTriageAssignee(v.assignee)
+	);
+}
+
+function isValidTriageAssignee(value: unknown): boolean {
+	if (value === undefined || value === null) return true;
+	if (typeof value !== 'object' || Array.isArray(value)) return false;
+	const assignee = value as Record<string, unknown>;
+	return (
+		(assignee.id === null || typeof assignee.id === 'string') &&
+		(assignee.name === null || typeof assignee.name === 'string') &&
+		(assignee.email === undefined || assignee.email === null || typeof assignee.email === 'string')
 	);
 }
 

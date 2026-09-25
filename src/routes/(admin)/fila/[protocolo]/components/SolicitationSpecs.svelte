@@ -12,19 +12,31 @@
 	} from '$lib/services/pendency.service';
 	import type { ListPendenciesResponse, PendingFieldRef } from '$lib/types/pendency';
 	import { toastState } from '$lib/states/toast.svelte';
-	import { statusThemeVars } from '$lib/utils/status';
+	import { statusChangeTargets, statusThemeVars } from '$lib/utils/status';
 	import type { InternalNotesResponse } from '$lib/types/internal-note';
 	import type { InternalRequestDetail } from '$lib/types/request';
 	import type { CriterionNotes, PrioritizationResult } from '$lib/types/prioritization';
 	import { SvelteMap } from 'svelte/reactivity';
 	import { buildFieldLookup } from '$lib/pendency/field-catalog';
-	import { canAssignAnalyst, canCalculatePriority } from '$lib/services/access.service';
+	import {
+		canAssignAnalyst,
+		canCalculatePriority,
+		canChangeStatusRole
+	} from '$lib/services/access.service';
 	import FieldPendencyModal from './pendency/FieldPendencyModal.svelte';
 	import PendencyRequestModal from './pendency/PendencyRequestModal.svelte';
 	import AssignAction from './AssignAction.svelte';
 	import FloatingPrioritizationPanel from './prioritization/FloatingPrioritizationPanel.svelte';
 	import QuickActions from './QuickActions.svelte';
 	import SpecTabs from './SpecTabs.svelte';
+	import StatusChangeModal from './status/StatusChangeModal.svelte';
+
+	type StatusChangeUpdate = {
+		protocol: string;
+		status: InternalRequestDetail['status'];
+		lastUpdate: string;
+		lastTechnicalMessage?: string;
+	};
 
 	interface Props {
 		solicitation: InternalRequestDetail;
@@ -36,6 +48,7 @@
 		onSaveError?: (message: string) => void;
 		onTriageSuccess?: (updated: InternalRequestDetail) => void;
 		onPrioritizationSuccess?: (updated: InternalRequestDetail) => void;
+		onStatusChangeSuccess?: (update: StatusChangeUpdate) => void;
 	}
 
 	let {
@@ -47,7 +60,8 @@
 		onSaveSuccess,
 		onSaveError,
 		onTriageSuccess,
-		onPrioritizationSuccess
+		onPrioritizationSuccess,
+		onStatusChangeSuccess
 	}: Props = $props();
 
 	const currentUser = $derived(page.data.user);
@@ -275,6 +289,25 @@
 		canCalculatePriority(currentUser ?? null, solicitation.assignee?.id ?? null)
 	);
 
+	// "Alterar Status" (`PATCH /requests/:protocol/status` §3.3): Administrador
+	// (bypass) ou Analista com custódia. Os alvos vêm do PortalConfig (admin:
+	// qualquer ativo; analista: apenas free).
+	const portalStatuses = $derived(page.data.portalConfig.statuses ?? []);
+	const currentStatusId = $derived(
+		portalStatuses.find((status) => status.name === solicitation.status)?.id ?? null
+	);
+	const statusChangeMode = $derived(
+		canChangeStatusRole(
+			currentUser ?? null,
+			solicitation.assignee?.id,
+			solicitation.mappingAssignee?.id ?? solicitation.mappingAssigneeId
+		)
+	);
+	const statusChangeOptions = $derived(
+		statusChangeMode ? statusChangeTargets(statusChangeMode, portalStatuses, currentStatusId) : []
+	);
+	const canChangeStatus = $derived(statusChangeOptions.length > 0);
+
 	const hiddenQuickActionKeys = $derived.by(() => {
 		const hidden: string[] = [];
 
@@ -284,6 +317,10 @@
 
 		if (!canCalculate) {
 			hidden.push('priorityCalculator');
+		}
+
+		if (!canChangeStatus) {
+			hidden.push('changeStatus');
 		}
 
 		return hidden;
@@ -305,6 +342,7 @@
 	let calculatorPos = $state<{ x: number; y: number } | null>(null);
 
 	let isAssignModalOpen = $state(false);
+	let statusModalProtocol = $state<string | null>(null);
 
 	function handleOpenCalculator() {
 		if (!canCalculate) {
@@ -350,6 +388,13 @@
 		solicitation = updated;
 	}
 
+	async function handleStatusChangeSaved(update: StatusChangeUpdate): Promise<void> {
+		if (update.protocol !== solicitation.protocol) return;
+		// A resposta do PATCH não traz o detalhe completo — recarrega o load.
+		onStatusChangeSuccess?.(update);
+		await invalidateAll();
+	}
+
 	function handleQuickAction(key: string) {
 		if (key === 'priorityCalculator') {
 			if (!canCalculate) {
@@ -363,6 +408,12 @@
 			}
 
 			isAssignModalOpen = true;
+		} else if (key === 'changeStatus') {
+			if (!canChangeStatus) {
+				return;
+			}
+
+			statusModalProtocol = solicitation.protocol;
 		}
 	}
 </script>
@@ -508,6 +559,17 @@
 			currentAssigneeDeadline={solicitation.assigneeDeadline ?? null}
 			onclose={() => (isAssignModalOpen = false)}
 			onSuccess={handleAssignSuccess}
+		/>
+	{/if}
+
+	{#if statusModalProtocol === solicitation.protocol && canChangeStatus}
+		<StatusChangeModal
+			protocol={solicitation.protocol}
+			currentStatusName={solicitation.status}
+			statuses={portalStatuses}
+			targets={statusChangeOptions}
+			onSaved={handleStatusChangeSaved}
+			onclose={() => (statusModalProtocol = null)}
 		/>
 	{/if}
 </div>

@@ -2,6 +2,8 @@
 	import { invalidateAll } from '$app/navigation';
 	import { onDestroy, tick } from 'svelte';
 	import Button from '$lib/components/Button.svelte';
+	import FilterSelect from '$lib/components/FilterSelect.svelte';
+	import Textarea from '$lib/components/Textarea.svelte';
 	import UserMultiSelect from '$lib/components/UserMultiSelect.svelte';
 	import { buildMappingPayload, getMapping, saveMapping } from '$lib/services/mapping.service';
 	import type { InternalRequestDetail } from '$lib/types/request';
@@ -11,10 +13,13 @@
 		MAPPING_LOCATION_MAXLENGTH,
 		MAPPING_MODALITY_OPTIONS,
 		MAPPING_NOTES_MAXLENGTH,
+		MAPPING_SCHEDULED_STATUS_ID,
 		type MappingDraft,
 		type MappingResponse
 	} from '$lib/types/mapping';
+	import type { PortalStatus } from '$lib/types/portal-config';
 	import { formatDateTime } from '$lib/utils/dates';
+	import { mappingConclusionOptions } from '$lib/utils/status';
 	import { isValidEmail } from '$lib/utils/validations';
 	import Field from '../solicitation-info/Field.svelte';
 	import ToggleSection from '../solicitation-info/ToggleSection.svelte';
@@ -37,9 +42,10 @@
 	interface Props {
 		solicitation: InternalRequestDetail;
 		canEdit: boolean;
+		statuses?: PortalStatus[];
 	}
 
-	let { solicitation, canEdit }: Props = $props();
+	let { solicitation, canEdit, statuses = [] }: Props = $props();
 
 	let protocol = $derived(solicitation.protocol);
 	let editable = $derived(canEdit);
@@ -76,6 +82,20 @@
 
 	onDestroy(clearSaveSuccess);
 	let isEmpty = $derived(isMappingEmpty(saved));
+	let conclusionOptions = $derived(mappingConclusionOptions(statuses));
+	let targetId = $derived(
+		draft.targetStatus && draft.targetStatus.trim() !== ''
+			? Number(draft.targetStatus)
+			: MAPPING_SCHEDULED_STATUS_ID
+	);
+	let isScheduled = $derived(targetId === MAPPING_SCHEDULED_STATUS_ID);
+	let targetStatus = $derived(statuses.find((s) => s.id === targetId));
+	let showJustification = $derived(!isScheduled);
+	let showReturn = $derived(!isScheduled && (targetStatus?.isPublic ?? false));
+	let targetStatusLabel = $derived(
+		targetStatus?.name ?? (saved?.targetStatus != null ? String(saved.targetStatus) : '---')
+	);
+	let submitLabel = $derived(isScheduled ? 'Agendar mapeamento' : 'Concluir mapeamento');
 	let scheduledForDisplay = $derived(
 		saved?.scheduledFor ? formatDateTime(saved.scheduledFor) : '---'
 	);
@@ -135,15 +155,44 @@
 	});
 
 	function handleChange(
-		path: 'scheduledFor' | 'durationMinutes' | 'meetingLink' | 'location' | 'notes',
+		path:
+			| 'scheduledFor'
+			| 'durationMinutes'
+			| 'meetingLink'
+			| 'location'
+			| 'notes'
+			| 'targetStatus'
+			| 'justification'
+			| 'lastTechnicalMessage'
+			| 'mappingAssigneeId',
 		value: string
 	): void {
 		applyMappingChange(draft, path, value);
 		delete errors[path];
 	}
 
+	function handleTargetStatusChange(value: string): void {
+		applyMappingChange(draft, 'targetStatus', value);
+		delete errors['targetStatus'];
+		// Troca de ramo limpa erros condicionais; valores da reunião são
+		// preservados no draft e anulados só no payload (buildMappingPayload).
+		for (const key of [
+			'scheduledFor',
+			'durationMinutes',
+			'modality',
+			'meetingLink',
+			'location',
+			'participants',
+			'notes',
+			'justification',
+			'lastTechnicalMessage'
+		]) {
+			delete errors[key];
+		}
+	}
+
 	function handleBlur(path: string): void {
-		const next = validateMappingField(draft, path);
+		const next = validateMappingField(draft, path, statuses);
 		delete errors[path];
 		Object.assign(errors, next);
 	}
@@ -233,7 +282,7 @@
 	// só reflete via `invalidateAll`.
 	async function handleComplete(): Promise<void> {
 		if (isSubmitting) return;
-		const validation = validateMappingDraft(draft);
+		const validation = validateMappingDraft(draft, undefined, statuses);
 		errors = validation;
 		if (Object.keys(validation).length > 0) {
 			saveError = 'Revise os campos destacados antes de concluir o mapeamento.';
@@ -299,23 +348,47 @@
 			{/if}
 		</ToggleSection>
 
-		<ToggleSection id="mapping-schedule" title="AGENDAMENTO DA REUNIÃO" open={true}>
-			{#if !editable}
-				<p class="readonly-notice">
-					Modo de visualização — seu perfil não permite editar o mapeamento.
-				</p>
-			{:else if isEmpty}
+		{#if !editable}
+			<p class="readonly-notice">
+				Modo de visualização — seu perfil não permite editar o mapeamento.
+			</p>
+		{/if}
+
+		{#if saveError}
+			<p class="save-feedback save-error" role="alert">{saveError}</p>
+		{/if}
+		{#if saveSuccess}
+			<p class="save-feedback save-success" role="status">{saveSuccess}</p>
+		{/if}
+
+		<div class="destination-block">
+			{#if editable}
+				<FilterSelect
+					label="Status de destino"
+					options={conclusionOptions}
+					value={draft.targetStatus ?? ''}
+					onchange={handleTargetStatusChange}
+					placeholder="Selecione o destino"
+					disabled={isSubmitting}
+					error={errors['targetStatus'] ?? ''}
+				/>
+			{:else}
+				<Field label="Status de destino" value={targetStatusLabel} />
+			{/if}
+		</div>
+
+		{#if editable && !isScheduled}
+			<p class="locked-notice" role="status">
+				Reunião travada — o destino selecionado não exige agendamento.
+			</p>
+		{/if}
+
+		<ToggleSection id="mapping-schedule" title="AGENDAMENTO DA REUNIÃO" open={isScheduled}>
+			{#if editable && isEmpty && isScheduled}
 				<p class="empty-notice">
 					Nenhum agendamento registrado. Preencha os campos abaixo para agendar a reunião de
 					mapeamento.
 				</p>
-			{/if}
-
-			{#if saveError}
-				<p class="save-feedback save-error" role="alert">{saveError}</p>
-			{/if}
-			{#if saveSuccess}
-				<p class="save-feedback save-success" role="status">{saveSuccess}</p>
 			{/if}
 
 			<div class="grid">
@@ -329,7 +402,7 @@
 					min={nowMin}
 					editValue={draft.scheduledFor}
 					error={errors['scheduledFor'] ?? ''}
-					disabled={isSubmitting}
+					disabled={isSubmitting || !isScheduled}
 					onEditInput={(value) => handleChange('scheduledFor', value)}
 					onEditBlur={() => handleBlur('scheduledFor')}
 				/>
@@ -342,7 +415,7 @@
 					options={MAPPING_DURATION_OPTIONS}
 					editValue={draft.durationMinutes}
 					error={errors['durationMinutes'] ?? ''}
-					disabled={isSubmitting}
+					disabled={isSubmitting || !isScheduled}
 					onEditInput={(value) => handleChange('durationMinutes', value)}
 					onEditBlur={() => handleBlur('durationMinutes')}
 				/>
@@ -361,7 +434,7 @@
 											name="mapping-modality"
 											value={option.value}
 											checked={draft.modality === option.value}
-											disabled={isSubmitting}
+											disabled={isSubmitting || !isScheduled}
 											aria-describedby={errors['modality'] ? 'mapping-modality-error' : undefined}
 											onchange={() => handleModalityChange(option.value)}
 										/>
@@ -394,7 +467,7 @@
 							maxlength={500}
 							editValue={draft.meetingLink}
 							error={errors['meetingLink'] ?? ''}
-							disabled={isSubmitting}
+							disabled={isSubmitting || !isScheduled}
 							onEditInput={(value) => handleChange('meetingLink', value)}
 							onEditBlur={() => handleBlur('meetingLink')}
 						/>
@@ -410,7 +483,7 @@
 							maxlength={MAPPING_LOCATION_MAXLENGTH}
 							editValue={draft.location}
 							error={errors['location'] ?? ''}
-							disabled={isSubmitting}
+							disabled={isSubmitting || !isScheduled}
 							onEditInput={(value) => handleChange('location', value)}
 							onEditBlur={() => handleBlur('location')}
 						/>
@@ -425,7 +498,7 @@
 					selected={draft.participants}
 					onSelect={handleSelectParticipant}
 					onRemove={handleRemoveParticipant}
-					disabled={isSubmitting}
+					disabled={isSubmitting || !isScheduled}
 					readonly={!editable}
 				>
 					<div class="external-form">
@@ -437,7 +510,7 @@
 									type="text"
 									placeholder="Nome completo"
 									bind:value={externalName}
-									disabled={isSubmitting}
+									disabled={isSubmitting || !isScheduled}
 									maxlength={120}
 								/>
 							</label>
@@ -447,14 +520,14 @@
 									type="email"
 									placeholder="nome@exemplo.com"
 									bind:value={externalEmail}
-									disabled={isSubmitting}
+									disabled={isSubmitting || !isScheduled}
 									maxlength={255}
 								/>
 							</label>
 							<button
 								type="button"
 								class="btn-add-external"
-								disabled={isSubmitting}
+								disabled={isSubmitting || !isScheduled}
 								onclick={handleAddExternal}
 							>
 								Adicionar
@@ -481,34 +554,64 @@
 					maxlength={MAPPING_NOTES_MAXLENGTH}
 					editValue={draft.notes}
 					error={errors['notes'] ?? ''}
-					disabled={isSubmitting}
+					disabled={isSubmitting || !isScheduled}
 					onEditInput={(value) => handleChange('notes', value)}
 					onEditBlur={() => handleBlur('notes')}
 				/>
 			</div>
-
-			{#if editable}
-				<div class="form-actions">
-					<Button variant="outline-neutral" disabled={isSubmitting} onclick={handleCancel}>
-						Cancelar
-					</Button>
-					<Button variant="primary" loading={isSubmitting} onclick={() => void handleComplete()}>
-						Concluir mapeamento
-					</Button>
-				</div>
-			{:else if saved?.meetingLink}
-				<p class="readonly-link-row">
-					<a
-						href={saved.meetingLink}
-						target="_blank"
-						rel="external noopener noreferrer"
-						class="readonly-link"
-					>
-						Abrir link da videoconferência
-					</a>
-				</p>
-			{/if}
 		</ToggleSection>
+
+		{#if editable ? showJustification : false}
+			<div class="notes-block">
+				<Textarea
+					label="Justificativa (interna)"
+					placeholder="Informe a justificativa da conclusão"
+					rows={4}
+					maxlength={4000}
+					disabled={isSubmitting}
+					error={errors['justification'] ?? ''}
+					bind:value={draft.justification}
+					oninput={() => delete errors['justification']}
+				/>
+			</div>
+		{/if}
+
+		{#if editable ? showReturn : false}
+			<div class="notes-block">
+				<Textarea
+					label="Retorno ao solicitante"
+					placeholder="Mensagem visível ao solicitante no /acompanhar"
+					rows={4}
+					maxlength={4000}
+					disabled={isSubmitting}
+					error={errors['lastTechnicalMessage'] ?? ''}
+					bind:value={draft.lastTechnicalMessage}
+					oninput={() => delete errors['lastTechnicalMessage']}
+				/>
+			</div>
+		{/if}
+
+		{#if editable}
+			<div class="form-actions">
+				<Button variant="outline-neutral" disabled={isSubmitting} onclick={handleCancel}>
+					Cancelar
+				</Button>
+				<Button variant="primary" loading={isSubmitting} onclick={() => void handleComplete()}>
+					{submitLabel}
+				</Button>
+			</div>
+		{:else if saved?.meetingLink}
+			<p class="readonly-link-row">
+				<a
+					href={saved.meetingLink}
+					target="_blank"
+					rel="external noopener noreferrer"
+					class="readonly-link"
+				>
+					Abrir link da videoconferência
+				</a>
+			</p>
+		{/if}
 	{/if}
 </div>
 
@@ -534,6 +637,23 @@
 		gap: var(--spacing-md) var(--spacing-lg);
 		margin-bottom: var(--spacing-md);
 		align-items: start;
+	}
+
+	.destination-block {
+		margin-bottom: var(--spacing-md);
+		max-width: 420px;
+	}
+
+	.locked-notice {
+		margin: 0 0 var(--spacing-md) 0;
+		padding: 10px 14px;
+		border-radius: var(--radius-sm);
+		font-family: var(--font-inter);
+		font-size: 13px;
+		line-height: 1.5;
+		background: var(--status-yellow-bg, #fef3c7);
+		border: 1px solid var(--status-yellow, #d97706);
+		color: var(--black);
 	}
 
 	.readonly-notice,
