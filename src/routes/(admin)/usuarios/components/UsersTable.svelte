@@ -4,6 +4,7 @@
 	import type { AdminUser, UserAction } from '$lib/types/user';
 
 	import { getInitials } from '$lib/utils/user';
+	import { resolveApiAssetUrl } from '$lib/utils/api-assets';
 
 	interface Props {
 		users: AdminUser[];
@@ -54,11 +55,16 @@
 
 		<tbody>
 			{#each users as user (user.id)}
+				{@const avatarUrl = resolveApiAssetUrl(user.avatarUrl)}
 				<tr>
 					<td>
 						<div class="user-cell">
-							<div class="avatar" aria-hidden="true">
-								{getInitials(user.name)}
+							<div class="avatar">
+								{#if avatarUrl}
+									<img src={avatarUrl} alt="" aria-hidden="true" />
+								{:else}
+									<span aria-hidden="true">{getInitials(user.name)}</span>
+								{/if}
 							</div>
 
 							<div class="user-info">
@@ -279,6 +285,13 @@
 		color: var(--primary-color);
 
 		font: var(--label);
+		overflow: hidden;
+	}
+
+	.avatar img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
 	}
 
 	.user-info {

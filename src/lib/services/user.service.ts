@@ -261,6 +261,7 @@ function mapUserSummary(user: UserSummary): AdminUser {
 		id: user.id,
 		name: user.fullName,
 		email: user.email,
+		avatarUrl: user.avatarUrl,
 		role: user.profile,
 		status: user.isActive ? 'Ativo' : 'Inativo',
 		mustChangePassword: user.mustChangePassword,

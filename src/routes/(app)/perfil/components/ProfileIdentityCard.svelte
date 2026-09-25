@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onDestroy, untrack } from 'svelte';
-	import { env } from '$env/dynamic/public';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import AssetImage from '$lib/components/AssetImage.svelte';
@@ -11,6 +10,7 @@
 	import { updateMyProfile } from '$lib/services/user.service';
 	import type { UserProfileResponse } from '$lib/types/user';
 	import { notifySectionSave } from '$lib/utils/feedback';
+	import { resolveApiAssetUrl } from '$lib/utils/api-assets';
 	import {
 		isValidProfileAvatar,
 		isValidText,
@@ -25,15 +25,7 @@
 
 	let { profile, onChanged }: Props = $props();
 
-	// A URL de avatar vem relativa (`/uploads/avatars/...`) — o arquivo é servido
-	// pelo backend, então prefixamos a origem da API (mesmo padrão de anexos).
-	function resolveAvatarUrl(url: string | null): string | null {
-		if (!url) return null;
-		if (url.startsWith('http://') || url.startsWith('https://')) return url;
-		return `${env.PUBLIC_API_URL}${url}`;
-	}
-
-	const avatarUrl = $derived(resolveAvatarUrl(profile.avatarUrl));
+	const avatarUrl = $derived(resolveApiAssetUrl(profile.avatarUrl));
 	const avatarLight = $derived(page.data.portalConfig.assets.avatarLightUrl);
 	const avatarDark = $derived(page.data.portalConfig.assets.avatarDarkUrl);
 
@@ -131,7 +123,7 @@
 		}
 
 		clearPending();
-		onChanged();
+		await onChanged();
 	}
 
 	async function handleRemove() {
@@ -148,7 +140,7 @@
 			return;
 		}
 
-		onChanged();
+		await onChanged();
 	}
 
 	onDestroy(revokePreview);

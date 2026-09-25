@@ -14,6 +14,7 @@ export interface AdminUser {
 	id: string;
 	name: string;
 	email: string;
+	avatarUrl: string | null;
 	role: UserType;
 	status: UserStatus;
 	mustChangePassword: boolean;
@@ -24,6 +25,7 @@ export interface UserSummary {
 	id: string;
 	fullName: string;
 	email: string;
+	avatarUrl: string | null;
 	profile: UserRole;
 	isActive: boolean;
 	mustChangePassword: boolean;
@@ -32,7 +34,7 @@ export interface UserSummary {
 
 // Assignment DTO: backend `GET /users/analysts` retorna só ativos,
 // então `isActive` não faz parte do contrato (ver contratos/contract-assign-action.md).
-export interface Analyst extends Omit<UserSummary, 'isActive'> {
+export interface Analyst extends Omit<UserSummary, 'isActive' | 'avatarUrl'> {
 	specialty: string;
 	categories: RequestCategory[];
 	notes: string | null;

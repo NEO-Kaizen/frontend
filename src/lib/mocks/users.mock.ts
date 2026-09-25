@@ -16,7 +16,8 @@ import type {
 	UserSummary
 } from '$lib/types/user';
 
-export type MockUser = UserSummary & Partial<Analyst>;
+export type MockUser = Omit<UserSummary, 'avatarUrl'> &
+	Partial<Analyst> & { avatarUrl?: string | null };
 
 export const mockUsers: MockUser[] = [
 	{
@@ -317,10 +318,13 @@ export function listUsersMock(query: ListUsersQuery): Promise<PaginatedResponse<
 	const totalPages = Math.ceil(total / pageSize);
 	const start = (page - 1) * pageSize;
 
-	const data = result.slice(start, start + pageSize);
+	const data = result.slice(start, start + pageSize).map((user) => ({
+		...user,
+		avatarUrl: user.avatarUrl ?? null
+	}));
 
 	return delay(MOCK_LATENCY_MS).then(() => ({
-		data: data as unknown as UserSummary[],
+		data,
 		page,
 		pageSize,
 		total,

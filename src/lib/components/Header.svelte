@@ -14,6 +14,7 @@
 	import { isInternalProfile } from '$lib/services/access.service';
 	import { onMount } from 'svelte';
 	import { getThemeMode, toggleTheme } from '$lib/states/theme.svelte';
+	import { resolveApiAssetUrl } from '$lib/utils/api-assets';
 
 	const NAV_PATHS = {
 		home: resolve('/(admin)/home'),
@@ -35,6 +36,7 @@
 	const appConfig = $derived(page.data.portalConfig);
 	const queuePath = NAV_PATHS.queue;
 	const isAuthenticated = $derived(currentUser != null);
+	const userAvatarUrl = $derived(resolveApiAssetUrl(currentUser?.avatarUrl));
 
 	// `isMounted` evita divergência de hidratação: no SSR o modo é sempre o
 	// claro; no cliente o valor real vem do localStorage/sistema.
@@ -243,13 +245,20 @@
 						<p class="profile_block-role">{currentUser?.role}</p>
 					</div>
 					<span class="profile_block-avatar">
-						<AssetImage
-							lightSrc={appConfig.assets.avatarLightUrl}
-							darkSrc={appConfig.assets.avatarDarkUrl}
-							alt="Imagem do usuário"
-							width="100%"
-							height="100%"
-						/>
+						{#if userAvatarUrl}
+							<img
+								src={userAvatarUrl}
+								alt={`Foto de perfil de ${currentUser?.name ?? 'usuário'}`}
+							/>
+						{:else}
+							<AssetImage
+								lightSrc={appConfig.assets.avatarLightUrl}
+								darkSrc={appConfig.assets.avatarDarkUrl}
+								alt="Imagem de perfil padrão"
+								width="100%"
+								height="100%"
+							/>
+						{/if}
 					</span>
 				</a>
 			{:else}
