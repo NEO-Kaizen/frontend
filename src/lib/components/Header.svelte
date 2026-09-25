@@ -133,7 +133,7 @@
 				return;
 			}
 
-			const result = await searchRequests(value, appConfig.protocolMask);
+			const result = await searchRequests(value);
 
 			if (!result.ok) {
 				console.error(result.error.message);
