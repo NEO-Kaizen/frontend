@@ -22,7 +22,8 @@
 		queue: resolve('/(admin)/fila'),
 		dashboard: resolve('/(admin)/dashboard'),
 		users: resolve('/(admin)/usuarios'),
-		settings: resolve('/(admin)/configuracoes')
+		settings: resolve('/(admin)/configuracoes'),
+		history: resolve('/(admin)/historico-de-logs')
 	} as const;
 
 	interface NavButton {
@@ -75,7 +76,7 @@
 		{
 			name: 'Histórico de Logs',
 			icon: 'history',
-			href: '/(admin)/historico-de-logs'
+			href: NAV_PATHS.history
 		}
 	];
 
