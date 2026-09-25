@@ -120,6 +120,9 @@ export function applyMappingChange(
 		case 'justification':
 			draft.justification = value;
 			break;
+		case 'lastTechnicalMessage':
+			draft.lastTechnicalMessage = value;
+			break;
 		case 'mappingAssigneeId':
 			draft.mappingAssigneeId = value;
 			break;
@@ -191,10 +194,15 @@ export function validateMappingDraft(
 			errors['scheduledFor'] = 'Informe uma data e um horário futuros.';
 		}
 
-		if (draft.durationMinutes.trim() !== '') {
+		// A duração é obrigatória no agendamento (target 6): o backend rejeita a
+		// conclusão sem `durationMinutes` (`missingFieldForCompletion`). Limite
+		// 15..480 espelha o schema do contrato (§3.2).
+		if (!isRequired(draft.durationMinutes)) {
+			errors['durationMinutes'] = 'Informe a duração prevista.';
+		} else {
 			const duration = parseNumber(draft.durationMinutes);
-			if (duration === null || !Number.isInteger(duration) || duration <= 0) {
-				errors['durationMinutes'] = 'Informe uma duração válida em minutos.';
+			if (duration === null || !Number.isInteger(duration) || duration < 15 || duration > 480) {
+				errors['durationMinutes'] = 'Informe uma duração entre 15 e 480 minutos.';
 			}
 		}
 

@@ -2,17 +2,44 @@
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import NotFoundState from '$lib/components/NotFoundState.svelte';
+	import type { InternalRequestDetail } from '$lib/types/request';
 	import SolicitationSpecs from './components/SolicitationSpecs.svelte';
 	import type { PageProps } from './$types';
+
+	type StatusChangeUpdate = {
+		protocol: string;
+		status: InternalRequestDetail['status'];
+		lastUpdate: string;
+		lastTechnicalMessage?: string;
+	};
 
 	let { data }: PageProps = $props();
 
 	const protocol = $derived(data.protocol);
 	const error = $derived(data.error);
 
-	let solicitation = $derived(data.solicitation);
+	let statusOverride = $state.raw<{
+		protocol: string;
+		update: StatusChangeUpdate;
+	} | null>(null);
+	let solicitation = $derived.by(() => {
+		const current = data.solicitation;
+		if (
+			!current ||
+			!statusOverride ||
+			statusOverride.protocol !== protocol ||
+			Date.parse(current.lastUpdate) > Date.parse(statusOverride.update.lastUpdate)
+		) {
+			return current;
+		}
 
-	function handleTriageSuccess(updated: typeof solicitation) {
+		return { ...current, ...statusOverride.update };
+	});
+
+	function handleTriageSuccess(updated: InternalRequestDetail) {
+		if (statusOverride?.protocol === protocol && updated.status !== statusOverride.update.status) {
+			statusOverride = null;
+		}
 		solicitation = updated;
 
 		// A Triagem possui endpoint próprio de leitura.
@@ -25,6 +52,11 @@
 		// pelo fluxo de persistência, sem reutilizar o callback
 		// semanticamente exclusivo da Triagem.
 		solicitation = updated;
+	}
+
+	function handleStatusChangeSuccess(update: StatusChangeUpdate): void {
+		if (!data.solicitation || update.protocol !== protocol) return;
+		statusOverride = { protocol: update.protocol, update };
 	}
 </script>
 
@@ -48,15 +80,18 @@
 			</div>
 		{/if}
 	{:else if solicitation}
-		<SolicitationSpecs
-			{solicitation}
-			internalNotes={data.internalNotes}
-			internalNotesError={data.internalNotesError}
-			pendencies={data.pendencies}
-			pendenciesError={data.pendenciesError}
-			onTriageSuccess={handleTriageSuccess}
-			onPrioritizationSuccess={handlePrioritizationSuccess}
-		/>
+		{#key protocol}
+			<SolicitationSpecs
+				{solicitation}
+				internalNotes={data.internalNotes}
+				internalNotesError={data.internalNotesError}
+				pendencies={data.pendencies}
+				pendenciesError={data.pendenciesError}
+				onTriageSuccess={handleTriageSuccess}
+				onPrioritizationSuccess={handlePrioritizationSuccess}
+				onStatusChangeSuccess={handleStatusChangeSuccess}
+			/>
+		{/key}
 	{:else if error && error.status === 404}
 		<NotFoundState
 			title="Solicitação não encontrada"

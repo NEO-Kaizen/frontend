@@ -12,7 +12,7 @@
 	} from '$lib/services/pendency.service';
 	import type { ListPendenciesResponse, PendingFieldRef } from '$lib/types/pendency';
 	import { toastState } from '$lib/states/toast.svelte';
-	import { isTerminalStatus, statusChangeTargets, statusThemeVars } from '$lib/utils/status';
+	import { statusChangeTargets, statusThemeVars } from '$lib/utils/status';
 	import type { InternalNotesResponse } from '$lib/types/internal-note';
 	import type { InternalRequestDetail } from '$lib/types/request';
 	import type { CriterionNotes, PrioritizationResult } from '$lib/types/prioritization';
@@ -31,6 +31,13 @@
 	import SpecTabs from './SpecTabs.svelte';
 	import StatusChangeModal from './status/StatusChangeModal.svelte';
 
+	type StatusChangeUpdate = {
+		protocol: string;
+		status: InternalRequestDetail['status'];
+		lastUpdate: string;
+		lastTechnicalMessage?: string;
+	};
+
 	interface Props {
 		solicitation: InternalRequestDetail;
 		internalNotes: InternalNotesResponse | null;
@@ -41,6 +48,7 @@
 		onSaveError?: (message: string) => void;
 		onTriageSuccess?: (updated: InternalRequestDetail) => void;
 		onPrioritizationSuccess?: (updated: InternalRequestDetail) => void;
+		onStatusChangeSuccess?: (update: StatusChangeUpdate) => void;
 	}
 
 	let {
@@ -52,7 +60,8 @@
 		onSaveSuccess,
 		onSaveError,
 		onTriageSuccess,
-		onPrioritizationSuccess
+		onPrioritizationSuccess,
+		onStatusChangeSuccess
 	}: Props = $props();
 
 	const currentUser = $derived(page.data.user);
@@ -281,8 +290,8 @@
 	);
 
 	// "Alterar Status" (`PATCH /requests/:protocol/status` §3.3): Administrador
-	// (bypass) ou Analista com custódia e solicitação não-terminal. Os alvos vêm
-	// do PortalConfig (admin: qualquer ativo; analista: apenas free).
+	// (bypass) ou Analista com custódia. Os alvos vêm do PortalConfig (admin:
+	// qualquer ativo; analista: apenas free).
 	const portalStatuses = $derived(page.data.portalConfig.statuses ?? []);
 	const currentStatusId = $derived(
 		portalStatuses.find((status) => status.name === solicitation.status)?.id ?? null
@@ -291,8 +300,7 @@
 		canChangeStatusRole(
 			currentUser ?? null,
 			solicitation.assignee?.id,
-			solicitation.mappingAssignee?.id ?? solicitation.mappingAssigneeId,
-			currentStatusId !== null && isTerminalStatus(currentStatusId, portalStatuses)
+			solicitation.mappingAssignee?.id ?? solicitation.mappingAssigneeId
 		)
 	);
 	const statusChangeOptions = $derived(
@@ -334,7 +342,7 @@
 	let calculatorPos = $state<{ x: number; y: number } | null>(null);
 
 	let isAssignModalOpen = $state(false);
-	let isStatusModalOpen = $state(false);
+	let statusModalProtocol = $state<string | null>(null);
 
 	function handleOpenCalculator() {
 		if (!canCalculate) {
@@ -380,8 +388,10 @@
 		solicitation = updated;
 	}
 
-	async function handleStatusChangeSaved(): Promise<void> {
+	async function handleStatusChangeSaved(update: StatusChangeUpdate): Promise<void> {
+		if (update.protocol !== solicitation.protocol) return;
 		// A resposta do PATCH não traz o detalhe completo — recarrega o load.
+		onStatusChangeSuccess?.(update);
 		await invalidateAll();
 	}
 
@@ -403,7 +413,7 @@
 				return;
 			}
 
-			isStatusModalOpen = true;
+			statusModalProtocol = solicitation.protocol;
 		}
 	}
 </script>
@@ -552,14 +562,14 @@
 		/>
 	{/if}
 
-	{#if isStatusModalOpen && canChangeStatus}
+	{#if statusModalProtocol === solicitation.protocol && canChangeStatus}
 		<StatusChangeModal
 			protocol={solicitation.protocol}
 			currentStatusName={solicitation.status}
 			statuses={portalStatuses}
 			targets={statusChangeOptions}
 			onSaved={handleStatusChangeSaved}
-			onclose={() => (isStatusModalOpen = false)}
+			onclose={() => (statusModalProtocol = null)}
 		/>
 	{/if}
 </div>

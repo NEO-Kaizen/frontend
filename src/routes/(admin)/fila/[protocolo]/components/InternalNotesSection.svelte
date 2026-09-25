@@ -401,6 +401,12 @@
 									{#if item.justification && item.justification.trim() !== ''}
 										<p class="justification-text">{item.justification}</p>
 									{/if}
+									{#if item.action === 'request.status_change' && item.lastTechnicalMessage}
+										<p class="justification-text public-return-text">
+											<strong>Retorno ao solicitante</strong>
+											<span>{item.lastTechnicalMessage}</span>
+										</p>
+									{/if}
 									<div class="event-meta">
 										{#if item.actor}
 											<strong>{item.actor.name}</strong>
@@ -745,6 +751,18 @@
 		color: var(--black);
 		white-space: pre-wrap;
 		overflow-wrap: anywhere;
+	}
+
+	.public-return-text {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		background: var(--status-blue-bg);
+		border-left: 3px solid var(--status-blue);
+	}
+
+	.public-return-text strong {
+		color: var(--status-blue);
 	}
 
 	.event-meta {
