@@ -65,6 +65,7 @@
 					<th>PRIORIDADE</th>
 					<th>STATUS</th>
 					<th>RESPONSÁVEL</th>
+					<th>MAPEADOR</th>
 					<th>SOLICITANTE</th>
 				</tr>
 			</thead>
@@ -72,7 +73,7 @@
 			<tbody>
 				{#if isFetching && results.length === 0}
 					<tr>
-						<td colspan="7">
+						<td colspan="8">
 							<div class="loading-state" role="status" aria-live="polite">
 								<p>Carregando solicitações…</p>
 							</div>
@@ -80,7 +81,7 @@
 					</tr>
 				{:else if result === null}
 					<tr>
-						<td colspan="7">
+						<td colspan="8">
 							<div class="empty-state">
 								<img
 									class="empty-illustration"
@@ -98,7 +99,7 @@
 					</tr>
 				{:else if !result.ok}
 					<tr>
-						<td colspan="7">
+						<td colspan="8">
 							<div class="error-state" role="alert">
 								<p>{result.error.message}</p>
 								<Button variant="outline" onclick={() => (onretry ? onretry() : invalidateAll())}>
@@ -147,12 +148,24 @@
 							</td>
 
 							<td class="responsavel">{request.assignee ?? '-'}</td>
+							<td class="responsavel"
+								>{(
+									request as unknown as {
+										mappingAssigneeName?: string;
+										mappingAssignee?: string;
+										mappingAssigneeId?: string;
+									}
+								).mappingAssigneeName ??
+									(request as unknown as { mappingAssignee?: string }).mappingAssignee ??
+									(request as unknown as { mappingAssigneeId?: string }).mappingAssigneeId ??
+									'-'}</td
+							>
 							<td class="solicitante">{request.requesterName}</td>
 						</tr>
 					{/each}
 				{:else}
 					<tr>
-						<td colspan="7">
+						<td colspan="8">
 							<div class="empty-state">
 								<h3>{emptyTitle}</h3>
 								{#if emptyMessage}

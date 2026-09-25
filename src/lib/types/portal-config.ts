@@ -57,11 +57,23 @@ export interface PortalCategory {
 	isActive: boolean;
 }
 
-// Visibilidade de um status do ciclo de vida: PUBLIC é exibido ao
-// solicitante/cliente; INTERNAL fica restrito à equipe.
+// Visibilidade de um status do ciclo de vida — v4 usa `isPublic: boolean`
+// (`true` = PUBLIC visível ao solicitante). `StatusVisibility` mantido como
+// alias compat para leitura de payloads legados (0_4) durante rollout.
 export type StatusVisibility = 'PUBLIC' | 'INTERNAL';
 
 export const STATUS_VISIBILITIES: readonly StatusVisibility[] = ['PUBLIC', 'INTERNAL'];
+
+// Modo por fase (amend v4 §Tipos): normaliza Acessível triage/mapping +
+// Apenas triage/mapping em dois enums independentes.
+export const STATUS_MODES = ['none', 'free', 'conclusion_only'] as const;
+
+export type StatusMode = (typeof STATUS_MODES)[number];
+
+// ids vitais não apagam/renomeiam/desativam — substitui PROTECTED_STATUS_NAMES.
+export const CORE_STATUS_IDS = [1, 3, 4, 6, 7, 16, 17] as const;
+
+export type CoreStatusId = (typeof CORE_STATUS_IDS)[number];
 
 // Tons visuais permitidos para um status — allowlist semântica (nome da cor,
 // não da etapa) que a UI mapeia para os tokens de cor do tema.
@@ -127,22 +139,30 @@ export interface PortalTheme {
 // Paleta de tema em edição/uso — chave de `PortalTheme`.
 export type ThemePalette = keyof PortalTheme;
 
-// Status do ciclo de vida da solicitação (Card 6) — lista gerenciada no
-// PortalConfig. `id` é a chave estável (número inteiro positivo, gerado pelo
-// cliente em novos status e aceito pela API); `closesRequest` indica se o
-// status encerra a solicitação; `isTriageExit` marca as saídas elegíveis da
-// triagem (distinto de `closesRequest`: "Pendente de informações" sai sem
-// encerrar); `visibility` e `tone` são enums allowlist. `isActive` é a
-// ativação/inativação (não há exclusão): status inativos permanecem no
-// histórico, mas não entram em novos fluxos.
+// Status do ciclo de vida da solicitação (Card 6) — v4 (amend §Tipos).
+// `isCore` substitui PROTECTED_STATUS_NAMES (8→7), `isTerminal` encerra a
+// solicitação (qualquer status pode ser terminal; por padrão só 16,17), `isPublic`
+// substitui visibility (false = só equipe, solicitante vê último público),
+// `triageMode/mappingMode` normalizam Acessível+Apenas, `isRestricted` substitui
+// allowedRoles. A ordem de exibição é a ordem do array (sem `order` explícito);
+// `isActive` mantém semântica de ativação (não há exclusão). Campos legados
+// `visibility/closesRequest/isTriageExit` aceitos como alias na leitura
+// (sanitize) durante rollout.
 export interface PortalStatus {
 	id: number;
 	name: string;
-	visibility: StatusVisibility;
-	closesRequest: boolean;
-	isTriageExit: boolean;
+	isCore: boolean;
+	isPublic: boolean;
+	isTerminal: boolean;
+	triageMode: StatusMode;
+	mappingMode: StatusMode;
+	isRestricted: boolean;
 	tone: StatusTone;
 	isActive: boolean;
+	// Alias compat — lidos no sanitize, nunca emitidos no PATCH v4.
+	visibility?: StatusVisibility;
+	closesRequest?: boolean;
+	isTriageExit?: boolean;
 }
 
 // Critérios fixos de priorização (Card 7) — allowlist das chaves aceitas.

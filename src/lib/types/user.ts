@@ -8,12 +8,13 @@ export type UserProfile = 'solicitante' | 'analista' | 'administrador' | 'gestor
 
 export type UserStatus = 'Ativo' | 'Inativo';
 
-export type UserAction = 'activate' | 'deactivate' | 'reset';
+export type UserAction = 'activate' | 'deactivate' | 'reset' | 'edit';
 
 export interface AdminUser {
 	id: string;
 	name: string;
 	email: string;
+	avatarUrl: string | null;
 	role: UserType;
 	status: UserStatus;
 	mustChangePassword: boolean;
@@ -24,6 +25,7 @@ export interface UserSummary {
 	id: string;
 	fullName: string;
 	email: string;
+	avatarUrl: string | null;
 	profile: UserRole;
 	isActive: boolean;
 	mustChangePassword: boolean;
@@ -32,7 +34,7 @@ export interface UserSummary {
 
 // Assignment DTO: backend `GET /users/analysts` retorna só ativos,
 // então `isActive` não faz parte do contrato (ver contratos/contract-assign-action.md).
-export interface Analyst extends Omit<UserSummary, 'isActive'> {
+export interface Analyst extends Omit<UserSummary, 'isActive' | 'avatarUrl'> {
 	specialty: string;
 	categories: RequestCategory[];
 	notes: string | null;
@@ -58,12 +60,24 @@ export interface CreateUserFormData {
 	name: string;
 	email: string;
 	role: UserProfile;
+	area: string;
+	department?: string;
+	manager: string;
+	additionalContact?: string;
+	professional?: UpdateProfessionalBlock;
 }
 
 export interface CreateUserPayload {
 	fullName: string;
 	email: string;
 	role: UserProfile;
+	requester: {
+		area: string;
+		department?: string;
+		manager: string;
+		additionalContact?: string;
+	};
+	professional?: UpdateProfessionalBlock;
 }
 
 export interface CreateUserResponse {
@@ -89,4 +103,65 @@ export interface UpdateUserStatusResponse {
 export interface ResetPasswordResponse {
 	id: string;
 	temporaryPassword: string;
+}
+
+// "Meus dados" — perfil completo do próprio usuário (GET /users/me).
+// Blocos são opcionais no contrato: `requester` pode não existir e
+// `professional` só é preenchido para o perfil Analista.
+export interface RequesterProfileBlock {
+	area: string | null;
+	department: string | null;
+	manager: string | null;
+	additionalContact: string | null;
+}
+
+export interface ProfessionalProfileBlock {
+	jobTitle: string | null;
+	specialties: string[];
+	attendedCategoryIds: number[];
+	notes: string | null;
+}
+
+export interface UserProfileResponse {
+	id: string;
+	fullName: string;
+	email: string;
+	role: UserRole;
+	avatarUrl: string | null;
+	requester: RequesterProfileBlock | null;
+	professional: ProfessionalProfileBlock | null;
+}
+
+// Payload de PUT /users/me (multipart: campo `payload` = JSON). Nome, contato
+// adicional e foto são autoeditáveis por todos. O próprio Administrador também
+// pode alterar seus dados administrativos de solicitante.
+export interface UpdateRequesterBlock {
+	area?: string;
+	department?: string | null;
+	manager?: string;
+	additionalContact?: string | null;
+}
+
+export interface UpdateProfessionalBlock {
+	jobTitle: string;
+	specialties: string[];
+	attendedCategoryIds: number[];
+	notes?: string;
+}
+
+export interface UpdateMyProfileInput {
+	fullName?: string;
+	requester?: UpdateRequesterBlock;
+	removeAvatar?: boolean;
+	avatar?: File;
+}
+
+export interface UpdateUserInput {
+	fullName?: string;
+	requester?: {
+		area?: string;
+		department?: string | null;
+		manager?: string;
+	};
+	professional?: UpdateProfessionalBlock;
 }

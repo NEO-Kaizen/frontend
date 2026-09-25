@@ -22,7 +22,6 @@ import {
 	ASSET_KEYS,
 	PRIORITIZATION_CRITERIA,
 	STATUS_TONES,
-	STATUS_VISIBILITIES,
 	THEME_TOKEN_KEYS,
 	type AssetKey,
 	type AccessSection,
@@ -60,6 +59,15 @@ const SOLICITATION_MODES: readonly SolicitationMode[] = ['PUBLIC', 'AUTHENTICATE
 
 const MOCK_LATENCY_MS = 500;
 
+// Rótulos de exibição dos modos — usados nas mensagens de erro do mock para
+// refletir o que o usuário vê na tela (colunas Triagem/Mapeamento), não o
+// valor técnico do contrato (`none`/`free`/`conclusion_only`).
+const STATUS_MODE_LABELS: Record<string, string> = {
+	none: '—',
+	free: 'Livre',
+	conclusion_only: 'Conclusão'
+};
+
 export function fetchPortalConfigMock(): Promise<PortalConfig> {
 	return delay(MOCK_LATENCY_MS).then(() => structuredClone(mockConfig));
 }
@@ -69,6 +77,10 @@ export function fetchPortalConfigMock(): Promise<PortalConfig> {
 // portal está em AUTHENTICATED. Não altera comportamento existente.
 export function getMockSolicitationMode(): SolicitationMode {
 	return mockConfig.solicitationMode;
+}
+
+export function getMockStatuses(): PortalStatus[] {
+	return structuredClone(mockConfig.statuses);
 }
 
 export function updateAccessMock(payload: UpdateAccessRequest): Promise<AccessSection> {
@@ -319,9 +331,10 @@ function validateCategories(categories: PortalCategory[]): void {
 	}
 }
 
-// A lista de status é atômica: 1..50 itens, ids presentes, visibility/tone na
-// allowlist, closesRequest/isTriageExit/isActive booleanos, nomes únicos (sem
-// diferenciar maiúsculas) e ao menos um status ativo.
+// A lista de status é atômica: 1..50 itens, ids presentes,
+// isCore/isPublic/isTerminal/triageMode/mappingMode/isRestricted, nomes únicos
+// e ao menos um ativo. A ordem de exibição é a ordem do array. 409 para
+// rename/remove core (7 vitais).
 function validateStatuses(statuses: PortalStatus[]): void {
 	if (!Array.isArray(statuses) || statuses.length === 0 || statuses.length > MAX_STATUSES) {
 		throw new ApiError(400, 'A lista de status deve ter entre 1 e 50 itens.');
@@ -337,25 +350,73 @@ function validateStatuses(statuses: PortalStatus[]): void {
 				'Nome do status deve ter entre 1 e 40 caracteres (após remover espaços).'
 			);
 		}
-		if (!STATUS_VISIBILITIES.includes(status.visibility)) {
-			throw new ApiError(400, 'Visibilidade deve ser "PUBLIC" ou "INTERNAL".');
+		if (typeof status.isCore !== 'boolean') {
+			throw new ApiError(400, 'Campo "isCore" deve ser booleano.');
 		}
-		if (typeof status.closesRequest !== 'boolean') {
-			throw new ApiError(400, 'Campo "closesRequest" deve ser booleano.');
+		if (typeof status.isPublic !== 'boolean') {
+			throw new ApiError(400, 'Campo "isPublic" deve ser booleano.');
 		}
-		if (typeof status.isTriageExit !== 'boolean') {
-			throw new ApiError(400, 'Campo "isTriageExit" deve ser booleano.');
+		if (typeof status.isTerminal !== 'boolean') {
+			throw new ApiError(400, 'Campo "isTerminal" deve ser booleano.');
+		}
+		if (!STATUS_TONES.includes(status.tone)) {
+			throw new ApiError(400, 'Tom visual não permitido para o status.');
 		}
 		if (typeof status.isActive !== 'boolean') {
 			throw new ApiError(400, 'Campo "isActive" deve ser booleano.');
 		}
-		if (!STATUS_TONES.includes(status.tone)) {
-			throw new ApiError(400, 'Tom visual não permitido para o status.');
+		if (!['none', 'free', 'conclusion_only'].includes(status.triageMode as string)) {
+			throw new ApiError(400, 'Campo "triageMode" deve ser none|free|conclusion_only.');
+		}
+		if (!['none', 'free', 'conclusion_only'].includes(status.mappingMode as string)) {
+			throw new ApiError(400, 'Campo "mappingMode" deve ser none|free|conclusion_only.');
+		}
+		if (typeof status.isRestricted !== 'boolean') {
+			throw new ApiError(400, 'Campo "isRestricted" deve ser booleano.');
 		}
 	}
 
 	if (!areStatusNamesUnique(statuses)) {
 		throw new ApiError(400, 'Nomes de status não podem se repetir.');
+	}
+	if (statuses.some((s) => s.isCore && !s.isActive)) {
+		throw new ApiError(400, 'Status vital (isCore) não pode ser inativado.');
+	}
+	if (
+		statuses.some((s) => s.isRestricted && (s.triageMode !== 'none' || s.mappingMode !== 'none'))
+	) {
+		const conflict = statuses.find(
+			(s) => s.isRestricted && (s.triageMode !== 'none' || s.mappingMode !== 'none')
+		) as PortalStatus;
+		const parts: string[] = [];
+		if (conflict.triageMode !== 'none') {
+			parts.push(`Triagem como “${STATUS_MODE_LABELS[conflict.triageMode]}”`);
+		}
+		if (conflict.mappingMode !== 'none') {
+			parts.push(`Mapeamento como “${STATUS_MODE_LABELS[conflict.mappingMode]}”`);
+		}
+		throw new ApiError(
+			400,
+			`O status “${conflict.name}” está Restrito mas tem ${parts.join(' e ')}. Defina ambos como “—” antes de salvar.`
+		);
+	}
+	const defaultNames = new Map<number, string>([
+		[1, 'Solicitação enviada'],
+		[3, 'Em triagem'],
+		[4, 'Pendente de informações'],
+		[6, 'Mapeamento agendado'],
+		[7, 'Em mapeamento'],
+		[16, 'Concluído'],
+		[17, 'Cancelado']
+	]);
+	for (const s of statuses) {
+		const expected = defaultNames.get(s.id);
+		if (expected && s.name !== expected) {
+			throw new ApiError(409, `Status vital "${expected}" não pode ser renomeado.`);
+		}
+	}
+	if (statuses.filter((s) => [1, 3, 4, 6, 7, 16, 17].includes(s.id)).length !== 7) {
+		throw new ApiError(409, 'Status vitais não podem ser removidos.');
 	}
 
 	if (!hasActiveStatus(statuses)) {

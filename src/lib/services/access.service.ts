@@ -7,7 +7,8 @@ const LOGIN_PATH = '/login' as const;
 const UNAUTHORIZED_PATH = '/sem-autorizacao' as const;
 const CHANGE_PASSWORD_PATH = '/redefinir-senha' as const;
 const HOME_PATH = '/' as const;
-const DASHBOARD_PATH = '/(admin)/home' as const;
+const DASHBOARD_ROUTE = '/(admin)/home' as const;
+const DASHBOARD_PATH = '/home' as const;
 
 type PostLoginRoute = typeof CHANGE_PASSWORD_PATH | typeof DASHBOARD_PATH | typeof HOME_PATH;
 
@@ -68,6 +69,27 @@ export function canCalculatePriority(user: SessionUser | null, assigneeId: strin
 	return false;
 }
 
+// Quem pode abrir "Alterar Status" (`PATCH /requests/:protocol/status`, §3.3):
+// Administrador (bypass — qualquer `isActive`) ou o Analista com custódia da
+// solicitação (responsável de triagem ou de mapeamento). Gestor e demais
+// perfis são somente leitura. O status atual ser terminal não bloqueia por si
+// — o backend não aplica esse gate no `PATCH /status`; a elegibilidade do alvo
+// (free/ativo/não restrito) já é filtrada em `statusChangeTargets`. A lista de
+// alvos válidos é derivada do PortalConfig.
+export function canChangeStatusRole(
+	user: SessionUser | null,
+	assigneeId: string | null | undefined,
+	mappingAssigneeId: string | null | undefined
+): 'admin' | 'analyst' | null {
+	if (!user) return null;
+	if (user.role === 'Administrador') return 'admin';
+	if (user.role !== 'Analista') return null;
+	const hasCustody =
+		Boolean(assigneeId && assigneeId === user.id) ||
+		Boolean(mappingAssigneeId && mappingAssigneeId === user.id);
+	return hasCustody ? 'analyst' : null;
+}
+
 export function isAllowedReturnTo(value: string): value is PostLoginRoute {
 	if (!value.startsWith('/')) return false;
 	if (value.includes('://')) return false;
@@ -99,7 +121,7 @@ export function getHomeRedirect(
 	user: SessionUser | null
 ): Extract<RouteId, '/(admin)/home'> | null {
 	if (user && isInternalProfile(user.role)) {
-		return '/(admin)/home';
+		return DASHBOARD_ROUTE;
 	}
 	return null;
 }

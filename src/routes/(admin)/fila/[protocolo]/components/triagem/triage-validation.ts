@@ -15,7 +15,7 @@ function isRequired(value: string): boolean {
 }
 
 export interface TriageValidationContext {
-	statuses?: PortalStatus[];
+	statuses: PortalStatus[];
 	categories?: PortalCategory[];
 }
 
@@ -33,17 +33,28 @@ export function toTriageDraft(source: TriageAssessment | null | undefined): Tria
 		suggestedResponsibleJustification: source.suggestedResponsibleJustification ?? '',
 		exitStatus: source.exitStatus ?? '',
 		result: source.result ?? '',
-		conclusionJustification: source.conclusionJustification ?? ''
+		conclusionJustification: source.conclusionJustification ?? '',
+		// `lastTechnicalMessage` é write-only para o formulário de edição, mas o
+		// GET da triagem finalizada devolve o valor armazenado — hidratado aqui
+		// para a aba exibir em somente leitura.
+		lastTechnicalMessage: source.lastTechnicalMessage ?? ''
 	};
 }
 
-export function toTriagePayload(draft: TriageAssessment): CreateTriagePayload {
+export function toTriagePayload(
+	draft: TriageAssessment,
+	statuses: PortalStatus[]
+): CreateTriagePayload {
 	// Omite valores condicionais obsoletos: não envia justificativa quando
 	// aderente nem nova categoria quando não há troca — evita persistência
 	// de seleção anterior após toggle do controlador. Nunca envia `id`
 	// (uuid do registro, gerado pelo backend no POST).
 	const adherent = draft.adherentToScope === 'Não' ? trim(draft.adherentJustification) : '';
 	const newCategory = draft.changeCategory === 'Sim' ? draft.newCategory : '';
+	const selectedExitStatus =
+		typeof draft.exitStatus === 'number'
+			? statuses.find((status) => status.id === draft.exitStatus)
+			: undefined;
 	return {
 		adherentToScope: draft.adherentToScope,
 		adherentJustification: adherent,
@@ -55,13 +66,16 @@ export function toTriagePayload(draft: TriageAssessment): CreateTriagePayload {
 		suggestedResponsibleJustification: trim(draft.suggestedResponsibleJustification),
 		exitStatus: draft.exitStatus,
 		result: trim(draft.result),
-		conclusionJustification: trim(draft.conclusionJustification)
+		conclusionJustification: trim(draft.conclusionJustification),
+		...(selectedExitStatus?.isPublic
+			? { lastTechnicalMessage: trim(draft.lastTechnicalMessage ?? '') }
+			: {})
 	};
 }
 
 export function validateTriageDraft(
 	draft: TriageAssessment,
-	context: TriageValidationContext = {}
+	context: TriageValidationContext
 ): Record<string, string> {
 	const errors: Record<string, string> = {};
 
@@ -99,10 +113,15 @@ export function validateTriageDraft(
 		}
 	}
 
+	let exitIsPublic = false;
 	if (draft.exitStatus === '' || draft.exitStatus === null || draft.exitStatus === undefined) {
 		errors['exitStatus'] = 'Selecione o status de saída.';
-	} else if (context.statuses && !isTriageExitStatus(draft.exitStatus, context.statuses)) {
-		errors['exitStatus'] = 'Status de saída deve ser um status ativo elegível para triagem.';
+	} else if (!isTriageExitStatus(Number(draft.exitStatus), context.statuses)) {
+		errors['exitStatus'] =
+			'Status de saída deve ser um status ativo com triageMode conclusion_only e isRestricted=false.';
+	} else {
+		exitIsPublic =
+			context.statuses.find((status) => status.id === Number(draft.exitStatus))?.isPublic === true;
 	}
 
 	if (!isRequired(draft.result)) {
@@ -111,6 +130,14 @@ export function validateTriageDraft(
 
 	if (!isRequired(draft.conclusionJustification)) {
 		errors['conclusionJustification'] = 'Informe a justificativa da conclusão.';
+	}
+
+	if (exitIsPublic) {
+		if (!isRequired(draft.lastTechnicalMessage ?? '')) {
+			errors['lastTechnicalMessage'] = 'Informe o retorno ao solicitante (1..4000 caracteres).';
+		} else if (trim(draft.lastTechnicalMessage ?? '').length > 4000) {
+			errors['lastTechnicalMessage'] = 'Limite de 4000 caracteres excedido.';
+		}
 	}
 
 	// maxlength checks (trimmed length)
@@ -135,6 +162,9 @@ export function validateTriageDraft(
 	if (trim(draft.conclusionJustification).length > 4000) {
 		errors['conclusionJustification'] = 'Limite de 4000 caracteres excedido.';
 	}
+	if (draft.lastTechnicalMessage !== undefined && trim(draft.lastTechnicalMessage).length > 4000) {
+		errors['lastTechnicalMessage'] = 'Limite de 4000 caracteres excedido.';
+	}
 
 	return errors;
 }
@@ -142,7 +172,7 @@ export function validateTriageDraft(
 export function validateTriageField(
 	draft: TriageAssessment,
 	path: string,
-	context: TriageValidationContext = {}
+	context: TriageValidationContext
 ): Record<string, string> {
 	const all = validateTriageDraft(draft, context);
 	const picked: Record<string, string> = {};
@@ -159,7 +189,8 @@ export function validateTriageField(
 		adherentJustification: ['adherentJustification', 'adherentToScope'],
 		changeCategory: ['changeCategory', 'newCategory'],
 		newCategory: ['newCategory', 'changeCategory'],
-		exitStatus: ['exitStatus'],
+		exitStatus: ['exitStatus', 'lastTechnicalMessage'],
+		lastTechnicalMessage: ['lastTechnicalMessage', 'exitStatus'],
 		result: ['result'],
 		conclusionJustification: ['conclusionJustification'],
 		preliminaryComplexity: ['preliminaryComplexity'],

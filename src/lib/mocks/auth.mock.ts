@@ -14,6 +14,7 @@ const MOCK_USERS: MockUser[] = [
 		id: '1',
 		name: 'Ana Souza',
 		email: 'analista@maat.com.br',
+		avatarUrl: null,
 		role: 'Analista',
 		mustChangePassword: false,
 		password: 'admin'
@@ -22,6 +23,7 @@ const MOCK_USERS: MockUser[] = [
 		id: '2',
 		name: 'Marcos Lima',
 		email: 'gestor@maat.com.br',
+		avatarUrl: null,
 		role: 'Gestor',
 		mustChangePassword: false,
 		password: 'admin'
@@ -30,6 +32,7 @@ const MOCK_USERS: MockUser[] = [
 		id: '3',
 		name: 'Adriana Castro',
 		email: 'admin@maat.com.br',
+		avatarUrl: null,
 		role: 'Administrador',
 		mustChangePassword: false,
 		password: 'admin'
@@ -38,6 +41,7 @@ const MOCK_USERS: MockUser[] = [
 		id: '4',
 		name: 'Carlos Mendes',
 		email: 'solicitante@maat.com.br',
+		avatarUrl: null,
 		role: 'Solicitante',
 		mustChangePassword: false,
 		password: 'temp123'
@@ -107,6 +111,7 @@ function toSessionUser(user: MockUser): SessionUser {
 		id: user.id,
 		name: user.name,
 		email: user.email,
+		avatarUrl: user.avatarUrl,
 		role: user.role,
 		mustChangePassword: user.mustChangePassword
 	};

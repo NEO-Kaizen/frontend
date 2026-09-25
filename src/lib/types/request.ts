@@ -406,6 +406,21 @@ export interface PrioritizationResult {
 	notes: CriterionNotes;
 }
 
+// PATCH /requests/:protocol/status — v4 único (free + ADMIN bypass)
+export interface UpdateStatusRequest {
+	targetStatus: number;
+	justification: string;
+	lastTechnicalMessage?: string;
+}
+
+export interface UpdateStatusResponse {
+	protocol: string;
+	status: string;
+	previous: string;
+	next: string;
+	lastUpdate: string;
+}
+
 export type AnalystResponsibility = 'triagem' | 'mapeamento';
 
 export interface InternalRequestDetail {
@@ -445,6 +460,10 @@ export interface InternalRequestDetail {
 	attachments: InternalAttachment[];
 	openedAt: string;
 	lastUpdate: string;
+	lastExternalUpdateAt?: string | null;
+	// Último retorno público da equipe (escrito nas transições para status
+	// público; lido no /acompanhar e no detalhe interno M3).
+	lastTechnicalMessage?: string | null;
 	internalObservations?: string | null;
 	triage?: TriageAssessment | null;
 }
