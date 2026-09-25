@@ -763,7 +763,7 @@
 		border: var(--border-default);
 		border-radius: var(--radius-sm);
 		background-color: var(--white-gray);
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 		font: var(--paragrafo);
 		white-space: nowrap;
 	}

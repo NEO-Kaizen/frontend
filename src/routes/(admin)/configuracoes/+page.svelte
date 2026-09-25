@@ -142,7 +142,7 @@
 		border: 1px solid var(--status-error);
 		border-radius: var(--radius-sm);
 		background-color: var(--status-error-bg);
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 	}
 
 	.load-error p {
@@ -155,7 +155,7 @@
 		border: 1px solid var(--status-error);
 		border-radius: var(--radius-sm);
 		background-color: var(--white);
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 		font: var(--label);
 		font-size: 13px;
 		cursor: pointer;
