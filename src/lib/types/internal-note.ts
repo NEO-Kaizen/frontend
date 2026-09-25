@@ -44,9 +44,12 @@ export interface TimelineEvent {
 	// `null` = ação de sistema ou usuário removido.
 	actor: TimelineActor | null;
 	changeOrigin: TimelineChangeOrigin;
-	// Justificativa interna da transição (só `request.status_change` preenche;
-	// D-N15: trafega no payload do evento, nunca o lastTechnicalMessage).
+	// `justification` e `lastTechnicalMessage` são exclusivos de
+	// `request.status_change`: `justification` é a justificativa interna
+	// (opcional); `lastTechnicalMessage` é `string` 1..4000 no retorno público e
+	// `null` quando o destino é interno. Ambos ausentes nas demais ações.
 	justification?: string | null;
+	lastTechnicalMessage?: string | null;
 }
 
 export type TimelineItem = TimelineNote | TimelineEvent;
@@ -55,7 +58,7 @@ export type TimelineItem = TimelineNote | TimelineEvent;
 // + data da linha `request.triage` que a gerou (sem ator/origem — removidos
 // da API junto com as colunas da tabela).
 export interface TriageHistoryEntry {
-	triage: TriageAssessment & {
+	triage: Omit<TriageAssessment, 'lastTechnicalMessage'> & {
 		lastTechnicalMessage?: string | null;
 	};
 	occurredAt: string;

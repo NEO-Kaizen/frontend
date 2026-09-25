@@ -44,7 +44,9 @@ const timelineStore = new Map<string, TimelineItem[]>([
 				actor: { id: '1', name: 'Ana Souza', role: 'Analista' },
 				changeOrigin: 'admin',
 				justification:
-					'Triagem iniciada após conferência das informações obrigatórias do formulário.'
+					'Triagem iniciada após conferência das informações obrigatórias do formulário.',
+				lastTechnicalMessage:
+					'Sua solicitação entrou em triagem e já está sendo avaliada pela equipe responsável.'
 			},
 			{
 				type: 'event',
@@ -53,7 +55,8 @@ const timelineStore = new Map<string, TimelineItem[]>([
 				text: 'Responsável substituído: Marcos Lima',
 				occurredAt: '2026-09-18T15:04:00.000Z',
 				actor: { id: '3', name: 'Adriana Castro', role: 'Administrador' },
-				changeOrigin: 'admin'
+				changeOrigin: 'admin',
+				lastTechnicalMessage: null
 			},
 			{
 				type: 'event',
@@ -62,7 +65,8 @@ const timelineStore = new Map<string, TimelineItem[]>([
 				text: 'Responsável atribuído: Marcos Lima',
 				occurredAt: '2026-09-18T15:05:44.000Z',
 				actor: { id: '3', name: 'Adriana Castro', role: 'Administrador' },
-				changeOrigin: 'admin'
+				changeOrigin: 'admin',
+				lastTechnicalMessage: null
 			},
 			{
 				type: 'event',
@@ -71,7 +75,8 @@ const timelineStore = new Map<string, TimelineItem[]>([
 				text: 'Responsável removido',
 				occurredAt: '2026-09-18T15:06:30.000Z',
 				actor: { id: '3', name: 'Adriana Castro', role: 'Administrador' },
-				changeOrigin: 'admin'
+				changeOrigin: 'admin',
+				lastTechnicalMessage: null
 			},
 			{
 				type: 'note',
@@ -87,7 +92,8 @@ const timelineStore = new Map<string, TimelineItem[]>([
 				text: 'Responsável pelo mapeamento alterado: Júlia Reis',
 				occurredAt: '2026-09-19T14:11:02.000Z',
 				actor: { id: '9', name: 'Júlia Reis', role: 'Analista' },
-				changeOrigin: 'internal'
+				changeOrigin: 'internal',
+				lastTechnicalMessage: null
 			},
 			{
 				type: 'event',
@@ -98,7 +104,8 @@ const timelineStore = new Map<string, TimelineItem[]>([
 				actor: null,
 				changeOrigin: 'system',
 				justification:
-					'Agendamento concluído pelo fluxo de mapeamento; reunião marcada com a área responsável.'
+					'Agendamento concluído pelo fluxo de mapeamento; reunião marcada com a área responsável.',
+				lastTechnicalMessage: null
 			},
 			{
 				type: 'event',
@@ -109,7 +116,9 @@ const timelineStore = new Map<string, TimelineItem[]>([
 				actor: { id: '9', name: 'Júlia Reis', role: 'Analista' },
 				changeOrigin: 'admin',
 				justification:
-					'Autonomia validada em produção por 30 dias sem divergências; demanda atendida dentro do escopo.'
+					'Autonomia validada em produção por 30 dias sem divergências; demanda atendida dentro do escopo.',
+				lastTechnicalMessage:
+					'Boa notícia! A automação da conferência de diárias já está ativa e os comprovantes estão sendo validados automaticamente.'
 			}
 		]
 	]

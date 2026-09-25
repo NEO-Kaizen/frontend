@@ -1,5 +1,6 @@
-import { mockInternalRequestDetails } from './requests.mock';
-import { getMockSolicitationMode } from './portal-config.mock';
+import { hydrateRequestMock, mockInternalRequestDetails } from './requests.mock';
+import { getMockSolicitationMode, getMockStatuses } from './portal-config.mock';
+import { displayStatusName } from '$lib/utils/status';
 import type {
 	PublicRequestDetails,
 	PublicVerifyPayload,
@@ -12,7 +13,8 @@ import type {
 	PendingItem,
 	RespondPendingItemBody
 } from '$lib/types/pendency';
-import type { InternalAttachment } from '$lib/types/request';
+import type { InternalAttachment, InternalRequestDetail, RequestStatus } from '$lib/types/request';
+import type { PortalStatus } from '$lib/types/portal-config';
 import type { MockAttachmentMeta } from './pendency.mock';
 import { ApiError } from '$lib/types/result';
 
@@ -73,9 +75,16 @@ function delay<T>(value: T): Promise<T> {
 	return new Promise((resolve) => setTimeout(() => resolve(value), MOCK_LATENCY_MS));
 }
 
-function findFixture(protocol: string) {
+function findFixture(protocol: string): InternalRequestDetail | undefined {
 	const normalized = normalizeProtocol(protocol);
 	return mockInternalRequestDetails.find((item) => normalizeProtocol(item.protocol) === normalized);
+}
+
+function findHydratedFixture(
+	protocol: string,
+	statuses: PortalStatus[]
+): InternalRequestDetail | undefined {
+	return hydrateRequestMock(protocol, statuses) ?? undefined;
 }
 
 function isValidEmail(value: string): boolean {
@@ -129,16 +138,15 @@ function requirePublicAccess(protocol: string): void {
 	}
 }
 
-function toPublicDetails(protocol: string): PublicRequestDetails {
-	const fixture = findFixture(protocol);
-	if (!fixture) throw new ApiError(404, 'Solicitação não encontrada');
-
-	// Modo público NÃO retorna anexos (contrato): nem metadados de arquivo.
+function toPublicDetailsFromFixture(
+	fixture: InternalRequestDetail,
+	statuses: PortalStatus[]
+): PublicRequestDetails {
 	return {
 		protocol: fixture.protocol,
-		status: fixture.status,
+		status: displayStatusName(fixture.status, statuses) as RequestStatus,
 		openedAt: fixture.openedAt,
-		lastUpdate: fixture.lastUpdate,
+		lastUpdate: fixture.lastExternalUpdateAt ?? fixture.lastUpdate,
 		meeting: fixture.meeting,
 		lastTechnicalMessage: fixture.lastTechnicalMessage ?? null,
 		requester: {
@@ -169,10 +177,20 @@ function toPublicDetails(protocol: string): PublicRequestDetails {
 	};
 }
 
-function toAuthenticatedDetails(protocol: string): RequesterRequestDetails {
-	const fixture = findFixture(protocol);
+function toPublicDetails(protocol: string, statuses: PortalStatus[]): PublicRequestDetails {
+	const fixture = findHydratedFixture(protocol, statuses);
 	if (!fixture) throw new ApiError(404, 'Solicitação não encontrada');
-	const publicDetails = toPublicDetails(protocol);
+
+	return toPublicDetailsFromFixture(fixture, statuses);
+}
+
+function toAuthenticatedDetails(
+	protocol: string,
+	statuses: PortalStatus[]
+): RequesterRequestDetails {
+	const fixture = findHydratedFixture(protocol, statuses);
+	if (!fixture) throw new ApiError(404, 'Solicitação não encontrada');
+	const publicDetails = toPublicDetailsFromFixture(fixture, statuses);
 
 	return {
 		...publicDetails,
@@ -195,7 +213,6 @@ function toAuthenticatedDetails(protocol: string): RequesterRequestDetails {
 		complementary: fixture.complementary,
 		schedulePreferences: fixture.schedulePreferences,
 		mappingDate: fixture.mappingDate,
-		// Anexos somente no modo autenticado (nunca no público).
 		attachments: fixture.attachments.map((attachment, index) => ({
 			id: `mock-attachment-${index + 1}`,
 			fileName: attachment.fileName,
@@ -244,7 +261,8 @@ export function verifyPublicAccessMock(payload: PublicVerifyPayload): Promise<Pu
 export function getPublicTrackingMock(protocol: string): Promise<TrackingDetailsResponse> {
 	try {
 		requirePublicAccess(protocol);
-		return delay({ mode: 'public', details: toPublicDetails(protocol) });
+		const statuses = getMockStatuses();
+		return delay({ mode: 'public', details: toPublicDetails(protocol, statuses) });
 	} catch (error) {
 		return Promise.reject(error);
 	}
@@ -252,7 +270,8 @@ export function getPublicTrackingMock(protocol: string): Promise<TrackingDetails
 
 export function getSessionTrackingMock(protocol: string): Promise<TrackingDetailsResponse> {
 	try {
-		return delay({ mode: 'authenticated', details: toAuthenticatedDetails(protocol) });
+		const statuses = getMockStatuses();
+		return delay({ mode: 'authenticated', details: toAuthenticatedDetails(protocol, statuses) });
 	} catch (error) {
 		return Promise.reject(error);
 	}
