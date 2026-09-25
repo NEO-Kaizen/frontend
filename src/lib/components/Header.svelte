@@ -72,11 +72,9 @@
 			href: NAV_PATHS.dashboard
 		},
 		{
-			// 'Histórico de Logs' ainda não tem rota (prevista em outra issue)
-			// (Sprint 4) — item cinza até a rota existir, impede link sem href.
 			name: 'Histórico de Logs',
 			icon: 'history',
-			disabled: true
+			href: '/(admin)/historico-de-logs'
 		}
 	];
 
