@@ -37,9 +37,9 @@
 	let { solicitation, onTriageSuccess, onOpenCalculator }: Props = $props();
 
 	// Opções derivadas do cadastro ativo (contrato de triagem §4) — nunca
-	// enums fixos: `exitStatus` filtra `isActive && isTriageExit` (value = id
-	// numérico serializado como string para o FilterSelect), categoria lista
-	// nomes ativos.
+	// enums fixos: `exitStatus` filtra `isActive && triageMode === 'conclusion_only'`
+	// (value = id numérico serializado como string para o FilterSelect), categoria
+	// lista nomes ativos.
 	const portalStatuses = $derived(page.data.portalConfig.statuses ?? []);
 	const portalCategories = $derived(page.data.portalConfig.categories ?? []);
 	const exitOptions = $derived(triageExitOptions(portalStatuses));
@@ -61,8 +61,10 @@
 	// objeto → readonly; `null` → edição com rascunho vazio.
 	let serverTriage = $state<TriageAssessment | null>(null);
 	let triageLoaded = $state(false);
+	let loadError = $state<string | null>(null);
 	let isCreatingNew = $state(false);
-	const isLoading = $derived(!triageLoaded);
+	let activeLoadId = 0;
+	const isLoading = $derived(!triageLoaded && loadError === null);
 	const isFinalized = $derived(triageLoaded && serverTriage !== null && !isCreatingNew);
 	// Somente leitura quando a triagem está finalizada ou quando o perfil não
 	// pode editar (ex.: Gestor). Enquanto carrega, o formulário fica bloqueado.
@@ -97,25 +99,34 @@
 	let draft = $state<TriageAssessment>(toTriageDraft(null));
 
 	// Sincroniza quando protocolo muda (navegação) — garante que cada protocolo tem seu rascunho isolado
-	$effect(() => {
-		const protocol = solicitation.protocol;
-		let cancelled = false;
+	async function loadTriage(protocol: string): Promise<void> {
+		const loadId = ++activeLoadId;
 		triageLoaded = false;
+		loadError = null;
 		isCreatingNew = false;
 		serverTriage = null;
-		void (async () => {
-			const result = await getTriage(protocol);
-			if (cancelled) return;
-			if (result.ok) {
-				serverTriage = result.data;
-				applyDraftPrecedence(protocol, result.data);
-			} else {
-				applyDraftPrecedence(protocol, null);
-			}
-			triageLoaded = true;
-		})();
+		draft = toTriageDraft(null);
+		errors = {};
+		showConfirm = false;
+
+		const result = await getTriage(protocol);
+		if (loadId !== activeLoadId) return;
+
+		if (!result.ok) {
+			loadError = result.error.message;
+			return;
+		}
+
+		serverTriage = result.data;
+		applyDraftPrecedence(protocol, result.data);
+		triageLoaded = true;
+	}
+
+	$effect(() => {
+		const protocol = solicitation.protocol;
+		void loadTriage(protocol);
 		return () => {
-			cancelled = true;
+			activeLoadId += 1;
 		};
 	});
 
@@ -244,10 +255,15 @@
 
 	function handleCancel() {
 		clearDraftFromSession(solicitation.protocol);
-		draft = toTriageDraft(serverTriage ?? solicitation.triage);
-		isCreatingNew = serverTriage !== null;
+		draft = toTriageDraft(serverTriage);
+		isCreatingNew = serverTriage === null;
 		errors = {};
 		showConfirm = false;
+	}
+
+	function handleRetry() {
+		if (isSaving) return;
+		void loadTriage(solicitation.protocol);
 	}
 
 	function handleStartNewTriage() {
@@ -298,7 +314,7 @@
 			return;
 		}
 		isSaving = true;
-		const payload = toTriagePayload(draft);
+		const payload = toTriagePayload(draft, portalStatuses);
 		const result = await createTriage(solicitation.protocol, payload);
 		isSaving = false;
 		if (result.ok) {
@@ -323,11 +339,21 @@
 	}
 </script>
 
-<section class="triage-section" bind:this={sectionRoot} aria-label="Triagem da solicitação">
+<section
+	class="triage-section"
+	bind:this={sectionRoot}
+	aria-label="Triagem da solicitação"
+	aria-busy={isLoading}
+>
 	<h2 class="section-heading">AVALIAÇÃO DA TRIAGEM</h2>
 
-	{#if !triageLoaded}
-		<p class="triage-loading" aria-busy="true">Carregando triagem…</p>
+	{#if isLoading}
+		<p class="triage-loading">Carregando triagem…</p>
+	{:else if loadError !== null}
+		<div class="triage-load-error">
+			<p role="alert">{loadError}</p>
+			<Button variant="primary" disabled={isSaving} onclick={handleRetry}>Tentar novamente</Button>
+		</div>
 	{:else if isReadonly}
 		<p class="triage-readonly-note" role="status">
 			{#if !canEditTriage}
@@ -338,188 +364,190 @@
 		</p>
 	{/if}
 
-	<div class="field-group">
-		<!-- Linha 1: Aderente ao Escopo + Justificativa (justificativa com dobro da largura) -->
-		<div class="top-row left-group">
-			<div class="narrow-field">
-				<FilterSelect
-					label="Aderente ao Escopo?"
-					options={YES_NO_OPTIONS}
-					value={draft.adherentToScope}
-					onchange={(v) => handleFieldChange('adherentToScope', v)}
-					placeholder="Selecione"
-					disabled={isFormDisabled}
-					error={errors['adherentToScope'] ?? ''}
-				/>
+	{#if triageLoaded}
+		<div class="field-group">
+			<!-- Linha 1: Aderente ao Escopo + Justificativa (justificativa com dobro da largura) -->
+			<div class="top-row left-group">
+				<div class="narrow-field">
+					<FilterSelect
+						label="Aderente ao Escopo?"
+						options={YES_NO_OPTIONS}
+						value={draft.adherentToScope}
+						onchange={(v) => handleFieldChange('adherentToScope', v)}
+						placeholder="Selecione"
+						disabled={isFormDisabled}
+						error={errors['adherentToScope'] ?? ''}
+					/>
+				</div>
+				<div class="wide-field">
+					<Input
+						label="Justificativa"
+						placeholder="Informe a justificativa"
+						bind:value={draft.adherentJustification}
+						maxlength={1000}
+						disabled={isFormDisabled || isJustificationDisabled()}
+						error={errors['adherentJustification'] ?? ''}
+						oninput={() => clearFieldError('adherentJustification')}
+						onblur={() => handleBlur('adherentJustification')}
+					/>
+				</div>
 			</div>
-			<div class="wide-field">
-				<Input
-					label="Justificativa"
-					placeholder="Informe a justificativa"
-					bind:value={draft.adherentJustification}
-					maxlength={1000}
-					disabled={isFormDisabled || isJustificationDisabled()}
-					error={errors['adherentJustification'] ?? ''}
-					oninput={() => clearFieldError('adherentJustification')}
-					onblur={() => handleBlur('adherentJustification')}
-				/>
-			</div>
-		</div>
 
-		<!-- Linha 2: Mudar a Categoria + Categoria antiga → Nova juntos à esquerda, com gap visível -->
-		<div class="top-row right-group">
-			<div class="narrow-field">
-				<FilterSelect
-					label="Mudar a Categoria?"
-					options={YES_NO_OPTIONS}
-					value={draft.changeCategory}
-					onchange={(v) => handleFieldChange('changeCategory', v)}
-					placeholder="Selecione"
-					disabled={isFormDisabled}
-					error={errors['changeCategory'] ?? ''}
-				/>
-			</div>
-			<div class="category-group-wrapper">
-				<div class="category-change-group">
-					<div class="category-old" aria-label="Categoria antiga">
-						<span class="field-label">Categoria Antiga</span>
-						<span class="field-value">{solicitation.demand.category}</span>
-					</div>
-					<span class="category-arrow" aria-hidden="true">→</span>
-					<div class="category-new">
-						<FilterSelect
-							label="Nova Categoria"
-							options={categoryOptions}
-							value={draft.newCategory}
-							onchange={(v) => handleFieldChange('newCategory', v)}
-							placeholder="Selecione"
-							disabled={isFormDisabled || isNewCategoryDisabled()}
-							error={errors['newCategory'] ?? ''}
-						/>
+			<!-- Linha 2: Mudar a Categoria + Categoria antiga → Nova juntos à esquerda, com gap visível -->
+			<div class="top-row right-group">
+				<div class="narrow-field">
+					<FilterSelect
+						label="Mudar a Categoria?"
+						options={YES_NO_OPTIONS}
+						value={draft.changeCategory}
+						onchange={(v) => handleFieldChange('changeCategory', v)}
+						placeholder="Selecione"
+						disabled={isFormDisabled}
+						error={errors['changeCategory'] ?? ''}
+					/>
+				</div>
+				<div class="category-group-wrapper">
+					<div class="category-change-group">
+						<div class="category-old" aria-label="Categoria antiga">
+							<span class="field-label">Categoria Antiga</span>
+							<span class="field-value">{solicitation.demand.category}</span>
+						</div>
+						<span class="category-arrow" aria-hidden="true">→</span>
+						<div class="category-new">
+							<FilterSelect
+								label="Nova Categoria"
+								options={categoryOptions}
+								value={draft.newCategory}
+								onchange={(v) => handleFieldChange('newCategory', v)}
+								placeholder="Selecione"
+								disabled={isFormDisabled || isNewCategoryDisabled()}
+								error={errors['newCategory'] ?? ''}
+							/>
+						</div>
 					</div>
 				</div>
 			</div>
 		</div>
-	</div>
 
-	<div class="field-75">
-		<Textarea
-			label="Complexidade Preliminar"
-			placeholder="Descreva a complexidade preliminar"
-			bind:value={draft.preliminaryComplexity}
-			maxlength={4000}
-			rows={4}
-			disabled={isFormDisabled}
-			error={errors['preliminaryComplexity'] ?? ''}
-			oninput={() => clearFieldError('preliminaryComplexity')}
-		/>
-	</div>
-
-	<div class="field-75">
-		<Textarea
-			label="Riscos Percebidos"
-			placeholder="Descreva os riscos percebidos"
-			bind:value={draft.perceivedRisks}
-			maxlength={4000}
-			rows={4}
-			disabled={isFormDisabled}
-			error={errors['perceivedRisks'] ?? ''}
-			oninput={() => clearFieldError('perceivedRisks')}
-		/>
-	</div>
-
-	<!-- Responsável sugerido + justificativa — 75% com split interno -->
-	<div class="field-75">
-		<div class="split-75">
-			<Input
-				label="Sugerir Analista"
-				placeholder="Informe o Analista"
-				bind:value={draft.suggestedResponsible}
-				maxlength={150}
-				disabled={isFormDisabled}
-				error={errors['suggestedResponsible'] ?? ''}
-				oninput={() => clearFieldError('suggestedResponsible')}
-				onblur={() => handleBlur('suggestedResponsible')}
-			/>
-			<Input
-				label="Justificativa"
-				placeholder="Informe a justificativa"
-				bind:value={draft.suggestedResponsibleJustification}
-				maxlength={1000}
-				disabled={isFormDisabled}
-				error={errors['suggestedResponsibleJustification'] ?? ''}
-				oninput={() => clearFieldError('suggestedResponsibleJustification')}
-				onblur={() => handleBlur('suggestedResponsibleJustification')}
-			/>
-		</div>
-	</div>
-
-	<h2 class="section-heading conclusion-heading">CONCLUSÃO DA ANÁLISE</h2>
-
-	<!-- Status (estreito) + Resultado (flex) dentro de 75% -->
-	<div class="field-75">
-		<div class="status-result-row">
-			<div class="narrow-field wide-field">
-				<FilterSelect
-					label="Status de Saída"
-					options={exitOptions}
-					value={draft.exitStatus === '' ? '' : String(draft.exitStatus)}
-					onchange={handleExitStatusChange}
-					placeholder="Selecione"
-					disabled={isFormDisabled}
-					error={errors['exitStatus'] ?? ''}
-				/>
-			</div>
-			<div class="result-field">
-				<Input
-					label="Resultado"
-					placeholder="Informe o resultado"
-					bind:value={draft.result}
-					maxlength={1000}
-					disabled={isFormDisabled}
-					error={errors['result'] ?? ''}
-					oninput={() => clearFieldError('result')}
-					onblur={() => handleBlur('result')}
-				/>
-			</div>
-		</div>
-	</div>
-
-	<div class="field-75">
-		<Textarea
-			label="Justificativa"
-			placeholder="Informe a justificativa da conclusão"
-			bind:value={draft.conclusionJustification}
-			maxlength={4000}
-			rows={5}
-			disabled={isFormDisabled}
-			error={errors['conclusionJustification'] ?? ''}
-			oninput={() => clearFieldError('conclusionJustification')}
-		/>
-	</div>
-
-	{#if exitStatusIsPublic}
 		<div class="field-75">
 			<Textarea
-				label="Retorno ao solicitante"
-				placeholder="Mensagem visível ao solicitante no /acompanhar"
-				bind:value={draft.lastTechnicalMessage}
+				label="Complexidade Preliminar"
+				placeholder="Descreva a complexidade preliminar"
+				bind:value={draft.preliminaryComplexity}
 				maxlength={4000}
 				rows={4}
 				disabled={isFormDisabled}
-				error={errors['lastTechnicalMessage'] ?? ''}
-				oninput={() => clearFieldError('lastTechnicalMessage')}
+				error={errors['preliminaryComplexity'] ?? ''}
+				oninput={() => clearFieldError('preliminaryComplexity')}
 			/>
 		</div>
-	{/if}
 
-	{#if errors['prioritization']}
-		<p class="priority-gate-error" role="alert" tabindex="-1" data-priority-gate>
-			{errors['prioritization']}
-			<button type="button" class="priority-gate-link" onclick={handleCalculatePriority}>
-				Abrir calculadora
-			</button>
-		</p>
+		<div class="field-75">
+			<Textarea
+				label="Riscos Percebidos"
+				placeholder="Descreva os riscos percebidos"
+				bind:value={draft.perceivedRisks}
+				maxlength={4000}
+				rows={4}
+				disabled={isFormDisabled}
+				error={errors['perceivedRisks'] ?? ''}
+				oninput={() => clearFieldError('perceivedRisks')}
+			/>
+		</div>
+
+		<!-- Responsável sugerido + justificativa — 75% com split interno -->
+		<div class="field-75">
+			<div class="split-75">
+				<Input
+					label="Sugerir Analista"
+					placeholder="Informe o Analista"
+					bind:value={draft.suggestedResponsible}
+					maxlength={150}
+					disabled={isFormDisabled}
+					error={errors['suggestedResponsible'] ?? ''}
+					oninput={() => clearFieldError('suggestedResponsible')}
+					onblur={() => handleBlur('suggestedResponsible')}
+				/>
+				<Input
+					label="Justificativa"
+					placeholder="Informe a justificativa"
+					bind:value={draft.suggestedResponsibleJustification}
+					maxlength={1000}
+					disabled={isFormDisabled}
+					error={errors['suggestedResponsibleJustification'] ?? ''}
+					oninput={() => clearFieldError('suggestedResponsibleJustification')}
+					onblur={() => handleBlur('suggestedResponsibleJustification')}
+				/>
+			</div>
+		</div>
+
+		<h2 class="section-heading conclusion-heading">CONCLUSÃO DA ANÁLISE</h2>
+
+		<!-- Status (estreito) + Resultado (flex) dentro de 75% -->
+		<div class="field-75">
+			<div class="status-result-row">
+				<div class="narrow-field wide-field">
+					<FilterSelect
+						label="Status de Saída"
+						options={exitOptions}
+						value={draft.exitStatus === '' ? '' : String(draft.exitStatus)}
+						onchange={handleExitStatusChange}
+						placeholder="Selecione"
+						disabled={isFormDisabled}
+						error={errors['exitStatus'] ?? ''}
+					/>
+				</div>
+				<div class="result-field">
+					<Input
+						label="Resultado"
+						placeholder="Informe o resultado"
+						bind:value={draft.result}
+						maxlength={1000}
+						disabled={isFormDisabled}
+						error={errors['result'] ?? ''}
+						oninput={() => clearFieldError('result')}
+						onblur={() => handleBlur('result')}
+					/>
+				</div>
+			</div>
+		</div>
+
+		<div class="field-75">
+			<Textarea
+				label="Justificativa"
+				placeholder="Informe a justificativa da conclusão"
+				bind:value={draft.conclusionJustification}
+				maxlength={4000}
+				rows={5}
+				disabled={isFormDisabled}
+				error={errors['conclusionJustification'] ?? ''}
+				oninput={() => clearFieldError('conclusionJustification')}
+			/>
+		</div>
+
+		{#if exitStatusIsPublic}
+			<div class="field-75">
+				<Textarea
+					label="Retorno ao solicitante"
+					placeholder="Mensagem visível ao solicitante no /acompanhar"
+					bind:value={draft.lastTechnicalMessage}
+					maxlength={4000}
+					rows={4}
+					disabled={isFormDisabled}
+					error={errors['lastTechnicalMessage'] ?? ''}
+					oninput={() => clearFieldError('lastTechnicalMessage')}
+				/>
+			</div>
+		{/if}
+
+		{#if errors['prioritization']}
+			<p class="priority-gate-error" role="alert" tabindex="-1" data-priority-gate>
+				{errors['prioritization']}
+				<button type="button" class="priority-gate-link" onclick={handleCalculatePriority}>
+					Abrir calculadora
+				</button>
+			</p>
+		{/if}
 	{/if}
 
 	{#if triageLoaded}
@@ -599,6 +627,25 @@
 		margin: 0;
 		font: var(--label);
 		color: var(--text-color-primary);
+	}
+
+	.triage-load-error {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: var(--spacing-sm);
+		width: 75%;
+		padding: var(--spacing-sm) var(--spacing-md);
+		border: 1px solid var(--status-red);
+		border-radius: var(--radius-sm);
+		background: var(--status-red-bg);
+		color: var(--status-red);
+		box-sizing: border-box;
+	}
+
+	.triage-load-error p {
+		margin: 0;
+		font: var(--label);
 	}
 
 	.triage-readonly-note {

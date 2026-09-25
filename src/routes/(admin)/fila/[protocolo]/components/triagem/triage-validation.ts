@@ -15,7 +15,7 @@ function isRequired(value: string): boolean {
 }
 
 export interface TriageValidationContext {
-	statuses?: PortalStatus[];
+	statuses: PortalStatus[];
 	categories?: PortalCategory[];
 }
 
@@ -41,13 +41,20 @@ export function toTriageDraft(source: TriageAssessment | null | undefined): Tria
 	};
 }
 
-export function toTriagePayload(draft: TriageAssessment): CreateTriagePayload {
+export function toTriagePayload(
+	draft: TriageAssessment,
+	statuses: PortalStatus[]
+): CreateTriagePayload {
 	// Omite valores condicionais obsoletos: não envia justificativa quando
 	// aderente nem nova categoria quando não há troca — evita persistência
 	// de seleção anterior após toggle do controlador. Nunca envia `id`
 	// (uuid do registro, gerado pelo backend no POST).
 	const adherent = draft.adherentToScope === 'Não' ? trim(draft.adherentJustification) : '';
 	const newCategory = draft.changeCategory === 'Sim' ? draft.newCategory : '';
+	const selectedExitStatus =
+		typeof draft.exitStatus === 'number'
+			? statuses.find((status) => status.id === draft.exitStatus)
+			: undefined;
 	return {
 		adherentToScope: draft.adherentToScope,
 		adherentJustification: adherent,
@@ -60,13 +67,15 @@ export function toTriagePayload(draft: TriageAssessment): CreateTriagePayload {
 		exitStatus: draft.exitStatus,
 		result: trim(draft.result),
 		conclusionJustification: trim(draft.conclusionJustification),
-		lastTechnicalMessage: trim(draft.lastTechnicalMessage ?? '')
+		...(selectedExitStatus?.isPublic
+			? { lastTechnicalMessage: trim(draft.lastTechnicalMessage ?? '') }
+			: {})
 	};
 }
 
 export function validateTriageDraft(
 	draft: TriageAssessment,
-	context: TriageValidationContext = {}
+	context: TriageValidationContext
 ): Record<string, string> {
 	const errors: Record<string, string> = {};
 
@@ -107,12 +116,12 @@ export function validateTriageDraft(
 	let exitIsPublic = false;
 	if (draft.exitStatus === '' || draft.exitStatus === null || draft.exitStatus === undefined) {
 		errors['exitStatus'] = 'Selecione o status de saída.';
-	} else if (context.statuses && !isTriageExitStatus(Number(draft.exitStatus), context.statuses)) {
+	} else if (!isTriageExitStatus(Number(draft.exitStatus), context.statuses)) {
 		errors['exitStatus'] =
 			'Status de saída deve ser um status ativo com triageMode conclusion_only e isRestricted=false.';
-	} else if (context.statuses) {
+	} else {
 		exitIsPublic =
-			context.statuses.find((s) => s.id === Number(draft.exitStatus))?.isPublic ?? false;
+			context.statuses.find((status) => status.id === Number(draft.exitStatus))?.isPublic === true;
 	}
 
 	if (!isRequired(draft.result)) {
@@ -163,7 +172,7 @@ export function validateTriageDraft(
 export function validateTriageField(
 	draft: TriageAssessment,
 	path: string,
-	context: TriageValidationContext = {}
+	context: TriageValidationContext
 ): Record<string, string> {
 	const all = validateTriageDraft(draft, context);
 	const picked: Record<string, string> = {};
