@@ -54,6 +54,8 @@ export function buildMappingPayload(draft: MappingDraft): MappingPayload {
 	const isScheduled = targetStatus === MAPPING_SCHEDULED_STATUS_ID;
 	const modality = isScheduled ? (draft.modality === '' ? null : draft.modality) : null;
 	const duration = isScheduled ? parseNumber((draft.durationMinutes ?? '').trim()) : null;
+	const justification = draft.justification?.trim() ?? '';
+	const lastTechnicalMessage = draft.lastTechnicalMessage?.trim() ?? '';
 	return {
 		scheduledFor: isScheduled ? datetimeLocalToIso(draft.scheduledFor) : null,
 		durationMinutes: duration === null ? null : duration,
@@ -63,12 +65,14 @@ export function buildMappingPayload(draft: MappingDraft): MappingPayload {
 		participants: isScheduled ? normalizeParticipants(draft.participants) : [],
 		notes: isScheduled ? emptyToNull(draft.notes ?? '') : null,
 		completeMapping: true,
-		targetStatus,
+		...(targetStatus === null ? {} : { targetStatus }),
 		mappingAssigneeId: draft.mappingAssigneeId?.trim() ? draft.mappingAssigneeId.trim() : null,
-		justification: draft.justification?.trim() ? draft.justification.trim() : null,
-		lastTechnicalMessage: draft.lastTechnicalMessage?.trim()
-			? draft.lastTechnicalMessage.trim()
-			: null
+		// `justification` e `lastTechnicalMessage` são omitidas (não `null`)
+		// quando vazias: o schema do backend aceita ausência, mas rejeita
+		// `null` em `justification`. No destino 6 a justificativa é dispensada
+		// pelo service, mas continuaria barrada pelo schema.
+		...(justification ? { justification } : {}),
+		...(lastTechnicalMessage ? { lastTechnicalMessage } : {})
 	};
 }
 

@@ -79,6 +79,10 @@ export function getMockSolicitationMode(): SolicitationMode {
 	return mockConfig.solicitationMode;
 }
 
+export function getMockStatuses(): PortalStatus[] {
+	return structuredClone(mockConfig.statuses);
+}
+
 export function updateAccessMock(payload: UpdateAccessRequest): Promise<AccessSection> {
 	if (!SOLICITATION_MODES.includes(payload.solicitationMode)) {
 		throw new ApiError(400, 'Modo de solicitação inválido.');

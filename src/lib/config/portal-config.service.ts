@@ -476,16 +476,11 @@ function sanitizeStatuses(value: unknown): PortalStatus[] {
 			isTerminal = false;
 		}
 
-		// triageMode/mappingMode — alias isTriageExit (true→free)
+		// triageMode/mappingMode — alias isTriageExit (true→conclusion_only)
 		let triageMode = sanitizeStatusMode(item.triageMode);
 		const mappingMode = sanitizeStatusMode(item.mappingMode);
-		if (
-			item.triageMode === undefined &&
-			item.mappingMode === undefined &&
-			typeof item.isTriageExit === 'boolean'
-		) {
-			// Legado sem modos: isTriageExit true mapeia para triage free (compat mínimo)
-			if (item.isTriageExit === true && triageMode === 'none') triageMode = 'free';
+		if (item.triageMode === undefined && typeof item.isTriageExit === 'boolean') {
+			if (item.isTriageExit === true && triageMode === 'none') triageMode = 'conclusion_only';
 		}
 
 		const isRestricted = item.isRestricted === true;

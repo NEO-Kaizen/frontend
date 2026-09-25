@@ -5,7 +5,7 @@ import type { UpdateStatusRequest, UpdateStatusResponse } from '$lib/types/reque
 const REQUESTS_PATH = '/requests';
 
 // PATCH /requests/:protocol/status — v4 único (free operacional + ADMIN bypass)
-// body: { targetStatus: number, justification: string 1..4000 }
+// body: { targetStatus: number, justification: string 1..4000, lastTechnicalMessage?: string 1..4000 }
 export async function updateRequestStatus(
 	protocol: string,
 	payload: UpdateStatusRequest,
