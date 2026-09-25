@@ -249,10 +249,10 @@ export function isFutureOrToday(value: string, reference: string): boolean {
 	return value >= reference;
 }
 
-export function isProtocol(value: string, prefix: string): boolean {
-	const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+export const PROTOCOL_STRUCTURE_PATTERN = /^[A-Za-z0-9]{1,10}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}$/;
 
-	return new RegExp(`^${escapedPrefix}-[A-Z0-9]{4}-[A-Z0-9]{4}$`, 'i').test(value);
+export function isProtocol(value: string): boolean {
+	return PROTOCOL_STRUCTURE_PATTERN.test(value.trim());
 }
 
 export const PASSWORD_MIN_LENGTH = 8;

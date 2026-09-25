@@ -33,34 +33,7 @@
 		};
 	});
 
-	function formatProtocol(value: string) {
-		const withoutPrefix = value.replace(new RegExp(`^${protocolMask}-?`, 'i'), '');
-
-		const normalized = withoutPrefix
-			.replace(/[^A-Z0-9]/gi, '')
-			.toUpperCase()
-			.slice(0, 8);
-
-		if (!normalized) {
-			return '';
-		}
-
-		const secondBlock = normalized.slice(0, 4);
-		const thirdBlock = normalized.slice(4, 8);
-
-		if (normalized.length <= 4) {
-			return `${protocolMask}-${secondBlock}`;
-		}
-
-		return `${protocolMask}-${secondBlock}-${thirdBlock}`;
-	}
-
-	function handleProtocolInput(event: Event) {
-		const input = event.currentTarget as HTMLInputElement;
-		const formattedProtocol = formatProtocol(input.value);
-
-		input.value = formattedProtocol;
-		protocol = formattedProtocol;
+	function handleProtocolInput() {
 		hasSubmitted = false;
 	}
 
@@ -69,15 +42,13 @@
 	}
 
 	let formError = $derived(
-		hasSubmitted && !protocol.trim() && (!isOwnerView && !email.trim())
+		hasSubmitted && !protocol.trim() && !isOwnerView && !email.trim()
 			? 'Informe o protocolo' + (isOwnerView ? '.' : ' ou o e-mail.')
 			: ''
 	);
 
 	let protocolError = $derived(
-		protocol.trim() && !isProtocol(protocol.trim(), protocolMask)
-			? 'Informe um protocolo válido.'
-			: ''
+		protocol.trim() && !isProtocol(protocol.trim()) ? 'Informe um protocolo válido.' : ''
 	);
 
 	let emailError = $derived(
@@ -89,7 +60,7 @@
 
 		hasSubmitted = true;
 
-		const normalizedProtocol = protocol.trim();
+		const normalizedProtocol = protocol.trim().toUpperCase();
 		const normalizedEmail = email.trim();
 
 		if (!normalizedProtocol && !isOwnerView && !normalizedEmail) {
@@ -100,7 +71,7 @@
 		}
 
 		try {
-			if (isProtocol(normalizedProtocol, protocolMask)) {
+			if (isProtocol(normalizedProtocol)) {
 				isSearching = true;
 				await goto(resolve('/(public)/acompanhar/[protocolo]', { protocolo: normalizedProtocol }));
 				return;
@@ -129,7 +100,7 @@
 	<div class="field">
 		<Input
 			label="Número do Protocolo"
-			placeholder={`Ex: ${protocolMask}-2026-0001`}
+			placeholder={`Ex: ${protocolMask}-A1B2-C3D4`}
 			prefix="#"
 			maxlength={protocolMask.length + 10}
 			error={protocolError}

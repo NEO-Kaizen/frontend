@@ -4,6 +4,7 @@ import {
 	MAPPING_NOTES_MAXLENGTH,
 	MAPPING_SCHEDULED_STATUS_ID
 } from '$lib/types/mapping';
+import type { RequestStatus } from '$lib/types/request';
 import {
 	isFutureOrToday,
 	isRequired,
@@ -82,6 +83,18 @@ export function toMappingDraft(
 // Estado vazio: nenhum agendamento registrado (resposta ausente ou sem data).
 export function isMappingEmpty(saved: MappingResponse | null): boolean {
 	return !saved || !saved.scheduledFor;
+}
+
+const PRE_MAPPING_STATUSES: readonly RequestStatus[] = [
+	'Solicitação enviada',
+	'Aguardando triagem',
+	'Em triagem',
+	'Pendente de informações',
+	'Aguardando mapeamento'
+];
+
+export function isMappingConcluded(status: RequestStatus): boolean {
+	return !PRE_MAPPING_STATUSES.includes(status);
 }
 
 export function applyMappingChange(

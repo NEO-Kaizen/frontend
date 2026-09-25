@@ -1,11 +1,13 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
-	import { onDestroy, tick } from 'svelte';
+	import { tick } from 'svelte';
 	import Button from '$lib/components/Button.svelte';
+	import Icon from '$lib/components/Icon.svelte';
 	import FilterSelect from '$lib/components/FilterSelect.svelte';
 	import Textarea from '$lib/components/Textarea.svelte';
 	import UserMultiSelect from '$lib/components/UserMultiSelect.svelte';
 	import { buildMappingPayload, getMapping, saveMapping } from '$lib/services/mapping.service';
+	import { toastState } from '$lib/states/toast.svelte';
 	import type { InternalRequestDetail } from '$lib/types/request';
 	import type { AdminUser } from '$lib/types/user';
 	import {
@@ -26,6 +28,7 @@
 	import {
 		applyMappingChange,
 		emptyMappingDraft,
+		isMappingConcluded,
 		isMappingEmpty,
 		modalityLabel,
 		nowLocalMinute,
@@ -56,8 +59,9 @@
 	let draft = $state<MappingDraft>(emptyMappingDraft());
 	let errors = $state<Record<string, string>>({});
 	let isSubmitting = $state(false);
+
+	let isCreatingNew = $state(false);
 	let saveError = $state<string | null>(null);
-	let saveSuccess = $state<string | null>(null);
 	let loadedProtocol = $state<string | null>(null);
 	let formRoot = $state<HTMLElement | null>(null);
 	// Participante externo (sem cadastro): a busca `/users` é só auxiliar de
@@ -69,19 +73,13 @@
 	// eslint-disable-next-line svelte/prefer-writable-derived -- "agora" não deriva de nenhum estado; só pode ser lido no cliente.
 	let nowMin = $state('');
 
-	const SAVE_SUCCESS_TIMEOUT_MS = 4000;
-	let saveSuccessTimer: ReturnType<typeof setTimeout> | undefined;
-
-	function clearSaveSuccess(): void {
-		if (saveSuccessTimer !== undefined) {
-			clearTimeout(saveSuccessTimer);
-			saveSuccessTimer = undefined;
-		}
-		saveSuccess = null;
-	}
-
-	onDestroy(clearSaveSuccess);
 	let isEmpty = $derived(isMappingEmpty(saved));
+
+	let isFinalized = $derived(
+		!isLoading && Boolean(saved?.id) && !isCreatingNew && isMappingConcluded(solicitation.status)
+	);
+
+	let isFormEditable = $derived(editable && !isFinalized);
 	let conclusionOptions = $derived(mappingConclusionOptions(statuses));
 	let targetId = $derived(
 		draft.targetStatus && draft.targetStatus.trim() !== ''
@@ -135,7 +133,6 @@
 			draft = toMappingDraft(result.data, fallbackDate, fallbackMeetingLink);
 			errors = {};
 			saveError = null;
-			clearSaveSuccess();
 		} else {
 			loadError = result.error.message;
 		}
@@ -151,6 +148,7 @@
 		const fallbackMeetingLink = fallbackLink();
 		if (loadedProtocol === target) return;
 		loadedProtocol = target;
+		isCreatingNew = false;
 		void loadMapping(target, fallbackDate, fallbackMeetingLink);
 	});
 
@@ -263,13 +261,23 @@
 	}
 
 	function handleCancel(): void {
+		isCreatingNew = false;
 		draft = toMappingDraft(saved, fallbackScheduledFor(), fallbackLink());
 		errors = {};
 		saveError = null;
 		externalName = '';
 		externalEmail = '';
 		externalError = null;
-		clearSaveSuccess();
+	}
+
+	function handleStartNewMapping(): void {
+		isCreatingNew = true;
+		draft = toMappingDraft(null, fallbackScheduledFor(), fallbackLink());
+		errors = {};
+		saveError = null;
+		externalName = '';
+		externalEmail = '';
+		externalError = null;
 	}
 
 	function focusFirstInvalid(): void {
@@ -291,22 +299,17 @@
 		}
 		isSubmitting = true;
 		saveError = null;
-		clearSaveSuccess();
 		const result = await saveMapping(protocol, buildMappingPayload(draft));
 		isSubmitting = false;
 		if (result.ok) {
 			saved = result.data;
+			isCreatingNew = false;
 			draft = toMappingDraft(result.data, fallbackScheduledFor(), fallbackLink());
 			errors = {};
 			externalName = '';
 			externalEmail = '';
 			externalError = null;
-			clearSaveSuccess();
-			saveSuccess = 'Mapeamento concluído com sucesso.';
-			saveSuccessTimer = setTimeout(() => {
-				saveSuccess = null;
-				saveSuccessTimer = undefined;
-			}, SAVE_SUCCESS_TIMEOUT_MS);
+			toastState.add('Mapeamento concluído com sucesso.', 'success');
 			// O backend alterou o status; recarrega os dados da página.
 			await invalidateAll();
 		} else {
@@ -348,21 +351,27 @@
 			{/if}
 		</ToggleSection>
 
-		{#if !editable}
+		{#if !isFormEditable}
 			<p class="readonly-notice">
-				Modo de visualização — seu perfil não permite editar o mapeamento.
+				{#if !editable}
+					Modo de visualização — seu perfil não permite editar o mapeamento.
+				{:else}
+					Mapeamento finalizado — os campos estão em somente leitura. Para um novo agendamento, use
+					"Fazer novo mapeamento".
+				{/if}
+			</p>
+		{:else if isCreatingNew}
+			<p class="empty-notice">
+				Novo mapeamento — o mapeamento anterior permanece registrado no histórico.
 			</p>
 		{/if}
 
 		{#if saveError}
 			<p class="save-feedback save-error" role="alert">{saveError}</p>
 		{/if}
-		{#if saveSuccess}
-			<p class="save-feedback save-success" role="status">{saveSuccess}</p>
-		{/if}
 
 		<div class="destination-block">
-			{#if editable}
+			{#if isFormEditable}
 				<FilterSelect
 					label="Status de destino"
 					options={conclusionOptions}
@@ -377,14 +386,14 @@
 			{/if}
 		</div>
 
-		{#if editable && !isScheduled}
+		{#if isFormEditable && !isScheduled}
 			<p class="locked-notice" role="status">
 				Reunião travada — o destino selecionado não exige agendamento.
 			</p>
 		{/if}
 
 		<ToggleSection id="mapping-schedule" title="AGENDAMENTO DA REUNIÃO" open={isScheduled}>
-			{#if editable && isEmpty && isScheduled}
+			{#if isFormEditable && isEmpty && isScheduled}
 				<p class="empty-notice">
 					Nenhum agendamento registrado. Preencha os campos abaixo para agendar a reunião de
 					mapeamento.
@@ -395,7 +404,7 @@
 				<Field
 					label="Data e horário da reunião"
 					value={scheduledForDisplay}
-					isEditMode={editable}
+					isEditMode={isFormEditable}
 					kind="datetime-local"
 					required
 					icon="calendarMonth"
@@ -409,7 +418,7 @@
 				<Field
 					label="Duração prevista"
 					value={durationDisplay}
-					isEditMode={editable}
+					isEditMode={isFormEditable}
 					kind="select"
 					allowEmpty
 					options={MAPPING_DURATION_OPTIONS}
@@ -423,7 +432,7 @@
 
 			<div class="grid">
 				<div class="modality-block">
-					{#if editable}
+					{#if isFormEditable}
 						<fieldset class="modality-fieldset">
 							<legend>Modalidade de realização</legend>
 							<div class="modality-options">
@@ -455,11 +464,11 @@
 				</div>
 
 				<div class="location-block">
-					{#if editable ? draft.modality === 'REMOTE' || !draft.modality : saved?.meetingLink}
+					{#if isFormEditable ? draft.modality === 'REMOTE' || !draft.modality : saved?.meetingLink}
 						<Field
 							label="Link da videoconferência"
 							value={saved?.meetingLink}
-							isEditMode={editable}
+							isEditMode={isFormEditable}
 							kind="url"
 							required={draft.modality === 'REMOTE'}
 							placeholder="https://"
@@ -473,11 +482,11 @@
 						/>
 					{/if}
 
-					{#if editable ? draft.modality === 'IN_PERSON' || !draft.modality : saved?.location}
+					{#if isFormEditable ? draft.modality === 'IN_PERSON' || !draft.modality : saved?.location}
 						<Field
 							label="Sala ou local presencial"
 							value={saved?.location}
-							isEditMode={editable}
+							isEditMode={isFormEditable}
 							required={draft.modality === 'IN_PERSON'}
 							placeholder="Ex.: Sala 3 — Bloco B"
 							maxlength={MAPPING_LOCATION_MAXLENGTH}
@@ -499,7 +508,7 @@
 					onSelect={handleSelectParticipant}
 					onRemove={handleRemoveParticipant}
 					disabled={isSubmitting || !isScheduled}
-					readonly={!editable}
+					readonly={!isFormEditable}
 				>
 					<div class="external-form">
 						<p class="external-title">Adicionar participante externo</p>
@@ -538,7 +547,7 @@
 						{/if}
 					</div>
 				</UserMultiSelect>
-				{#if errors['participants'] && editable}
+				{#if errors['participants'] && isFormEditable}
 					<p class="field-error" role="alert">{errors['participants']}</p>
 				{/if}
 			</div>
@@ -548,7 +557,7 @@
 					label="Observações"
 					value={saved?.notes}
 					multiline
-					isEditMode={editable}
+					isEditMode={isFormEditable}
 					kind="textarea"
 					rows={4}
 					maxlength={MAPPING_NOTES_MAXLENGTH}
@@ -561,7 +570,7 @@
 			</div>
 		</ToggleSection>
 
-		{#if editable ? showJustification : false}
+		{#if isFormEditable && showJustification}
 			<div class="notes-block">
 				<Textarea
 					label="Justificativa (interna)"
@@ -576,7 +585,7 @@
 			</div>
 		{/if}
 
-		{#if editable ? showReturn : false}
+		{#if isFormEditable && showReturn}
 			<div class="notes-block">
 				<Textarea
 					label="Retorno ao solicitante"
@@ -591,7 +600,7 @@
 			</div>
 		{/if}
 
-		{#if editable}
+		{#if isFormEditable}
 			<div class="form-actions">
 				<Button variant="outline-neutral" disabled={isSubmitting} onclick={handleCancel}>
 					Cancelar
@@ -600,17 +609,27 @@
 					{submitLabel}
 				</Button>
 			</div>
-		{:else if saved?.meetingLink}
-			<p class="readonly-link-row">
-				<a
-					href={saved.meetingLink}
-					target="_blank"
-					rel="external noopener noreferrer"
-					class="readonly-link"
-				>
-					Abrir link da videoconferência
-				</a>
-			</p>
+		{:else}
+			{#if saved?.meetingLink}
+				<p class="readonly-link-row">
+					<a
+						href={saved.meetingLink}
+						target="_blank"
+						rel="external noopener noreferrer"
+						class="readonly-link"
+					>
+						Abrir link da videoconferência
+					</a>
+				</p>
+			{/if}
+			{#if isFinalized && editable}
+				<div class="form-actions">
+					<Button variant="primary" onclick={handleStartNewMapping}>
+						<Icon iconName="addCircle" iconSize="sm" />
+						Fazer novo mapeamento
+					</Button>
+				</div>
+			{/if}
 		{/if}
 	{/if}
 </div>
@@ -691,12 +710,6 @@
 		background-color: var(--status-red-bg);
 		color: var(--status-red);
 		border: 1px solid var(--status-red);
-	}
-
-	.save-success {
-		background-color: var(--status-green-bg);
-		color: var(--status-green);
-		border: 1px solid var(--status-green);
 	}
 
 	.modality-block,

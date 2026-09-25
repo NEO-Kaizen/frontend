@@ -51,6 +51,7 @@ export interface MappingResponse {
 }
 
 export interface MappingPayload {
+	id?: string;
 	scheduledFor: string | null;
 	durationMinutes: number | null;
 	modality: Modality | null;
