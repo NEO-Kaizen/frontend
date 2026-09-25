@@ -19,6 +19,7 @@
 	} from '$lib/services/solicitation-draft.service';
 	import type { SessionUser } from '$lib/types/auth';
 	import type { SolicitationMode } from '$lib/types/portal-config';
+	import type { RequesterProfileBlock } from '$lib/types/user';
 	import type {
 		ComplementaryData,
 		CreateRequestPayload,
@@ -36,14 +37,33 @@
 
 	interface Props {
 		user?: SessionUser | null;
+		requesterProfile?: RequesterProfileBlock | null;
 		solicitationMode: SolicitationMode;
 		categoryOptions?: { value: string; label: string }[];
 	}
 
-	let { user = null, solicitationMode, categoryOptions = [] }: Props = $props();
+	let {
+		user = null,
+		requesterProfile = null,
+		solicitationMode,
+		categoryOptions = []
+	}: Props = $props();
 
 	const hasSession = $derived(Boolean(user));
 	const shouldLockIdentity = $derived(solicitationMode === 'AUTHENTICATED' && hasSession);
+	const lockedRequesterFields = $derived.by(() => {
+		const fields: (keyof IdentificationData)[] = [];
+		if (requesterProfile?.area?.trim()) fields.push('area');
+		if (requesterProfile?.department?.trim()) fields.push('department');
+		if (requesterProfile?.manager?.trim()) fields.push('manager');
+		return fields;
+	});
+	const lockedFieldsForStep1 = $derived.by(() => {
+		const base: (keyof IdentificationData)[] = shouldLockIdentity
+			? ['fullName', 'corporateEmail']
+			: [];
+		return [...base, ...lockedRequesterFields];
+	});
 
 	const steps = [
 		{ id: 1, label: 'Identificação' },
@@ -80,12 +100,23 @@
 			: { fullName: '', corporateEmail: '' };
 	}
 
+	// Dados de solicitante salvos em "Meus dados" — pré-preenchem a etapa 1
+	// quando o rascunho não tem valor para o campo.
+	function getProfileRequester(): Pick<
+		IdentificationData,
+		'area' | 'department' | 'manager' | 'additionalContact'
+	> {
+		return {
+			area: requesterProfile?.area ?? '',
+			department: requesterProfile?.department ?? '',
+			manager: requesterProfile?.manager ?? '',
+			additionalContact: requesterProfile?.additionalContact ?? ''
+		};
+	}
+
 	let identification = $state<IdentificationData>({
 		...getSessionIdentity(),
-		area: '',
-		department: '',
-		manager: '',
-		additionalContact: ''
+		...getProfileRequester()
 	});
 
 	let demand = $state<DemandData>({
@@ -145,9 +176,24 @@
 		currentStep = draft.currentStep;
 		completedSteps = new Set(draft.completedSteps);
 		visitedSteps = new Set(draft.visitedSteps);
-		identification = shouldLockIdentity
-			? { ...draft.identification, ...getSessionIdentity() }
-			: draft.identification;
+
+		// O rascunho manda; o perfil preenche apenas os campos ainda vazios.
+		const fromProfile = getProfileRequester();
+		const merged: IdentificationData = {
+			...draft.identification,
+			area: draft.identification.area || fromProfile.area,
+			department: draft.identification.department || fromProfile.department,
+			manager: draft.identification.manager || fromProfile.manager,
+			additionalContact: draft.identification.additionalContact || fromProfile.additionalContact
+		};
+
+		// Campos travados pelo perfil ignoram valores antigos do rascunho — o
+		// perfil é a fonte de verdade (admin pode tê-los alterado após o rascunho).
+		if (lockedRequesterFields.includes('area')) merged.area = fromProfile.area;
+		if (lockedRequesterFields.includes('department')) merged.department = fromProfile.department;
+		if (lockedRequesterFields.includes('manager')) merged.manager = fromProfile.manager;
+
+		identification = shouldLockIdentity ? { ...merged, ...getSessionIdentity() } : merged;
 		demand = draft.demand;
 		operational = draft.operational;
 		complementary = draft.complementary;
@@ -248,12 +294,8 @@
 		protocolCopied = false;
 		clearTimeout(copyTimeout);
 		identification = {
-			fullName: hasSession ? (user?.name ?? '') : '',
-			corporateEmail: hasSession ? (user?.email ?? '') : '',
-			area: '',
-			department: '',
-			manager: '',
-			additionalContact: ''
+			...getSessionIdentity(),
+			...getProfileRequester()
 		};
 		demand = {
 			title: '',
@@ -345,7 +387,7 @@
 		return {
 			requester: {
 				...requesterIdentity,
-				area: identification.area,
+				area: identification.area.trim(),
 				department: identification.department.trim() || undefined,
 				manager: identification.manager.trim(),
 				additionalContact: identification.additionalContact.trim() || undefined
@@ -497,7 +539,7 @@
 				<StepIdentification
 					bind:this={step1Ref}
 					bind:data={identification}
-					lockedFields={shouldLockIdentity ? ['fullName', 'corporateEmail'] : []}
+					lockedFields={lockedFieldsForStep1}
 				/>
 			</div>
 			<div hidden={currentStep !== 2}>

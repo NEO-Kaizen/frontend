@@ -18,11 +18,13 @@
 		CreateUserResponse,
 		UserAction,
 		UserProfile,
+		UserProfileResponse,
 		UserStats,
 		UserStatus
 	} from '$lib/types/user';
 	import ConfirmActionModal from './components/ConfirmActionModal.svelte';
 	import CreateUserModal from './components/CreateUserModal.svelte';
+	import EditUserModal from './components/EditUserModal.svelte';
 	import ResetPasswordModal from './components/ResetPasswordModal.svelte';
 	import UsersTable from './components/UsersTable.svelte';
 	import Icon from '$lib/components/Icon.svelte';
@@ -205,7 +207,12 @@
 		const result = await createUser({
 			name: data.name.trim(),
 			email: data.email.trim(),
-			role: data.role
+			role: data.role,
+			area: data.area,
+			department: data.department,
+			manager: data.manager,
+			additionalContact: data.additionalContact,
+			professional: data.professional
 		});
 
 		isCreating = false;
@@ -286,6 +293,14 @@
 	function closePendingAction() {
 		pendingAction = undefined;
 		actionError = '';
+	}
+
+	function handleEditSaved(profile: UserProfileResponse) {
+		const userId = pendingAction?.user.id;
+		const userName = profile.fullName;
+		if (userId) applyUserUpdate(userId, { name: profile.fullName });
+		pendingAction = undefined;
+		showSuccess(`Dados administrativos de "${userName}" atualizados com sucesso.`);
 	}
 </script>
 
@@ -481,8 +496,18 @@
 	<CreateUserModal
 		loading={isCreating}
 		error={createError}
+		categories={data.portalConfig.categories}
 		onclose={closeCreateModal}
 		oncreate={handleCreate}
+	/>
+{/if}
+
+{#if pendingAction?.kind === 'edit'}
+	<EditUserModal
+		user={pendingAction.user}
+		categories={data.portalConfig.categories}
+		onclose={closePendingAction}
+		onsaved={handleEditSaved}
 	/>
 {/if}
 
