@@ -8,12 +8,6 @@
 
 	let { data }: PageProps = $props();
 
-	// Apenas categorias ativas podem ser associadas ao analista (mesma regra do
-	// seletor de categorias da solicitação).
-	const activeCategories = $derived(
-		data.portalConfig.categories.filter((category) => category.isActive)
-	);
-
 	// Após qualquer gravação, relê o perfil no servidor para manter a tela e a
 	// sessão consistentes com o backend.
 	async function handleChanged() {
@@ -38,13 +32,16 @@
 
 		<ProfileIdentityCard {profile} onChanged={handleChanged} />
 
-		<RequesterCard requester={profile.requester} onSaved={handleChanged} />
+		<RequesterCard
+			requester={profile.requester}
+			canEditAdministrativeFields={profile.role === 'Administrador'}
+			onSaved={handleChanged}
+		/>
 
 		{#if profile.role === 'Analista'}
 			<ProfessionalCard
 				professional={profile.professional}
-				categories={activeCategories}
-				onSaved={handleChanged}
+				categories={data.portalConfig.categories}
 			/>
 		{/if}
 	{:else}

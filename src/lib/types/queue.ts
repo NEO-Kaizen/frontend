@@ -29,6 +29,8 @@ export type QueueQuery = PaginationQuery & QueueFilterQuery;
 export interface QueueItem extends RequestSummary {
 	requesterEmail: string;
 	assigneeId: string | null;
+	mappingAssigneeId?: string | null;
+	mappingAssigneeName?: string | null;
 }
 
 export interface QueueAssignee {

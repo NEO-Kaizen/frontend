@@ -1,33 +1,32 @@
 <script lang="ts">
-	import { onDestroy } from 'svelte';
-	import { env } from '$env/dynamic/public';
+	import { onDestroy, untrack } from 'svelte';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import AssetImage from '$lib/components/AssetImage.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import Input from '$lib/components/Input.svelte';
 	import { updateMyProfile } from '$lib/services/user.service';
 	import type { UserProfileResponse } from '$lib/types/user';
-	import { isValidProfileAvatar } from '$lib/utils/validations';
+	import { notifySectionSave } from '$lib/utils/feedback';
+	import { resolveApiAssetUrl } from '$lib/utils/api-assets';
+	import {
+		isValidProfileAvatar,
+		isValidText,
+		PROFILE_FULL_NAME_MAX_LENGTH
+	} from '$lib/utils/validations';
+	import { requiredFieldError } from '../profile-validation';
 	import { getRoleDisplayLabel } from '$lib/utils/user';
 
 	interface Props {
 		profile: UserProfileResponse;
-		onChanged: () => void;
+		onChanged: () => void | Promise<void>;
 	}
 
 	let { profile, onChanged }: Props = $props();
 
-	// A URL de avatar vem relativa (`/uploads/avatars/...`) — o arquivo é servido
-	// pelo backend, então prefixamos a origem da API (mesmo padrão de anexos).
-	function resolveAvatarUrl(url: string | null): string | null {
-		if (!url) return null;
-		if (url.startsWith('http://') || url.startsWith('https://')) return url;
-		return `${env.PUBLIC_API_URL}${url}`;
-	}
-
-	const avatarUrl = $derived(resolveAvatarUrl(profile.avatarUrl));
+	const avatarUrl = $derived(resolveApiAssetUrl(profile.avatarUrl));
 	const avatarLight = $derived(page.data.portalConfig.assets.avatarLightUrl);
 	const avatarDark = $derived(page.data.portalConfig.assets.avatarDarkUrl);
 
@@ -37,6 +36,46 @@
 	let isUploading = $state(false);
 	let avatarError = $state('');
 	let isRemoveConfirmOpen = $state(false);
+	let isEditingName = $state(false);
+	let isSavingName = $state(false);
+	let fullName = $state(untrack(() => profile.fullName));
+	let fullNameError = $state('');
+
+	function startNameEdit() {
+		fullName = profile.fullName;
+		fullNameError = '';
+		isEditingName = true;
+	}
+
+	function cancelNameEdit() {
+		fullName = profile.fullName;
+		fullNameError = '';
+		isEditingName = false;
+	}
+
+	async function saveName() {
+		const trimmed = fullName.trim();
+		fullNameError = requiredFieldError(trimmed, 'o nome completo', PROFILE_FULL_NAME_MAX_LENGTH);
+		if (!fullNameError && !isValidText(trimmed)) {
+			fullNameError = 'O nome deve conter apenas letras e espaços.';
+		}
+		if (fullNameError || isSavingName) return;
+
+		isSavingName = true;
+		const result = await updateMyProfile({ fullName: trimmed });
+		isSavingName = false;
+
+		if (!result.ok) {
+			fullNameError = result.error.message;
+			notifySectionSave({ ok: false, message: result.error.message });
+			return;
+		}
+
+		fullName = result.data.fullName;
+		isEditingName = false;
+		notifySectionSave({ ok: true });
+		await onChanged();
+	}
 
 	function revokePreview() {
 		if (previewUrl) {
@@ -85,7 +124,7 @@
 		}
 
 		clearPending();
-		onChanged();
+		await onChanged();
 	}
 
 	async function handleRemove() {
@@ -102,7 +141,7 @@
 			return;
 		}
 
-		onChanged();
+		await onChanged();
 	}
 
 	onDestroy(revokePreview);
@@ -174,7 +213,26 @@
 	<div class="identity-details">
 		<div class="detail">
 			<span class="detail-label">Nome completo</span>
-			<p>{profile.fullName}</p>
+			{#if isEditingName}
+				<Input
+					name="fullName"
+					maxlength={PROFILE_FULL_NAME_MAX_LENGTH}
+					bind:value={fullName}
+					error={fullNameError}
+					disabled={isSavingName}
+				/>
+				<div class="name-actions">
+					<Button variant="primary" onclick={saveName} loading={isSavingName}>Salvar nome</Button>
+					<Button variant="outline-neutral" onclick={cancelNameEdit} disabled={isSavingName}>
+						Cancelar
+					</Button>
+				</div>
+			{:else}
+				<div class="name-display">
+					<p>{fullName}</p>
+					<button type="button" class="name-edit" onclick={startNameEdit}>Editar nome</button>
+				</div>
+			{/if}
 		</div>
 
 		<div class="detail">
@@ -322,6 +380,28 @@
 		font: var(--paragrafo);
 		color: var(--black);
 		word-break: break-word;
+	}
+
+	.name-display,
+	.name-actions {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: var(--spacing-sm);
+	}
+
+	.name-edit {
+		padding: 0;
+		border: none;
+		background: none;
+		color: var(--secondary-color);
+		font: var(--label);
+		cursor: pointer;
+	}
+
+	.name-edit:focus-visible {
+		outline: 2px solid var(--secondary-color);
+		outline-offset: 2px;
 	}
 
 	.password-link {

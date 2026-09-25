@@ -103,13 +103,15 @@
 			<div class="settings-col">
 				<AccessCard />
 				<VisualIdentityCard />
-				<CategoriesCard />
 			</div>
 			<div class="settings-col">
 				<PlatformIdentityCard />
 				<AssetsCard />
-				<StatusCard />
+				<CategoriesCard />
 				<PriorizationWeightsCard />
+			</div>
+			<div class="status-full">
+				<StatusCard />
 			</div>
 		</div>
 	{/key}
@@ -181,6 +183,10 @@
 		gap: var(--spacing-lg);
 	}
 
+	.status-full {
+		grid-column: 1 / -1;
+	}
+
 	@media (max-width: 900px) {
 		.settings-grid {
 			grid-template-columns: 1fr;
@@ -198,10 +204,6 @@
 			order: 3;
 		}
 
-		.settings-col:nth-child(1) > :global(*:nth-child(3)) {
-			order: 5;
-		}
-
 		.settings-col:nth-child(2) > :global(*:nth-child(1)) {
 			order: 2;
 		}
@@ -211,10 +213,14 @@
 		}
 
 		.settings-col:nth-child(2) > :global(*:nth-child(3)) {
-			order: 6;
+			order: 5;
 		}
 
 		.settings-col:nth-child(2) > :global(*:nth-child(4)) {
+			order: 6;
+		}
+
+		.status-full {
 			order: 7;
 		}
 	}

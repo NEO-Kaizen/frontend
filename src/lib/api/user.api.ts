@@ -10,6 +10,7 @@ import type {
 	ListUsersQuery,
 	ResetPasswordResponse,
 	UpdateMyProfileInput,
+	UpdateUserInput,
 	UpdateUserStatusResponse,
 	UserProfileResponse,
 	UserStats,
@@ -31,8 +32,8 @@ export async function updateMyProfile(input: UpdateMyProfileInput): Promise<User
 	formData.set(
 		'payload',
 		JSON.stringify({
+			fullName: input.fullName,
 			requester: input.requester,
-			professional: input.professional,
 			removeAvatar: input.removeAvatar
 		})
 	);
@@ -44,6 +45,30 @@ export async function updateMyProfile(input: UpdateMyProfileInput): Promise<User
 	return apiClient<UserProfileResponse>(`${USERS_PATH}/me`, {
 		method: 'PUT',
 		body: formData
+	});
+}
+
+export async function getUser(id: string, fetchImpl?: typeof fetch): Promise<UserProfileResponse> {
+	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.users) {
+		const { getUserMock } = await import('$lib/mocks/users.mock');
+		return getUserMock(id);
+	}
+
+	return apiClient<UserProfileResponse>(`${USERS_PATH}/${id}`, {}, fetchImpl);
+}
+
+export async function updateUser(
+	id: string,
+	payload: UpdateUserInput
+): Promise<UserProfileResponse> {
+	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.users) {
+		const { updateUserMock } = await import('$lib/mocks/users.mock');
+		return updateUserMock(id, payload);
+	}
+
+	return apiClient<UserProfileResponse>(`${USERS_PATH}/${id}`, {
+		method: 'PUT',
+		body: JSON.stringify(payload)
 	});
 }
 

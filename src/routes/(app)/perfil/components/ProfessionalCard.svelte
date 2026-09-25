@@ -1,237 +1,130 @@
 <script lang="ts">
-	import Input from '$lib/components/Input.svelte';
-	import TagInput from '$lib/components/TagInput.svelte';
-	import { updateMyProfile } from '$lib/services/user.service';
-	import { SectionState } from '$lib/states/section.svelte';
-	import { untrack } from 'svelte';
 	import type { PortalCategory } from '$lib/types/portal-config';
 	import type { ProfessionalProfileBlock } from '$lib/types/user';
-	import { notifyError, notifySectionSave } from '$lib/utils/feedback';
-	import {
-		PROFILE_JOB_TITLE_MAX_LENGTH,
-		PROFILE_SPECIALTY_MAX_LENGTH
-	} from '$lib/utils/validations';
-	import { requiredFieldError } from '../profile-validation';
 	import ProfileCard from './ProfileCard.svelte';
-	import ProfileSectionActions from './ProfileSectionActions.svelte';
-
-	interface ProfessionalForm {
-		jobTitle: string;
-		specialties: string[];
-		attendedCategoryIds: number[];
-	}
 
 	interface Props {
 		professional: ProfessionalProfileBlock | null;
 		categories: PortalCategory[];
-		onSaved: () => void;
 	}
 
-	let { professional, categories, onSaved }: Props = $props();
+	let { professional, categories }: Props = $props();
 
-	// Erros só aparecem após a primeira tentativa de salvar — evita o
-	// formulário abrir em estado de erro com os campos vazios.
-	let submitted = $state(false);
-
-	function toForm(block: ProfessionalProfileBlock | null): ProfessionalForm {
-		return {
-			jobTitle: block?.jobTitle ?? '',
-			specialties: block?.specialties ?? [],
-			attendedCategoryIds: block?.attendedCategoryIds ?? []
-		};
-	}
-
-	// Estado inicial do servidor; `untrack` documenta que a seção não reidrata
-	// com a prop — pristine/draft são geridos pelo `SectionState`.
-	const initial = untrack(() => toForm(professional));
-
-	const section = new SectionState<ProfessionalForm>(initial, initial, async (draft) => {
-		const result = await updateMyProfile({
-			professional: {
-				jobTitle: draft.jobTitle.trim(),
-				specialties: draft.specialties,
-				attendedCategoryIds: draft.attendedCategoryIds,
-				// `notes` não é editável aqui (campo administrativo), mas o
-				// upsert do backend grava `?? null` — reenviamos o valor atual
-				// para não apagar observações existentes ao salvar o card.
-				notes: professional?.notes ?? undefined
-			}
-		});
-
-		if (!result.ok) return result;
-
-		return { ok: true, data: toForm(result.data.professional) };
-	});
-
-	const jobTitleError = $derived(
-		requiredFieldError(section.draft.jobTitle, 'o cargo', PROFILE_JOB_TITLE_MAX_LENGTH)
+	const categoryNames = $derived(
+		(professional?.attendedCategoryIds ?? []).map(
+			(id) => categories.find((category) => category.id === id)?.name ?? `Categoria #${id}`
+		)
 	);
 
-	const specialtiesError = $derived.by(() => {
-		if (section.draft.specialties.length === 0) return 'Informe ao menos uma especialidade.';
-		if (section.draft.specialties.some((item) => item.length > PROFILE_SPECIALTY_MAX_LENGTH)) {
-			return `Cada especialidade deve ter no máximo ${PROFILE_SPECIALTY_MAX_LENGTH} caracteres.`;
-		}
-		return '';
-	});
-
-	const categoriesError = $derived(
-		section.draft.attendedCategoryIds.length === 0
-			? 'Selecione ao menos uma categoria atendida.'
-			: ''
-	);
-
-	const invalid = $derived(Boolean(jobTitleError || specialtiesError || categoriesError));
-
-	function notifyDuplicateSpecialty(value: string) {
-		notifyError(`A especialidade "${value}" já foi adicionada.`);
-	}
-
-	function toggleCategory(id: number) {
-		const selected = section.draft.attendedCategoryIds;
-
-		section.draft = {
-			...section.draft,
-			attendedCategoryIds: selected.includes(id)
-				? selected.filter((value) => value !== id)
-				: [...selected, id]
-		};
-	}
-
-	async function handleSave() {
-		submitted = true;
-
-		if (invalid) return;
-
-		if (notifySectionSave(await section.save())) {
-			onSaved();
-		}
-	}
-
-	function handleCancel() {
-		submitted = false;
-		section.reset();
+	function display(value: string | null | undefined): string {
+		return value?.trim() || '---';
 	}
 </script>
 
 <ProfileCard
 	title="Dados profissionais"
-	description="Informações exclusivas do perfil Analista, usadas na triagem e priorização."
+	description="Informações do perfil Analista administradas pela equipe responsável."
 >
-	{#snippet actions()}
-		<ProfileSectionActions
-			dirty={section.dirty}
-			saving={section.saving}
-			onSave={handleSave}
-			onCancel={handleCancel}
-		/>
-	{/snippet}
-
 	<div class="professional-fields">
-		<Input
-			label="Cargo"
-			name="jobTitle"
-			placeholder="Ex.: Analista de Processos"
-			maxlength={PROFILE_JOB_TITLE_MAX_LENGTH}
-			required
-			bind:value={section.draft.jobTitle}
-			error={submitted ? jobTitleError : ''}
-		/>
+		<div class="readonly-field">
+			<span class="readonly-label">Cargo</span>
+			<p class="readonly-value">{display(professional?.jobTitle)}</p>
+		</div>
 
-		<TagInput
-			required
-			label="Especialidades"
-			hint="Pressione Enter ou use + para adicionar."
-			placeholder="Ex.: Automação"
-			maxlength={PROFILE_SPECIALTY_MAX_LENGTH}
-			bind:value={section.draft.specialties}
-			error={submitted ? specialtiesError : ''}
-			onDuplicate={notifyDuplicateSpecialty}
-		/>
-
-		<fieldset class="categories">
-			<legend
-				>Formatos de demanda atendidos<span class="required-mark" aria-hidden="true">*</span
-				></legend
-			>
-
-			<div class="category-options">
-				{#each categories as category (category.id)}
-					<label class="category-option">
-						<input
-							type="checkbox"
-							checked={section.draft.attendedCategoryIds.includes(category.id)}
-							onchange={() => toggleCategory(category.id)}
-						/>
-						<span>{category.name}</span>
-					</label>
-				{/each}
-			</div>
-
-			{#if submitted && categoriesError}
-				<p class="field-error" role="alert">{categoriesError}</p>
+		<div class="readonly-field full-row">
+			<span class="readonly-label">Especialidades</span>
+			{#if professional?.specialties.length}
+				<ul class="tag-list" aria-label="Especialidades">
+					{#each professional.specialties as specialty (specialty)}
+						<li>{specialty}</li>
+					{/each}
+				</ul>
+			{:else}
+				<p class="readonly-value">---</p>
 			{/if}
-		</fieldset>
+		</div>
+
+		<div class="readonly-field full-row">
+			<span class="readonly-label">Categorias atendidas</span>
+			{#if categoryNames.length}
+				<ul class="tag-list" aria-label="Categorias atendidas">
+					{#each categoryNames as category (category)}
+						<li>{category}</li>
+					{/each}
+				</ul>
+			{:else}
+				<p class="readonly-value">---</p>
+			{/if}
+		</div>
+
+		<div class="readonly-field full-row">
+			<span class="readonly-label">Observações administrativas</span>
+			<p class="readonly-value">{display(professional?.notes)}</p>
+		</div>
 	</div>
 </ProfileCard>
 
 <style>
 	.professional-fields {
-		display: flex;
-		flex-direction: column;
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
 		gap: var(--spacing-md);
 	}
 
-	.categories {
+	.readonly-field {
 		display: flex;
 		flex-direction: column;
-		gap: var(--spacing-sm);
-		margin: 0;
-		padding: 0;
-		border: none;
+		gap: var(--spacing-xs);
+		padding: var(--spacing-sm) var(--spacing-md);
+		background-color: var(--background-color);
+		border: var(--border-default);
+		border-radius: var(--radius-sm);
+		min-height: 42px;
+		justify-content: center;
 	}
 
-	.categories legend {
-		padding: 0;
+	.full-row {
+		grid-column: 1 / -1;
+	}
+
+	.readonly-label {
 		font: var(--label);
 		color: var(--black);
+		font-size: 12px;
 	}
 
-	.required-mark {
-		margin-left: 2px;
-		color: var(--status-red);
-	}
-
-	.category-options {
-		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: var(--spacing-sm) var(--spacing-md);
-	}
-
-	.category-option {
-		display: flex;
-		align-items: center;
-		gap: var(--spacing-sm);
+	.readonly-value {
+		margin: 0;
 		font: var(--paragrafo);
 		color: var(--black);
+		white-space: pre-wrap;
 	}
 
-	.category-option input {
-		width: 16px;
-		height: 16px;
-		accent-color: var(--primary-color);
-	}
-
-	.field-error {
+	.tag-list {
+		list-style: none;
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--spacing-sm);
 		margin: 0;
-		color: var(--status-red);
+		padding: 0;
+	}
+
+	.tag-list li {
+		padding: 4px var(--spacing-sm);
+		border-radius: 999px;
+		background-color: var(--tint);
+		color: var(--primary-color);
 		font: var(--label);
 		font-size: 12px;
 	}
 
 	@media (max-width: 700px) {
-		.category-options {
+		.professional-fields {
 			grid-template-columns: 1fr;
+		}
+
+		.full-row {
+			grid-column: auto;
 		}
 	}
 </style>

@@ -124,7 +124,7 @@
 	}
 
 	.modal-shell.lg .modal-body {
-		overflow: hidden;
+		overflow-y: auto;
 		flex: 1;
 		min-height: 0;
 		display: flex;

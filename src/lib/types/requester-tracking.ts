@@ -80,6 +80,8 @@ export interface PublicRequestDetails {
 	openedAt: string;
 	lastUpdate: string;
 	meeting: { scheduledFor: string; link: string | null } | null;
+	// Retorno público da equipe (visível ao solicitante); `null` = sem retorno.
+	lastTechnicalMessage: string | null;
 	requester: RequesterIdentification;
 	demand: PublicDemand;
 	impacts: PublicOperationalImpacts;

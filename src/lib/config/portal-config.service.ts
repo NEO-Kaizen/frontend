@@ -32,8 +32,8 @@ import {
 import {
 	ASSET_KEYS,
 	PRIORITIZATION_CRITERIA,
-	STATUS_TONES,
-	STATUS_VISIBILITIES
+	STATUS_MODES,
+	STATUS_TONES
 } from '$lib/types/portal-config';
 import type {
 	AccessSection,
@@ -53,7 +53,6 @@ import type {
 	StatusesSection,
 	StatusTone,
 	StatusToneTokens,
-	StatusVisibility,
 	ThemeGradient,
 	ThemeSection,
 	ThemeTokens,
@@ -434,11 +433,12 @@ function sanitizeCategories(value: unknown): PortalCategory[] {
 	return categories;
 }
 
-// Status do ciclo de vida vindos da API ou do payload — itens estruturalmente
-// válidos (id inteiro positivo, nome nos limites, visibility/tone na allowlist,
-// closesRequest/isTriageExit/isActive booleanos). Descarta cada item inválido em vez de
-// derrubar a lista toda; se nada restar, exceder o limite, repetir nomes ou
-// nenhum item ativo, cai nos status padrão.
+// Status do ciclo de vida vindos da API ou do payload — v4 (amend §2).
+// Aceita alias legados `visibility/closesRequest/isTriageExit` e booleans
+// legados durante rollout; emite apenas v4. Descarta item inválido; se nada
+// restar, exceder limite, repetir nome, violar isCore/isRestricted ou
+// nenhum ativo, cai nos defaults. Ordem de exibição = ordem do array; ordem de
+// chaves espelha `portal-defaults.ts`.
 function sanitizeStatuses(value: unknown): PortalStatus[] {
 	if (!Array.isArray(value)) return structuredClone(DEFAULT_PORTAL_CONFIG.statuses);
 
@@ -447,35 +447,83 @@ function sanitizeStatuses(value: unknown): PortalStatus[] {
 		if (!isRecord(item)) continue;
 
 		const name = typeof item.name === 'string' ? item.name.trim() : '';
-		const visibility = sanitizeStatusVisibility(item.visibility);
+		if (
+			typeof item.id !== 'number' ||
+			!Number.isInteger(item.id) ||
+			item.id <= 0 ||
+			!isValidStatusName(name)
+		) {
+			continue;
+		}
+
 		const tone = sanitizeStatusTone(item.tone);
-		const closesRequest = item.closesRequest === true;
-		const isTriageExit = item.isTriageExit === true;
-		// Ausente cai em ativo para não inativar listas legadas por omissão.
 		const isActive = item.isActive !== false;
 
-		if (
-			typeof item.id === 'number' &&
-			Number.isInteger(item.id) &&
-			item.id > 0 &&
-			isValidStatusName(name)
-		) {
-			statuses.push({ id: item.id, name, visibility, closesRequest, isTriageExit, tone, isActive });
+		// isCore — explícito no payload; fallback busca default pelo id para compat legado
+		const defaultCore =
+			DEFAULT_PORTAL_CONFIG.statuses.find((s) => s.id === item.id)?.isCore ?? false;
+		const isCore = typeof item.isCore === 'boolean' ? item.isCore : defaultCore;
+
+		// isPublic — alias visibility PUBLIC/INTERNAL
+		let isPublic: boolean;
+		if (typeof item.isPublic === 'boolean') {
+			isPublic = item.isPublic;
+		} else if (typeof item.visibility === 'string') {
+			isPublic = item.visibility === 'PUBLIC';
+		} else {
+			isPublic = DEFAULT_PORTAL_CONFIG.statuses[0].isPublic;
 		}
+
+		// isTerminal — alias closesRequest
+		let isTerminal: boolean;
+		if (typeof item.isTerminal === 'boolean') {
+			isTerminal = item.isTerminal;
+		} else if (typeof item.closesRequest === 'boolean') {
+			isTerminal = item.closesRequest;
+		} else {
+			isTerminal = false;
+		}
+
+		// triageMode/mappingMode — alias isTriageExit (true→conclusion_only)
+		let triageMode = sanitizeStatusMode(item.triageMode);
+		const mappingMode = sanitizeStatusMode(item.mappingMode);
+		if (item.triageMode === undefined && typeof item.isTriageExit === 'boolean') {
+			if (item.isTriageExit === true && triageMode === 'none') triageMode = 'conclusion_only';
+		}
+
+		const isRestricted = item.isRestricted === true;
+
+		statuses.push({
+			id: item.id,
+			name,
+			isCore,
+			isPublic,
+			isTerminal,
+			triageMode,
+			mappingMode,
+			isRestricted,
+			tone,
+			isActive
+		});
 	}
 
 	if (statuses.length === 0) return structuredClone(DEFAULT_PORTAL_CONFIG.statuses);
 	if (statuses.length > MAX_STATUSES) return structuredClone(DEFAULT_PORTAL_CONFIG.statuses);
 	if (!areStatusNamesUnique(statuses)) return structuredClone(DEFAULT_PORTAL_CONFIG.statuses);
 	if (!hasActiveStatus(statuses)) return structuredClone(DEFAULT_PORTAL_CONFIG.statuses);
+	// Guards v4: isCore não desativa; isRestricted só com none/none
+	if (statuses.some((s) => s.isCore && !s.isActive))
+		return structuredClone(DEFAULT_PORTAL_CONFIG.statuses);
+	if (statuses.some((s) => s.isRestricted && (s.triageMode !== 'none' || s.mappingMode !== 'none')))
+		return structuredClone(DEFAULT_PORTAL_CONFIG.statuses);
 
 	return statuses;
 }
 
-function sanitizeStatusVisibility(value: unknown): StatusVisibility {
-	return typeof value === 'string' && STATUS_VISIBILITIES.includes(value as StatusVisibility)
-		? (value as StatusVisibility)
-		: DEFAULT_PORTAL_CONFIG.statuses[0].visibility;
+function sanitizeStatusMode(value: unknown): import('$lib/types/portal-config').StatusMode {
+	return typeof value === 'string' && (STATUS_MODES as readonly string[]).includes(value)
+		? (value as import('$lib/types/portal-config').StatusMode)
+		: 'none';
 }
 
 function sanitizeStatusTone(value: unknown): StatusTone {

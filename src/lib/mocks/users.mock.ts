@@ -8,14 +8,17 @@ import type {
 	CreateUserResponse,
 	ListUsersQuery,
 	ResetPasswordResponse,
+	UpdateUserInput,
 	UpdateUserStatusResponse,
+	UserProfileResponse,
 	UserProfile,
 	UserRole,
 	UserStats,
 	UserSummary
 } from '$lib/types/user';
 
-export type MockUser = UserSummary & Partial<Analyst>;
+export type MockUser = Omit<UserSummary, 'avatarUrl'> &
+	Partial<Analyst> & { avatarUrl?: string | null };
 
 export const mockUsers: MockUser[] = [
 	{
@@ -257,6 +260,11 @@ export const mockUsers: MockUser[] = [
 
 let nextId = Math.max(...mockUsers.map((user) => Number(user.id))) + 1;
 
+const mockProfileDetails = new Map<
+	string,
+	Pick<UserProfileResponse, 'requester' | 'professional' | 'avatarUrl'>
+>();
+
 const MOCK_LATENCY_MS = 400;
 
 const TEMPORARY_PASSWORD_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%&';
@@ -311,10 +319,13 @@ export function listUsersMock(query: ListUsersQuery): Promise<PaginatedResponse<
 	const totalPages = Math.ceil(total / pageSize);
 	const start = (page - 1) * pageSize;
 
-	const data = result.slice(start, start + pageSize);
+	const data = result.slice(start, start + pageSize).map((user) => ({
+		...user,
+		avatarUrl: user.avatarUrl ?? null
+	}));
 
 	return delay(MOCK_LATENCY_MS).then(() => ({
-		data: data as unknown as UserSummary[],
+		data,
 		page,
 		pageSize,
 		total,
@@ -346,6 +357,10 @@ export function getUserStatsMock(): UserStats {
 export function createUserMock(payload: CreateUserPayload): Promise<CreateUserResponse> {
 	if (payload.role === 'administrador') {
 		return Promise.reject(new ApiError(403, 'Não é possível gerenciar contas de Administradores'));
+	}
+
+	if (!payload.requester?.area?.trim() || !payload.requester?.manager?.trim()) {
+		return Promise.reject(new ApiError(400, 'Informe área e gestor responsável.'));
 	}
 
 	const email = payload.email.trim().toLowerCase();
@@ -406,6 +421,24 @@ export function createUserMock(payload: CreateUserPayload): Promise<CreateUserRe
 	}
 
 	mockUsers.unshift(baseUser);
+	mockProfileDetails.set(id, {
+		avatarUrl: null,
+		requester: {
+			area: payload.requester.area,
+			department: payload.requester.department ?? null,
+			manager: payload.requester.manager,
+			additionalContact: payload.requester.additionalContact ?? null
+		},
+		professional:
+			role === 'Analista' && payload.professional
+				? {
+						jobTitle: payload.professional.jobTitle,
+						specialties: payload.professional.specialties,
+						attendedCategoryIds: payload.professional.attendedCategoryIds,
+						notes: payload.professional.notes ?? null
+					}
+				: null
+	});
 
 	return delay(MOCK_LATENCY_MS).then(() => ({
 		id,
@@ -460,6 +493,80 @@ export function resetUserPasswordMock(id: string): Promise<ResetPasswordResponse
 		id: user.id,
 		temporaryPassword
 	}));
+}
+
+export function getUserMock(id: string): Promise<UserProfileResponse> {
+	const user = findMockUser(id);
+	if (!user) {
+		return Promise.reject(new ApiError(404, 'Usuário não encontrado'));
+	}
+
+	const saved = mockProfileDetails.get(id);
+	const fallbackProfessional =
+		user.profile === 'Analista'
+			? {
+					jobTitle: user.specialty ?? null,
+					specialties: user.specialty ? [user.specialty] : [],
+					attendedCategoryIds: [],
+					notes: user.notes ?? null
+				}
+			: null;
+
+	return delay(MOCK_LATENCY_MS).then(() => ({
+		id: user.id,
+		fullName: user.fullName,
+		email: user.email,
+		role: user.profile,
+		avatarUrl: saved?.avatarUrl ?? null,
+		requester: saved?.requester ?? {
+			area: 'Área não informada',
+			department: null,
+			manager: 'Gestor não informado',
+			additionalContact: null
+		},
+		professional: saved?.professional ?? fallbackProfessional
+	}));
+}
+
+export async function updateUserMock(
+	id: string,
+	payload: UpdateUserInput
+): Promise<UserProfileResponse> {
+	const user = findMockUser(id);
+	if (!user) {
+		return Promise.reject(new ApiError(404, 'Usuário não encontrado'));
+	}
+	if (payload.fullName !== undefined) {
+		user.fullName = payload.fullName.trim();
+	}
+
+	const current = await getUserMock(id);
+	const next: UserProfileResponse = {
+		...current,
+		fullName: payload.fullName?.trim() ?? current.fullName,
+		requester: payload.requester
+			? {
+					area: payload.requester.area ?? current.requester?.area ?? null,
+					department:
+						payload.requester.department !== undefined
+							? payload.requester.department || null
+							: (current.requester?.department ?? null),
+					manager: payload.requester.manager ?? current.requester?.manager ?? null,
+					additionalContact: current.requester?.additionalContact ?? null
+				}
+			: current.requester,
+		professional: payload.professional
+			? { ...payload.professional, notes: payload.professional.notes ?? null }
+			: current.professional
+	};
+
+	mockProfileDetails.set(id, {
+		avatarUrl: next.avatarUrl,
+		requester: next.requester,
+		professional: next.professional
+	});
+
+	return delay(MOCK_LATENCY_MS).then(() => next);
 }
 
 function findMockUser(id: string): MockUser | undefined {

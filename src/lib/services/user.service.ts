@@ -1,10 +1,12 @@
 import {
 	createUser as createUserApi,
+	getUser as getUserApi,
 	getMyProfile as getMyProfileApi,
 	getUserStats as getUserStatsApi,
 	listUsers as listUsersApi,
 	resetUserPassword as resetUserPasswordApi,
 	updateMyProfile as updateMyProfileApi,
+	updateUser as updateUserApi,
 	updateUserStatus as updateUserStatusApi
 } from '$lib/api/user.api';
 
@@ -18,6 +20,7 @@ import type {
 	ListUsersQuery,
 	ResetPasswordResponse,
 	UpdateMyProfileInput,
+	UpdateUserInput,
 	UpdateUserStatusResponse,
 	UserProfileResponse,
 	UserStats,
@@ -30,7 +33,11 @@ import {
 	isValidEmail,
 	isValidText,
 	PASSWORD_PATTERN,
+	PROFILE_ADDITIONAL_CONTACT_MAX_LENGTH,
+	PROFILE_AREA_MAX_LENGTH,
+	PROFILE_DEPARTMENT_MAX_LENGTH,
 	PROFILE_JOB_TITLE_MAX_LENGTH,
+	PROFILE_MANAGER_MAX_LENGTH,
 	PROFILE_NOTES_MAX_LENGTH,
 	PROFILE_SPECIALTY_MAX_LENGTH
 } from '$lib/utils/validations';
@@ -88,6 +95,12 @@ export async function createUser(data: CreateUserFormData): Promise<Result<Creat
 			fullName: data.name.trim(),
 			email: data.email.trim(),
 			role: data.role,
+			requester: {
+				area: data.area.trim(),
+				department: data.department?.trim() || undefined,
+				manager: data.manager.trim(),
+				additionalContact: data.additionalContact?.trim() || undefined
+			},
 			professional: data.professional
 		});
 
@@ -174,9 +187,9 @@ export async function resetUserPassword(id: string): Promise<Result<ResetPasswor
 	}
 }
 
-// "Meus dados" — leitura e gravação do próprio perfil. O backend decide
-// bloqueios (bloco professional só para Analista, campos imutáveis ignorados);
-// o service apenas transporta e traduz o erro para a UI.
+// "Meus dados" — leitura e gravação do próprio perfil. Nome, contato adicional
+// e avatar são autoeditáveis; o Administrador também pode editar seus próprios
+// área, departamento e gestor. O service traduz erros da API.
 export async function getMyProfile(fetchImpl?: typeof fetch): Promise<Result<UserProfileResponse>> {
 	try {
 		const data = await getMyProfileApi(fetchImpl);
@@ -200,6 +213,25 @@ export async function updateMyProfile(
 			ok: true,
 			data
 		};
+	} catch (error) {
+		return mapApiError(error);
+	}
+}
+
+export async function getUser(id: string): Promise<Result<UserProfileResponse>> {
+	try {
+		return { ok: true, data: await getUserApi(id) };
+	} catch (error) {
+		return mapApiError(error);
+	}
+}
+
+export async function updateUser(
+	id: string,
+	input: UpdateUserInput
+): Promise<Result<UserProfileResponse>> {
+	try {
+		return { ok: true, data: await updateUserApi(id, input) };
 	} catch (error) {
 		return mapApiError(error);
 	}
@@ -229,6 +261,7 @@ function mapUserSummary(user: UserSummary): AdminUser {
 		id: user.id,
 		name: user.fullName,
 		email: user.email,
+		avatarUrl: user.avatarUrl,
 		role: user.profile,
 		status: user.isActive ? 'Ativo' : 'Inativo',
 		mustChangePassword: user.mustChangePassword,
@@ -239,6 +272,10 @@ function mapUserSummary(user: UserSummary): AdminUser {
 function validateCreateUser(data: CreateUserFormData): { message: string } | null {
 	const name = data.name.trim();
 	const email = data.email.trim();
+	const area = data.area?.trim() ?? '';
+	const department = data.department?.trim() ?? '';
+	const manager = data.manager?.trim() ?? '';
+	const additionalContact = data.additionalContact?.trim() ?? '';
 
 	if (!isRequired(name) || !isValidText(name)) {
 		return {
@@ -267,6 +304,54 @@ function validateCreateUser(data: CreateUserFormData): { message: string } | nul
 	if (email.length > 254) {
 		return {
 			message: 'O e-mail deve ter no máximo 254 caracteres.'
+		};
+	}
+
+	if (!isRequired(area) || !isValidText(area)) {
+		return {
+			message: 'Informe a área do solicitante.'
+		};
+	}
+
+	if (area.length > PROFILE_AREA_MAX_LENGTH) {
+		return {
+			message: `A área deve ter no máximo ${PROFILE_AREA_MAX_LENGTH} caracteres.`
+		};
+	}
+
+	if (department && !isValidText(department)) {
+		return {
+			message: 'O departamento deve conter apenas letras e espaços.'
+		};
+	}
+
+	if (department.length > PROFILE_DEPARTMENT_MAX_LENGTH) {
+		return {
+			message: `O departamento deve ter no máximo ${PROFILE_DEPARTMENT_MAX_LENGTH} caracteres.`
+		};
+	}
+
+	if (!isRequired(manager) || !isValidText(manager)) {
+		return {
+			message: 'Informe o gestor responsável.'
+		};
+	}
+
+	if (manager.length > PROFILE_MANAGER_MAX_LENGTH) {
+		return {
+			message: `O gestor deve ter no máximo ${PROFILE_MANAGER_MAX_LENGTH} caracteres.`
+		};
+	}
+
+	if (additionalContact && additionalContact.length < 3) {
+		return {
+			message: 'Informe um contato adicional válido.'
+		};
+	}
+
+	if (additionalContact.length > PROFILE_ADDITIONAL_CONTACT_MAX_LENGTH) {
+		return {
+			message: `O contato deve ter no máximo ${PROFILE_ADDITIONAL_CONTACT_MAX_LENGTH} caracteres.`
 		};
 	}
 

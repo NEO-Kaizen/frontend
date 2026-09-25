@@ -1,6 +1,10 @@
 import { ApiError } from '$lib/types/result';
 import { computePrioritizationResult, getSavedPrioritizationNotes } from './prioritization.mock';
 import { mockUsers } from './users.mock';
+import { getMeMock } from './auth.mock';
+import { getMockStatuses } from './portal-config.mock';
+import { displayStatusName } from '$lib/utils/status';
+import type { PortalStatus } from '$lib/types/portal-config';
 import type {
 	QueueAssignee,
 	QueueMetricsResponse,
@@ -16,9 +20,10 @@ import type {
 	RequestDetail,
 	RequestStatus,
 	RequestSummary,
-	UpdateInternalRequestPayload
+	UpdateInternalRequestPayload,
+	UpdateStatusRequest,
+	UpdateStatusResponse
 } from '$lib/types/request';
-import { DEFAULT_STATUSES } from '$lib/config/portal-defaults';
 import type { CreateTriagePayload, TriageAssessment } from '$lib/types/triage';
 
 // Status considerados "em andamento" para a métrica da fila: trabalho já em fluxo,
@@ -234,7 +239,7 @@ export const mockRequestDetails: RequestDetail[] = [
 		protocol: 'MAAT-8K3P-9X2M',
 		demandTitle: 'Automatizar conferência de diárias',
 		processName: 'Pagamento de diárias',
-		status: 'Em triagem',
+		status: 'Concluído',
 		assigneeName: 'Fernando Alves',
 		openedAt: '2026-08-25T14:03:11.000Z',
 		estimatedCompletion: '2026-10-18',
@@ -246,7 +251,7 @@ export const mockRequestDetails: RequestDetail[] = [
 		pendingIssues: [],
 		nextStep: 'Aguarde o contato do analista',
 		lastTechnicalMessage:
-			'Sua solicitação está em análise. Assim que houver uma atualização, entraremos em contato.',
+			'Boa notícia! A automação da conferência de diárias já está ativa e os comprovantes estão sendo validados automaticamente.',
 		lastUpdate: '2026-08-26T10:12:40.000Z',
 		conclusion: null
 	},
@@ -550,6 +555,7 @@ function registerCreatedRequest(protocol: string, payload: CreateRequestPayload)
 		attachments: [],
 		openedAt: now,
 		lastUpdate: now,
+		lastExternalUpdateAt: now,
 		internalObservations: null,
 		triage: null
 	});
@@ -738,6 +744,11 @@ export function listQueueRequestsMock(query: QueueQuery): Promise<QueueResponse>
 
 export function getRequestByProtocolMock(protocol: string): Promise<RequestDetail> {
 	const normalized = protocol.toLowerCase().trim();
+	const internal = hydrateRequestMock(protocol);
+
+	if (!internal) {
+		return Promise.reject(new ApiError(404, 'Solicitação não encontrada.'));
+	}
 
 	const detail = mockRequestDetails.find((d) => d.protocol.toLowerCase().trim() === normalized);
 
@@ -745,47 +756,311 @@ export function getRequestByProtocolMock(protocol: string): Promise<RequestDetai
 		return Promise.reject(new ApiError(404, 'Solicitação não encontrada.'));
 	}
 
-	return Promise.resolve(detail);
+	return Promise.resolve(structuredClone(detail));
 }
 
 const TRIAGE_SESSION_PREFIX = 'maat:triage:';
+const STATUS_SESSION_PREFIX = 'maat:status:';
+const MAX_PUBLIC_MESSAGE_LENGTH = 4000;
+
+interface StatusOverlay {
+	status: RequestStatus;
+	lastTechnicalMessage?: string;
+	lastUpdate: string;
+}
+
+function hasSessionStorage(): boolean {
+	return typeof window !== 'undefined' && typeof sessionStorage !== 'undefined';
+}
 
 function triageSessionKey(protocol: string): string {
 	return `${TRIAGE_SESSION_PREFIX}${protocol.trim().toLowerCase()}`;
 }
 
+function statusSessionKey(protocol: string): string {
+	return `${STATUS_SESSION_PREFIX}${protocol.trim().toLowerCase()}`;
+}
+
+function isValidTriageAssignee(value: unknown): boolean {
+	if (value === undefined || value === null) return true;
+	if (typeof value !== 'object' || Array.isArray(value)) return false;
+	const assignee = value as Record<string, unknown>;
+	return (
+		(assignee.id === null || typeof assignee.id === 'string') &&
+		(assignee.name === null || typeof assignee.name === 'string') &&
+		(assignee.email === undefined || assignee.email === null || typeof assignee.email === 'string')
+	);
+}
+
+function isValidTriageRecord(value: unknown, requireId: boolean): value is TriageAssessment {
+	if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+	const record = value as Record<string, unknown>;
+	const stringFields = [
+		'adherentJustification',
+		'newCategory',
+		'preliminaryComplexity',
+		'perceivedRisks',
+		'suggestedResponsible',
+		'suggestedResponsibleJustification',
+		'result',
+		'conclusionJustification'
+	] as const;
+	if (stringFields.some((field) => typeof record[field] !== 'string')) return false;
+	if (
+		record.adherentToScope !== '' &&
+		record.adherentToScope !== 'Sim' &&
+		record.adherentToScope !== 'Não'
+	) {
+		return false;
+	}
+	if (
+		record.changeCategory !== '' &&
+		record.changeCategory !== 'Sim' &&
+		record.changeCategory !== 'Não'
+	) {
+		return false;
+	}
+	const exitStatus = record.exitStatus;
+	if (
+		exitStatus !== '' &&
+		(typeof exitStatus !== 'number' || !Number.isInteger(exitStatus) || exitStatus <= 0)
+	) {
+		return false;
+	}
+	if (requireId) {
+		if (typeof record.id !== 'string') return false;
+	} else if (record.id !== undefined && typeof record.id !== 'string') {
+		return false;
+	}
+	if (
+		record.lastTechnicalMessage !== undefined &&
+		typeof record.lastTechnicalMessage !== 'string'
+	) {
+		return false;
+	}
+	return isValidTriageAssignee(record.assignee);
+}
+
 function loadTriageFromSessionStorage(protocol: string): TriageAssessment | null {
-	if (typeof window === 'undefined' || typeof sessionStorage === 'undefined') return null;
+	if (!hasSessionStorage()) return null;
 	try {
 		const raw = sessionStorage.getItem(triageSessionKey(protocol));
 		if (!raw) return null;
 		const parsed: unknown = JSON.parse(raw);
-		if (typeof parsed !== 'object' || parsed === null) return null;
-		const record = parsed as Record<string, unknown>;
-		// Drafts legados com `exitStatus` literal (string não-vazia) são inválidos
-		// na regra nova (FK numérica) e descartados.
-		const exitStatus = record.exitStatus;
-		if (exitStatus !== '' && typeof exitStatus !== 'number') return null;
-		if (typeof record.adherentToScope !== 'string') return null;
-		return parsed as TriageAssessment;
+		return isValidTriageRecord(parsed, true) ? parsed : null;
 	} catch {
 		return null;
 	}
 }
 
-function resolveStatusName(exitStatus: number | ''): RequestStatus | null {
+function isValidStatusOverlay(value: unknown, statuses: PortalStatus[]): value is StatusOverlay {
+	if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+	const record = value as Record<string, unknown>;
+	const status =
+		typeof record.status === 'string'
+			? statuses.find((candidate) => candidate.name === record.status)
+			: undefined;
+	if (!status) return false;
+	if (typeof record.lastUpdate !== 'string' || Number.isNaN(Date.parse(record.lastUpdate))) {
+		return false;
+	}
+	if (record.lastTechnicalMessage !== undefined) {
+		if (typeof record.lastTechnicalMessage !== 'string') return false;
+		const message = record.lastTechnicalMessage.trim();
+		if (message.length < 1 || message.length > MAX_PUBLIC_MESSAGE_LENGTH) return false;
+	}
+	return true;
+}
+
+function loadStatusOverlay(protocol: string, statuses: PortalStatus[]): StatusOverlay | null {
+	if (!hasSessionStorage()) return null;
+	try {
+		const raw = sessionStorage.getItem(statusSessionKey(protocol));
+		if (!raw) return null;
+		const parsed: unknown = JSON.parse(raw);
+		if (!isValidStatusOverlay(parsed, statuses)) return null;
+		const overlay: StatusOverlay = {
+			status: parsed.status,
+			lastUpdate: parsed.lastUpdate
+		};
+		if (parsed.lastTechnicalMessage !== undefined) {
+			overlay.lastTechnicalMessage = parsed.lastTechnicalMessage.trim();
+		}
+		return overlay;
+	} catch {
+		return null;
+	}
+}
+
+function resolveStatusName(
+	exitStatus: number | '',
+	statuses: PortalStatus[]
+): RequestStatus | null {
 	if (exitStatus === '') return null;
-	const found = DEFAULT_STATUSES.find((status) => status.id === exitStatus);
+	const found = statuses.find((status) => status.id === exitStatus);
 	return (found?.name as RequestStatus | undefined) ?? null;
 }
 
+function resolvePublicStatusName(
+	statusName: RequestStatus,
+	statuses: PortalStatus[]
+): RequestStatus {
+	return displayStatusName(statusName, statuses) as RequestStatus;
+}
+
+function findInternalDetail(protocol: string): InternalRequestDetail | undefined {
+	const normalized = protocol.trim().toLowerCase();
+	return mockInternalRequestDetails.find(
+		(detail) => detail.protocol.toLowerCase().trim() === normalized
+	);
+}
+
+function findQueueItem(protocol: string): MockRequest | undefined {
+	const normalized = protocol.trim().toLowerCase();
+	return mockRequests.find((request) => request.protocol.toLowerCase().trim() === normalized);
+}
+
+function findPublicDetail(protocol: string): RequestDetail | undefined {
+	const normalized = protocol.trim().toLowerCase();
+	return mockRequestDetails.find((detail) => detail.protocol.toLowerCase().trim() === normalized);
+}
+
+function syncStatusProjections(
+	protocol: string,
+	statusName: RequestStatus,
+	statuses: PortalStatus[],
+	lastUpdate: string,
+	isPublicTransition: boolean,
+	lastTechnicalMessage?: string
+): void {
+	const internal = findInternalDetail(protocol);
+	if (internal) {
+		if (internal.lastExternalUpdateAt == null) {
+			internal.lastExternalUpdateAt = internal.lastUpdate;
+		}
+		internal.status = statusName;
+		internal.lastUpdate = lastUpdate;
+		if (isPublicTransition) internal.lastExternalUpdateAt = lastUpdate;
+		if (lastTechnicalMessage !== undefined) internal.lastTechnicalMessage = lastTechnicalMessage;
+	}
+
+	const publicDetail = findPublicDetail(protocol);
+	if (publicDetail) {
+		publicDetail.status = resolvePublicStatusName(statusName, statuses);
+		if (isPublicTransition) publicDetail.lastUpdate = lastUpdate;
+		if (lastTechnicalMessage !== undefined)
+			publicDetail.lastTechnicalMessage = lastTechnicalMessage;
+	}
+
+	const queueItem = findQueueItem(protocol);
+	if (queueItem) queueItem.status = statusName;
+}
+
+function applyTriageProjection(
+	protocol: string,
+	triage: TriageAssessment,
+	statuses: PortalStatus[],
+	lastUpdate?: string
+): void {
+	const internal = findInternalDetail(protocol);
+	if (!internal) return;
+
+	internal.triage = structuredClone(triage);
+	if (triage.changeCategory === 'Sim' && triage.newCategory) {
+		internal.demand.category = triage.newCategory;
+	}
+
+	const targetStatus = resolveStatusName(triage.exitStatus, statuses);
+	const target = statuses.find((status) => status.id === triage.exitStatus);
+	if (target && targetStatus) {
+		const currentMessage =
+			typeof internal.lastTechnicalMessage === 'string' ? internal.lastTechnicalMessage.trim() : '';
+		const technicalMessage = target.isPublic
+			? triage.lastTechnicalMessage
+			: currentMessage.length > 0
+				? currentMessage
+				: undefined;
+		syncStatusProjections(
+			protocol,
+			targetStatus,
+			statuses,
+			lastUpdate ?? internal.lastUpdate,
+			target.isPublic,
+			technicalMessage
+		);
+	} else if (lastUpdate) {
+		internal.lastUpdate = lastUpdate;
+	}
+}
+
 function saveTriageToSessionStorage(protocol: string, triage: TriageAssessment): void {
-	if (typeof window === 'undefined' || typeof sessionStorage === 'undefined') return;
+	if (!hasSessionStorage()) return;
 	try {
 		sessionStorage.setItem(triageSessionKey(protocol), JSON.stringify(triage));
 	} catch {
-		// ignore quota / blocked
+		return;
 	}
+}
+
+function saveStatusOverlay(protocol: string, overlay: StatusOverlay): void {
+	if (!hasSessionStorage()) return;
+	const value: StatusOverlay = {
+		status: overlay.status,
+		lastUpdate: overlay.lastUpdate
+	};
+	if (overlay.lastTechnicalMessage !== undefined) {
+		value.lastTechnicalMessage = overlay.lastTechnicalMessage;
+	}
+	try {
+		sessionStorage.setItem(statusSessionKey(protocol), JSON.stringify(value));
+	} catch {
+		return;
+	}
+}
+
+function clearStatusOverlay(protocol: string): void {
+	if (!hasSessionStorage()) return;
+	try {
+		sessionStorage.removeItem(statusSessionKey(protocol));
+	} catch {
+		return;
+	}
+}
+
+export function hydrateRequestMock(
+	protocol: string,
+	statuses: PortalStatus[] = getMockStatuses()
+): InternalRequestDetail | null {
+	const internal = findInternalDetail(protocol);
+	if (!internal) return null;
+
+	const persistedTriage = loadTriageFromSessionStorage(protocol);
+	const fixtureTriage =
+		!persistedTriage &&
+		internal.triage &&
+		isValidTriageRecord(internal.triage, true) &&
+		resolveStatusName(internal.triage.exitStatus, statuses) === internal.status
+			? internal.triage
+			: null;
+
+	const triage = persistedTriage ?? fixtureTriage;
+	if (triage) applyTriageProjection(protocol, triage, statuses);
+
+	const overlay = loadStatusOverlay(protocol, statuses);
+	if (overlay) {
+		const isPublicTransition =
+			statuses.find((status) => status.name === overlay.status)?.isPublic ?? false;
+		syncStatusProjections(
+			protocol,
+			overlay.status,
+			statuses,
+			overlay.lastUpdate,
+			isPublicTransition,
+			overlay.lastTechnicalMessage
+		);
+	}
+
+	return internal;
 }
 
 export const mockInternalRequestDetails: InternalRequestDetail[] = [
@@ -903,7 +1178,7 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 	},
 	{
 		protocol: 'MAAT-8K3P-9X2M',
-		status: 'Em triagem',
+		status: 'Concluído',
 		priority: null,
 		prioritization: { score: null, maxScore: 50, label: null, notes: {} },
 		assignee: {
@@ -958,6 +1233,8 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 		attachments: [],
 		openedAt: '2026-08-25T14:03:11.000Z',
 		lastUpdate: '2026-08-26T10:12:40.000Z',
+		lastTechnicalMessage:
+			'Boa notícia! A automação da conferência de diárias já está ativa e os comprovantes estão sendo validados automaticamente.',
 		internalObservations: null,
 		triage: null
 	},
@@ -1177,6 +1454,7 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 		],
 		openedAt: '2026-09-04T13:10:00.000Z',
 		lastUpdate: '2026-09-04T13:10:00.000Z',
+		lastExternalUpdateAt: '2026-08-31T16:45:00.000Z',
 		internalObservations: null,
 		triage: null
 	}
@@ -1184,28 +1462,11 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 
 export function getInternalRequestMock(protocol: string): Promise<InternalRequestDetail> {
 	const normalized = protocol.toLowerCase().trim();
-	const detail = mockInternalRequestDetails.find(
-		(d) => d.protocol.toLowerCase().trim() === normalized
-	);
+	const detail = hydrateRequestMock(protocol);
 	if (!detail) {
 		return Promise.reject(new ApiError(404, 'Solicitação não encontrada.'));
 	}
-	// Persistência real via sessionStorage (sobrevive a reload na sessão)
-	const persisted = loadTriageFromSessionStorage(protocol);
-	if (persisted) {
-		detail.triage = structuredClone(persisted);
-		if (persisted.changeCategory === 'Sim' && persisted.newCategory) {
-			detail.demand.category = persisted.newCategory;
-		}
-		const derivedStatus = resolveStatusName(persisted.exitStatus);
-		if (derivedStatus) {
-			detail.status = derivedStatus;
-		}
-	}
-	// return delay(MOCK_LATENCY_MS).then(() => structuredClone(detail));
 
-	// Reflete avaliação salva em sessão: notas persistidas no mock de priorização
-	// voltam no /requests/:protocol/internal para reavaliação/atualização do card.
 	const savedNotes = getSavedPrioritizationNotes(normalized);
 	const hasEvaluation = Object.keys(savedNotes).length > 0;
 	const computed = hasEvaluation ? computePrioritizationResult(savedNotes) : null;
@@ -1239,34 +1500,82 @@ export function updateInternalRequestMock(
 	return delay(MOCK_LATENCY_MS).then(() => structuredClone(detail));
 }
 
-export function createTriageMock(
+export async function createTriageMock(
 	protocol: string,
 	payload: CreateTriagePayload
 ): Promise<TriageAssessment> {
-	const normalized = protocol.toLowerCase().trim();
-	const detail = mockInternalRequestDetails.find(
-		(d) => d.protocol.toLowerCase().trim() === normalized
-	);
-	if (!detail) {
-		return Promise.reject(new ApiError(404, 'Solicitação não encontrada.'));
+	const me = await getMeMock();
+	const found = findInternalDetail(protocol);
+	if (!found) {
+		throw new ApiError(404, 'Solicitação não encontrada.');
 	}
-	// Cada POST gera um id novo (uuid do registro) — nunca há duas triagens
-	// simultâneas, apenas sequenciais; a última é a vigente.
+
+	const statuses = getMockStatuses();
+	const detail = hydrateRequestMock(protocol, statuses) ?? found;
+	const hasCustody = detail.assignee?.id != null && detail.assignee.id === me.id;
+	if (me.role !== 'Administrador' && (me.role !== 'Analista' || !hasCustody)) {
+		throw new ApiError(403, 'Ação restrita ao Administrador ou ao responsável pela demanda.');
+	}
+
+	const exitStatus = payload.exitStatus;
+	if (typeof exitStatus !== 'number' || !Number.isInteger(exitStatus) || exitStatus <= 0) {
+		throw new ApiError(422, 'Selecione o status de saída.');
+	}
+
+	const target = statuses.find((status) => status.id === exitStatus);
+	if (
+		!target ||
+		!target.isActive ||
+		target.isRestricted ||
+		target.triageMode !== 'conclusion_only'
+	) {
+		throw new ApiError(
+			422,
+			'Status de saída deve ser um status ativo com triageMode conclusion_only e isRestricted=false.'
+		);
+	}
+
+	const rawMessage = payload.lastTechnicalMessage;
+	if (rawMessage !== undefined && typeof rawMessage !== 'string') {
+		throw new ApiError(422, 'Retorno ao solicitante inválido.');
+	}
+	const lastTechnicalMessage = rawMessage?.trim() ?? '';
+	if (target.isPublic) {
+		if (
+			lastTechnicalMessage.length < 1 ||
+			lastTechnicalMessage.length > MAX_PUBLIC_MESSAGE_LENGTH
+		) {
+			throw new ApiError(422, 'Informe o retorno ao solicitante (1..4000 caracteres).');
+		}
+	} else if (lastTechnicalMessage.length > 0) {
+		throw new ApiError(422, 'Status de saída interno não aceita retorno ao solicitante.');
+	}
+
 	const triage: TriageAssessment = {
 		...structuredClone(payload),
-		id: crypto.randomUUID()
+		id: crypto.randomUUID(),
+		assignee: detail.assignee ? structuredClone(detail.assignee) : null
 	};
-	detail.triage = structuredClone(triage);
-	if (payload.changeCategory === 'Sim' && payload.newCategory) {
-		detail.demand.category = payload.newCategory;
-	}
-	const derivedStatus = resolveStatusName(payload.exitStatus);
-	if (derivedStatus) {
-		detail.status = derivedStatus;
-	}
-	detail.lastUpdate = new Date().toISOString();
-	// Persistência real via sessionStorage — garante reload na mesma sessão
+	if (target.isPublic) triage.lastTechnicalMessage = lastTechnicalMessage;
+	else delete triage.lastTechnicalMessage;
+
+	const now = new Date().toISOString();
+	applyTriageProjection(protocol, triage, statuses, now);
 	saveTriageToSessionStorage(protocol, triage);
+	clearStatusOverlay(protocol);
+	const previousMessage =
+		typeof detail.lastTechnicalMessage === 'string' ? detail.lastTechnicalMessage.trim() : '';
+	const overlayMessage = target.isPublic
+		? lastTechnicalMessage
+		: previousMessage.length > 0
+			? previousMessage
+			: undefined;
+	saveStatusOverlay(protocol, {
+		status: target.name as RequestStatus,
+		...(overlayMessage === undefined ? {} : { lastTechnicalMessage: overlayMessage }),
+		lastUpdate: now
+	});
+
 	return delay(MOCK_LATENCY_MS).then(() => structuredClone(triage));
 }
 
@@ -1365,4 +1674,107 @@ export async function assignAnalystMock(
 	detail.lastUpdate = new Date().toISOString();
 
 	return delay(MOCK_LATENCY_MS).then(() => structuredClone(detail));
+}
+
+export async function updateRequestStatusMock(
+	protocol: string,
+	payload: UpdateStatusRequest,
+	_fetchImpl?: unknown
+): Promise<UpdateStatusResponse> {
+	void _fetchImpl;
+	const me = await getMeMock();
+	const found = findInternalDetail(protocol);
+	if (!found) throw new ApiError(404, 'Solicitação não encontrada.');
+
+	const statuses = getMockStatuses();
+	const detail = hydrateRequestMock(protocol, statuses) ?? found;
+	if (!Number.isInteger(payload.targetStatus) || payload.targetStatus <= 0) {
+		throw new ApiError(400, 'Campo targetStatus deve ser um inteiro positivo.');
+	}
+
+	const target = statuses.find((status) => status.id === payload.targetStatus);
+	if (!target) throw new ApiError(404, 'Status alvo não encontrado.');
+	if (!target.isActive) throw new ApiError(409, 'Status inativo não pode ser alvo.');
+
+	const current = statuses.find((status) => status.name === detail.status);
+	if (current?.id === target.id || detail.status === target.name) {
+		throw new ApiError(422, 'Status já é o atual.');
+	}
+
+	const hasCustody =
+		(detail.assignee?.id != null && detail.assignee.id === me.id) ||
+		(detail.mappingAssignee?.id != null && detail.mappingAssignee.id === me.id) ||
+		(detail.mappingAssigneeId != null && detail.mappingAssigneeId === me.id);
+	if (me.role !== 'Administrador') {
+		if (me.role !== 'Analista' || !hasCustody) {
+			throw new ApiError(403, 'Ação restrita ao Administrador ou ao responsável pela demanda.');
+		}
+		if (current?.isTerminal) {
+			throw new ApiError(
+				403,
+				'Solicitação terminal — alteração de status restrita ao Administrador.'
+			);
+		}
+		const isFree =
+			!target.isRestricted && (target.triageMode === 'free' || target.mappingMode === 'free');
+		if (!isFree) {
+			throw new ApiError(403, 'Status alvo não permitido para o seu perfil.');
+		}
+	}
+
+	const justification =
+		typeof payload.justification === 'string' ? payload.justification.trim() : '';
+	if (justification.length < 1 || justification.length > MAX_PUBLIC_MESSAGE_LENGTH) {
+		throw new ApiError(400, 'Campo justification obrigatório 1..4000.');
+	}
+
+	if (
+		payload.lastTechnicalMessage !== undefined &&
+		typeof payload.lastTechnicalMessage !== 'string'
+	) {
+		throw new ApiError(400, 'Campo lastTechnicalMessage inválido.');
+	}
+
+	let lastTechnicalMessage: string | undefined;
+	if (target.isPublic) {
+		if (typeof payload.lastTechnicalMessage !== 'string') {
+			throw new ApiError(400, 'Campo lastTechnicalMessage obrigatório 1..4000.');
+		}
+		lastTechnicalMessage = payload.lastTechnicalMessage.trim();
+		if (
+			lastTechnicalMessage.length < 1 ||
+			lastTechnicalMessage.length > MAX_PUBLIC_MESSAGE_LENGTH
+		) {
+			throw new ApiError(400, 'Campo lastTechnicalMessage obrigatório 1..4000.');
+		}
+	}
+
+	const previous = detail.status;
+	const now = new Date().toISOString();
+	const currentMessage =
+		typeof detail.lastTechnicalMessage === 'string' ? detail.lastTechnicalMessage.trim() : '';
+	const projectionMessage =
+		lastTechnicalMessage ?? (currentMessage.length > 0 ? currentMessage : undefined);
+	syncStatusProjections(
+		protocol,
+		target.name as RequestStatus,
+		statuses,
+		now,
+		target.isPublic,
+		projectionMessage
+	);
+	const overlayMessage = projectionMessage;
+	saveStatusOverlay(protocol, {
+		status: target.name as RequestStatus,
+		...(overlayMessage === undefined ? {} : { lastTechnicalMessage: overlayMessage }),
+		lastUpdate: now
+	});
+
+	return delay(MOCK_LATENCY_MS).then(() => ({
+		protocol,
+		status: target.name,
+		previous,
+		next: target.name,
+		lastUpdate: now
+	}));
 }

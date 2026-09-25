@@ -122,15 +122,28 @@ export function hasActiveCategory(categories: readonly PortalCategory[]): boolea
 	return categories.some((category) => category.isActive);
 }
 
-// ---- Status do ciclo de vida (Card 6 / CONTRATO-BACKEND.md) ----
+// ---- Status do ciclo de vida (Card 6 / amend v4) ----
 
 export const MAX_STATUSES = 50;
 
 export const MAX_STATUS_NAME_LENGTH = 40;
 
+export const MIN_JUSTIFICATION_LENGTH = 1;
+
+export const MAX_JUSTIFICATION_LENGTH = 4000;
+
 export function isValidStatusName(value: string): boolean {
 	const trimmed = value.trim();
 	return trimmed.length > 0 && trimmed.length <= MAX_STATUS_NAME_LENGTH;
+}
+
+export function isValidStatusMode(value: unknown): boolean {
+	return value === 'none' || value === 'free' || value === 'conclusion_only';
+}
+
+export function isValidJustification(value: string): boolean {
+	const trimmed = value.trim();
+	return trimmed.length >= MIN_JUSTIFICATION_LENGTH && trimmed.length <= MAX_JUSTIFICATION_LENGTH;
 }
 
 // Nomes únicos comparando depois do trim, sem diferenciar maiúsculas.
@@ -146,6 +159,10 @@ export function areStatusNamesUnique(statuses: readonly PortalStatus[]): boolean
 
 export function hasActiveStatus(statuses: readonly PortalStatus[]): boolean {
 	return statuses.some((status) => status.isActive);
+}
+
+export function hasTerminalStatus(statuses: readonly PortalStatus[]): boolean {
+	return statuses.some((status) => status.isTerminal);
 }
 
 // ---- Pesos da priorização (Card 7 / CONTRATO-BACKEND.md) ----
@@ -232,10 +249,10 @@ export function isFutureOrToday(value: string, reference: string): boolean {
 	return value >= reference;
 }
 
-export function isProtocol(value: string, prefix: string): boolean {
-	const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+export const PROTOCOL_STRUCTURE_PATTERN = /^[A-Za-z0-9]{1,10}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}$/;
 
-	return new RegExp(`^${escapedPrefix}-[A-Z0-9]{4}-[A-Z0-9]{4}$`, 'i').test(value);
+export function isProtocol(value: string): boolean {
+	return PROTOCOL_STRUCTURE_PATTERN.test(value.trim());
 }
 
 export const PASSWORD_MIN_LENGTH = 8;
@@ -248,6 +265,8 @@ export const PASSWORD_REQUIREMENTS = ['Mínimo de 8 caracteres', 'Contém letras
 // Limites espelham o schema do backend (`UpdateProfileRequest.dto.ts` +
 // `users.schema.ts`) para o formulário bloquear antes do request.
 export const PROFILE_AREA_MAX_LENGTH = 100;
+
+export const PROFILE_FULL_NAME_MAX_LENGTH = 150;
 
 export const PROFILE_DEPARTMENT_MAX_LENGTH = 100;
 

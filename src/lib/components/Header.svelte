@@ -4,7 +4,6 @@
 	import type { IconName } from '$lib/types/icons';
 	import { page } from '$app/state';
 	import Button from '$lib/components/Button.svelte';
-	import type { RouteId } from '$app/types';
 	import type { UserType } from '$lib/types/user';
 	import Input from './Input.svelte';
 	import { goto } from '$app/navigation';
@@ -16,25 +15,29 @@
 	import { onMount } from 'svelte';
 	import { getThemeMode, toggleTheme } from '$lib/states/theme.svelte';
 	import { getRoleDisplayLabel } from '$lib/utils/user';
+	import { resolveApiAssetUrl } from '$lib/utils/api-assets';
 
-	// KNOWN ISSUE (svelte-check) — não estreitar este tipo sem entender a causa:
-	// `resolve(item.href)` (no helper `isActive` e abaixo, no markup) acusa erro
-	// porque o `RouteId` gerado inclui ids de diretórios sem página (ex.: pastas
-	// `components/` da colocação de componentes) e `resolve()` usa tipo
-	// condicional distributivo.
-	// Falso-positivo: runtime e build passam; só o `check` fica vermelho.
+	const NAV_PATHS = {
+		home: resolve('/(admin)/home'),
+		queue: resolve('/(admin)/fila'),
+		dashboard: resolve('/(admin)/dashboard'),
+		users: resolve('/(admin)/usuarios'),
+		settings: resolve('/(admin)/configuracoes')
+	} as const;
+
 	interface NavButton {
 		name: string;
 		icon: IconName;
-		href?: RouteId;
+		href?: (typeof NAV_PATHS)[keyof typeof NAV_PATHS];
 		// Sem rota associada: item exibido como indisponível, sem link.
 		disabled?: boolean;
 	}
 
 	const currentUser = $derived(page.data.user);
 	const appConfig = $derived(page.data.portalConfig);
-	const queuePath = resolve('/(admin)/fila');
+	const queuePath = NAV_PATHS.queue;
 	const isAuthenticated = $derived(currentUser != null);
+	const userAvatarUrl = $derived(resolveApiAssetUrl(currentUser?.avatarUrl));
 
 	// `isMounted` evita divergência de hidratação: no SSR o modo é sempre o
 	// claro; no cliente o valor real vem do localStorage/sistema.
@@ -46,20 +49,19 @@
 
 	function isActive(item: NavButton, pathname: string): boolean {
 		if (!item.href) return false;
-		const resolved = resolve(item.href);
-		return pathname === resolved || pathname.startsWith(`${resolved}/`);
+		return pathname === item.href || pathname.startsWith(`${item.href}/`);
 	}
 
 	const analistaNav: NavButton[] = [
 		{
 			name: 'Home',
 			icon: 'home',
-			href: '/(admin)/home'
+			href: NAV_PATHS.home
 		},
 		{
 			name: 'Fila Centralizada',
 			icon: 'centralQueue',
-			href: '/(admin)/fila'
+			href: NAV_PATHS.queue
 		}
 	];
 
@@ -68,14 +70,12 @@
 		{
 			name: 'Dashboard Gerencial',
 			icon: 'queueChart',
-			href: '/(admin)/dashboard'
+			href: NAV_PATHS.dashboard
 		},
 		{
-			// 'Histórico de Logs' ainda não tem rota (prevista em outra issue)
-			// (Sprint 4) — item cinza até a rota existir, impede link sem href.
 			name: 'Histórico de Logs',
 			icon: 'history',
-			disabled: true
+			href: '/(admin)/historico-de-logs'
 		}
 	];
 
@@ -84,12 +84,12 @@
 		{
 			name: 'Gerenciar Usuários',
 			icon: 'manageUsers',
-			href: '/(admin)/usuarios'
+			href: NAV_PATHS.users
 		},
 		{
 			name: 'Configurações',
 			icon: 'settings',
-			href: '/(admin)/configuracoes'
+			href: NAV_PATHS.settings
 		}
 	];
 
@@ -106,7 +106,7 @@
 
 	// Na tela de configurações o editor de tema controla a pré-visualização
 	// localmente; o toggle global fica oculto para não competir com ele.
-	const isSettingsPage = $derived(page.url.pathname.startsWith(resolve('/(admin)/configuracoes')));
+	const isSettingsPage = $derived(page.url.pathname.startsWith(NAV_PATHS.settings));
 
 	let isSearching = $state(false);
 
@@ -134,7 +134,7 @@
 				return;
 			}
 
-			const result = await searchRequests(value, appConfig.protocolMask);
+			const result = await searchRequests(value);
 
 			if (!result.ok) {
 				console.error(result.error.message);
@@ -244,13 +244,20 @@
 						<p class="profile_block-role">{getRoleDisplayLabel(currentUser?.role)}</p>
 					</div>
 					<span class="profile_block-avatar">
-						<AssetImage
-							lightSrc={appConfig.assets.avatarLightUrl}
-							darkSrc={appConfig.assets.avatarDarkUrl}
-							alt="Imagem do usuário"
-							width="100%"
-							height="100%"
-						/>
+						{#if userAvatarUrl}
+							<img
+								src={userAvatarUrl}
+								alt={`Foto de perfil de ${currentUser?.name ?? 'usuário'}`}
+							/>
+						{:else}
+							<AssetImage
+								lightSrc={appConfig.assets.avatarLightUrl}
+								darkSrc={appConfig.assets.avatarDarkUrl}
+								alt="Imagem de perfil padrão"
+								width="100%"
+								height="100%"
+							/>
+						{/if}
 					</span>
 				</a>
 			{:else}
@@ -279,11 +286,7 @@
 							<span>{item.name}</span>
 						</div>
 					{:else}
-						<a
-							class="nav-item"
-							class:active={isActive(item, page.url.pathname)}
-							href={resolve(item.href!)}
-						>
+						<a class="nav-item" class:active={isActive(item, page.url.pathname)} href={item.href}>
 							<Icon iconName={item.icon} />
 							<span>{item.name}</span>
 						</a>

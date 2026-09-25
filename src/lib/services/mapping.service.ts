@@ -1,9 +1,10 @@
 import { getMapping as getMappingApi, saveMapping as saveMappingApi } from '$lib/api/mapping.api';
-import type {
-	MappingDraft,
-	MappingParticipant,
-	MappingPayload,
-	MappingResponse
+import {
+	MAPPING_SCHEDULED_STATUS_ID,
+	type MappingDraft,
+	type MappingParticipant,
+	type MappingPayload,
+	type MappingResponse
 } from '$lib/types/mapping';
 import { ApiError } from '$lib/types/result';
 import { parseNumber } from '$lib/utils/validations';
@@ -43,19 +44,35 @@ function normalizeParticipants(participants: MappingParticipant[]): MappingPaylo
 
 // Monta o payload do PUT a partir do rascunho do formulário. O frontend envia
 // somente conclusão (`completeMapping: true`); o backend valida, persiste e
-// muda o status — o frontend nunca altera status diretamente.
+// muda o status para o `targetStatus` — o frontend nunca altera status
+// diretamente. v4 inclui `targetStatus/mappingAssigneeId/justification/
+// lastTechnicalMessage` quando em conclusão. Quando `targetStatus !== 6` a
+// reunião é travada: os campos de reunião vão como `null` (valores preservados
+// só no draft).
 export function buildMappingPayload(draft: MappingDraft): MappingPayload {
-	const modality = draft.modality === '' ? null : draft.modality;
-	const duration = parseNumber(draft.durationMinutes.trim());
+	const targetStatus = draft.targetStatus ? Number(draft.targetStatus) : null;
+	const isScheduled = targetStatus === MAPPING_SCHEDULED_STATUS_ID;
+	const modality = isScheduled ? (draft.modality === '' ? null : draft.modality) : null;
+	const duration = isScheduled ? parseNumber((draft.durationMinutes ?? '').trim()) : null;
+	const justification = draft.justification?.trim() ?? '';
+	const lastTechnicalMessage = draft.lastTechnicalMessage?.trim() ?? '';
 	return {
-		scheduledFor: datetimeLocalToIso(draft.scheduledFor),
+		scheduledFor: isScheduled ? datetimeLocalToIso(draft.scheduledFor) : null,
 		durationMinutes: duration === null ? null : duration,
 		modality,
-		meetingLink: modality === 'REMOTE' ? emptyToNull(draft.meetingLink) : null,
-		location: modality === 'IN_PERSON' ? emptyToNull(draft.location) : null,
-		participants: normalizeParticipants(draft.participants),
-		notes: emptyToNull(draft.notes),
-		completeMapping: true
+		meetingLink: isScheduled && modality === 'REMOTE' ? emptyToNull(draft.meetingLink ?? '') : null,
+		location: isScheduled && modality === 'IN_PERSON' ? emptyToNull(draft.location ?? '') : null,
+		participants: isScheduled ? normalizeParticipants(draft.participants) : [],
+		notes: isScheduled ? emptyToNull(draft.notes ?? '') : null,
+		completeMapping: true,
+		...(targetStatus === null ? {} : { targetStatus }),
+		mappingAssigneeId: draft.mappingAssigneeId?.trim() ? draft.mappingAssigneeId.trim() : null,
+		// `justification` e `lastTechnicalMessage` são omitidas (não `null`)
+		// quando vazias: o schema do backend aceita ausência, mas rejeita
+		// `null` em `justification`. No destino 6 a justificativa é dispensada
+		// pelo service, mas continuaria barrada pelo schema.
+		...(justification ? { justification } : {}),
+		...(lastTechnicalMessage ? { lastTechnicalMessage } : {})
 	};
 }
 
