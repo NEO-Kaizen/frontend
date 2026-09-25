@@ -2,11 +2,13 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onDestroy, tick } from 'svelte';
+	import { SvelteMap } from 'svelte/reactivity';
 	import { fade, fly } from 'svelte/transition';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import { canEditSolicitation, canViewTriage } from '$lib/services/access.service';
+	import { getInternalNotes } from '$lib/services/internal-note.service';
 	import {
 		buildCreatePendingItemsPayload,
 		findOpenBatch,
@@ -101,10 +103,41 @@
 		};
 	}
 
+	// A timeline é sincronizada com o server load (reativa a `invalidateAll`)
+	// sem remontar a árvore: a fonte autoritativa é `internalNotes`, enquanto o
+	// delta local acumula o que não existe nela — páginas antigas do scroll-up e
+	// a nota recém-postada. A lista exibida é o merge deduplicado por `id`.
 	const initialInternalNotesState = getInitialInternalNotesState();
-	let timelineItems = $state<TimelineItem[]>(initialInternalNotesState.items);
-	let timelineNextCursor = $state<string | null>(initialInternalNotesState.nextCursor);
-	let internalNotesUnseenCount = $state(initialInternalNotesState.unseenCount);
+	let olderItems = $state<TimelineItem[]>([]);
+	let optimisticNotes = $state<TimelineNote[]>([]);
+	const serverPageItems = $derived<TimelineItem[]>([...(internalNotes?.items ?? [])].reverse());
+	let timelineItems = $derived.by<TimelineItem[]>(() => {
+		// Servidor é autoritativo em colisões de `id` (notas numéricas e eventos
+		// `audit:<n>` são únicos, então dedupe por `id` é seguro).
+		const byId = new SvelteMap<string, TimelineItem>();
+		for (const item of [...olderItems, ...serverPageItems, ...optimisticNotes]) {
+			byId.set(item.id, item);
+		}
+		return [...byId.values()];
+	});
+	// Cursor do keyset pertence ao item mais antigo já carregado: enquanto houver
+	// delta antigo, ele manda; a página inicial do load só define o cursor quando
+	// não há páginas antigas prepensadas.
+	let olderNextCursor = $state<string | null>(null);
+	let timelineNextCursor = $derived(
+		olderItems.length > 0 ? olderNextCursor : (internalNotes?.nextCursor ?? null)
+	);
+	// Cursor da página inicial que ancorou o delta (`olderItems`). Se a página
+	// inicial muda (novo evento/nota empurra o item de borda para a página
+	// seguinte), o delta perde a continuidade — é preciso reancorá-lo.
+	let deltaAnchorCursor = $state<string | null>(null);
+	let isReanchoring = $state(false);
+	let internalNotesUnseenCountOverride = $state<number | null>(null);
+	// O override local (`markThrough`) prevalece; caso contrário, o `unseenCount`
+	// segue o server load (reativo a `invalidateAll`).
+	const internalNotesUnseenCount = $derived(
+		internalNotesUnseenCountOverride ?? internalNotes?.unseenCount ?? 0
+	);
 	// Históricos completos (D-N14) — não paginados, idênticos em toda página.
 	// Espelhos puros do server load: `$derived` mantém a aba sincronizada após
 	// `invalidateAll` (ex.: ao finalizar uma triagem) sem refetch próprio.
@@ -432,10 +465,14 @@
 		}
 	}
 
-	function handleInternalNotesLoaded(response: InternalNotesResponse): void {
-		timelineItems = [...response.items].reverse();
-		timelineNextCursor = response.nextCursor;
-		internalNotesUnseenCount = response.unseenCount;
+	function handleInternalNotesLoaded(): void {
+		// A página inicial passa a vir do server load (fonte autoritativa);
+		// páginas antigas já paginadas continuam no delta para preservar o scroll.
+		olderItems = [];
+		olderNextCursor = null;
+		deltaAnchorCursor = null;
+		optimisticNotes = [];
+		internalNotesUnseenCountOverride = null;
 		internalNotesLoadError = null;
 		// `triages`/`mappings` derivam do server load; revalida o load para
 		// manter os históricos em sincronia após um reload manual.
@@ -446,11 +483,16 @@
 	// unseenCount e históricos são idênticos em toda página (D-N9/D-N14) —
 	// este handler não toca neles.
 	function handleInternalNotesOlderLoaded(
-		olderItems: TimelineItem[],
+		olderPageItems: TimelineItem[],
 		nextCursor: string | null
 	): void {
-		timelineItems = [...olderItems, ...timelineItems];
-		timelineNextCursor = nextCursor;
+		// A primeira página antiga ancora o delta no cursor vigente da página
+		// inicial do servidor: é esse cursor que garante a continuidade keyset.
+		if (olderItems.length === 0) {
+			deltaAnchorCursor = internalNotes?.nextCursor ?? null;
+		}
+		olderItems = [...olderPageItems, ...olderItems];
+		olderNextCursor = nextCursor;
 	}
 
 	function handleInternalNotesLoadError(message: string): void {
@@ -458,12 +500,56 @@
 	}
 
 	function handleInternalNoteCreated(note: TimelineNote): void {
-		// POST devolve a nota mais nova → fim da ordem canônica.
-		timelineItems = [...timelineItems, note];
+		// POST devolve a nota mais nova → delta otimista até o load confirmá-la.
+		optimisticNotes = [...optimisticNotes, note];
 	}
 
 	function handleInternalNotesMarkedRead(): void {
-		internalNotesUnseenCount = 0;
+		internalNotesUnseenCountOverride = 0;
+	}
+
+	// Reancoragem do delta após `invalidateAll`: quando um item novo entra na
+	// página inicial, o item de borda desliza para a página seguinte e o delta
+	// (paginado a partir do cursor antigo) perde a continuidade — some 1 item.
+	// Aqui rebuscamos as páginas antigas a partir do cursor atual do servidor,
+	// até reencontrar o item mais antigo já carregado (ou esgotar as páginas),
+	// preservando o scroll.
+	$effect(() => {
+		const currentAnchor = internalNotes?.nextCursor ?? null;
+		const needsReanchor =
+			olderItems.length > 0 && !isReanchoring && currentAnchor !== deltaAnchorCursor;
+		if (!needsReanchor) return;
+
+		// Item mais antigo já carregado: ponto de parada da reancoragem.
+		const oldestLoadedId = olderItems[0]?.id ?? null;
+		const serverCursor = currentAnchor;
+		void reanchorOlderPages(serverCursor, oldestLoadedId);
+	});
+
+	async function reanchorOlderPages(
+		serverCursor: string | null,
+		oldestLoadedId: string | null
+	): Promise<void> {
+		if (isReanchoring) return;
+		isReanchoring = true;
+		const collected: TimelineItem[] = [];
+		let cursor = serverCursor;
+		let reachedOldest = oldestLoadedId === null;
+		// Percorre páginas a partir do cursor atual até reencontrar o item mais
+		// antigo antes carregado; cobre a lacuna de borda sem perder o extremo.
+		while (cursor !== null && !reachedOldest) {
+			const result = await getInternalNotes(solicitation.protocol, { cursor });
+			if (!result.ok) break;
+			// Página chega mais-recente-primeiro → inverte para ordem canônica.
+			const page = [...result.data.items].reverse();
+			collected.unshift(...page);
+			if (page.some((item) => item.id === oldestLoadedId)) reachedOldest = true;
+			cursor = result.data.nextCursor;
+		}
+		olderItems = collected;
+		olderNextCursor = cursor;
+		deltaAnchorCursor = serverCursor;
+		isReanchoring = false;
 	}
 
 	// ---- Histórico de pendências (contrato v0.4, visão do analista) ----
