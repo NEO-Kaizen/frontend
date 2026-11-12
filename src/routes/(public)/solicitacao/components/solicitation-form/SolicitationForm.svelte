@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { browser } from '$app/environment';
+	import { browser, dev } from '$app/environment';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import Button from '$lib/components/Button.svelte';
@@ -21,12 +21,6 @@
 	import type { SessionUser } from '$lib/types/auth';
 	import type { SolicitationMode } from '$lib/types/portal-config';
 	import type { RequesterProfileBlock } from '$lib/types/user';
-	import {
-		getDemoComplementary,
-		getDemoDemand,
-		getDemoIdentification,
-		getDemoOperational
-	} from './demo-answers';
 	import type {
 		ComplementaryData,
 		CreateRequestPayload,
@@ -278,8 +272,11 @@
 		}
 	}
 
-	// Preenche o passo atual com respostas fictícias válidas (botão de demonstração).
-	function fillCurrentStepDemo() {
+	// Preenche o passo atual com respostas fictícias válidas (botão de demonstração,
+	// visível apenas em dev). Import dinâmico para não embarcar no bundle de produção.
+	async function fillCurrentStepDemo() {
+		const { getDemoComplementary, getDemoDemand, getDemoIdentification, getDemoOperational } =
+			await import('./demo-answers');
 		if (currentStep === 1) {
 			identification = {
 				...getDemoIdentification(),
@@ -584,12 +581,18 @@
 			{/if}
 
 			<footer class="form-actions">
-				<div class="demo-fill">
-					<Button variant="outline-neutral" disabled={isSubmitting} onclick={fillCurrentStepDemo}>
-						<Icon iconName="autorenew" iconSize="md" />
-						Preencher exemplo
-					</Button>
-				</div>
+				{#if dev}
+					<div class="demo-fill">
+						<Button
+							variant="outline-neutral"
+							disabled={isSubmitting}
+							onclick={fillCurrentStepDemo}
+						>
+							<Icon iconName="autorenew" iconSize="md" />
+							Preencher exemplo
+						</Button>
+					</div>
+				{/if}
 				<Button variant="outline-neutral" onclick={handleCancel}>Cancelar</Button>
 
 				<div class="actions-right">
