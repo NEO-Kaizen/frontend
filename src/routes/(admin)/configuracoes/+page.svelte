@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { dev } from '$app/environment';
 	import { invalidateAll } from '$app/navigation';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
@@ -74,16 +75,18 @@
 	<div class="settings-header-row">
 		<SettingsPageHeader />
 
-		<Button
-			variant="outline-neutral"
-			onclick={handleApplyExample}
-			loading={isApplying}
-			disabled={loadFailed}
-			title="Aplicar a configuração de exemplo (tema NEO)"
-		>
-			<Icon iconName="autorenew" iconSize="sm" />
-			Exemplo
-		</Button>
+		{#if dev}
+			<Button
+				variant="outline-neutral"
+				onclick={handleApplyExample}
+				loading={isApplying}
+				disabled={loadFailed}
+				title="Aplicar a configuração de exemplo (tema NEO)"
+			>
+				<Icon iconName="autorenew" iconSize="sm" />
+				Exemplo
+			</Button>
+		{/if}
 	</div>
 
 	{#if loadFailed}
