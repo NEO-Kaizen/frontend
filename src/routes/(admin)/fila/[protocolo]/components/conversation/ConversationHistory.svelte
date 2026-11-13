@@ -260,7 +260,7 @@
 		margin: 0;
 		font-family: var(--font-inter);
 		font-size: 14px;
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 	}
 
 	@keyframes shimmer {

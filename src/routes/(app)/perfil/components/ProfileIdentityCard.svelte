@@ -17,6 +17,7 @@
 		PROFILE_FULL_NAME_MAX_LENGTH
 	} from '$lib/utils/validations';
 	import { requiredFieldError } from '../profile-validation';
+	import { getRoleDisplayLabel } from '$lib/utils/user';
 
 	interface Props {
 		profile: UserProfileResponse;
@@ -241,7 +242,7 @@
 
 		<div class="detail">
 			<span class="detail-label">Perfil</span>
-			<p>{profile.role}</p>
+			<p>{getRoleDisplayLabel(profile.role)}</p>
 		</div>
 
 		<a class="password-link" href={resolve('/(app)/redefinir-senha')}>Alterar senha</a>

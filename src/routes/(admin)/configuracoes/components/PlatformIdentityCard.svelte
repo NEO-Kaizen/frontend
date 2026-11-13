@@ -108,6 +108,7 @@
 		<Input
 			label="Nome da plataforma"
 			maxlength={80}
+			required
 			placeholder="Ex.: MAAT"
 			bind:value={getPlatformName, setPlatformName}
 			error={fieldErrors.platformName}
@@ -116,6 +117,7 @@
 		<Input
 			label="Máscara de protocolo"
 			maxlength={10}
+			required
 			placeholder="Ex.: MAAT"
 			hint={protocolExample ? `Exemplo: ${protocolExample}` : undefined}
 			bind:value={getProtocolMask, setProtocolMask}

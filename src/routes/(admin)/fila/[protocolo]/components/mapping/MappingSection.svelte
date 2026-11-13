@@ -407,7 +407,6 @@
 					isEditMode={isFormEditable}
 					kind="datetime-local"
 					required
-					icon="calendarMonth"
 					min={nowMin}
 					editValue={draft.scheduledFor}
 					error={errors['scheduledFor'] ?? ''}

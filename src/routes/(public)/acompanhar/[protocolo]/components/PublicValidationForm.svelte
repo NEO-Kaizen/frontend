@@ -52,7 +52,9 @@
 
 	<form class="validation-form" onsubmit={handleSubmit} novalidate={false}>
 		<div class="form-field">
-			<label for="validation-name">Nome completo</label>
+			<label for="validation-name"
+				>Nome completo<span class="required-mark" aria-hidden="true">*</span></label
+			>
 			<input
 				id="validation-name"
 				name="name"
@@ -67,7 +69,9 @@
 		</div>
 
 		<div class="form-field">
-			<label for="validation-email">E-mail corporativo</label>
+			<label for="validation-email"
+				>E-mail corporativo<span class="required-mark" aria-hidden="true">*</span></label
+			>
 			<input
 				id="validation-email"
 				name="email"
@@ -82,7 +86,9 @@
 		</div>
 
 		<div class="form-field">
-			<label for="validation-protocol">Protocolo</label>
+			<label for="validation-protocol"
+				>Protocolo<span class="required-mark" aria-hidden="true">*</span></label
+			>
 			<input
 				id="validation-protocol"
 				name="protocol"
@@ -155,6 +161,11 @@
 		font-weight: 700;
 		color: var(--black);
 		letter-spacing: 0.02em;
+	}
+
+	.required-mark {
+		margin-left: 2px;
+		color: var(--status-red);
 	}
 
 	.form-field input {

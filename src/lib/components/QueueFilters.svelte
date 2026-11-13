@@ -35,11 +35,7 @@
 		onSearch
 	}: Props = $props();
 
-	let searchValue = $derived('');
-
-	$effect(() => {
-		searchValue = search;
-	});
+	let searchValue = $derived(search);
 
 	function handleSubmit(event?: Event) {
 		event?.preventDefault();

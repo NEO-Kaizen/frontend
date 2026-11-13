@@ -87,7 +87,7 @@
 		border: 1px solid var(--status-error);
 		border-radius: var(--radius-sm);
 		background-color: var(--status-error-bg);
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 	}
 
 	.load-error p {

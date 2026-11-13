@@ -6,7 +6,7 @@ import type { PageServerLoad } from './$types';
 // `/users/me` sem restrição de role; o guard do layout `(app)` é reforçado aqui
 // para o caso de a rota ser acessada sem layout.
 export const load: PageServerLoad = async ({ locals, url, fetch }) => {
-	guard('anySession', locals.user, url.pathname);
+	guard('anySession', locals.user, url);
 
 	const result = await getMyProfile(fetch);
 

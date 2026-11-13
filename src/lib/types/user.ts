@@ -56,6 +56,13 @@ export interface ListUsersQuery {
 	pageSize?: number;
 }
 
+export interface CreateUserProfessionalInput {
+	jobTitle: string;
+	specialties: string[];
+	attendedCategoryIds: number[];
+	notes?: string;
+}
+
 export interface CreateUserFormData {
 	name: string;
 	email: string;

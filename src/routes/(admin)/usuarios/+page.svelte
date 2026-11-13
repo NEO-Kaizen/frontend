@@ -32,11 +32,16 @@
 
 	let { data }: PageProps = $props();
 
+	// Categorias ativas alimentam os "formatos de demanda atendidos" do analista.
+	const activeCategories = $derived(
+		data.portalConfig.categories.filter((category) => category.isActive)
+	);
+
 	const tabs = [
 		{ id: 'todos', label: 'Todos', profile: undefined },
 		{ id: 'administradores', label: 'Administradores', profile: 'administrador' },
 		{ id: 'analistas', label: 'Analistas', profile: 'analista' },
-		{ id: 'gestores', label: 'Gestores', profile: 'gestor' },
+		{ id: 'gestores', label: 'Visualizadores', profile: 'gestor' },
 		{ id: 'solicitantes', label: 'Solicitantes', profile: 'solicitante' }
 	] satisfies readonly { id: string; label: string; profile?: UserProfile }[];
 
@@ -496,7 +501,7 @@
 	<CreateUserModal
 		loading={isCreating}
 		error={createError}
-		categories={data.portalConfig.categories}
+		categories={activeCategories}
 		onclose={closeCreateModal}
 		oncreate={handleCreate}
 	/>

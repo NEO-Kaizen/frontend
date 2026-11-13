@@ -20,6 +20,11 @@ function pendingItemsPath(protocol: string): string {
 	return `/requests/${encoded}/pending-items`;
 }
 
+// Listagem — GET /requests/:protocol/pending-items (contrato v0.5 §7):
+// retorna o envelope `ListPendingItemsResponse` (lote vigente: `batchId` +
+// `requestAttachment` + `items`), sem paginação (lista curta, ordem cronológica;
+// o front agrupa por `batchId`). O backend já filtra a visibilidade.
+// `fetchImpl` é o fetch do `load` quando chamado no servidor.
 export async function getPendingItems(
 	protocol: string,
 	identity?: RequesterIdentity | null,
@@ -98,6 +103,11 @@ export async function respondPendingItem(
 	);
 }
 
+// Anexo do solicitante — POST
+// /requests/:protocol/pending-items/:pendingItemId/attachments (contrato v0.5
+// §9): `multipart/form-data`, campo `file`. Separado do PATCH de resposta.
+// O upload pode acontecer em qualquer item do lote (`requestAttachment` é do
+// lote, não do item).
 export async function uploadPendingItemAttachment(
 	protocol: string,
 	pendingItemId: string,

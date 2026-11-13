@@ -49,7 +49,7 @@
 		<p>Consulte em tempo real os status da sua demanda institucional.</p>
 	</div>
 
-	<ProtocolSearchCard isOwnerView={isOwnerView} />
+	<ProtocolSearchCard {isOwnerView} />
 
 	<div style="margin-top: var(--spacing-xl);">
 		<SolicitationTable page={data.page} result={data.result} {isFetching} onpagechange={goToPage} />

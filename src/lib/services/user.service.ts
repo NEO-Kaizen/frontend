@@ -357,28 +357,42 @@ function validateCreateUser(data: CreateUserFormData): { message: string } | nul
 
 	if (data.role === 'analista') {
 		const professional = data.professional;
-		if (!professional?.jobTitle.trim()) {
+
+		if (!professional) {
+			return { message: 'Dados profissionais são obrigatórios para o perfil Analista.' };
+		}
+
+		const jobTitle = professional.jobTitle.trim();
+
+		if (!isRequired(jobTitle)) {
 			return { message: 'Informe o cargo do analista.' };
 		}
-		if (professional.jobTitle.trim().length > PROFILE_JOB_TITLE_MAX_LENGTH) {
+
+		if (jobTitle.length > PROFILE_JOB_TITLE_MAX_LENGTH) {
 			return { message: `O cargo deve ter no máximo ${PROFILE_JOB_TITLE_MAX_LENGTH} caracteres.` };
 		}
+
 		if (professional.specialties.length === 0) {
 			return { message: 'Informe ao menos uma especialidade.' };
 		}
+
 		if (professional.specialties.some((item) => item.length > PROFILE_SPECIALTY_MAX_LENGTH)) {
 			return {
 				message: `Cada especialidade deve ter no máximo ${PROFILE_SPECIALTY_MAX_LENGTH} caracteres.`
 			};
 		}
+
 		if (professional.attendedCategoryIds.length === 0) {
 			return { message: 'Selecione ao menos uma categoria atendida.' };
 		}
-		if ((professional.notes?.length ?? 0) > PROFILE_NOTES_MAX_LENGTH) {
+
+		if ((professional.notes ?? '').trim().length > PROFILE_NOTES_MAX_LENGTH) {
 			return {
 				message: `As observações devem ter no máximo ${PROFILE_NOTES_MAX_LENGTH} caracteres.`
 			};
 		}
+	} else if (data.professional) {
+		return { message: 'Dados profissionais são exclusivos do perfil Analista.' };
 	}
 
 	return null;

@@ -35,7 +35,9 @@
 
 <div class="textarea-field">
 	{#if label}
-		<label for={textareaId}>{label}</label>
+		<label for={textareaId}
+			>{label}{#if required}<span class="required-mark" aria-hidden="true">*</span>{/if}</label
+		>
 	{/if}
 
 	<div class="textarea-wrapper">
@@ -80,6 +82,11 @@
 	label {
 		font: var(--label);
 		color: var(--black);
+	}
+
+	.required-mark {
+		margin-left: 2px;
+		color: var(--status-red);
 	}
 
 	textarea {

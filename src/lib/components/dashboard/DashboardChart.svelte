@@ -43,7 +43,7 @@
 						borderColor: colors,
 						borderWidth: type === 'line' ? 2 : 1,
 						tension: type === 'line' ? 0.3 : 0,
-						fill: type === 'line'
+						fill: false
 					}
 				]
 			},

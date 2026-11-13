@@ -76,7 +76,7 @@
 		}
 
 		const redirectPath = getPostLoginRedirect(meResult.data, returnTo);
-		// Caminho local validado em getPostLoginRedirect; resolve() não aceita a união dinâmica gerada.
+		// O service retorna uma URL já resolvida, incluindo o base path.
 		// eslint-disable-next-line svelte/no-navigation-without-resolve
 		await goto(redirectPath, { invalidateAll: true });
 	}

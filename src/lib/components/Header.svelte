@@ -14,6 +14,7 @@
 	import { isInternalProfile } from '$lib/services/access.service';
 	import { onMount } from 'svelte';
 	import { getThemeMode, toggleTheme } from '$lib/states/theme.svelte';
+	import { getRoleDisplayLabel } from '$lib/utils/user';
 	import { resolveApiAssetUrl } from '$lib/utils/api-assets';
 
 	const NAV_PATHS = {
@@ -21,7 +22,8 @@
 		queue: resolve('/(admin)/fila'),
 		dashboard: resolve('/(admin)/dashboard'),
 		users: resolve('/(admin)/usuarios'),
-		settings: resolve('/(admin)/configuracoes')
+		settings: resolve('/(admin)/configuracoes'),
+		history: resolve('/(admin)/historico-de-logs')
 	} as const;
 
 	interface NavButton {
@@ -74,7 +76,7 @@
 		{
 			name: 'Histórico de Logs',
 			icon: 'history',
-			href: '/(admin)/historico-de-logs'
+			href: NAV_PATHS.history
 		}
 	];
 
@@ -240,7 +242,7 @@
 				>
 					<div class="profile_block-identification">
 						<p class="profile_block-name">{currentUser?.name}</p>
-						<p class="profile_block-role">{currentUser?.role}</p>
+						<p class="profile_block-role">{getRoleDisplayLabel(currentUser?.role)}</p>
 					</div>
 					<span class="profile_block-avatar">
 						{#if userAvatarUrl}

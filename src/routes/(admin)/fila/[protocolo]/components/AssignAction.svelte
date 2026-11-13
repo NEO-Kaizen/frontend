@@ -364,8 +364,11 @@
 					class="responsibility-group"
 					role="radiogroup"
 					aria-label="Responsabilidade do analista"
+					aria-required="true"
 				>
-					<span class="responsibility-title">Responsável por:</span>
+					<span class="responsibility-title"
+						>Responsável por:<span class="required-mark" aria-hidden="true">*</span></span
+					>
 					<label class="radio-option" class:selected={responsibility === 'triagem'}>
 						<input
 							type="radio"
@@ -455,20 +458,6 @@
 		overflow: hidden;
 	}
 
-	.assign-subtitle {
-		margin: 0;
-		font-family: var(--font-inter);
-		font-size: 13px;
-		font-weight: 400;
-		color: var(--gray);
-		line-height: 1.4;
-	}
-
-	.protocol-highlight {
-		color: var(--primary-color);
-		font-weight: 700;
-	}
-
 	.current-banner {
 		display: flex;
 		align-items: center;
@@ -487,11 +476,6 @@
 	.current-banner :global(.material-symbols-outlined) {
 		color: var(--primary-color);
 		flex-shrink: 0;
-	}
-
-	.banner-hint {
-		color: var(--gray);
-		font-weight: 400;
 	}
 
 	.filters-row {
@@ -884,6 +868,11 @@
 		letter-spacing: 0.02em;
 		text-transform: uppercase;
 		white-space: nowrap;
+	}
+
+	.required-mark {
+		margin-left: 2px;
+		color: var(--status-red);
 	}
 
 	.radio-option {

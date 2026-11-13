@@ -12,6 +12,7 @@
 		value?: string[];
 		error?: string;
 		disabled?: boolean;
+		required?: boolean;
 		maxlength?: number;
 		id?: string;
 		// Chamado para cada item já existente (comparação sem diferenciar
@@ -26,6 +27,7 @@
 		value = $bindable([]),
 		error = '',
 		disabled = false,
+		required = false,
 		maxlength,
 		id,
 		onDuplicate
@@ -92,6 +94,7 @@
 		{placeholder}
 		bind:value={term}
 		{disabled}
+		{required}
 		{maxlength}
 		{error}
 		leadingActionIcon="addCircle"

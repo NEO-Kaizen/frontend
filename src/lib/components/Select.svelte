@@ -36,7 +36,9 @@
 
 <div class="select-field">
 	{#if label}
-		<label for={selectId}>{label}</label>
+		<label for={selectId}
+			>{label}{#if required}<span class="required-mark" aria-hidden="true">*</span>{/if}</label
+		>
 	{/if}
 
 	<div class="select-wrapper">
@@ -85,6 +87,11 @@
 	label {
 		font: var(--label);
 		color: var(--black);
+	}
+
+	.required-mark {
+		margin-left: 2px;
+		color: var(--status-red);
 	}
 
 	select {

@@ -27,7 +27,7 @@ Nosso fluxo guiado ajudará você a fornecer os detalhes necessários."
 
 		<Card
 			title="Acesso Administrativo"
-			description="Ferramentas exclusivas para gestores e administradores de sistema. Gerenciamento de filas, relatórios e permissões."
+			description="Ferramentas exclusivas para visualizadores e administradores de sistema. Gerenciamento de filas, relatórios e permissões."
 			buttonText="Realizar Login"
 			iconName="adminPanel"
 			buttonIconName="arrowForward"

@@ -2,11 +2,7 @@
 	import Button from '$lib/components/Button.svelte';
 	import { countUnreadRequesterItems, toPendingBatches } from '$lib/services/pendency.service';
 	import { getPendingItems } from '$lib/services/requester-tracking.service';
-	import type {
-		ListPendingItemsResponse,
-		PendingBatch,
-		PendingItem
-	} from '$lib/types/pendency';
+	import type { ListPendingItemsResponse, PendingBatch, PendingItem } from '$lib/types/pendency';
 	import type { RequesterIdentity } from '$lib/types/requester-tracking';
 	import PendencyCard from './PendencyCard.svelte';
 

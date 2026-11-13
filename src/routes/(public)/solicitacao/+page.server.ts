@@ -1,11 +1,10 @@
-import { resolve } from '$app/paths';
 import { redirectToLogin } from '$lib/services/access.service';
 import { getMyProfile } from '$lib/services/user.service';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, url, fetch }) => {
 	if (locals.portalConfig.solicitationMode === 'AUTHENTICATED' && !locals.user) {
-		redirectToLogin(url, resolve('/(public)/login'));
+		redirectToLogin(url);
 	}
 
 	// Prefill best-effort do bloco de solicitante do "Meus dados" (GET /users/me).

@@ -380,7 +380,7 @@
 		padding: 0;
 		border: 0;
 		background-color: transparent;
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 		font: var(--paragrafo);
 		outline: none;
 	}
@@ -437,7 +437,7 @@
 	.option-name {
 		display: block;
 		font: var(--paragrafo);
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 	}
 
 	.options li.highlighted .option-name {

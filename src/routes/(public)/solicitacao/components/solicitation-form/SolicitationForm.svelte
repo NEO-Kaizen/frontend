@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { browser } from '$app/environment';
+	import { browser, dev } from '$app/environment';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import Button from '$lib/components/Button.svelte';
@@ -17,6 +17,7 @@
 		saveDraft,
 		type SolicitationDraft
 	} from '$lib/services/solicitation-draft.service';
+	import { CATEGORY_OPTIONS } from '$lib/types/request';
 	import type { SessionUser } from '$lib/types/auth';
 	import type { SolicitationMode } from '$lib/types/portal-config';
 	import type { RequesterProfileBlock } from '$lib/types/user';
@@ -268,6 +269,29 @@
 	function handleStepClick(stepId: number) {
 		if (visitedSteps.has(stepId)) {
 			currentStep = stepId;
+		}
+	}
+
+	// Preenche o passo atual com respostas fictícias válidas (botão de demonstração,
+	// visível apenas em dev). Import dinâmico para não embarcar no bundle de produção.
+	async function fillCurrentStepDemo() {
+		const { getDemoComplementary, getDemoDemand, getDemoIdentification, getDemoOperational } =
+			await import('./demo-answers');
+		if (currentStep === 1) {
+			identification = {
+				...getDemoIdentification(),
+				...(shouldLockIdentity ? getSessionIdentity() : {})
+			};
+			step1Ref?.clearErrors();
+		} else if (currentStep === 2) {
+			demand = getDemoDemand(categoryOptions[0]?.value ?? CATEGORY_OPTIONS[0].value);
+			step2Ref?.clearErrors();
+		} else if (currentStep === 3) {
+			operational = getDemoOperational();
+			step3Ref?.clearErrors();
+		} else {
+			complementary = getDemoComplementary();
+			step4Ref?.clearErrors();
 		}
 	}
 
@@ -557,6 +581,18 @@
 			{/if}
 
 			<footer class="form-actions">
+				{#if dev}
+					<div class="demo-fill">
+						<Button
+							variant="outline-neutral"
+							disabled={isSubmitting}
+							onclick={fillCurrentStepDemo}
+						>
+							<Icon iconName="autorenew" iconSize="md" />
+							Preencher exemplo
+						</Button>
+					</div>
+				{/if}
 				<Button variant="outline-neutral" onclick={handleCancel}>Cancelar</Button>
 
 				<div class="actions-right">
@@ -628,6 +664,11 @@
 		gap: var(--spacing-sm);
 		margin-top: var(--spacing-md);
 		padding-top: var(--spacing-md);
+	}
+
+	.demo-fill {
+		display: flex;
+		margin-right: auto;
 	}
 
 	.actions-right {

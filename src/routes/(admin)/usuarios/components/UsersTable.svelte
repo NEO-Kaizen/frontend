@@ -3,7 +3,7 @@
 
 	import type { AdminUser, UserAction } from '$lib/types/user';
 
-	import { getInitials } from '$lib/utils/user';
+	import { getInitials, getRoleDisplayLabel } from '$lib/utils/user';
 	import { resolveApiAssetUrl } from '$lib/utils/api-assets';
 
 	interface Props {
@@ -87,7 +87,7 @@
 
 					<td>
 						<span class="role-badge">
-							{user.role}
+							{getRoleDisplayLabel(user.role)}
 						</span>
 					</td>
 

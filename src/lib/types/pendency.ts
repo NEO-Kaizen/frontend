@@ -128,6 +128,10 @@ export interface PendingSummary {
 	validated: number;
 }
 
+// Bloco visual de UMA pendência: todos os itens criados juntos (mesmo
+// `batchId`), conforme §5 — "1 pendência → N campos", nunca "N pendências".
+// A observação geral é o item `type: 'observation'` (`field: null`); os
+// campos são os itens `type: 'field_edit'`.
 export interface PendingBatch {
 	batchId: string;
 	protocol: string;
