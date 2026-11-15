@@ -1,10 +1,7 @@
 import { mockInternalRequestDetails } from './requests.mock';
 import { ApiError } from '$lib/types/result';
 import { buildFieldLookup } from '$lib/pendency/field-catalog';
-import {
-	attachmentKeyOfMeta,
-	MAX_ATTACHMENTS
-} from '$lib/pendency/pending-attachments';
+import { attachmentKeyOfMeta, MAX_ATTACHMENTS } from '$lib/pendency/pending-attachments';
 
 import type { InternalAttachment, RequestStatus } from '$lib/types/request';
 import type {
@@ -277,7 +274,6 @@ const seedItems: PendingItem[] = [
 // persistem durante o uso da aplicação (mesmo padrão dos fixtures de requests).
 const store: PendingItem[] = [...seedItems];
 
-
 const batchAttachment = new Map<string, boolean>([
 	['batch-2026-100', true],
 	['batch-2026-102', false]
@@ -544,7 +540,8 @@ export async function uploadPendingItemAttachmentMock(
 	const extension = `.${file.fileName.split('.').pop()?.toLowerCase() ?? ''}`;
 	const allowedExtensions = ['.pdf', '.docx', '.xlsx', '.png', '.jpg', '.jpeg'];
 	const typeEmpty = !file.mimeType || file.mimeType === 'application/octet-stream';
-	const typeValid = allowedTypes.includes(file.mimeType) || (typeEmpty && allowedExtensions.includes(extension));
+	const typeValid =
+		allowedTypes.includes(file.mimeType) || (typeEmpty && allowedExtensions.includes(extension));
 	if (!typeValid || !allowedExtensions.includes(extension)) {
 		throw new ApiError(400, 'Tipo de arquivo não permitido. Use PDF, DOCX, XLSX, PNG ou JPG.');
 	}

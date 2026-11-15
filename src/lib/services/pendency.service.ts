@@ -161,11 +161,8 @@ export function toPendingBatches(
 	input: PendingItem[] | ListPendingItemsResponse | null | undefined,
 	flagsByBatch?: ReadonlyMap<string, boolean> | Record<string, boolean>
 ): PendingBatch[] {
-	const items: PendingItem[] = Array.isArray(input)
-		? input
-		: (input?.items ?? []);
-	const envelope: ListPendingItemsResponse | null =
-		input && !Array.isArray(input) ? input : null;
+	const items: PendingItem[] = Array.isArray(input) ? input : (input?.items ?? []);
+	const envelope: ListPendingItemsResponse | null = input && !Array.isArray(input) ? input : null;
 
 	const flagOf = (batchId: string): boolean => {
 		if (flagsByBatch instanceof Map) return flagsByBatch.get(batchId) ?? false;
