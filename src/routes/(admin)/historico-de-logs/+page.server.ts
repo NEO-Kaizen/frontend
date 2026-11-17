@@ -8,7 +8,7 @@ import type { PageServerLoad } from './$types';
 const PAGE_SIZE = 20;
 
 export const load: PageServerLoad = async ({ fetch, locals, url }) => {
-	guard('managementOnly', locals.user, url.pathname);
+	guard('managementOnly', locals.user, url);
 
 	const requestedPage = parsePageParam(url.searchParams.get('page'));
 	const rawEntityType = url.searchParams.get('entityType');
