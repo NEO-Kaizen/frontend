@@ -359,7 +359,9 @@
 								</Button>
 								<span class="upload-hint">
 									PDF, DOCX, XLSX, PNG ou JPG (Máx. 10 MB cada · {attachmentCounter}
-									{remainingSlots === 1 ? '· 1 vaga restante' : `· ${remainingSlots} vagas restantes`})
+									{remainingSlots === 1
+										? '· 1 vaga restante'
+										: `· ${remainingSlots} vagas restantes`})
 								</span>
 							</div>
 						{/if}

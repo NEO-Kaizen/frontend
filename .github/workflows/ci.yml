@@ -1,0 +1,125 @@
+# Pipeline de qualidade do frontend (P0).
+# O job `unit` permanece comentado até o Vitest e o script `test` existirem.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Menor privilégio: leitura do repositório é suficiente para lint/check/build.
+permissions:
+  contents: read
+
+# Cancela PRs antigos do mesmo ref; em main, deixa a execução terminar.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # O CI não faz push; não deixe o token no git config.
+          persist-credentials: false
+
+      - name: Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Instalar dependências
+        id: install
+        # A auditoria não é gate de PR; --no-audit/--no-fund só reduzem ruído.
+        run: npm ci --no-audit --no-fund
+
+      - name: Prettier
+        run: npx prettier --check .
+
+      - name: ESLint
+        # Roda mesmo se o Prettier falhar, para reportar os dois problemas,
+        # mas não se o install falhar: evita o npx buscar o ESLint no registry.
+        if: ${{ steps.install.outcome == 'success' }}
+        run: npx eslint .
+
+  typecheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci --no-audit --no-fund
+
+      - name: svelte-check
+        # O script roda `svelte-kit sync` sem o `|| echo ''` do lifecycle prepare.
+        run: npm run check
+
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci --no-audit --no-fund
+
+      - name: Build de produção
+        run: npm run build
+        env:
+          # Valor fictício: o apiClient lança no topo do módulo se a variável
+          # faltar, e o postbuild do SvelteKit avalia o código do servidor.
+          # Em runtime o valor real vem de $env/dynamic/public.
+          PUBLIC_API_URL: http://127.0.0.1:3000
+
+  # ---------------------------------------------------------------------------
+  # Job `unit` (P1) — desabilitado até o Vitest e o script "test" existirem.
+  # Descomente quando `npm test` estiver configurado.
+  # ---------------------------------------------------------------------------
+  # unit:
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 15
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v7
+  #       with:
+  #         persist-credentials: false
+  #
+  #     - name: Node.js
+  #       uses: actions/setup-node@v7
+  #       with:
+  #         node-version-file: .nvmrc
+  #         cache: npm
+  #
+  #     - name: Instalar dependências
+  #       run: npm ci --no-audit --no-fund
+  #
+  #     - name: Vitest
+  #       run: npm test
+  #       env:
+  #         PUBLIC_API_URL: http://127.0.0.1:3000
