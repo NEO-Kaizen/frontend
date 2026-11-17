@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { env } from '$env/dynamic/public';
+	import { resolvePublicApiUrl } from '$lib/api/client';
 	import { formatDate, formatDateTime } from '$lib/utils/dates';
 	import type {
 		PublicRequestDetails,
@@ -40,7 +40,7 @@
 		// URLs do backend (`/requests/...`) vivem em outra origem — prefixar a
 		// API. Mocks (`/mocks/...`) são relativos ao próprio frontend.
 		if (attachment.downloadUrl.startsWith('/requests/')) {
-			return `${env.PUBLIC_API_URL}${attachment.downloadUrl}`;
+			return resolvePublicApiUrl(attachment.downloadUrl);
 		}
 		return attachment.downloadUrl;
 	}

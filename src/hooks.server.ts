@@ -29,10 +29,9 @@ export const handleFetch: HandleFetch = ({ event, request, fetch }) => {
 
 	const target = new URL(request.url);
 
-	// -------------------mapping--------------------------
-	// https://lab.alphaedtech.org.br/server03/api/auth/me
-	//                          ↓
-	// http://127.0.0.1:3000/auth/me
+	// Reescrita SSR: quando a API pública usa path com prefixo
+	// (ex.: /server03/api), o servidor troca pelo destino interno
+	// (ex.: http://127.0.0.1:3000) antes do fetch, preservando sufixo e query.
 	if (publicApiUrl) {
 		const publicApiPath = publicApiUrl.pathname.replace(/\/$/, '');
 
