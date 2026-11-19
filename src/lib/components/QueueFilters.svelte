@@ -3,6 +3,8 @@
 	import FilterSelect from './FilterSelect.svelte';
 	import Icon from './Icon.svelte';
 	import Input from './Input.svelte';
+	import type { QueueFiltersState, QueueSortField, QueueSortOrder } from '$lib/types/queue';
+	import { MAX_SEARCH_LENGTH } from '$lib/utils/queue-filters';
 
 	type FilterOption = {
 		value: string;
@@ -13,10 +15,18 @@
 		status: string;
 		priority: string;
 		assignee: string;
+		department: string;
+		dateFrom: string;
+		dateTo: string;
+		sortBy: QueueSortField;
+		sortOrder: QueueSortOrder;
 		statusOptions: FilterOption[];
 		priorityOptions: FilterOption[];
 		assigneeOptions: FilterOption[];
-		onFilterChange: (filters: { status: string; priority: string; assignee: string }) => void;
+		departmentOptions: FilterOption[];
+		sortByOptions: FilterOption[];
+		sortOrderOptions: FilterOption[];
+		onFilterChange: (filters: QueueFiltersState) => void;
 		onClear?: () => void;
 		search?: string;
 		onSearch?: (term: string) => void;
@@ -26,9 +36,17 @@
 		status,
 		priority,
 		assignee,
+		department,
+		dateFrom,
+		dateTo,
+		sortBy,
+		sortOrder,
 		statusOptions,
 		priorityOptions,
 		assigneeOptions,
+		departmentOptions,
+		sortByOptions,
+		sortOrderOptions,
 		onFilterChange,
 		onClear,
 		search = '',
@@ -40,6 +58,28 @@
 	$effect(() => {
 		searchValue = search;
 	});
+
+	function emitChange(overrides: Partial<QueueFiltersState> = {}) {
+		onFilterChange({
+			status,
+			priority,
+			assignee,
+			department,
+			dateFrom,
+			dateTo,
+			sortBy,
+			sortOrder,
+			...overrides
+		});
+	}
+
+	function handleDateFromChange(event: Event) {
+		emitChange({ dateFrom: (event.currentTarget as HTMLInputElement).value });
+	}
+
+	function handleDateToChange(event: Event) {
+		emitChange({ dateTo: (event.currentTarget as HTMLInputElement).value });
+	}
 
 	function handleSubmit(event?: Event) {
 		event?.preventDefault();
@@ -60,8 +100,9 @@
 					<Input
 						type="search"
 						label="Buscar"
-						aria-label="Buscar por protocolo, solicitante, título da demanda ou e-mail"
-						placeholder="Protocolo, solicitante, título da demanda ou e-mail"
+						aria-label="Buscar por título, conteúdo, protocolo, solicitante ou e-mail"
+						placeholder="Título, conteúdo, protocolo, solicitante ou e-mail"
+						maxlength={MAX_SEARCH_LENGTH}
 						bind:value={searchValue}
 						actionIcon="search"
 						actionLabel="Buscar"
@@ -79,7 +120,7 @@
 					value={status}
 					options={statusOptions}
 					clearValue="all"
-					onchange={(next) => onFilterChange({ status: next, priority, assignee })}
+					onchange={(next) => emitChange({ status: next })}
 				/>
 			</div>
 
@@ -91,7 +132,7 @@
 					value={priority}
 					options={priorityOptions}
 					clearValue="all"
-					onchange={(next) => onFilterChange({ status, priority: next, assignee })}
+					onchange={(next) => emitChange({ priority: next })}
 				/>
 			</div>
 
@@ -103,7 +144,61 @@
 					value={assignee}
 					options={assigneeOptions}
 					clearValue="all"
-					onchange={(next) => onFilterChange({ status, priority, assignee: next })}
+					onchange={(next) => emitChange({ assignee: next })}
+				/>
+			</div>
+
+			<div class="filter-item">
+				<FilterSelect
+					icon="filterList"
+					label="Departamento"
+					ariaLabel="Filtrar por departamento"
+					value={department}
+					options={departmentOptions}
+					clearValue="all"
+					onchange={(next) => emitChange({ department: next })}
+				/>
+			</div>
+
+			<div class="filter-item">
+				<Input
+					type="date"
+					label="Data inicial"
+					aria-label="Filtrar por data inicial"
+					value={dateFrom}
+					max={dateTo || undefined}
+					onchange={handleDateFromChange}
+				/>
+			</div>
+
+			<div class="filter-item">
+				<Input
+					type="date"
+					label="Data final"
+					aria-label="Filtrar por data final"
+					value={dateTo}
+					min={dateFrom || undefined}
+					onchange={handleDateToChange}
+				/>
+			</div>
+
+			<div class="filter-item">
+				<FilterSelect
+					label="Ordenar por"
+					ariaLabel="Ordenar por"
+					value={sortBy}
+					options={sortByOptions}
+					onchange={(next) => emitChange({ sortBy: next as QueueSortField })}
+				/>
+			</div>
+
+			<div class="filter-item">
+				<FilterSelect
+					label="Direção"
+					ariaLabel="Direção da ordenação"
+					value={sortOrder}
+					options={sortOrderOptions}
+					onchange={(next) => emitChange({ sortOrder: next as QueueSortOrder })}
 				/>
 			</div>
 		</div>
@@ -139,19 +234,22 @@
 
 	.filters {
 		display: flex;
-		align-items: center;
+		flex: 1;
+		flex-wrap: wrap;
+		align-items: flex-end;
+		min-width: 0;
 		gap: var(--spacing-sm);
 	}
 
 	.filter-item {
-		width: 250px;
-		min-width: 250px;
-		flex-shrink: 0;
+		flex: 1 1 220px;
+		width: 220px;
+		min-width: 0;
 	}
 
 	.filter-item--search {
+		flex-basis: 300px;
 		width: 300px;
-		min-width: 260px;
 	}
 
 	.clear-action {

@@ -1,5 +1,6 @@
 import { apiClient } from './client';
 import { MOCK_DOMAINS } from '$lib/mocks';
+import { appendQueueFilterParams } from '$lib/utils/queue-filters';
 
 import type { QueueMetricsResponse, QueueQuery, QueueResponse } from '$lib/types/queue';
 import type {
@@ -80,13 +81,7 @@ export async function listQueueRequests(
 	if (query.page !== undefined) params.set('page', String(query.page));
 	if (query.pageSize !== undefined) params.set('pageSize', String(query.pageSize));
 
-	if (query.search) params.set('search', query.search);
-	if (query.status) params.set('status', query.status);
-	if (query.priority !== undefined) params.set('priority', query.priority);
-
-	if (query.assigneeId !== undefined) {
-		params.set('assigneeId', String(query.assigneeId));
-	}
+	appendQueueFilterParams(params, query);
 
 	const qs = params.toString();
 	const path = qs ? `${QUEUE_PATH}?${qs}` : QUEUE_PATH;
