@@ -1,5 +1,6 @@
 import { apiFetch } from './client';
 import { MOCK_DOMAINS } from '$lib/mocks';
+import { appendQueueFilterParams } from '$lib/utils/queue-filters';
 import type { QueueFilterQuery } from '$lib/types/queue';
 import type { QueueCsvDownload } from '$lib/types/report';
 
@@ -9,10 +10,7 @@ const FALLBACK_FILENAME = 'solicitacoes.csv';
 function buildQuery(filters: QueueFilterQuery): string {
 	const params = new URLSearchParams();
 
-	if (filters.search) params.set('search', filters.search);
-	if (filters.status) params.set('status', filters.status);
-	if (filters.priority) params.set('priority', filters.priority);
-	if (filters.assigneeId) params.set('assigneeId', filters.assigneeId);
+	appendQueueFilterParams(params, filters);
 
 	const query = params.toString();
 	return query ? `${QUEUE_EXPORT_PATH}?${query}` : QUEUE_EXPORT_PATH;
