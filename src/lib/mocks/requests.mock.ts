@@ -712,7 +712,7 @@ function compareQueueRequests(sortBy: QueueSortField, sortOrder: QueueSortOrder)
 	const direction = sortOrder === 'asc' ? 1 : -1;
 
 	return (a: MockRequest, b: MockRequest): number => {
-		let result = 0;
+		let result: number;
 
 		switch (sortBy) {
 			case 'priority':
