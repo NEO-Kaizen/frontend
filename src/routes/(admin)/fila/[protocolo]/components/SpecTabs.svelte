@@ -5,9 +5,14 @@
 	import { SvelteMap } from 'svelte/reactivity';
 	import { fade, fly } from 'svelte/transition';
 	import Button from '$lib/components/Button.svelte';
+	import ExportPdfButton from '$lib/components/ExportPdfButton.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Modal from '$lib/components/Modal.svelte';
-	import { canEditSolicitation, canViewTriage } from '$lib/services/access.service';
+	import {
+		canEditSolicitation,
+		canExportRequestPdf,
+		canViewTriage
+	} from '$lib/services/access.service';
 	import { getInternalNotes } from '$lib/services/internal-note.service';
 	import {
 		buildCreatePendingItemsPayload,
@@ -161,6 +166,7 @@
 	// `isEditMode` fica no topo porque a aba ativa deriva dele (edição trava
 	// a aba em `informacoes` para não perder o rascunho).
 	let isEditMode = $state(false);
+	let isExportingPdf = $state(false);
 
 	// Lotes visuais do histórico (uma pendência = um `batchId`, §5) a partir da
 	// listagem do server load. O badge conta itens `responded` — respostas
@@ -253,6 +259,10 @@
 	const currentUser = $derived(page.data.user);
 	const canEdit = $derived(canEditSolicitation(solicitation.assignee?.id, currentUser ?? null));
 	const canViewTriageTab = $derived(canViewTriage(solicitation.assignee?.id, currentUser ?? null));
+	// Exportação do PDF interno: audiência da área interna (regra em
+	// `access.service`). Sai do caminho quando o slot de ações da barra de
+	// abas está ocupado (edição ou solicitação de alteração).
+	const canExportPdf = $derived(canExportRequestPdf(currentUser ?? null));
 
 	// A permissão do mapeamento usa o responsável do mapeamento
 	// (`mappingAssignee`) do primeiro GET da solicitação + `/auth/me`
@@ -400,6 +410,22 @@
 			return;
 		}
 		exitEditMode();
+	}
+
+	// Ponto de integração da API (task de integração): trocar o corpo por
+	// `exportRequestPdf(protocol)` e disparar o download do blob. O componente
+	// `ExportPdfButton` não muda — recebe apenas `loading` e `onExport`.
+	async function handleExportPdf(): Promise<void> {
+		if (isExportingPdf) return;
+
+		isExportingPdf = true;
+
+		try {
+			await new Promise((resolve) => setTimeout(resolve, 1200));
+			toastState.add('Integração pendente: o PDF será gerado pelo backend.', 'info');
+		} finally {
+			isExportingPdf = false;
+		}
 	}
 
 	function handleFieldChange(path: string, value: string): void {
@@ -695,6 +721,10 @@
 					<span>Editar</span>
 				</button>
 			{/if}
+
+			{#if canExportPdf && !isEditMode && !isPendencyMode}
+				<ExportPdfButton loading={isExportingPdf} onExport={() => void handleExportPdf()} />
+			{/if}
 		</div>
 	</div>
 
@@ -848,7 +878,9 @@
 	.tabs-right {
 		display: flex;
 		align-items: center;
+		justify-content: flex-end;
 		gap: 4px;
+		flex-wrap: wrap;
 		margin-left: auto;
 	}
 

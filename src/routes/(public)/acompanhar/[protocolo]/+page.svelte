@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
+	import ExportPdfButton from '$lib/components/ExportPdfButton.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import NotFoundState from '$lib/components/NotFoundState.svelte';
 	import {
@@ -22,6 +23,7 @@
 		TrackingDetailsResponse
 	} from '$lib/types/requester-tracking';
 	import { formatDate, formatDateTime } from '$lib/utils/dates';
+	import { notifyInfo } from '$lib/utils/feedback';
 	import { isClosingStatus, statusThemeVars } from '$lib/utils/status';
 	import type { PageProps } from './$types';
 	import PublicValidationForm from './components/PublicValidationForm.svelte';
@@ -56,12 +58,18 @@
 	// durante a permanência nesta página e só para este protocolo.
 	let identity = $state<RequesterIdentity | null>(null);
 	let unreadCount = $state(0);
+	let isExportingPdf = $state(false);
 
 	type TrackingTabId = 'solicitacao' | 'pendencias';
 	let activeTab = $state<TrackingTabId>('solicitacao');
 
 	const details = $derived(tracking?.details ?? null);
 	const detailsMode = $derived(tracking?.mode ?? null);
+	// Exportação em PDF (v1): só o solicitante, e só no acompanhamento
+	// autenticado. Perfis internos exportam pela tela de detalhe interno, cujo
+	// documento é completo. O modo público fica fora porque autoriza por
+	// `X-Requester-Identity` (dado enviado pelo cliente).
+	const canExportPdf = $derived(detailsMode === 'authenticated' && user?.role === 'Solicitante');
 	const prazoDesejado = $derived(
 		tracking && isAuthenticatedDetails(tracking)
 			? formatDate(tracking.details.operational.desiredDeadline)
@@ -181,6 +189,22 @@
 		activeTab = tab;
 	}
 
+	// Ponto de integração da API (task de integração): trocar o corpo por
+	// `exportRequestPdf(protocol)` e fazer o download do blob. O componente
+	// `ExportPdfButton` não muda — ele só recebe `loading` e `onExport`.
+	async function handleExportPdf(): Promise<void> {
+		if (isExportingPdf) return;
+
+		isExportingPdf = true;
+
+		try {
+			await new Promise((resolve) => setTimeout(resolve, 1200));
+			notifyInfo('Integração pendente: o PDF será gerado pelo backend.');
+		} finally {
+			isExportingPdf = false;
+		}
+	}
+
 	onMount(() => {
 		if (needsValidation) {
 			// Reaproveita a validação da sessão da página (sessionStorage) —
@@ -247,6 +271,10 @@
 				>
 					{details.status}
 				</span>
+
+				{#if canExportPdf}
+					<ExportPdfButton loading={isExportingPdf} onExport={() => void handleExportPdf()} />
+				{/if}
 			</div>
 		</div>
 
@@ -464,6 +492,14 @@
 		font-family: var(--font-inter);
 	}
 
+	.right-status {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-end;
+		gap: var(--spacing-sm);
+		flex-shrink: 0;
+	}
+
 	.status-pill {
 		padding: 6px 14px;
 		border-radius: var(--radius-md);
@@ -672,6 +708,10 @@
 
 		.tracking-header {
 			flex-direction: column;
+		}
+
+		.right-status {
+			align-items: flex-start;
 		}
 
 		.metadata-row {
