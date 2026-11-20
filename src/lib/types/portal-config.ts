@@ -159,6 +159,11 @@ export interface PortalStatus {
 	isRestricted: boolean;
 	tone: StatusTone;
 	isActive: boolean;
+	// RF13: Status conta como período pausado (aguardando informação), não
+	// como tempo ativo. Opcional no contrato: ausente no PATCH preserva o valor
+	// do banco. Status `isCore` não podem alterá-lo (backend responde 409
+	// `core_status_locked`).
+	isPaused?: boolean;
 	// Alias compat — lidos no sanitize, nunca emitidos no PATCH v4.
 	visibility?: StatusVisibility;
 	closesRequest?: boolean;
