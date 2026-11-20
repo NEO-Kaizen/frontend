@@ -54,6 +54,15 @@ export function canViewTriage(
 	return Boolean(assigneeId && assigneeId === user.id);
 }
 
+// Exportação do PDF interno da solicitação: acompanha a audiência do detalhe
+// interno (qualquer perfil da área interna). O botão apenas esconde a ação —
+// o backend revalida a autorização e decide a variante do documento pela
+// credencial da sessão, nunca por parâmetro enviado pelo cliente.
+export function canExportRequestPdf(user: SessionUser | null): boolean {
+	if (!user) return false;
+	return isInternalProfile(user.role);
+}
+
 export function isProfileAllowed(role: UserType, profiles: 'any' | readonly UserType[]): boolean {
 	return profiles === 'any' || profiles.includes(role);
 }
