@@ -36,6 +36,21 @@ const ALLOWED_MIME_TYPES = [
 	'image/jpeg'
 ];
 
+function resolveRequestError(error: ApiError, fallback: string): string {
+	switch (error.status) {
+		case 401:
+			return 'Sua sessão expirou. Entre novamente para continuar.';
+		case 403:
+			return 'Você não tem permissão para consultar estas solicitações.';
+		case 404:
+			return 'Solicitação não encontrada.';
+		case 429:
+			return 'Muitas consultas em sequência. Aguarde um momento.';
+		default:
+			return fallback;
+	}
+}
+
 export async function listRequests(
 	query: ListRequestsQuery,
 	fetchImpl?: typeof fetch
@@ -53,7 +68,7 @@ export async function listRequests(
 				ok: false,
 				error: {
 					status: error.status,
-					message: 'Não foi possível carregar as solicitações.'
+					message: resolveRequestError(error, 'Não foi possível carregar as solicitações.')
 				}
 			};
 		}
@@ -84,7 +99,7 @@ export async function listQueueRequests(
 				ok: false,
 				error: {
 					status: error.status,
-					message: 'Não foi possível carregar a fila centralizada.'
+					message: resolveRequestError(error, 'Não foi possível carregar a fila centralizada.')
 				}
 			};
 		}
@@ -114,7 +129,7 @@ export async function getQueueMetrics(
 				ok: false,
 				error: {
 					status: error.status,
-					message: 'Não foi possível carregar as métricas da fila.'
+					message: resolveRequestError(error, 'Não foi possível carregar as métricas da fila.')
 				}
 			};
 		}
@@ -141,13 +156,11 @@ export async function getRequestByProtocol(
 		};
 	} catch (error) {
 		if (error instanceof ApiError) {
-			const message = error.status === 404 ? 'Solicitação não encontrada.' : error.message;
-
 			return {
 				ok: false,
 				error: {
 					status: error.status,
-					message
+					message: resolveRequestError(error, 'Não foi possível carregar a solicitação.')
 				}
 			};
 		}
@@ -170,8 +183,13 @@ export async function getInternalRequest(
 		return { ok: true, data };
 	} catch (error) {
 		if (error instanceof ApiError) {
-			const message = error.status === 404 ? 'Solicitação não encontrada.' : error.message;
-			return { ok: false, error: { status: error.status, message } };
+			return {
+				ok: false,
+				error: {
+					status: error.status,
+					message: resolveRequestError(error, 'Não foi possível carregar a solicitação.')
+				}
+			};
 		}
 		return { ok: false, error: { message: 'Não foi possível conectar ao servidor.' } };
 	}
@@ -188,11 +206,9 @@ export async function updateInternalRequest(
 	} catch (error) {
 		if (error instanceof ApiError) {
 			const message =
-				error.status === 404
-					? 'Solicitação não encontrada.'
-					: error.status === 403
-						? 'Você não tem permissão para editar esta solicitação.'
-						: 'Não foi possível salvar as alterações.';
+				error.status === 403
+					? 'Você não tem permissão para editar esta solicitação.'
+					: resolveRequestError(error, 'Não foi possível salvar as alterações.');
 			return { ok: false, error: { status: error.status, message } };
 		}
 		return { ok: false, error: { message: 'Não foi possível salvar as alterações.' } };
@@ -264,7 +280,7 @@ export async function submitDemand(
 				ok: false,
 				error: {
 					status: error.status,
-					message: error.message
+					message: resolveRequestError(error, 'Não foi possível enviar a solicitação.')
 				}
 			};
 		}

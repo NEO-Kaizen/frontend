@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { goto, invalidate } from '$app/navigation';
 	import { navigating, page } from '$app/state';
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import { resolve } from '$app/paths';
@@ -52,7 +52,14 @@
 	<ProtocolSearchCard {isOwnerView} />
 
 	<div style="margin-top: var(--spacing-xl);">
-		<SolicitationTable page={data.page} result={data.result} {isFetching} onpagechange={goToPage} />
+		<SolicitationTable
+			page={data.page}
+			result={data.result}
+			{isFetching}
+			emptyMessage="Confira o e-mail informado e tente novamente."
+			onretry={() => void invalidate('app:requests')}
+			onpagechange={goToPage}
+		/>
 	</div>
 </main>
 

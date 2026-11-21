@@ -1,8 +1,11 @@
 <script lang="ts">
+	import { onDestroy } from 'svelte';
 	import Button from './Button.svelte';
 	import FilterSelect from './FilterSelect.svelte';
 	import Icon from './Icon.svelte';
 	import Input from './Input.svelte';
+
+	const SEARCH_DEBOUNCE_MS = 300;
 
 	type FilterOption = {
 		value: string;
@@ -19,6 +22,7 @@
 		onFilterChange: (filters: { status: string; priority: string; assignee: string }) => void;
 		onClear?: () => void;
 		search?: string;
+		isSearching?: boolean;
 		onSearch?: (term: string) => void;
 	}
 
@@ -32,22 +36,45 @@
 		onFilterChange,
 		onClear,
 		search = '',
+		isSearching = false,
 		onSearch
 	}: Props = $props();
 
-	let searchValue = $derived('');
+	let searchValue = $state('');
+	let lastSubmitted = '';
+	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 
 	$effect(() => {
-		searchValue = search;
+		const next = search;
+		if (next !== lastSubmitted) {
+			lastSubmitted = next;
+			searchValue = next;
+		}
 	});
+
+	onDestroy(() => clearTimeout(debounceTimer));
+
+	function submitSearch(value: string) {
+		clearTimeout(debounceTimer);
+		const term = value.trim();
+		lastSubmitted = term;
+		onSearch?.(term);
+	}
+
+	function handleInput() {
+		clearTimeout(debounceTimer);
+		debounceTimer = setTimeout(() => submitSearch(searchValue), SEARCH_DEBOUNCE_MS);
+	}
 
 	function handleSubmit(event?: Event) {
 		event?.preventDefault();
-		onSearch?.(searchValue.trim());
+		submitSearch(searchValue);
 	}
 
 	function clearFilters() {
+		clearTimeout(debounceTimer);
 		searchValue = '';
+		lastSubmitted = '';
 		onClear?.();
 	}
 </script>
@@ -56,16 +83,17 @@
 	<div class="queue-filters__main">
 		<div class="filters">
 			<div class="filter-item filter-item--search">
-				<form onsubmit={handleSubmit} role="search">
+				<form onsubmit={handleSubmit} role="search" aria-busy={isSearching}>
 					<Input
 						type="search"
 						label="Buscar"
 						aria-label="Buscar por protocolo, solicitante, título da demanda ou e-mail"
 						placeholder="Protocolo, solicitante, título da demanda ou e-mail"
 						bind:value={searchValue}
+						disabled={isSearching}
 						actionIcon="search"
 						actionLabel="Buscar"
-						oninput={handleSubmit}
+						oninput={handleInput}
 						onAction={handleSubmit}
 					/>
 				</form>

@@ -14,6 +14,8 @@ import { ApiError, type Result } from '$lib/types/result';
 
 function resolveInternalNotesError(error: ApiError, fallback: string): string {
 	switch (error.status) {
+		case 401:
+			return 'Sua sessão expirou. Entre novamente para continuar.';
 		case 403:
 			return 'Você não tem permissão para acessar as observações internas.';
 		case 404:
