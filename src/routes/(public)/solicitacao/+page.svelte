@@ -1,16 +1,21 @@
-<main class="content-container">
-	<section class="placeholder">
-		<h1>Abrir solicitação</h1>
-		<p>Esta área está prevista para uma próxima sprint.</p>
-	</section>
-</main>
+<script lang="ts">
+	import SolicitationForm from './components/solicitation-form/SolicitationForm.svelte';
+	import type { PageProps } from './$types';
 
-<style>
-	.placeholder {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: var(--spacing-sm);
-		padding: var(--spacing-xl) 0;
-	}
-</style>
+	let { data }: PageProps = $props();
+
+	const categoryOptions = $derived(
+		data.portalConfig.categories
+			.filter((category) => category.isActive)
+			.map((category) => ({ value: category.name, label: category.name }))
+	);
+</script>
+
+<main class="content-container">
+	<SolicitationForm
+		user={data.user}
+		requesterProfile={data.requesterProfile}
+		solicitationMode={data.portalConfig.solicitationMode}
+		{categoryOptions}
+	/>
+</main>

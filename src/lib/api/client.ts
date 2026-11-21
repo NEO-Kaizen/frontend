@@ -1,4 +1,7 @@
+import { browser } from '$app/environment';
 import { env } from '$env/dynamic/public';
+import type { RequesterIdentity } from '$lib/types/requester-tracking';
+import { ApiError } from '$lib/types/result';
 
 const PUBLIC_API_URL = env.PUBLIC_API_URL;
 
@@ -6,22 +9,54 @@ if (!PUBLIC_API_URL) {
 	throw new Error('PUBLIC_API_URL não está definida no ambiente.');
 }
 
-export class ApiError extends Error {
-	status: number;
+// No servidor, o fetch global não carrega o cookie da página: o fetch
+// credentialed é o fornecido ao `load` (event.fetch). Se um caminho de SSR
+// esquecer de repassá-lo, falha explicitamente em vez de perder a sessão.
+function resolveFetch(fetchImpl?: typeof fetch): typeof fetch {
+	if (fetchImpl) return fetchImpl;
+	if (browser) return fetch;
 
-	constructor(status: number, message: string) {
-		super(message);
-		this.name = 'ApiError';
-		this.status = status;
-	}
+	const error = new Error(
+		'apiClient no servidor requer o fetch do load (event.fetch). ' +
+			'Repasse o fetch do load pela cadeia service → api.'
+	);
+
+	// Os services capturam o erro e devolvem mensagem amigável; o log garante
+	// que a causa (fetch esquecido em um load) não passe despercebida em dev.
+	console.error(error);
+
+	throw error;
 }
 
-export async function apiClient<T>(path: string, options: RequestInit = {}): Promise<T> {
-	const response = await fetch(`${PUBLIC_API_URL}${path}`, {
+// Transporte do solicitante público (contrato Pendências por campo v0.5 §2):
+// header `X-Requester-Identity` com nome+e-mail (o protocolo vai no path). O
+// fluxo autenticado passa `null` e usa o cookie de sessão
+// (`credentials: "include"` abaixo). Único construtor do header — as APIs de
+// tracking e de pendências reutilizam este.
+export function requesterIdentityHeaders(
+	identity: RequesterIdentity | null | undefined
+): Record<string, string> {
+	if (!identity) return {};
+	return {
+		'X-Requester-Identity': JSON.stringify({ name: identity.name, email: identity.email })
+	};
+}
+
+// Requisições que precisam consumir corpo/headers fora do JSON padrão (como
+// downloads) usam esta função e preservam o mesmo tratamento de sessão/erro.
+export async function apiFetch(
+	path: string,
+	options: RequestInit = {},
+	fetchImpl?: typeof fetch
+): Promise<Response> {
+	const doFetch = resolveFetch(fetchImpl);
+	const isMultipart = options.body instanceof FormData;
+
+	const response = await doFetch(`${PUBLIC_API_URL}${path}`, {
 		credentials: 'include',
 		...options,
 		headers: {
-			'Content-Type': 'application/json',
+			...(isMultipart ? undefined : { 'Content-Type': 'application/json' }),
 			...options.headers
 		}
 	});
@@ -30,14 +65,29 @@ export async function apiClient<T>(path: string, options: RequestInit = {}): Pro
 		throw new ApiError(response.status, await readErrorMessage(response));
 	}
 
+	return response;
+}
+
+// FormData sem Content-Type: o browser gera o boundary do multipart.
+export async function apiClient<T>(
+	path: string,
+	options: RequestInit = {},
+	fetchImpl?: typeof fetch
+): Promise<T> {
+	const response = await apiFetch(path, options, fetchImpl);
+
+	if (response.status === 204) {
+		return undefined as T;
+	}
+
 	return (await response.json()) as T;
 }
 
 async function readErrorMessage(response: Response): Promise<string> {
 	try {
 		const body = (await response.json()) as { message?: string; error?: string };
-		return body.message ?? body.error ?? 'Request failed';
+		return body.message || body.error || 'Não foi possível concluir a operação.';
 	} catch {
-		return 'Request failed';
+		return 'Não foi possível concluir a operação.';
 	}
 }

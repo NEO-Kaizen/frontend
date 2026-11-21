@@ -1,16 +1,18 @@
 <script lang="ts">
+	import type { HTMLAttributes } from 'svelte/elements';
 	import type { Snippet } from 'svelte';
 
 	type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'outline-neutral';
 	type ButtonSize = 'default' | 'full'; //futuramente podemos adicionar nova variação de tamanho
 	type ButtonType = 'button' | 'submit' | 'reset';
 
-	interface Props {
+	interface Props extends HTMLAttributes<HTMLButtonElement> {
 		variant?: ButtonVariant;
 		size?: ButtonSize;
 		loading?: boolean;
 		disabled?: boolean;
 		type?: ButtonType;
+		class?: string;
 		onclick?: (event: MouseEvent) => void;
 		children: Snippet;
 	}
@@ -21,16 +23,20 @@
 		loading = false,
 		disabled = false,
 		type = 'button',
+		class: className = '',
 		onclick,
-		children
+		children,
+		...restProps
 	}: Props = $props();
 
 	const isDisabled = $derived(disabled || loading);
 </script>
 
 <button
+	{...restProps}
 	{type}
 	{onclick}
+	class={className}
 	disabled={isDisabled}
 	aria-busy={loading}
 	class:primary={variant === 'primary'}
@@ -64,13 +70,13 @@
 
 	.primary {
 		background-color: var(--primary-color);
-		color: var(--white);
+		color: var(--on-primary);
 		border: 1px solid var(--primary-color);
 	}
 
 	.secondary {
 		background-color: var(--secondary-color);
-		color: var(--white);
+		color: var(--on-primary);
 	}
 
 	.outline {
@@ -81,7 +87,7 @@
 
 	.outline-neutral {
 		background-color: var(--white);
-		color: var(--rich-black);
+		color: var(--text-color-primary);
 		border: var(--border-default);
 	}
 
@@ -119,6 +125,12 @@
 	@keyframes spin {
 		to {
 			transform: rotate(360deg);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.spinner {
+			animation: none;
 		}
 	}
 </style>

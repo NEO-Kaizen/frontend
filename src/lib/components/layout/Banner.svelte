@@ -1,11 +1,15 @@
 <script lang="ts">
+	import { page } from '$app/state';
+
+	const platformName = $derived(page.data.portalConfig.platformName);
+
 	interface Props {
 		titulo?: string;
 		descricao?: string;
 	}
 
 	let {
-		titulo = 'Bem-vindo ao portal de solicitações do NEO',
+		titulo = `Bem-vindo ao portal de solicitações do ${platformName}`,
 		descricao = 'Sua central unificada para gestão de chamados, suporte técnico e fluxos administrativos. Comece uma nova demanda ou acompanhe o progresso das existentes abaixo.'
 	}: Props = $props();
 </script>
@@ -39,21 +43,23 @@
 	conforme identidade definida no protótipo.
 -->
 	<div class="background-logo" aria-hidden="true">
-		<span>NEO</span>
-		<span>NEO</span>
-		<span>NEO</span>
+		<span>{platformName}</span>
+		<span>{platformName}</span>
+		<span>{platformName}</span>
 	</div>
 </section>
 
 <style>
 	.banner {
+		--watermark-size: 6.2rem;
+
 		position: relative;
 
 		display: flex;
 		align-items: center;
 
 		width: 100%;
-		min-height: 170px;
+		min-height: calc(var(--watermark-size) * 2.2);
 
 		padding: var(--spacing-xl);
 
@@ -72,7 +78,7 @@
 	h1 {
 		margin: 0 0 var(--spacing-md);
 
-		color: var(--white);
+		color: var(--on-gradient);
 
 		font: var(--h1);
 	}
@@ -81,7 +87,7 @@
 		margin: 0;
 
 		max-width: 510px;
-		color: var(--white);
+		color: var(--on-gradient);
 
 		font: var(--paragrafo);
 	}
@@ -101,10 +107,10 @@
 	}
 
 	.background-logo span {
-		color: var(--white);
+		color: var(--on-gradient);
 
 		font-family: var(--font-montserrat);
-		font-size: 6.2rem;
+		font-size: var(--watermark-size);
 		font-weight: 700;
 		line-height: 1.2;
 
@@ -117,6 +123,8 @@
  */
 	@media (max-width: 640px) {
 		.banner {
+			--watermark-size: 4.5rem;
+
 			border-radius: var(--radius-md);
 		}
 		h1 {
@@ -125,12 +133,6 @@
 
 		.background-logo {
 			right: var(--spacing-md);
-		}
-
-		.background-logo span {
-			font-size: 4.5rem;
-			font-weight: 700;
-			line-height: 1.2;
 		}
 	}
 </style>

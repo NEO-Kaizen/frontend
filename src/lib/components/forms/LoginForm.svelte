@@ -1,11 +1,17 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Input from '$lib/components/Input.svelte';
-	import { login } from '$lib/services/auth.service';
+	import { getMe, login } from '$lib/services/auth.service';
+	import { getPostLoginRedirect } from '$lib/services/access.service';
 	import type { LoginCredentials } from '$lib/types/auth';
+
+	const platformName = $derived(page.data.portalConfig.platformName);
+	const loginImageLight = $derived(page.data.portalConfig.assets.loginImageLightUrl);
+	const loginImageDark = $derived(page.data.portalConfig.assets.loginImageDarkUrl);
+	const returnTo = $derived(page.url.searchParams.get('returnTo'));
 
 	let email = $state('');
 	let password = $state('');
@@ -54,18 +60,34 @@
 		const credentials: LoginCredentials = { email: email.trim(), password };
 		const result = await login(credentials);
 
-		isSubmitting = false;
-
-		if (result.ok) {
-			await goto(resolve('/(app)/painel'), { invalidateAll: true }); // ENDPOINT DE SUCESSO DE LOGIN DEVE SER ADICIONADO AQUI
+		if (!result.ok) {
+			isSubmitting = false;
+			errorMessage = result.error.message;
 			return;
 		}
-		errorMessage = result.error.message;
+
+		const meResult = await getMe();
+
+		isSubmitting = false;
+
+		if (!meResult.ok) {
+			errorMessage = meResult.error.message;
+			return;
+		}
+
+		const redirectPath = getPostLoginRedirect(meResult.data, returnTo);
+		// Caminho local validado em getPostLoginRedirect; resolve() não aceita a união dinâmica gerada.
+		// eslint-disable-next-line svelte/no-navigation-without-resolve
+		await goto(redirectPath, { invalidateAll: true });
 	}
 </script>
 
-<form onsubmit={handleSubmit} novalidate>
-	<div class="container-banner">
+<form method="post" onsubmit={handleSubmit} novalidate>
+	<div
+		class="container-banner"
+		style:--login-image-light={`url('${loginImageLight}')`}
+		style:--login-image-dark={`url('${loginImageDark}')`}
+	>
 		<h2>Potencializando a Gestão Inteligente.</h2>
 		<span style="display: flex; align-items: center; gap: var(--spacing-sm);">
 			<svg xmlns="http://www.w3.org/2000/svg" width="48" height="2" viewBox="0 0 48 2" fill="none">
@@ -76,7 +98,7 @@
 	</div>
 	<div class="container-form">
 		<div class="container-titulo">
-			<h1>Bem-vindo ao NEO</h1>
+			<h1>Bem-vindo ao {platformName}</h1>
 			<p>Insira suas credenciais.</p>
 		</div>
 
@@ -145,14 +167,17 @@
 		justify-content: flex-end;
 		width: 50%;
 		gap: var(--spacing-xl);
-		background-image: url('$lib/assets/login.png');
+		background-image: var(--login-image-light);
 		background-size: cover;
 		background-position: center;
 		padding: var(--spacing-xl);
 	}
+	:global([data-theme='dark']) .container-banner {
+		background-image: var(--login-image-dark);
+	}
 	.container-banner h2,
 	.container-banner p {
-		color: var(--white);
+		color: var(--on-dark);
 	}
 	.container-form {
 		width: 50%;

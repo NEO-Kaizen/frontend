@@ -1,0 +1,476 @@
+import type { CriterionNotes } from './prioritization';
+import type { CorrectionAlert, PendingSummary, UnreadState } from './pendency';
+
+export type RequestStatus =
+	| 'Solicitação enviada'
+	| 'Aguardando triagem'
+	| 'Em triagem'
+	| 'Pendente de informações'
+	| 'Aguardando mapeamento'
+	| 'Mapeamento agendado'
+	| 'Em mapeamento'
+	| 'Em análise de viabilidade'
+	| 'Elegível'
+	| 'Não elegível'
+	| 'Priorizado'
+	| 'Backlog'
+	| 'Direcionado para outra área'
+	| 'Em desenvolvimento'
+	| 'Em homologação'
+	| 'Concluído'
+	| 'Cancelado';
+
+export type RequestPriority = 'Baixa' | 'Média' | 'Alta' | 'Crítica';
+
+export type RequestType = 'Automação' | 'Melhoria' | 'Manutenção';
+
+export type Frequency = 'Diária' | 'Semanal' | 'Mensal' | 'Por Demanda';
+
+export type YesNo = 'Sim' | 'Não';
+
+export type Criticality = RequestPriority;
+
+export type TriageResult =
+	| 'Elegível para avaliação'
+	| 'Pendente de informações'
+	| 'Fora do escopo'
+	| 'Direcionada para outra área'
+	| 'Duplicada'
+	| 'Cancelada'
+	| 'Backlog';
+
+export type OperationalImpact = 'Baixo' | 'Médio' | 'Alto' | 'Crítico';
+
+export type RequestCategory =
+	| 'Automação'
+	| 'Melhoria de processo'
+	| 'Indicador'
+	| 'Dashboard ou relatório'
+	| 'Análise de dados'
+	| 'Padronização'
+	| 'Revisão de processo'
+	| 'Apoio técnico'
+	| 'Estudo de viabilidade'
+	| 'Outros';
+
+// Bloco 1 — dados do solicitante.
+export interface RequesterBlock {
+	fullName: string;
+	corporateEmail: string;
+	area: string;
+	department?: string;
+	manager: string;
+	additionalContact?: string;
+}
+
+// Bloco 2 — dados da demanda.
+export interface DemandBlock {
+	title: string;
+	requestType: string;
+	category: RequestCategory;
+	processName: string;
+	description: string;
+	problem: string;
+	expectedResult: string;
+	justification: string;
+}
+
+// Resposta "Sim/Não (+ detalhamento)": o detalhamento é a própria resposta
+// positiva. `false` → "Não"; `string` → "Sim" + detalhamento obrigatório.
+export type YesNoDetail = false | string;
+
+// Bloco 3 — dados operacionais.
+export interface OperationalBlock {
+	processDescription: string;
+	processSteps: string;
+	systemsUsed: string;
+	executionFrequency: string;
+	volumetry: string;
+	peopleInvolved: number;
+	averageExecutionTime: string;
+	monthlyEffortHours: number;
+	hasManualControls: YesNoDetail;
+	mainRisks: string;
+	clientImpact: string;
+	operationalImpact: OperationalImpact;
+	desiredDeadline: string;
+	perceivedCriticality: RequestPriority;
+}
+
+// Bloco 4 — integralmente opcional. Anexos NÃO estão aqui: são partes
+// binárias do multipart do POST /requests (derivados no servidor).
+export interface ComplementaryBlock {
+	hasProcessDocumentation?: YesNoDetail;
+	hasSimilarSolution?: YesNoDetail;
+	dependsOnOtherAreas?: YesNoDetail;
+	handlesRestrictedInfo?: YesNoDetail;
+	additionalNotes?: string;
+}
+
+// Até 3 opções de data/hora para mapeamento — ISO "yyyy-mm-ddThh:mm".
+export type SchedulePreferences = string[];
+
+// Objeto serializado na parte textual "payload" do multipart do POST /requests.
+export interface CreateRequestPayload {
+	requester: RequesterBlock;
+	demand: DemandBlock;
+	operational: OperationalBlock;
+	complementary?: ComplementaryBlock;
+	schedulePreferences?: SchedulePreferences;
+}
+
+// Resposta do POST /requests (201 Created).
+export interface CreateRequestResponse {
+	protocol: string;
+	status: RequestStatus;
+	createdAt: string;
+}
+
+// Anexo a ser enviado como parte binária "attachments" — abstração da UI.
+// Os metadados são derivados no servidor (não vão no payload).
+export interface AttachmentFile {
+	file: File;
+	sizeBytes: number;
+	mimeType: string;
+}
+
+// Metadados de anexo — derivados no servidor; apenas leitura futura.
+export interface AttachmentMetadata {
+	fileName: string;
+	mimeType: string;
+	sizeBytes: number;
+}
+
+// Envelope de erro padronizado da API.
+export interface ApiErrorResponse {
+	status: 'error';
+	statusCode: number;
+	message: string;
+}
+
+// ---- Formulário de solicitação (estado das etapas da UI) ----
+
+// Etapa 1 — identificação do solicitante.
+export type IdentificationData = {
+	fullName: string;
+	corporateEmail: string;
+	area: string;
+	department: string;
+	manager: string;
+	additionalContact: string;
+};
+
+// Etapa 2 — dados da demanda.
+export type DemandData = {
+	title: string;
+	category: RequestCategory | '';
+	processName: string;
+	requestType: RequestType | '';
+	description: string;
+	problem: string;
+	justification: string;
+	expectedResult: string;
+};
+
+// Etapa 3 — dados operacionais.
+export type OperationalData = {
+	processDescription: string;
+	processSteps: string;
+	systemsUsed: string;
+	executionFrequency: Frequency | '';
+	volumetry: string;
+	peopleInvolved: string;
+	averageExecutionTime: string;
+	monthlyEffortHours: string;
+	hasManualControls: YesNo | '';
+	hasManualControlsDetail: string;
+	mainRisks: string;
+	clientImpact: string;
+	operationalImpact: OperationalImpact | '';
+	desiredDeadline: string;
+	perceivedCriticality: Criticality | '';
+};
+
+// Arquivo em anexo — dados de UI para o estado do formulário (o upload binário
+// real é enviado separadamente na parte "attachments" do multipart).
+// `file` mantém o binário da sessão atual para o envio; não sobrevive ao
+// rascunho (localStorage) e é ausente após restaurar o formulário.
+export type DemandFile = {
+	id: string;
+	fileName: string;
+	mimeType: string;
+	sizeBytes: number;
+	file?: File;
+};
+
+// Etapa 4 — dados complementares (opcional).
+export type ComplementaryData = {
+	hasProcessDocumentation: YesNo | '';
+	hasProcessDocumentationDetail: string;
+	hasSimilarSolution: YesNo | '';
+	hasSimilarSolutionDetail: string;
+	dependsOnOtherAreas: YesNo | '';
+	dependsOnOtherAreasDetail: string;
+	handlesRestrictedInfo: YesNo | '';
+	handlesRestrictedInfoDetail: string;
+	additionalNotes: string;
+	files: DemandFile[];
+	preferredSchedule: string[];
+};
+
+export type DemandFormData = {
+	requester: IdentificationData;
+	demand: DemandData;
+	operational: OperationalData;
+	complementary: ComplementaryData;
+};
+
+// Erros de validação por campo de etapa.
+export type StepFieldErrors = Partial<Record<string, string>>;
+
+// Campos por etapa (para validação/gatilhos).
+export const STEP_FIELDS = {
+	1: ['fullName', 'corporateEmail', 'area', 'manager'] as const,
+	2: [
+		'title',
+		'processName',
+		'requestType',
+		'category',
+		'description',
+		'problem',
+		'justification',
+		'expectedResult'
+	] as const,
+	3: [
+		'processDescription',
+		'processSteps',
+		'systemsUsed',
+		'executionFrequency',
+		'volumetry',
+		'peopleInvolved',
+		'averageExecutionTime',
+		'monthlyEffortHours',
+		'hasManualControls',
+		'mainRisks',
+		'clientImpact',
+		'operationalImpact',
+		'desiredDeadline',
+		'perceivedCriticality'
+	] as const,
+	4: [] as const
+} as const;
+
+// ---- Opções de formulário (valores e rótulos para selects) ----
+
+export const CATEGORY_OPTIONS: { value: RequestCategory; label: string }[] = [
+	{ value: 'Automação', label: 'Automação' },
+	{ value: 'Melhoria de processo', label: 'Melhoria de processo' },
+	{ value: 'Indicador', label: 'Indicador' },
+	{ value: 'Dashboard ou relatório', label: 'Dashboard ou relatório' },
+	{ value: 'Análise de dados', label: 'Análise de dados' },
+	{ value: 'Padronização', label: 'Padronização' },
+	{ value: 'Revisão de processo', label: 'Revisão de processo' },
+	{ value: 'Apoio técnico', label: 'Apoio técnico' },
+	{ value: 'Estudo de viabilidade', label: 'Estudo de viabilidade' },
+	{ value: 'Outros', label: 'Outros' }
+];
+
+export const IMPACT_OPTIONS: { value: OperationalImpact; label: string }[] = [
+	{ value: 'Baixo', label: 'Baixo' },
+	{ value: 'Médio', label: 'Médio' },
+	{ value: 'Alto', label: 'Alto' },
+	{ value: 'Crítico', label: 'Crítico' }
+];
+
+export const AREA_OPTIONS = [
+	{ value: 'Tecnologia da Informação', label: 'Tecnologia da Informação' },
+	{ value: 'Recursos Humanos', label: 'Recursos Humanos' },
+	{ value: 'Financeiro', label: 'Financeiro' },
+	{ value: 'Operações', label: 'Operações' },
+	{ value: 'Comercial', label: 'Comercial' },
+	{ value: 'Marketing', label: 'Marketing' },
+	{ value: 'Jurídico', label: 'Jurídico' },
+	{ value: 'Administrativo', label: 'Administrativo' }
+];
+
+export const REQUEST_TYPE_OPTIONS: { value: RequestType; label: string }[] = [
+	{ value: 'Automação', label: 'Automação' },
+	{ value: 'Melhoria', label: 'Melhoria' },
+	{ value: 'Manutenção', label: 'Manutenção' }
+];
+
+export const FREQUENCY_OPTIONS: { value: Frequency; label: string }[] = [
+	{ value: 'Diária', label: 'Diária' },
+	{ value: 'Semanal', label: 'Semanal' },
+	{ value: 'Mensal', label: 'Mensal' },
+	{ value: 'Por Demanda', label: 'Por Demanda' }
+];
+
+export const CRITICALITY_OPTIONS: { value: Criticality; label: string }[] = [
+	{ value: 'Baixa', label: 'Baixa' },
+	{ value: 'Média', label: 'Média' },
+	{ value: 'Alta', label: 'Alta' },
+	{ value: 'Crítica', label: 'Crítica' }
+];
+
+export const YES_NO_OPTIONS: { value: YesNo; label: string }[] = [
+	{ value: 'Sim', label: 'Sim' },
+	{ value: 'Não', label: 'Não' }
+];
+
+// ---- Configuração de anexos ----
+
+export const ALLOWED_FILE_TYPES = [
+	'application/pdf',
+	'image/png',
+	'image/jpeg',
+	'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+	'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+] as const;
+
+export const ALLOWED_FILE_EXTENSIONS = ['.pdf', '.docx', '.xlsx', '.png', '.jpg', '.jpeg'] as const;
+
+export const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+export const MAX_PENDING_ATTACHMENTS_PER_BATCH = 3;
+
+// ---- Endpoints GET (contrato firmado; páginas futuras) ----
+
+export interface PaginationQuery {
+	page?: number;
+	pageSize?: number;
+}
+
+export interface ListRequestsQuery extends PaginationQuery {
+	email?: string;
+	search?: string;
+	status?: RequestStatus;
+}
+
+export interface PaginatedResponse<T> {
+	data: T[];
+	page: number;
+	pageSize: number;
+	total: number;
+	totalPages: number;
+}
+
+export interface RequestSummary {
+	protocol: string;
+	createdAt: string;
+	demandTitle?: string;
+	processName: string;
+	priority: RequestPriority | null;
+	status: RequestStatus;
+	assignee: string | null;
+	requesterName: string;
+}
+export interface RequestDetail {
+	protocol: string;
+	demandTitle: string;
+	processName: string;
+	status: RequestStatus;
+	assigneeName: string | null;
+	openedAt: string;
+	estimatedCompletion: string | null;
+	mappingDate: string | null;
+	meeting: { scheduledFor: string; link: string | null } | null;
+	pendingIssues: string[];
+	nextStep: string;
+	lastTechnicalMessage: string | null;
+	lastUpdate: string;
+	conclusion: {
+		result: TriageResult;
+		justification: string;
+	} | null;
+}
+
+import type { TriageAssessment } from './triage';
+
+// ---- DTO interno (superconjunto) ----
+// Service: getInternalRequest(protocol: string): Promise<Result<InternalRequestDetail>>
+
+export interface InternalAttachment {
+	fileName: string;
+	mimeType: string;
+	sizeBytes: number;
+	downloadUrl: string | null;
+	canDownload: boolean;
+}
+
+export interface PrioritizationResult {
+	score: number | null;
+	maxScore: 50;
+	label: RequestPriority | null;
+	// Notas salvas da última avaliação (reavaliação). Vazio na primeira vez.
+	notes: CriterionNotes;
+}
+
+// PATCH /requests/:protocol/status — v4 único (free + ADMIN bypass)
+export interface UpdateStatusRequest {
+	targetStatus: number;
+	justification: string;
+	lastTechnicalMessage?: string;
+}
+
+export interface UpdateStatusResponse {
+	protocol: string;
+	status: string;
+	previous: string;
+	next: string;
+	lastUpdate: string;
+}
+
+export type AnalystResponsibility = 'triagem' | 'mapeamento';
+
+export interface InternalRequestDetail {
+	protocol: string;
+	status: RequestStatus;
+	priority: RequestPriority | null;
+	prioritization: PrioritizationResult;
+	// ID do responsável (preparação para limitação por perfil — issue #121).
+	// `id` + `name` obrigatórios; ambos `null` apenas quando não atribuído.
+	assignee: { id: string | null; name: string | null; email?: string | null } | null;
+	// Responsável pelo mapeamento (contrato Front ↔ Back — Mapeamento): o
+	// backend devolve o objeto ao receber `mappingAssigneeId` no PATCH.
+	// Apenas um responsável é vigente por vez: ao atribuir `assignee`,
+	// `mappingAssignee` é `null`, e vice-versa.
+	mappingAssignee?: { id: string | null; name: string | null; email?: string | null } | null;
+	// ID do responsável pelo mapeamento: quando o backend expô-lo, prevalece
+	// sobre `assignee` na permissão de edição da aba Mapeamento.
+	mappingAssigneeId?: string | null;
+	// Prazo da atribuição vigente (ISO "yyyy-mm-dd"). `null` quando não definido.
+	assigneeDeadline: string | null;
+	// Leitura estendida do detalhe (contrato de pendências v0.5 §7): alerta de
+	// respostas a aprovar + resumo + não-lidos derivados de `PendingItem`.
+	// `unread` é derivado de `status` (D-P21) — sem "marcar como lido".
+	correctionAlert?: CorrectionAlert | null;
+	pendingSummary?: PendingSummary;
+	unread?: UnreadState;
+
+	// blocos da solicitação
+	requester: RequesterBlock;
+	demand: DemandBlock;
+	operational: OperationalBlock;
+	complementary?: ComplementaryBlock;
+	schedulePreferences: SchedulePreferences | null;
+	mappingDate: string | null;
+	meeting: { scheduledFor: string; link: string | null } | null;
+
+	attachments: InternalAttachment[];
+	openedAt: string;
+	lastUpdate: string;
+	lastExternalUpdateAt?: string | null;
+	// Último retorno público da equipe (escrito nas transições para status
+	// público; lido no /acompanhar e no detalhe interno M3).
+	lastTechnicalMessage?: string | null;
+	internalObservations?: string | null;
+	triage?: TriageAssessment | null;
+}
+
+// PATCH /requests/:protocol/internal — proposta (backend definirá o contrato
+// final). Só blocos editáveis; imutáveis (fullName/corporateEmail) ficam fora.
+export type UpdateInternalRequestPayload = Pick<
+	InternalRequestDetail,
+	'requester' | 'demand' | 'operational' | 'complementary'
+>;

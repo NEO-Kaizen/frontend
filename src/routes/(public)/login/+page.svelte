@@ -16,6 +16,7 @@
 		flex-direction: column;
 		align-items: center;
 		overflow: hidden;
+		margin: auto 0;
 	}
 
 	.content-container {

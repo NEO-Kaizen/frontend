@@ -2,7 +2,7 @@
 
 ## 1. Objetivo
 
-Este documento define os padrões de desenvolvimento adotados no frontend do Projeto NEO.
+Este documento define os padrões de desenvolvimento adotados no frontend do projeto MAAT.
 
 Seu objetivo é manter o código organizado, consistente e de fácil manutenção, estabelecendo convenções para escrita de código, criação de componentes, nomenclatura, acessibilidade e boas práticas.
 
@@ -25,17 +25,18 @@ Evite criar abstrações, componentes ou estruturas sem uma necessidade real.
 
 # 3. Nomenclatura
 
-| Elemento           | Padrão              | Exemplo            |
-| ------------------ | ------------------- | ------------------ |
-| Variável           | camelCase           | `currentUser`      |
-| Função             | camelCase com verbo | `loadUsers`        |
-| Componente         | PascalCase          | `UserTable.svelte` |
-| Tipo / Interface   | PascalCase          | `UserRole`         |
-| Constante global   | UPPER_SNAKE_CASE    | `MAX_FILE_SIZE`    |
-| Arquivo TypeScript | kebab-case          | `auth.service.ts`  |
-| Store              | `.store.ts`         | `auth.store.ts`    |
-| Service            | `.service.ts`       | `user.service.ts`  |
-| API                | `.api.ts`           | `user.api.ts`      |
+| Elemento             | Padrão               | Exemplo            |
+| -------------------- | -------------------- | ------------------ |
+| Variável             | camelCase            | `currentUser`      |
+| Função               | camelCase com verbo  | `loadUsers`        |
+| Componente           | PascalCase           | `UserTable.svelte` |
+| Tipo / Interface     | PascalCase           | `UserRole`         |
+| Constante global     | UPPER_SNAKE_CASE     | `MAX_FILE_SIZE`    |
+| Arquivo TypeScript   | kebab-case           | `auth.service.ts`  |
+| Estado compartilhado | `.svelte.ts` (runes) | `auth.svelte.ts`   |
+| Service              | `.service.ts`        | `user.service.ts`  |
+| API                  | `.api.ts`            | `user.api.ts`      |
+| Mock de dados        | `.mock.ts`           | `requests.mock.ts` |
 
 A equipe deve manter um único padrão durante todo o projeto.
 
@@ -54,6 +55,14 @@ Para manter o código alinhado às práticas do Svelte 5 e SvelteKit:
 - Consultar a documentação oficial do Svelte antes de introduzir soluções alternativas para comportamentos já suportados pelo framework.
 
 Esses padrões podem ser revisados e ampliados conforme novas necessidades forem identificadas durante o desenvolvimento.
+
+### 4.1 Carregamento de dados (loads)
+
+- Dado da nossa API em rota renderizada no servidor → `+page.server.ts` / `+layout.server.ts` (server load).
+- Load universal (`+page.ts` / `+layout.ts`) apenas para API externa sem credenciais.
+- Em SSR, use o `fetch` do evento de load — nunca o `fetch` global — e repasse-o por `load → service → api → apiClient`.
+- Sessão por cookie: o `fetch` do load cobre mesmo host/subdomínio; o `handleFetch` cobre domínios irmãos.
+- Detalhes e o porquê em `docs/02-Arquitetura-Frontend.md` (§16).
 
 # 5. TypeScript
 
@@ -93,7 +102,7 @@ Exemplos:
 - Icon
 - Table
 
-Os componentes da pasta `ui/` não devem conhecer regras específicas do Projeto NEO.
+Os componentes da pasta `ui/` não devem conhecer regras específicas do projeto MAAT.
 
 ---
 

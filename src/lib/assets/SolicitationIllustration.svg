@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" fill="none">
+  <!-- Traços superiores (brilho/destaque) -->
+  <path d="M48 20L52 28M60 16L60 26M72 20L68 28" stroke="#A0AEC0" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Parte de trás da pasta -->
+  <path d="M30 40H90V85C90 90.5 85.5 95 80 95H40C34.5 95 30 90.5 30 85V40Z" fill="#EDF2F7"/>
+
+  <!-- Documento de papel -->
+  <rect x="38" y="28" width="44" height="56" rx="4" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2"/>
+  <path d="M46 42H74M46 50H74M46 58H60" stroke="#CBD5E1" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- Parte da frente da pasta -->
+  <path d="M22 55H98L91.5 89.5C90.5 94.5 86 98 81 98H39C34 98 29.5 94.5 28.5 89.5L22 55Z" fill="#E2E8F0" stroke="#FFFFFF" stroke-width="2"/>
+
+  <!-- Lupa com foco na cor primária -->
+  <circle cx="82" cy="78" r="14" fill="#FFFFFF" stroke="#0058BE" stroke-width="4"/>
+  <path d="M92 88L104 100" stroke="#0058BE" stroke-width="6" stroke-linecap="round"/>
+  <!-- Reflexo interno na lente -->
+  <path d="M76 72A6 6 0 0184 72" stroke="#93C5FD" stroke-width="2" stroke-linecap="round"/>
+</svg>

@@ -1,6 +1,6 @@
 ---
 name: project-overview
-description: Visão geral do Projeto NEO, mais especificamente o frontend. Use esta skill para acessar contexto específico do projeto.
+description: Visão geral do projeto MAAT, mais especificamente o frontend. Use esta skill para acessar contexto específico do projeto.
 metadata:
   version: '1.0'
   tags: [visão geral do projeto, regras projeto, contexto do projeto, review]
@@ -10,9 +10,9 @@ metadata:
 
 ## 1. Objetivo
 
-Este documento apresenta a visão geral do frontend do **Projeto NEO**.
+Este documento apresenta a visão geral do frontend do **projeto MAAT**.
 
-O NEO é uma aplicação web interna destinada ao recebimento, organização, triagem, priorização, delegação e acompanhamento de solicitações.
+O MAAT é uma aplicação web interna destinada ao recebimento, organização, triagem, priorização, delegação e acompanhamento de solicitações.
 
 A documentação desta pasta define como o frontend deve ser organizado, desenvolvido, revisado e mantido pela equipe.
 

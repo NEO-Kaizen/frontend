@@ -1,4 +1,4 @@
-# Projeto NEO — Frontend
+# Projeto MAAT — Frontend
 
 Aplicação web interna para recebimento, organização, triagem, priorização e acompanhamento de solicitações.
 
@@ -53,17 +53,18 @@ Sempre prefira:
 
 ## Nomenclatura
 
-| Elemento           | Padrão              | Exemplo            |
-| ------------------ | ------------------- | ------------------ |
-| Variável           | camelCase           | `currentUser`      |
-| Função             | camelCase com verbo | `loadUsers`        |
-| Componente         | PascalCase          | `UserTable.svelte` |
-| Tipo / Interface   | PascalCase          | `UserRole`         |
-| Constante global   | UPPER_SNAKE_CASE    | `MAX_FILE_SIZE`    |
-| Arquivo TypeScript | kebab-case          | `auth.service.ts`  |
-| Store              | `.store.ts`         | `auth.store.ts`    |
-| Service            | `.service.ts`       | `user.service.ts`  |
-| API                | `.api.ts`           | `user.api.ts`      |
+| Elemento             | Padrão               | Exemplo            |
+| -------------------- | -------------------- | ------------------ |
+| Variável             | camelCase            | `currentUser`      |
+| Função               | camelCase com verbo  | `loadUsers`        |
+| Componente           | PascalCase           | `UserTable.svelte` |
+| Tipo / Interface     | PascalCase           | `UserRole`         |
+| Constante global     | UPPER_SNAKE_CASE     | `MAX_FILE_SIZE`    |
+| Arquivo TypeScript   | kebab-case           | `auth.service.ts`  |
+| Estado compartilhado | `.svelte.ts` (runes) | `auth.svelte.ts`   |
+| Service              | `.service.ts`        | `user.service.ts`  |
+| API                  | `.api.ts`            | `user.api.ts`      |
+| Mock de dados        | `.mock.ts`           | `requests.mock.ts` |
 
 ## Skills
 
@@ -71,7 +72,7 @@ Utilize as seguintes skills quando precisar de contexto e informações mais esp
 
 - development-pattern para acessar informações detalhadas e específicas de desenvolvimmento
 - frontend-architecture para acessar a estrutura arquitetura e fluxo
-- project-overview visão geral do Projeto NEO, mais especificamente o frontend.
+- project-overview visão geral do projeto MAAT, mais especificamente o frontend.
 - svelte-review para acessar informações adicionais sobre boas práticas de svelte e typescript
 
 ## Agents
