@@ -1,6 +1,7 @@
 import adapter from '@sveltejs/adapter-auto';
 import { sveltekit } from '@sveltejs/kit/vite';
-import { defineConfig, loadEnv } from 'vite';
+import { loadEnv } from 'vite';
+import { defineConfig } from 'vitest/config';
 
 export default defineConfig(({ mode }) => {
 	const env = loadEnv(mode, process.cwd(), '');
@@ -27,6 +28,16 @@ export default defineConfig(({ mode }) => {
 		},
 		preview: {
 			proxy: { '/uploads': uploadsProxy }
-		}
+		},
+		test: {
+			environment: 'jsdom',
+			setupFiles: ['./src/tests/setup.ts'],
+			include: ['src/**/*.test.ts']
+		},
+		resolve: process.env.VITEST
+			? {
+					conditions: ['browser']
+				}
+			: undefined
 	};
 });

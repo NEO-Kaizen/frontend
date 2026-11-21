@@ -108,19 +108,14 @@
 	const isSettingsPage = $derived(page.url.pathname.startsWith(NAV_PATHS.settings));
 
 	let isSearching = $state(false);
+	let searchError = $state('');
+	let lastSearchTerm = '';
 
-	async function handleSearchSubmit(event: SubmitEvent) {
-		event.preventDefault();
-
+	async function executeSearch(value: string) {
 		if (isSearching) return;
 
-		const form = event.currentTarget as HTMLFormElement;
-		const formData = new FormData(form);
-		const value = String(formData.get('pesquisar-chamados') ?? '').trim();
-
-		if (!value) return;
-
 		isSearching = true;
+		searchError = '';
 
 		try {
 			if (isNotSolicitante) {
@@ -136,7 +131,7 @@
 			const result = await searchRequests(value);
 
 			if (!result.ok) {
-				console.error(result.error.message);
+				searchError = result.error.message;
 				return;
 			}
 
@@ -155,9 +150,29 @@
 			// a navegação é validada em runtime pelo SvelteKit.
 			// eslint-disable-next-line svelte/no-navigation-without-resolve
 			await goto(`${resolve('/(public)/acompanhar')}?${searchParams.toString()}`);
+		} catch {
+			searchError = 'Não foi possível concluir a busca. Tente novamente.';
 		} finally {
 			isSearching = false;
 		}
+	}
+
+	async function handleSearchSubmit(event: SubmitEvent) {
+		event.preventDefault();
+
+		const form = event.currentTarget as HTMLFormElement;
+		const formData = new FormData(form);
+		const value = String(formData.get('pesquisar-chamados') ?? '').trim();
+
+		if (!value) return;
+
+		lastSearchTerm = value;
+		await executeSearch(value);
+	}
+
+	async function retrySearch() {
+		if (!lastSearchTerm) return;
+		await executeSearch(lastSearchTerm);
 	}
 
 	let isLoggingOut = $state(false);
@@ -191,22 +206,33 @@
 		</a>
 
 		<div class="top_bar-interactables">
-			<form role="search" class="search-container" onsubmit={handleSearchSubmit}>
-				<Input
-					type="search"
-					placeholder="Buscar solicitação"
-					aria-label="Buscar solicitação"
-					name="pesquisar-chamados"
-					value={activeSearch}
-					disabled={isSearching}
-					actionIcon="search"
-					actionLabel="Buscar"
-					onAction={() => {
-						const form = document.querySelector('form[role="search"]') as HTMLFormElement | null;
-						form?.requestSubmit();
-					}}
-				/>
-			</form>
+			<div class="search-area">
+				<form role="search" class="search-container" onsubmit={handleSearchSubmit}>
+					<Input
+						type="search"
+						placeholder="Buscar solicitação"
+						aria-label="Buscar solicitação"
+						name="pesquisar-chamados"
+						value={activeSearch}
+						disabled={isSearching}
+						actionIcon="search"
+						actionLabel="Buscar"
+						onAction={() => {
+							const form = document.querySelector('form[role="search"]') as HTMLFormElement | null;
+							form?.requestSubmit();
+						}}
+					/>
+				</form>
+
+				{#if searchError}
+					<div class="search-error" role="alert">
+						<span>{searchError}</span>
+						<Button variant="outline" disabled={isSearching} onclick={() => void retrySearch()}>
+							Tentar novamente
+						</Button>
+					</div>
+				{/if}
+			</div>
 
 			<Button
 				variant="primary"
@@ -349,8 +375,36 @@
 		gap: var(--spacing-md);
 		align-items: center;
 	}
-	.search-container {
+	.search-area {
+		position: relative;
 		width: 300px;
+	}
+
+	.search-container {
+		width: 100%;
+	}
+
+	.search-error {
+		position: absolute;
+		top: 100%;
+		left: 0;
+		z-index: 10;
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-sm);
+		width: 100%;
+		margin-top: 4px;
+		padding: var(--spacing-sm);
+		font: var(--label);
+		color: var(--status-red);
+		background-color: var(--white);
+		border: var(--border-default);
+		border-radius: var(--radius-md);
+		box-shadow: var(--regular-shadow);
+	}
+
+	.search-error span {
+		flex: 1;
 	}
 
 	.theme-toggle {

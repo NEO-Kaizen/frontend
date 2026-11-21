@@ -278,6 +278,7 @@
 		{priorityOptions}
 		{assigneeOptions}
 		search={activeSearch}
+		isSearching={isFetching}
 		onFilterChange={(next) => void handleFilterChange(next.status, next.priority, next.assignee)}
 		onSearch={(term) => void handleSearch(term)}
 		onClear={() => void handleClearFilters()}
@@ -288,6 +289,8 @@
 		result={data.result}
 		{isFetching}
 		detailRoute="/(admin)/fila/[protocolo]"
+		emptyMessage="Ajuste a busca ou os filtros e tente novamente."
+		onretry={() => void invalidate('app:queue')}
 		onpagechange={goToPage}
 	/>
 </section>
