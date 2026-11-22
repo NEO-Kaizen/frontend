@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
+	import ExportPdfButton from '$lib/components/ExportPdfButton.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import NotFoundState from '$lib/components/NotFoundState.svelte';
 	import {
@@ -14,6 +15,7 @@
 		isAuthenticatedDetails
 	} from '$lib/services/requester-tracking.service';
 	import { countUnreadRequesterItems } from '$lib/services/pendency.service';
+	import { exportRequesterRequestPdf } from '$lib/services/request-pdf.service';
 	import { toastState } from '$lib/states/toast.svelte';
 	import type {
 		DetailsState,
@@ -22,6 +24,8 @@
 		TrackingDetailsResponse
 	} from '$lib/types/requester-tracking';
 	import { formatDate, formatDateTime } from '$lib/utils/dates';
+	import { startDownload } from '$lib/utils/download';
+	import { notifyError } from '$lib/utils/feedback';
 	import { isClosingStatus, statusThemeVars } from '$lib/utils/status';
 	import type { PageProps } from './$types';
 	import PublicValidationForm from './components/PublicValidationForm.svelte';
@@ -56,12 +60,22 @@
 	// durante a permanência nesta página e só para este protocolo.
 	let identity = $state<RequesterIdentity | null>(null);
 	let unreadCount = $state(0);
+	let isExportingPdf = $state(false);
 
 	type TrackingTabId = 'solicitacao' | 'pendencias';
 	let activeTab = $state<TrackingTabId>('solicitacao');
 
 	const details = $derived(tracking?.details ?? null);
 	const detailsMode = $derived(tracking?.mode ?? null);
+	// Exportação em PDF (v1): solicitante dono (autenticado) e fluxo público.
+	// Perfis internos exportam pela tela de detalhe interno, cujo documento é
+	// completo — o backend responde 403 para eles nesta rota. No público a
+	// variante é a reduzida, que o backend valida por nome + e-mail.
+	const canExportPdf = $derived(
+		detailsMode === 'authenticated'
+			? user?.role === 'Solicitante'
+			: detailsMode === 'public' && identity !== null
+	);
 	const prazoDesejado = $derived(
 		tracking && isAuthenticatedDetails(tracking)
 			? formatDate(tracking.details.operational.desiredDeadline)
@@ -181,6 +195,31 @@
 		activeTab = tab;
 	}
 
+	// `identity` só é enviada no fluxo público: no autenticado quem define a
+	// variante é o cookie de sessão, e a identidade pública pode estar em
+	// `sessionStorage` de uma validação anterior para o mesmo protocolo.
+	async function handleExportPdf(): Promise<void> {
+		if (isExportingPdf) return;
+
+		isExportingPdf = true;
+
+		try {
+			const result = await exportRequesterRequestPdf(
+				protocol,
+				detailsMode === 'public' ? identity : null
+			);
+
+			if (!result.ok) {
+				notifyError(result.error.message);
+				return;
+			}
+
+			startDownload(result.data.blob, result.data.filename);
+		} finally {
+			isExportingPdf = false;
+		}
+	}
+
 	onMount(() => {
 		if (needsValidation) {
 			// Reaproveita a validação da sessão da página (sessionStorage) —
@@ -247,6 +286,10 @@
 				>
 					{details.status}
 				</span>
+
+				{#if canExportPdf}
+					<ExportPdfButton loading={isExportingPdf} onExport={() => void handleExportPdf()} />
+				{/if}
 			</div>
 		</div>
 
@@ -464,6 +507,14 @@
 		font-family: var(--font-inter);
 	}
 
+	.right-status {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-end;
+		gap: var(--spacing-sm);
+		flex-shrink: 0;
+	}
+
 	.status-pill {
 		padding: 6px 14px;
 		border-radius: var(--radius-md);
@@ -672,6 +723,10 @@
 
 		.tracking-header {
 			flex-direction: column;
+		}
+
+		.right-status {
+			align-items: flex-start;
 		}
 
 		.metadata-row {
