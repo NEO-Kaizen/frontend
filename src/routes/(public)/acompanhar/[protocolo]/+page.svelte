@@ -15,6 +15,7 @@
 		isAuthenticatedDetails
 	} from '$lib/services/requester-tracking.service';
 	import { countUnreadRequesterItems } from '$lib/services/pendency.service';
+	import { exportRequesterRequestPdf } from '$lib/services/request-pdf.service';
 	import { toastState } from '$lib/states/toast.svelte';
 	import type {
 		DetailsState,
@@ -23,7 +24,8 @@
 		TrackingDetailsResponse
 	} from '$lib/types/requester-tracking';
 	import { formatDate, formatDateTime } from '$lib/utils/dates';
-	import { notifyInfo } from '$lib/utils/feedback';
+	import { startDownload } from '$lib/utils/download';
+	import { notifyError } from '$lib/utils/feedback';
 	import { isClosingStatus, statusThemeVars } from '$lib/utils/status';
 	import type { PageProps } from './$types';
 	import PublicValidationForm from './components/PublicValidationForm.svelte';
@@ -65,11 +67,15 @@
 
 	const details = $derived(tracking?.details ?? null);
 	const detailsMode = $derived(tracking?.mode ?? null);
-	// Exportação em PDF (v1): só o solicitante, e só no acompanhamento
-	// autenticado. Perfis internos exportam pela tela de detalhe interno, cujo
-	// documento é completo. O modo público fica fora porque autoriza por
-	// `X-Requester-Identity` (dado enviado pelo cliente).
-	const canExportPdf = $derived(detailsMode === 'authenticated' && user?.role === 'Solicitante');
+	// Exportação em PDF (v1): solicitante dono (autenticado) e fluxo público.
+	// Perfis internos exportam pela tela de detalhe interno, cujo documento é
+	// completo — o backend responde 403 para eles nesta rota. No público a
+	// variante é a reduzida, que o backend valida por nome + e-mail.
+	const canExportPdf = $derived(
+		detailsMode === 'authenticated'
+			? user?.role === 'Solicitante'
+			: detailsMode === 'public' && identity !== null
+	);
 	const prazoDesejado = $derived(
 		tracking && isAuthenticatedDetails(tracking)
 			? formatDate(tracking.details.operational.desiredDeadline)
@@ -189,17 +195,26 @@
 		activeTab = tab;
 	}
 
-	// Ponto de integração da API (task de integração): trocar o corpo por
-	// `exportRequestPdf(protocol)` e fazer o download do blob. O componente
-	// `ExportPdfButton` não muda — ele só recebe `loading` e `onExport`.
+	// `identity` só é enviada no fluxo público: no autenticado quem define a
+	// variante é o cookie de sessão, e a identidade pública pode estar em
+	// `sessionStorage` de uma validação anterior para o mesmo protocolo.
 	async function handleExportPdf(): Promise<void> {
 		if (isExportingPdf) return;
 
 		isExportingPdf = true;
 
 		try {
-			await new Promise((resolve) => setTimeout(resolve, 1200));
-			notifyInfo('Integração pendente: o PDF será gerado pelo backend.');
+			const result = await exportRequesterRequestPdf(
+				protocol,
+				detailsMode === 'public' ? identity : null
+			);
+
+			if (!result.ok) {
+				notifyError(result.error.message);
+				return;
+			}
+
+			startDownload(result.data.blob, result.data.filename);
 		} finally {
 			isExportingPdf = false;
 		}

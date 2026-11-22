@@ -10,6 +10,7 @@
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import { exportQueueCsv } from '$lib/services/report.service';
+	import { startDownload } from '$lib/utils/download';
 	import { notifyError } from '$lib/utils/feedback';
 
 	import type { MetricItem } from '$lib/types/metrics';
@@ -197,19 +198,6 @@
 		if (assigneeId !== 'all') filters.assigneeId = assigneeId;
 
 		return filters;
-	}
-
-	function startDownload(blob: Blob, filename: string): void {
-		const objectUrl = URL.createObjectURL(blob);
-		const anchor = document.createElement('a');
-		anchor.href = objectUrl;
-		anchor.download = filename;
-		anchor.hidden = true;
-		document.body.append(anchor);
-		anchor.click();
-		anchor.remove();
-		// Mantém a URL válida até o navegador efetivamente iniciar o download.
-		setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
 	}
 
 	async function handleExport(): Promise<void> {

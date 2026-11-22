@@ -22,6 +22,7 @@
 		toPendingBatches
 	} from '$lib/services/pendency.service';
 	import { updateInternalRequest } from '$lib/services/request.service';
+	import { exportInternalRequestPdf } from '$lib/services/request-pdf.service';
 	import { toastState } from '$lib/states/toast.svelte';
 	import type {
 		InternalNotesResponse,
@@ -33,6 +34,8 @@
 	import type { ListPendenciesResponse, PendingBatch } from '$lib/types/pendency';
 	import type { InternalRequestDetail } from '$lib/types/request';
 	import type { Result } from '$lib/types/result';
+	import { startDownload } from '$lib/utils/download';
+	import { notifyError } from '$lib/utils/feedback';
 	import InternalNotesSection from './InternalNotesSection.svelte';
 	import ConversationHistory from './conversation/ConversationHistory.svelte';
 	import MappingSection from './mapping/MappingSection.svelte';
@@ -412,17 +415,22 @@
 		exitEditMode();
 	}
 
-	// Ponto de integração da API (task de integração): trocar o corpo por
-	// `exportRequestPdf(protocol)` e disparar o download do blob. O componente
-	// `ExportPdfButton` não muda — recebe apenas `loading` e `onExport`.
+	// PDF interno (documento completo, sempre pela sessão). O backend decide a
+	// variante pela credencial; aqui só disparamos o download do blob.
 	async function handleExportPdf(): Promise<void> {
 		if (isExportingPdf) return;
 
 		isExportingPdf = true;
 
 		try {
-			await new Promise((resolve) => setTimeout(resolve, 1200));
-			toastState.add('Integração pendente: o PDF será gerado pelo backend.', 'info');
+			const result = await exportInternalRequestPdf(solicitation.protocol);
+
+			if (!result.ok) {
+				notifyError(result.error.message);
+				return;
+			}
+
+			startDownload(result.data.blob, result.data.filename);
 		} finally {
 			isExportingPdf = false;
 		}
