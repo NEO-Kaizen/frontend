@@ -214,11 +214,28 @@ export function saveCategories(
 	});
 }
 
-export function saveStatuses(payload: UpdateStatusesRequest): Promise<Result<StatusesSection>> {
-	return persist('os status', async () => {
+// 409 `core_status_locked` (contrato RF13 §2): o backend rejeita alteração de
+// `isPaused` em Status de núcleo. A mensagem técnica é trocada por uma
+// amigável; o rascunho do card é preservado pelo `SectionState`.
+const CORE_STATUS_LOCKED_MESSAGE = 'A pausa de Status de núcleo não pode ser alterada.';
+
+export async function saveStatuses(
+	payload: UpdateStatusesRequest
+): Promise<Result<StatusesSection>> {
+	const result = await persist('os status', async () => {
 		const data = await updateStatuses({ statuses: sanitizeStatuses(payload.statuses) });
 		return { statuses: sanitizeStatuses(data.statuses) };
 	});
+
+	if (
+		!result.ok &&
+		result.error.status === 409 &&
+		/core_status_locked/i.test(result.error.message)
+	) {
+		return { ok: false, error: { status: 409, message: CORE_STATUS_LOCKED_MESSAGE } };
+	}
+
+	return result;
 }
 
 export function savePrioritizationWeights(
@@ -485,12 +502,18 @@ function sanitizeStatuses(value: unknown): PortalStatus[] {
 
 		const isRestricted = item.isRestricted === true;
 
+		// isPaused (RF13) — mantido só quando booleano. Ausente segue ausente:
+		// no PATCH o backend preserva o valor do banco; virar `false` aqui
+		// sobrescreveria a configuração (e geraria 409 em Status de núcleo).
+		const pause = typeof item.isPaused === 'boolean' ? { isPaused: item.isPaused } : {};
+
 		statuses.push({
 			id: item.id,
 			name,
 			isCore,
 			isPublic,
 			isTerminal,
+			...pause,
 			triageMode,
 			mappingMode,
 			isRestricted,

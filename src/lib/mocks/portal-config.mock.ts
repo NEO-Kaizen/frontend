@@ -53,7 +53,18 @@ import {
 // Estado do mock em memória — inicia com os defaults locais e recebe os PATCHes
 // por seção durante a sessão de desenvolvimento. Espelha o contrato de
 // `contratos/portal-config-api.md`.
-let mockConfig: PortalConfig = structuredClone(DEFAULT_PORTAL_CONFIG);
+// RF13: o backend sempre devolve `isPaused`; os defaults locais não o definem
+// (ver `portal-defaults.ts`), então o mock o acrescenta — só "Pendente de
+// informações" (id 4) começa como pausa.
+const PAUSED_STATUS_IDS: readonly number[] = [4];
+
+let mockConfig: PortalConfig = {
+	...structuredClone(DEFAULT_PORTAL_CONFIG),
+	statuses: DEFAULT_PORTAL_CONFIG.statuses.map((status) => ({
+		...structuredClone(status),
+		isPaused: PAUSED_STATUS_IDS.includes(status.id)
+	}))
+};
 
 const SOLICITATION_MODES: readonly SolicitationMode[] = ['PUBLIC', 'AUTHENTICATED'];
 
@@ -199,7 +210,8 @@ export function updateCategoriesMock(payload: UpdateCategoriesRequest): Promise<
 
 export function updateStatusesMock(payload: UpdateStatusesRequest): Promise<StatusesSection> {
 	validateStatuses(payload.statuses);
-	mockConfig = { ...mockConfig, statuses: structuredClone(payload.statuses) };
+	const statuses = applyPausedRules(payload.statuses, mockConfig.statuses);
+	mockConfig = { ...mockConfig, statuses };
 	return delay(MOCK_LATENCY_MS).then(() => ({ statuses: structuredClone(mockConfig.statuses) }));
 }
 
@@ -335,6 +347,30 @@ function validateCategories(categories: PortalCategory[]): void {
 // isCore/isPublic/isTerminal/triageMode/mappingMode/isRestricted, nomes únicos
 // e ao menos um ativo. A ordem de exibição é a ordem do array. 409 para
 // rename/remove core (7 vitais).
+// Espelha o backend (contrato RF13 §2): `isPaused` ausente preserva o valor
+// atual (novo Status começa `false`); Status de núcleo não podem mudá-lo —
+// 409 `core_status_locked`.
+function applyPausedRules(next: PortalStatus[], current: PortalStatus[]): PortalStatus[] {
+	return next.map((status) => {
+		const previous = current.find((item) => item.id === status.id);
+		const previousPaused = previous?.isPaused ?? false;
+
+		if (status.isPaused === undefined) {
+			return { ...structuredClone(status), isPaused: previousPaused };
+		}
+
+		if (typeof status.isPaused !== 'boolean') {
+			throw new ApiError(400, 'Campo "isPaused" deve ser booleano.');
+		}
+
+		if (previous?.isCore && status.isPaused !== previousPaused) {
+			throw new ApiError(409, 'core_status_locked');
+		}
+
+		return structuredClone(status);
+	});
+}
+
 function validateStatuses(statuses: PortalStatus[]): void {
 	if (!Array.isArray(statuses) || statuses.length === 0 || statuses.length > MAX_STATUSES) {
 		throw new ApiError(400, 'A lista de status deve ter entre 1 e 50 itens.');
