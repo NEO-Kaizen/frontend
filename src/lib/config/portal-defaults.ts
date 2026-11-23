@@ -91,6 +91,10 @@ export const DEFAULT_CATEGORIES: PortalCategory[] = [
 // `isTriageExit` de `contract-triage_04.md`). `isCore` 7 vitais `1,3,4,6,7,16,17`,
 // `isTerminal` só `16,17`, `isRestricted` só `11 Priorizado none/none`,
 // `isPaused` (RF13) só `4 Pendente de informações`.
+// Valor de `isPaused` de um Status criado na tela de Configurações (RF13): novo
+// Status conta como tempo ativo até o Administrador marcá-lo como pausa.
+export const DEFAULT_NEW_STATUS_PAUSED = false;
+
 export const DEFAULT_STATUSES: PortalStatus[] = [
 	{
 		id: 1,

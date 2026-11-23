@@ -8,7 +8,7 @@
 	import InfoTip from '$lib/components/InfoTip.svelte';
 	import LegendPill from '$lib/components/LegendPill.svelte';
 	import ToggleButton from '$lib/components/ToggleButton.svelte';
-	import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
+	import { DEFAULT_NEW_STATUS_PAUSED, DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
 	import { isPortalConfigLoadBlocked } from '$lib/config/portal-config-load';
 	import { saveStatuses } from '$lib/config/portal-config.service';
 	import { SectionState } from '$lib/states/section.svelte';
@@ -96,7 +96,7 @@
 				isCore: false,
 				isPublic: false,
 				isTerminal: false,
-				isPaused: false,
+				isPaused: DEFAULT_NEW_STATUS_PAUSED,
 				triageMode: 'none',
 				mappingMode: 'none',
 				isRestricted: false,

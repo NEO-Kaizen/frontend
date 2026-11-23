@@ -147,7 +147,7 @@ export function isValidJustification(value: string): boolean {
 }
 
 // Nomes únicos comparando depois do trim, sem diferenciar maiúsculas.
-export function areStatusNamesUnique(statuses: readonly PortalStatus[]): boolean {
+export function areStatusNamesUnique(statuses: readonly Pick<PortalStatus, 'name'>[]): boolean {
 	const seen = new Set<string>();
 	for (const status of statuses) {
 		const normalized = status.name.trim().toLowerCase();
@@ -157,7 +157,7 @@ export function areStatusNamesUnique(statuses: readonly PortalStatus[]): boolean
 	return true;
 }
 
-export function hasActiveStatus(statuses: readonly PortalStatus[]): boolean {
+export function hasActiveStatus(statuses: readonly Pick<PortalStatus, 'isActive'>[]): boolean {
 	return statuses.some((status) => status.isActive);
 }
 

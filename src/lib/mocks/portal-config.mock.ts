@@ -199,10 +199,10 @@ export function updateCategoriesMock(payload: UpdateCategoriesRequest): Promise<
 }
 
 export function updateStatusesMock(payload: UpdateStatusesRequest): Promise<StatusesSection> {
-	// `applyPausedRules` completa `isPaused` (ausente = valor salvo) antes da
-	// validação dos demais campos.
+	// Valida o payload como chega (400 descritivo, como o backend) e só então
+	// completa `isPaused` ausente com o valor salvo.
+	validateStatuses(payload.statuses);
 	const statuses = applyPausedRules(payload.statuses, mockConfig.statuses);
-	validateStatuses(statuses);
 	mockConfig = { ...mockConfig, statuses };
 	return delay(MOCK_LATENCY_MS).then(() => ({ statuses: structuredClone(mockConfig.statuses) }));
 }
@@ -351,10 +351,6 @@ function applyPausedRules(next: PortalStatusPayload[], current: PortalStatus[]):
 			return { ...structuredClone(status), isPaused: savedPaused };
 		}
 
-		if (typeof isPaused !== 'boolean') {
-			throw new ApiError(400, 'Campo "isPaused" deve ser booleano.');
-		}
-
 		if (saved?.isCore && isPaused !== savedPaused) {
 			throw new ApiError(
 				409,
@@ -367,7 +363,7 @@ function applyPausedRules(next: PortalStatusPayload[], current: PortalStatus[]):
 	});
 }
 
-function validateStatuses(statuses: PortalStatus[]): void {
+function validateStatuses(statuses: PortalStatusPayload[]): void {
 	if (!Array.isArray(statuses) || statuses.length === 0 || statuses.length > MAX_STATUSES) {
 		throw new ApiError(400, 'A lista de status deve ter entre 1 e 50 itens.');
 	}
@@ -405,6 +401,9 @@ function validateStatuses(statuses: PortalStatus[]): void {
 		}
 		if (typeof status.isRestricted !== 'boolean') {
 			throw new ApiError(400, 'Campo "isRestricted" deve ser booleano.');
+		}
+		if (status.isPaused !== undefined && typeof status.isPaused !== 'boolean') {
+			throw new ApiError(400, 'Campo "isPaused" deve ser booleano.');
 		}
 	}
 
