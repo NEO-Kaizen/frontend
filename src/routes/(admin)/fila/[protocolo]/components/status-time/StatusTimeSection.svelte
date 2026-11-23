@@ -22,49 +22,61 @@
 	let times = $state<StatusTimesResponse | null>(null);
 	let events = $state<RequestAuditEvent[]>([]);
 	let isLoading = $state(true);
+	let isEventsLoading = $state(true);
 	let errorMessage = $state<string | null>(null);
 	let errorStatus = $state<number | undefined>(undefined);
+	let eventsError = $state<string | null>(null);
+	let eventsErrorStatus = $state<number | undefined>(undefined);
 
 	// A aba só monta o componente quando é aberta (e o `SpecTabs` o remonta
-	// quando uma ação altera o histórico de Status). Protege contra respostas
-	// desatualizadas caso "Tentar novamente" seja acionado mais de uma vez.
-	let loadGeneration = 0;
+	// quando uma ação altera o histórico de Status). Cada consulta tem sua
+	// geração para descartar respostas antigas sem bloquear a outra.
+	let timesGeneration = 0;
+	let eventsGeneration = 0;
 
-	async function load(): Promise<void> {
-		const generation = ++loadGeneration;
+	async function loadTimes(): Promise<void> {
+		const generation = ++timesGeneration;
 		isLoading = true;
 		errorMessage = null;
 		errorStatus = undefined;
 
-		const [timesResult, eventsResult] = await Promise.all([
-			getStatusTimes(protocol),
-			getRequestAuditLogs(protocol)
-		]);
+		const result = await getStatusTimes(protocol);
+		if (generation !== timesGeneration) return;
 
-		// Uma requisição mais recente pode terminar antes: só a última vale.
-		if (generation !== loadGeneration) return;
-
-		if (!timesResult.ok) {
+		if (result.ok) {
+			times = result.data;
+		} else {
 			times = null;
-			events = [];
-			errorMessage = timesResult.error.message;
-			errorStatus = timesResult.error.status;
-			isLoading = false;
-			return;
+			errorMessage = result.error.message;
+			errorStatus = result.error.status;
 		}
-
-		if (!eventsResult.ok) {
-			times = null;
-			events = [];
-			errorMessage = eventsResult.error.message;
-			errorStatus = eventsResult.error.status;
-			isLoading = false;
-			return;
-		}
-
-		times = timesResult.data;
-		events = filterStatusAuditEvents(eventsResult.data);
 		isLoading = false;
+	}
+
+	async function loadEvents(): Promise<void> {
+		const generation = ++eventsGeneration;
+		isEventsLoading = true;
+		eventsError = null;
+		eventsErrorStatus = undefined;
+
+		const result = await getRequestAuditLogs(protocol);
+		if (generation !== eventsGeneration) return;
+
+		if (result.ok) {
+			events = filterStatusAuditEvents(result.data);
+		} else {
+			events = [];
+			eventsError = result.error.message;
+			eventsErrorStatus = result.error.status;
+		}
+		isEventsLoading = false;
+	}
+
+	// Consultas independentes: os tempos não esperam a auditoria para serem
+	// exibidos, e uma falha nos eventos não esconde cards/tabela/timeline.
+	function load(): void {
+		void loadTimes();
+		void loadEvents();
 	}
 
 	onMount(() => {
@@ -91,7 +103,7 @@
 		<div class="state state-error" role="alert">
 			<p>{errorMessage}</p>
 			{#if errorStatus !== 403}
-				<Button variant="outline-neutral" onclick={() => void load()}>Tentar novamente</Button>
+				<Button variant="outline-neutral" onclick={() => void loadTimes()}>Tentar novamente</Button>
 			{/if}
 		</div>
 	{:else if times}
@@ -101,7 +113,11 @@
 			</p>
 		{:else}
 			<div class="status-time-content">
-				<StatusTimeCards {times} />
+				<StatusTimeCards
+					{times}
+					onRefresh={() => void load()}
+					isRefreshing={isLoading || isEventsLoading}
+				/>
 
 				{#if times.totalsByStatus.length > 0}
 					<StatusTimeTable totals={times.totalsByStatus} />
@@ -110,12 +126,16 @@
 				{#if times.intervals.length > 0}
 					<StatusTimeTimeline intervals={times.intervals} calculatedAt={times.calculatedAt} />
 				{/if}
-
-				{#if events.length > 0}
-					<StatusTimeEvents {events} />
-				{/if}
 			</div>
 		{/if}
+
+		<StatusTimeEvents
+			{events}
+			error={eventsError}
+			errorStatus={eventsErrorStatus}
+			isLoading={isEventsLoading}
+			onRetry={() => void loadEvents()}
+		/>
 	{/if}
 </section>
 
