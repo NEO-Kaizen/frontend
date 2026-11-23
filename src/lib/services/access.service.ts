@@ -2,7 +2,11 @@ import { redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import type { RouteId } from '$app/types';
 import type { SessionUser } from '$lib/types/auth';
-import { OPERATIONAL_AREA_KEYS, PORTAL_READ_KEYS, type PermissionKey } from '$lib/types/permission';
+import {
+	OPERATIONAL_AREA_KEYS,
+	PORTAL_ACCESS_KEYS,
+	type PermissionKey
+} from '$lib/types/permission';
 import { has, hasAny } from '$lib/utils/permission-checks';
 
 export { can, has, hasAny } from '$lib/utils/permission-checks';
@@ -29,13 +33,13 @@ const HOME_REDIRECTS: readonly HomeRedirect[] = [
 	{ keys: ['queue:read'], route: '/(admin)/fila' },
 	{ keys: ['reports:read'], route: '/(admin)/dashboard' },
 	{ keys: ['user:read'], route: '/(admin)/usuarios' },
-	{ keys: PORTAL_READ_KEYS, route: '/(admin)/configuracoes' },
+	{ keys: PORTAL_ACCESS_KEYS, route: '/(admin)/configuracoes' },
 	{ keys: ['request:track'], route: '/(public)/acompanhar' }
 ];
 
 export const ADMIN_AREA_KEYS: readonly PermissionKey[] = [
 	...OPERATIONAL_AREA_KEYS,
-	...PORTAL_READ_KEYS
+	...PORTAL_ACCESS_KEYS
 ];
 
 function loginRedirectPath(pathname?: string): string {

@@ -42,7 +42,7 @@ async function canAccessInternalNotes(
 			detail.mappingAssigneeId === currentUser.id
 		);
 	} catch {
-		return false;
+		throw new ApiError(404, 'Solicitação não encontrada.');
 	}
 }
 

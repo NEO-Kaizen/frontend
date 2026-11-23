@@ -115,6 +115,19 @@ export const PORTAL_READ_KEYS = [
 	'prioritization_config:read'
 ] as const satisfies readonly PermissionKey[];
 
+export const PORTAL_MANAGE_KEYS = [
+	'theme:manage',
+	'category:manage',
+	'status:manage',
+	'portal_setting:manage',
+	'prioritization_config:manage'
+] as const satisfies readonly PermissionKey[];
+
+export const PORTAL_ACCESS_KEYS = [
+	...PORTAL_READ_KEYS,
+	...PORTAL_MANAGE_KEYS
+] as const satisfies readonly PermissionKey[];
+
 export function isPermissionKey(value: unknown): value is PermissionKey {
 	return typeof value === 'string' && (PERMISSION_KEYS as readonly string[]).includes(value);
 }

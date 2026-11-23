@@ -7,8 +7,7 @@
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Modal from '$lib/components/Modal.svelte';
-	import { can } from '$lib/services/access.service';
-	import { has } from '$lib/utils/permission-checks';
+	import { can, has } from '$lib/utils/permission-checks';
 	import { getInternalNotes } from '$lib/services/internal-note.service';
 	import {
 		buildCreatePendingItemsPayload,

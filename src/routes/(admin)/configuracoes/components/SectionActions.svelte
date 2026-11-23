@@ -41,7 +41,7 @@
 
 <div class="section-actions">
 	{#if readOnly}
-		<p class="read-only-note" role="status">
+		<p class="read-only-note" role="note">
 			Somente leitura. Você não tem permissão para alterar esta configuração.
 		</p>
 	{/if}

@@ -14,7 +14,7 @@
 	import { hasAny } from '$lib/services/access.service';
 	import {
 		OPERATIONAL_AREA_KEYS,
-		PORTAL_READ_KEYS,
+		PORTAL_ACCESS_KEYS,
 		type PermissionKey
 	} from '$lib/types/permission';
 	import { onMount } from 'svelte';
@@ -103,7 +103,7 @@
 		{
 			name: 'Configurações',
 			icon: 'settings',
-			keys: PORTAL_READ_KEYS,
+			keys: PORTAL_ACCESS_KEYS,
 			route: NAV_ROUTES.settings
 		}
 	];
