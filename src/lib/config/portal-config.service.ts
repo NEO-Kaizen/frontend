@@ -45,6 +45,7 @@ import type {
 	PortalConfig,
 	PortalAssetsPatch,
 	PortalStatus,
+	PortalStatusPayload,
 	PortalTheme,
 	PrioritizationWeights,
 	PrioritizationWeightsSection,
@@ -59,7 +60,6 @@ import type {
 	UpdateCategoriesRequest,
 	UpdateIdentityRequest,
 	UpdatePrioritizationWeightsRequest,
-	UpdateStatusesRequest,
 	UpdateThemeRequest
 } from '$lib/types/portal-config';
 
@@ -214,10 +214,42 @@ export function saveCategories(
 	});
 }
 
-export function saveStatuses(payload: UpdateStatusesRequest): Promise<Result<StatusesSection>> {
+// 409 `core_status_locked`: o backend rejeita alteração de qualquer flag/modo
+// imutável de Status de núcleo (`isPublic`, `isTerminal`, `isRestricted`,
+// modos de triagem/mapeamento e `isPaused`). O código chega em
+// `ApiError.code`; a mensagem técnica do backend é trocada por uma genérica —
+// não dá para saber qual campo causou a recusa. O rascunho do card é
+// preservado pelo `SectionState`.
+const CORE_STATUS_LOCKED_CODE = 'core_status_locked';
+const CORE_STATUS_LOCKED_MESSAGE = 'Não foi possível alterar este Status vital.';
+
+export function saveStatuses(
+	payload: StatusesSection,
+	pristine: StatusesSection
+): Promise<Result<StatusesSection>> {
 	return persist('os status', async () => {
-		const data = await updateStatuses({ statuses: sanitizeStatuses(payload.statuses) });
-		return { statuses: sanitizeStatuses(data.statuses) };
+		const statuses = toStatusesPayload(sanitizeStatuses(payload.statuses), pristine.statuses);
+		try {
+			const data = await updateStatuses({ statuses });
+			return { statuses: sanitizeStatuses(data.statuses) };
+		} catch (error) {
+			if (error instanceof ApiError && error.code === CORE_STATUS_LOCKED_CODE) {
+				throw new ApiError(error.status, CORE_STATUS_LOCKED_MESSAGE, error.code);
+			}
+			throw error;
+		}
+	});
+}
+
+// Minimum payload de `isPaused`: só segue no PATCH quando difere do valor salvo
+// (ou para Status novos, sem valor salvo). Os demais campos seguem completos.
+function toStatusesPayload(
+	statuses: PortalStatus[],
+	pristine: PortalStatus[]
+): PortalStatusPayload[] {
+	return statuses.map(({ isPaused, ...status }) => {
+		const saved = pristine.find((item) => item.id === status.id);
+		return saved && saved.isPaused === isPaused ? status : { ...status, isPaused };
 	});
 }
 
@@ -485,12 +517,16 @@ function sanitizeStatuses(value: unknown): PortalStatus[] {
 
 		const isRestricted = item.isRestricted === true;
 
+		// isPaused (RF13) — ausente ou inválido vira `false` na leitura.
+		const isPaused = item.isPaused === true;
+
 		statuses.push({
 			id: item.id,
 			name,
 			isCore,
 			isPublic,
 			isTerminal,
+			isPaused,
 			triageMode,
 			mappingMode,
 			isRestricted,

@@ -32,6 +32,7 @@ import {
 	type PortalConfig,
 	type PortalAssetsPatch,
 	type PortalStatus,
+	type PortalStatusPayload,
 	type PortalTheme,
 	type PrioritizationWeightsSection,
 	type PrioritizationWeights,
@@ -198,8 +199,11 @@ export function updateCategoriesMock(payload: UpdateCategoriesRequest): Promise<
 }
 
 export function updateStatusesMock(payload: UpdateStatusesRequest): Promise<StatusesSection> {
+	// Valida o payload como chega (400 descritivo, como o backend) e só então
+	// completa `isPaused` ausente com o valor salvo.
 	validateStatuses(payload.statuses);
-	mockConfig = { ...mockConfig, statuses: structuredClone(payload.statuses) };
+	const statuses = applyPausedRules(payload.statuses, mockConfig.statuses);
+	mockConfig = { ...mockConfig, statuses };
 	return delay(MOCK_LATENCY_MS).then(() => ({ statuses: structuredClone(mockConfig.statuses) }));
 }
 
@@ -335,7 +339,31 @@ function validateCategories(categories: PortalCategory[]): void {
 // isCore/isPublic/isTerminal/triageMode/mappingMode/isRestricted, nomes únicos
 // e ao menos um ativo. A ordem de exibição é a ordem do array. 409 para
 // rename/remove core (7 vitais).
-function validateStatuses(statuses: PortalStatus[]): void {
+// Espelha o backend (contrato RF13 §2), necessário porque o service só envia
+// `isPaused` alterado: ausente preserva o valor salvo (Status novo começa
+// `false`); Status vital não pode mudá-lo — 409 com `code: core_status_locked`.
+function applyPausedRules(next: PortalStatusPayload[], current: PortalStatus[]): PortalStatus[] {
+	return next.map(({ isPaused, ...status }) => {
+		const saved = current.find((item) => item.id === status.id);
+		const savedPaused = saved?.isPaused ?? false;
+
+		if (isPaused === undefined) {
+			return { ...structuredClone(status), isPaused: savedPaused };
+		}
+
+		if (saved?.isCore && isPaused !== savedPaused) {
+			throw new ApiError(
+				409,
+				'Status de núcleo não pode ter isPaused alterado.',
+				'core_status_locked'
+			);
+		}
+
+		return { ...structuredClone(status), isPaused };
+	});
+}
+
+function validateStatuses(statuses: PortalStatusPayload[]): void {
 	if (!Array.isArray(statuses) || statuses.length === 0 || statuses.length > MAX_STATUSES) {
 		throw new ApiError(400, 'A lista de status deve ter entre 1 e 50 itens.');
 	}
@@ -373,6 +401,9 @@ function validateStatuses(statuses: PortalStatus[]): void {
 		}
 		if (typeof status.isRestricted !== 'boolean') {
 			throw new ApiError(400, 'Campo "isRestricted" deve ser booleano.');
+		}
+		if (status.isPaused !== undefined && typeof status.isPaused !== 'boolean') {
+			throw new ApiError(400, 'Campo "isPaused" deve ser booleano.');
 		}
 	}
 
