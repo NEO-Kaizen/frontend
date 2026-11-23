@@ -10,6 +10,7 @@
 	import type { StatusTimesResponse } from '$lib/types/status-time';
 	import StatusTimeCards from './StatusTimeCards.svelte';
 	import StatusTimeEvents from './StatusTimeEvents.svelte';
+	import StatusTimeRefresh from './StatusTimeRefresh.svelte';
 	import StatusTimeTable from './StatusTimeTable.svelte';
 	import StatusTimeTimeline from './StatusTimeTimeline.svelte';
 
@@ -84,7 +85,11 @@
 	});
 </script>
 
-<section class="status-time-section" aria-labelledby="status-time-title" aria-busy={isLoading}>
+<section
+	class="status-time-section"
+	aria-labelledby="status-time-title"
+	aria-busy={isLoading && !times}
+>
 	<header class="section-header">
 		<div>
 			<h3 id="status-time-title" class="section-title">Tempo por Status</h3>
@@ -94,7 +99,7 @@
 		</div>
 	</header>
 
-	{#if isLoading}
+	{#if isLoading && !times}
 		<div class="state" role="status" aria-live="polite" aria-busy="true">
 			<span class="spinner" aria-hidden="true"></span>
 			<p>Carregando tempo por Status…</p>
@@ -108,9 +113,14 @@
 		</div>
 	{:else if times}
 		{#if times.intervals.length === 0 && times.totalsByStatus.length === 0}
-			<p class="empty-state" role="status">
-				Ainda não há tempo registrado por Status para esta solicitação.
-			</p>
+			<div class="empty-state">
+				<p role="status">Ainda não há tempo registrado por Status para esta solicitação.</p>
+				<StatusTimeRefresh
+					calculatedAt={times.calculatedAt}
+					onRefresh={() => void load()}
+					isRefreshing={isLoading || isEventsLoading}
+				/>
+			</div>
 		{:else}
 			<div class="status-time-content">
 				<StatusTimeCards
@@ -213,7 +223,10 @@
 	}
 
 	.empty-state {
-		margin: 0;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: var(--spacing-sm);
 		padding: var(--spacing-xl) var(--spacing-md);
 		border: var(--border-default);
 		border-radius: var(--radius-sm);
@@ -221,6 +234,10 @@
 		font-family: var(--font-inter);
 		font-size: 14px;
 		color: var(--secondary-color);
+	}
+
+	.empty-state p {
+		margin: 0;
 	}
 
 	@keyframes spin {
