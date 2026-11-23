@@ -54,6 +54,23 @@ export function canViewTriage(
 	return Boolean(assigneeId && assigneeId === user.id);
 }
 
+// Visualização do tempo por Status (RF13): Administrador e Gestor sempre;
+// Analista apenas com custódia da solicitação — responsável da triagem
+// (`assignee`) ou designado do mapeamento (`mappingAssignee`). Solicitante
+// nunca. `canViewTriage` não serve aqui porque ignora o mapeamento.
+export function canViewStatusTimes(
+	assigneeId: string | null | undefined,
+	mappingAssigneeId: string | null | undefined,
+	user: SessionUser | null
+): boolean {
+	if (!user) return false;
+	if (user.role === 'Administrador' || user.role === 'Gestor') return true;
+	if (user.role !== 'Analista') return false;
+	return Boolean(
+		(assigneeId && assigneeId === user.id) || (mappingAssigneeId && mappingAssigneeId === user.id)
+	);
+}
+
 export function isProfileAllowed(role: UserType, profiles: 'any' | readonly UserType[]): boolean {
 	return profiles === 'any' || profiles.includes(role);
 }
