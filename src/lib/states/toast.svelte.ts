@@ -8,6 +8,17 @@ export interface ToastMessage {
 	type: ToastType;
 }
 
+/** Lê o token visual, mantendo o fallback quando CSS ainda não estiver disponível. */
+function toastDisplayDurationMs(): number {
+	if (!browser) return 4000;
+	const raw = getComputedStyle(document.documentElement)
+		.getPropertyValue('--toast-display-duration')
+		.trim();
+	const value = Number.parseFloat(raw);
+	if (!Number.isFinite(value) || value <= 0) return 4000;
+	return raw.endsWith('ms') ? value : raw.endsWith('s') ? value * 1000 : 4000;
+}
+
 class ToastState {
 	toasts = $state<ToastMessage[]>([]);
 
@@ -21,7 +32,7 @@ class ToastState {
 
 		setTimeout(() => {
 			this.remove(id);
-		}, 4000);
+		}, toastDisplayDurationMs());
 	}
 
 	remove(id: string) {

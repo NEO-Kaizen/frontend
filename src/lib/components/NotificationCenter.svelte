@@ -121,7 +121,21 @@
 
 	<div class="center-body">
 		{#if notificationState.centerStatus === 'loading' || notificationState.centerStatus === 'idle'}
-			<p class="center-feedback" role="status" aria-live="polite">Carregando notificações…</p>
+			<p class="sr-only" role="status" aria-live="polite">Carregando notificações…</p>
+			<ul
+				class="center-list center-list-skeleton"
+				aria-hidden="true"
+				data-testid="notification-list-skeleton"
+			>
+				{#each [0, 1, 2] as index (index)}
+					<li class="skeleton-card">
+						<span class="skeleton-line skeleton-protocol"></span>
+						<span class="skeleton-line skeleton-title"></span>
+						<span class="skeleton-line skeleton-description"></span>
+						<span class="skeleton-line skeleton-date"></span>
+					</li>
+				{/each}
+			</ul>
 		{:else if notificationState.centerStatus === 'error'}
 			<p class="center-feedback" role="alert">Não foi possível carregar as notificações.</p>
 			<button type="button" class="retry-btn" onclick={() => notificationState.loadCenter()}>
@@ -141,6 +155,23 @@
 					</li>
 				{/each}
 			</ul>
+
+			{#if notificationState.isLoadingMore}
+				<ul
+					class="center-list center-list-skeleton"
+					aria-hidden="true"
+					data-testid="notification-list-more-skeleton"
+				>
+					{#each [0, 1] as index (index)}
+						<li class="skeleton-card">
+							<span class="skeleton-line skeleton-protocol"></span>
+							<span class="skeleton-line skeleton-title"></span>
+							<span class="skeleton-line skeleton-description"></span>
+							<span class="skeleton-line skeleton-date"></span>
+						</li>
+					{/each}
+				</ul>
+			{/if}
 
 			{#if notificationState.nextCursor !== null}
 				<button
@@ -282,6 +313,66 @@
 	.load-more-btn:disabled {
 		cursor: wait;
 		opacity: 0.7;
+	}
+
+	.skeleton-card {
+		display: flex;
+		flex-direction: column;
+		gap: 9px;
+		padding: var(--spacing-sm) var(--spacing-md);
+		border: var(--border-default);
+		border-radius: var(--radius-md);
+		min-height: 104px;
+	}
+
+	.skeleton-line {
+		display: block;
+		height: 10px;
+		border-radius: 4px;
+		background: var(--white-gray);
+		animation: skeleton-pulse var(--notification-skeleton-duration) ease-in-out infinite;
+	}
+
+	.skeleton-protocol {
+		width: 34%;
+	}
+	.skeleton-title {
+		width: 76%;
+	}
+	.skeleton-description {
+		width: 91%;
+	}
+	.skeleton-date {
+		width: 28%;
+	}
+
+	@keyframes skeleton-pulse {
+		50% {
+			opacity: 0.45;
+		}
+	}
+
+	.center-list > li:not(.skeleton-card) {
+		animation: notification-appear var(--notification-motion-duration)
+			var(--notification-motion-easing) both;
+	}
+
+	@keyframes notification-appear {
+		from {
+			opacity: 0;
+			transform: translateY(6px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.skeleton-line,
+		.center-list > li:not(.skeleton-card) {
+			animation: none;
+		}
 	}
 
 	.center-list {

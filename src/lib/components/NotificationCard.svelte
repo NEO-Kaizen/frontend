@@ -50,7 +50,8 @@
 		font: inherit;
 		text-align: left;
 		cursor: pointer;
-		transition: var(--transition-default);
+		transition: background-color var(--notification-motion-duration)
+			var(--notification-motion-easing);
 	}
 
 	.notification-card:hover:not(:disabled),
@@ -79,6 +80,12 @@
 		font-size: 12px;
 		font-weight: 600;
 		color: var(--primary-color);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.notification-card {
+			transition: none;
+		}
 	}
 
 	.unread-dot {

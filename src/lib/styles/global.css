@@ -88,6 +88,13 @@
 
 	/* Transições */
 	--transition-default: all 0.3s ease-in-out;
+	/* RF20 #236: tokens centralizados de duração/easing e skeleton */
+	--toast-display-duration: 4000ms;
+	--toast-motion-duration: 180ms;
+	--toast-motion-easing: cubic-bezier(0.2, 0, 0, 1);
+	--notification-motion-duration: 200ms;
+	--notification-motion-easing: ease-out;
+	--notification-skeleton-duration: 1200ms;
 }
 
 /* `color-scheme` faz os controles nativos (ex.: ícone do `<input type="date">`)

@@ -86,7 +86,10 @@
 	onclick={handleClick}
 >
 	<Icon iconName="notifications" />
-	{#if hasUnread && !isLoading}
+	{#if isLoading}
+		<span class="badge-skeleton" data-testid="notification-badge-skeleton" aria-hidden="true"
+		></span>
+	{:else if hasUnread}
 		<span class="badge" role="status" aria-live="polite">{displayCount}</span>
 	{/if}
 	{#if isError}
@@ -121,6 +124,29 @@
 
 	.notification-bell.is-error {
 		border-color: var(--status-yellow);
+	}
+
+	.badge-skeleton {
+		position: absolute;
+		top: -4px;
+		right: -4px;
+		width: 22px;
+		height: 20px;
+		border-radius: 999px;
+		background-color: var(--white-gray);
+		animation: badge-pulse var(--notification-skeleton-duration) ease-in-out infinite;
+	}
+
+	@keyframes badge-pulse {
+		50% {
+			opacity: 0.45;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.badge-skeleton {
+			animation: none;
+		}
 	}
 
 	.badge {

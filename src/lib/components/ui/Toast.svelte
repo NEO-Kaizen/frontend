@@ -57,7 +57,8 @@
 		border-radius: var(--radius-sm);
 		box-shadow: var(--regular-shadow);
 		pointer-events: auto;
-		transition: var(--transition-default);
+		transition: none;
+		animation: toast-enter var(--toast-motion-duration) var(--toast-motion-easing) both;
 		color: var(--on-dark);
 	}
 
@@ -99,7 +100,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		transition: background-color 0.2s;
+		transition: background-color var(--toast-motion-duration) var(--toast-motion-easing);
 	}
 
 	.toast-close-btn:hover {
@@ -109,5 +110,25 @@
 	.toast-close-btn:focus-visible {
 		outline: 2px solid var(--on-dark);
 		outline-offset: 2px;
+	}
+
+	@keyframes toast-enter {
+		from {
+			opacity: 0;
+			transform: translateY(-8px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.toast-item {
+			animation: none;
+		}
+		.toast-close-btn {
+			transition: none;
+		}
 	}
 </style>
