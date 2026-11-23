@@ -7,7 +7,11 @@
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Modal from '$lib/components/Modal.svelte';
-	import { canEditSolicitation, canViewTriage } from '$lib/services/access.service';
+	import {
+		canEditSolicitation,
+		canViewStatusTimes,
+		canViewTriage
+	} from '$lib/services/access.service';
 	import { getInternalNotes } from '$lib/services/internal-note.service';
 	import {
 		buildCreatePendingItemsPayload,
@@ -272,13 +276,23 @@
 	// (via `page.data.user`) — nunca o GET do mapeamento.
 	const mappingAssigneeId = $derived(solicitation.mappingAssignee?.id ?? null);
 	const canEditMapping = $derived(canEditSolicitation(mappingAssigneeId, currentUser ?? null));
+	const canViewStatusTimeTab = $derived(
+		canViewStatusTimes(solicitation.assignee?.id, mappingAssigneeId, currentUser ?? null)
+	);
 
-	const displayTabs = $derived(specTabs.filter((tab) => tab.id !== 'triagem' || canViewTriageTab));
+	const displayTabs = $derived(
+		specTabs.filter(
+			(tab) =>
+				(tab.id !== 'triagem' || canViewTriageTab) &&
+				(tab.id !== 'tempo-status' || canViewStatusTimeTab)
+		)
+	);
 
 	function resolveActiveTab(param: string | null): SpecTabId {
 		const tab = specTabs.find((item) => item.id === param);
 		if (tab && tab.enabled) {
 			if (tab.id === 'triagem' && !canViewTriageTab) return DEFAULT_TAB_ID;
+			if (tab.id === 'tempo-status' && !canViewStatusTimeTab) return DEFAULT_TAB_ID;
 			return tab.id;
 		}
 		return DEFAULT_TAB_ID;
@@ -299,6 +313,7 @@
 	function handleTabSelect(tab: SpecTabDefinition) {
 		if (!tab.enabled || isEditMode) return;
 		if (tab.id === 'triagem' && !canViewTriageTab) return;
+		if (tab.id === 'tempo-status' && !canViewStatusTimeTab) return;
 		clearSaveSuccess();
 
 		const url = new URL(page.url);
