@@ -1,5 +1,10 @@
-import type { ListNotificationsOptions } from '$lib/api/notification.api';
+import type {
+	ListNotificationsOptions,
+	MarkAllNotificationsReadResponse,
+	MarkNotificationReadResponse
+} from '$lib/api/notification.api';
 import type { NotificationItem, NotificationsPage } from '$lib/types/notification';
+import { ApiError } from '$lib/types/result';
 
 // Fixtures — dados fictícios do domínio de notificações, consumidos apenas
 // pelos mocks. Protocolos e títulos acompanham `requests.mock.ts`.
@@ -64,4 +69,32 @@ export function listNotificationsMock(
 	const hasMore = items.length > page.length;
 
 	return Promise.resolve({ items: page, nextCursor: hasMore ? (page.at(-1)?.id ?? null) : null });
+}
+
+export function markNotificationReadMock(
+	notificationId: string
+): Promise<MarkNotificationReadResponse> {
+	const item = mockNotifications.find((candidate) => candidate.id === notificationId);
+
+	if (!item) {
+		throw new ApiError(404, 'Notificação não encontrada.');
+	}
+
+	item.readAt ??= new Date().toISOString();
+
+	return Promise.resolve({ id: item.id, readAt: item.readAt });
+}
+
+export function markAllNotificationsReadMock(): Promise<MarkAllNotificationsReadResponse> {
+	const now = new Date().toISOString();
+	let markedRead = 0;
+
+	for (const item of mockNotifications) {
+		if (item.readAt === null) {
+			item.readAt = now;
+			markedRead += 1;
+		}
+	}
+
+	return Promise.resolve({ markedRead });
 }

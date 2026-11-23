@@ -1,6 +1,8 @@
 <script lang="ts">
 	import Icon from '$lib/components/Icon.svelte';
+	import NotificationCenter from '$lib/components/NotificationCenter.svelte';
 	import { notificationState } from '$lib/states/notification.svelte';
+	import { notifyInfo } from '$lib/utils/feedback';
 	import { onDestroy } from 'svelte';
 	import { untrack } from 'svelte';
 
@@ -10,10 +12,20 @@
 
 	let { userId }: Props = $props();
 
-	// TODO(#234): abrir o Centro de não lidas. Nesta issue o clique apenas
-	// recarrega o contador a partir do banco (e recupera o canal em erro).
+	let isCenterOpen = $state(false);
+
+	// Sino abre/fecha o Centro. Em erro, o clique também tenta recuperar o
+	// canal e o contador a partir do banco (o Centro tem retry próprio).
 	function handleClick(): void {
-		void notificationState.refresh();
+		if (notificationState.status === 'error') {
+			void notificationState.refresh();
+		}
+
+		isCenterOpen = !isCenterOpen;
+	}
+
+	function handleClose(): void {
+		isCenterOpen = false;
 	}
 
 	$effect(() => {
@@ -26,6 +38,20 @@
 
 	onDestroy(() => {
 		notificationState.disconnect();
+	});
+
+	// Chegada via SSE: o state sinaliza em `lastArrived` e o sino toca o
+	// toast (o state nunca importa feedback — `states → services e types`).
+	$effect(() => {
+		const arrived = notificationState.lastArrived;
+
+		if (arrived) {
+			const { protocol, title } = arrived.payload;
+
+			untrack(() => {
+				notifyInfo(`Nova notificação: ${protocol} — ${title}`);
+			});
+		}
 	});
 
 	const isLoading = $derived(
@@ -41,10 +67,10 @@
 		if (isError) return 'Notificações indisponíveis. Ativar para tentar novamente';
 		if (hasUnread) {
 			return unreadCount === 1
-				? 'Notificações: 1 não lida. Ativar para atualizar'
-				: `Notificações: ${unreadCount} não lidas. Ativar para atualizar`;
+				? 'Notificações: 1 não lida. Ativar para abrir'
+				: `Notificações: ${unreadCount} não lidas. Ativar para abrir`;
 		}
-		return 'Notificações: nenhuma não lida. Ativar para atualizar';
+		return 'Notificações: nenhuma não lida. Ativar para abrir';
 	});
 </script>
 
@@ -54,6 +80,8 @@
 	class:is-error={isError}
 	aria-label={ariaLabel}
 	aria-busy={isLoading}
+	aria-haspopup="dialog"
+	aria-expanded={isCenterOpen}
 	title={isError ? 'Não foi possível carregar as notificações' : 'Notificações'}
 	onclick={handleClick}
 >
@@ -65,6 +93,10 @@
 		<span class="error-dot" aria-hidden="true"></span>
 	{/if}
 </button>
+
+{#if isCenterOpen}
+	<NotificationCenter onClose={handleClose} />
+{/if}
 
 <style>
 	.notification-bell {
