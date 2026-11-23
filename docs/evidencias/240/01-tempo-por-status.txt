@@ -1,0 +1,170 @@
+Tempo por Status
+
+Tempo cronológico registrado em cada etapa da solicitação, calculado pelo sistema.
+
+Tempo ativo total
+2 d 1 h 22 min
+pending
+Tempo pausado total
+1 d 4 h
+Aguardando informação
+Calculado em
+20 de novembro de 2026 às 11:22
+Snapshot do cálculo do sistema
+Tempo consolidado por Status
+Status	Tempo ativo	Tempo pausado	Classificação
+Solicitação enviada	30 min	0 min	Ativo
+Em triagem	3 h 15 min	0 min	Ativo
+Pendente de informações	0 min	1 d 4 h	Pausa
+Aguardando mapeamento	17 h 15 min	0 min	Ativo
+Em mapeamento	1 d 4 h 22 min	0 min	Ativo
+Linha do tempo por Status
+Solicitação enviada
+Entrada
+17 de novembro de 2026 às 06:00
+Saída
+17 de novembro de 2026 às 06:30
+Duração
+30 min
+Ativo
+30 min
+Pausado
+0 min
+Em triagem
+Entrada
+17 de novembro de 2026 às 06:30
+Saída
+17 de novembro de 2026 às 08:00
+Duração
+1 h 30 min
+Ativo
+1 h 30 min
+Pausado
+0 min
+Pendente de informações
+pending
+Pausado — aguardando informação
+Entrada
+17 de novembro de 2026 às 08:00
+Saída
+18 de novembro de 2026 às 12:00
+Duração
+1 d 4 h
+Ativo
+0 min
+Pausado
+1 d 4 h
+Em triagem
+Entrada
+18 de novembro de 2026 às 12:00
+Saída
+18 de novembro de 2026 às 13:45
+Duração
+1 h 45 min
+Ativo
+1 h 45 min
+Pausado
+0 min
+Aguardando mapeamento
+Entrada
+18 de novembro de 2026 às 13:45
+Saída
+19 de novembro de 2026 às 07:00
+Duração
+17 h 15 min
+Ativo
+17 h 15 min
+Pausado
+0 min
+Em mapeamento
+check
+Status atual
+Entrada
+19 de novembro de 2026 às 07:00
+Saída
+Em andamento — calculado em 20 de novembro de 2026 às 11:22
+Duração
+1 d 4 h 22 min
+Ativo
+1 d 4 h 22 min
+Pausado
+0 min
+Eventos de mudança de Status
+Status definido por override (Administrador)
+19 de novembro de 2026 às 07:00
+
+Aguardando mapeamento
+→
+Em mapeamento
+
+Operador
+Administrador Teste
+Origem
+Administrador
+Nota
+Reunião antecipada
+Triagem registrada
+18 de novembro de 2026 às 13:45
+
+Em triagem
+→
+Aguardando mapeamento
+
+Operador
+Analista Teste
+Origem
+Interno
+Nota
+Sem nota registrada
+Status alterado
+18 de novembro de 2026 às 12:00
+
+Pendente de informações
+→
+Em triagem
+
+Operador
+Sistema
+Origem
+Solicitante
+Nota
+Pendência respondida pelo solicitante
+Acesso negado à mudança de status
+18 de novembro de 2026 às 07:12
+
+Pendente de informações
+→
+Elegível
+
+Operador
+Analista Externo
+Origem
+Interno
+Nota
+Sem nota registrada
+Status alterado
+17 de novembro de 2026 às 08:00
+
+Em triagem
+→
+Pendente de informações
+
+Operador
+Analista Teste
+Origem
+Interno
+Nota
+Aguardando documento complementar
+Status alterado
+17 de novembro de 2026 às 06:30
+
+Solicitação enviada
+→
+Em triagem
+
+Operador
+Sistema
+Origem
+Sistema
+Nota
+Sem nota registrada

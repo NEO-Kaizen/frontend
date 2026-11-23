@@ -49,6 +49,9 @@
 		onTriageSuccess?: (updated: InternalRequestDetail) => void;
 		onPrioritizationSuccess?: (updated: InternalRequestDetail) => void;
 		onStatusChangeSuccess?: (update: StatusChangeUpdate) => void;
+		onMappingSuccess?: () => void;
+		/** Incrementado após mudança de Status, triagem ou mapeamento. */
+		statusTimeRefreshKey?: number;
 	}
 
 	let {
@@ -61,7 +64,9 @@
 		onSaveError,
 		onTriageSuccess,
 		onPrioritizationSuccess,
-		onStatusChangeSuccess
+		onStatusChangeSuccess,
+		onMappingSuccess,
+		statusTimeRefreshKey = 0
 	}: Props = $props();
 
 	const currentUser = $derived(page.data.user);
@@ -516,6 +521,8 @@
 		onPendencySave={handlePendencySaveRequest}
 		onPendencyCancel={handlePendencyCancelRequest}
 		onRequestFieldChange={enterPendencyMode}
+		{onMappingSuccess}
+		{statusTimeRefreshKey}
 	/>
 
 	<QuickActions
