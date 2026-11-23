@@ -12,9 +12,6 @@ import { apiFetch, requesterIdentityHeaders } from './client';
 const REQUESTER_PDF_PATH = (protocol: string) =>
 	`/reports/request/protocol/${encodeURIComponent(protocol)}/pdf`;
 
-// PDF interno: rota ainda não publicada no backend (colidiu com a do solicitante
-// e foi retirada do router). Quando o path definitivo existir, só esta
-// constante muda.
 const INTERNAL_PDF_PATH = (protocol: string) =>
 	`/reports/request/internal/${encodeURIComponent(protocol)}/pdf`;
 
