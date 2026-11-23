@@ -214,12 +214,14 @@ export function saveCategories(
 	});
 }
 
-// 409 `core_status_locked` (contrato RF13 §2): o backend rejeita alteração de
-// `isPaused` em Status de núcleo. O código chega em `ApiError.code`; a
-// mensagem é trocada por uma amigável e o rascunho do card é preservado pelo
-// `SectionState`.
+// 409 `core_status_locked`: o backend rejeita alteração de qualquer flag/modo
+// imutável de Status de núcleo (`isPublic`, `isTerminal`, `isRestricted`,
+// modos de triagem/mapeamento e `isPaused`). O código chega em
+// `ApiError.code`; a mensagem técnica do backend é trocada por uma genérica —
+// não dá para saber qual campo causou a recusa. O rascunho do card é
+// preservado pelo `SectionState`.
 const CORE_STATUS_LOCKED_CODE = 'core_status_locked';
-const CORE_STATUS_LOCKED_MESSAGE = 'A pausa de Status vital não pode ser alterada.';
+const CORE_STATUS_LOCKED_MESSAGE = 'Não foi possível alterar este Status vital.';
 
 export function saveStatuses(
 	payload: StatusesSection,
