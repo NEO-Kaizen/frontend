@@ -62,7 +62,8 @@ export async function apiFetch(
 	});
 
 	if (!response.ok) {
-		throw new ApiError(response.status, await readErrorMessage(response));
+		const { message, code } = await readErrorBody(response);
+		throw new ApiError(response.status, message, code);
 	}
 
 	return response;
@@ -83,11 +84,16 @@ export async function apiClient<T>(
 	return (await response.json()) as T;
 }
 
-async function readErrorMessage(response: Response): Promise<string> {
+const DEFAULT_ERROR_MESSAGE = 'Não foi possível concluir a operação.';
+
+async function readErrorBody(response: Response): Promise<{ message: string; code?: string }> {
 	try {
-		const body = (await response.json()) as { message?: string; error?: string };
-		return body.message || body.error || 'Não foi possível concluir a operação.';
+		const body = (await response.json()) as { message?: string; error?: string; code?: unknown };
+		return {
+			message: body.message || body.error || DEFAULT_ERROR_MESSAGE,
+			code: typeof body.code === 'string' ? body.code : undefined
+		};
 	} catch {
-		return 'Não foi possível concluir a operação.';
+		return { message: DEFAULT_ERROR_MESSAGE };
 	}
 }
