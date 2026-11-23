@@ -68,6 +68,7 @@
 	--regular-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 
 	/* Bordas */
+	--radius-xs: 4px;
 	--radius-sm: 8px;
 	--radius-md: 16px;
 	--radius-xl: 24px;
@@ -88,13 +89,17 @@
 
 	/* Transições */
 	--transition-default: all 0.3s ease-in-out;
-	/* RF20 #236: tokens centralizados de duração/easing e skeleton */
-	--toast-display-duration: 4000ms;
-	--toast-motion-duration: 180ms;
-	--toast-motion-easing: cubic-bezier(0.2, 0, 0, 1);
-	--notification-motion-duration: 200ms;
-	--notification-motion-easing: ease-out;
+	/* RF20 #236: tokens compartilhados de movimento e skeleton */
+	--motion-duration: 200ms;
+	--motion-easing: cubic-bezier(0.2, 0, 0, 1);
 	--notification-skeleton-duration: 1200ms;
+	--notification-skeleton-gap: 9px;
+	--notification-skeleton-line-height: 10px;
+	--notification-skeleton-line-radius: var(--radius-xs);
+	--notification-skeleton-min-height: 104px;
+	--notification-skeleton-opacity: 0.45;
+	--notification-badge-skeleton-width: 22px;
+	--notification-badge-skeleton-height: 20px;
 }
 
 /* `color-scheme` faz os controles nativos (ex.: ícone do `<input type="date">`)
@@ -290,4 +295,20 @@ button {
 	clip: rect(0, 0, 0, 0);
 	white-space: nowrap;
 	border: 0;
+}
+
+@keyframes neo-skeleton-pulse {
+	50% {
+		opacity: var(--notification-skeleton-opacity);
+	}
+}
+
+.neo-skeleton-pulse {
+	animation: neo-skeleton-pulse var(--notification-skeleton-duration) ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.neo-skeleton-pulse {
+		animation: none;
+	}
 }

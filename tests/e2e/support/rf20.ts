@@ -133,7 +133,12 @@ export async function loginApi(email: string): Promise<APIRequestContext> {
 	return api;
 }
 
-export async function loginPage(page: Page, key: UserKey): Promise<void> {
+/**
+ * Autentica a `page` sem navegar: o cookie de sessão fica no contexto do
+ * navegador e o teste escolhe quando abrir a rota. Útil quando a rota precisa
+ * observar estados de carregamento antes de liberar as requisições da API.
+ */
+export async function loginOnPage(page: Page, key: UserKey): Promise<void> {
 	const response = await page.request.post(`${API_URL}/auth/login`, {
 		data: { email: USERS[key].email, password: seedPassword() }
 	});
@@ -142,6 +147,10 @@ export async function loginPage(page: Page, key: UserKey): Promise<void> {
 		response.ok(),
 		`Login de ${USERS[key].email}: ${response.status()} ${await response.text()}`
 	).toBeTruthy();
+}
+
+export async function loginPage(page: Page, key: UserKey): Promise<void> {
+	await loginOnPage(page, key);
 
 	await page.goto(USERS[key].path);
 	await waitForBell(page);

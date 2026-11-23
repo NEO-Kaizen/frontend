@@ -87,7 +87,10 @@
 >
 	<Icon iconName="notifications" />
 	{#if isLoading}
-		<span class="badge-skeleton" data-testid="notification-badge-skeleton" aria-hidden="true"
+		<span
+			class="badge-skeleton neo-skeleton-pulse"
+			data-testid="notification-badge-skeleton"
+			aria-hidden="true"
 		></span>
 	{:else if hasUnread}
 		<span class="badge" role="status" aria-live="polite">{displayCount}</span>
@@ -114,7 +117,9 @@
 		background-color: transparent;
 		color: var(--primary-color);
 		cursor: pointer;
-		transition: var(--transition-default);
+		transition:
+			background-color var(--motion-duration) var(--motion-easing),
+			border-color var(--motion-duration) var(--motion-easing);
 	}
 
 	.notification-bell:hover,
@@ -130,22 +135,15 @@
 		position: absolute;
 		top: -4px;
 		right: -4px;
-		width: 22px;
-		height: 20px;
+		width: var(--notification-badge-skeleton-width);
+		height: var(--notification-badge-skeleton-height);
 		border-radius: 999px;
 		background-color: var(--white-gray);
-		animation: badge-pulse var(--notification-skeleton-duration) ease-in-out infinite;
-	}
-
-	@keyframes badge-pulse {
-		50% {
-			opacity: 0.45;
-		}
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.badge-skeleton {
-			animation: none;
+		.notification-bell {
+			transition: none;
 		}
 	}
 

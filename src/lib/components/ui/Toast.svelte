@@ -57,8 +57,7 @@
 		border-radius: var(--radius-sm);
 		box-shadow: var(--regular-shadow);
 		pointer-events: auto;
-		transition: none;
-		animation: toast-enter var(--toast-motion-duration) var(--toast-motion-easing) both;
+		animation: toast-enter var(--motion-duration) var(--motion-easing) both;
 		color: var(--on-dark);
 	}
 
@@ -96,11 +95,11 @@
 		color: inherit;
 		cursor: pointer;
 		padding: var(--spacing-xs);
-		border-radius: 4px;
+		border-radius: var(--radius-xs);
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		transition: background-color var(--toast-motion-duration) var(--toast-motion-easing);
+		transition: background-color var(--motion-duration) var(--motion-easing);
 	}
 
 	.toast-close-btn:hover {

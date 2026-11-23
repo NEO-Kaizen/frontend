@@ -1,4 +1,5 @@
 import { browser } from '$app/environment';
+import { TOAST_DISPLAY_DURATION_MS } from '$lib/constants/toast';
 
 export type ToastType = 'success' | 'error' | 'info' | 'warning';
 
@@ -6,17 +7,6 @@ export interface ToastMessage {
 	id: string;
 	message: string;
 	type: ToastType;
-}
-
-/** Lê o token visual, mantendo o fallback quando CSS ainda não estiver disponível. */
-function toastDisplayDurationMs(): number {
-	if (!browser) return 4000;
-	const raw = getComputedStyle(document.documentElement)
-		.getPropertyValue('--toast-display-duration')
-		.trim();
-	const value = Number.parseFloat(raw);
-	if (!Number.isFinite(value) || value <= 0) return 4000;
-	return raw.endsWith('ms') ? value : raw.endsWith('s') ? value * 1000 : 4000;
 }
 
 class ToastState {
@@ -32,7 +22,7 @@ class ToastState {
 
 		setTimeout(() => {
 			this.remove(id);
-		}, toastDisplayDurationMs());
+		}, TOAST_DISPLAY_DURATION_MS);
 	}
 
 	remove(id: string) {

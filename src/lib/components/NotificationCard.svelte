@@ -50,8 +50,7 @@
 		font: inherit;
 		text-align: left;
 		cursor: pointer;
-		transition: background-color var(--notification-motion-duration)
-			var(--notification-motion-easing);
+		transition: background-color var(--motion-duration) var(--motion-easing);
 	}
 
 	.notification-card:hover:not(:disabled),
