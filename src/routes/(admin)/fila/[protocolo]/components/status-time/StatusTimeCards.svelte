@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import type { StatusTimesResponse } from '$lib/types/status-time';
 	import { formatDateTime } from '$lib/utils/dates';
@@ -6,9 +7,11 @@
 
 	interface Props {
 		times: StatusTimesResponse;
+		onRefresh: () => void;
+		isRefreshing?: boolean;
 	}
 
-	let { times }: Props = $props();
+	let { times, onRefresh, isRefreshing = false }: Props = $props();
 </script>
 
 <div class="summary-cards">
@@ -27,7 +30,19 @@
 	</div>
 
 	<div class="summary-card">
-		<span class="card-label">Calculado em</span>
+		<div class="calculated-header">
+			<span class="card-label">Calculado em</span>
+			<Button
+				variant="outline-neutral"
+				title="Atualizar tempos por Status"
+				disabled={isRefreshing}
+				loading={isRefreshing}
+				onclick={onRefresh}
+			>
+				<Icon iconName="autorenew" iconSize="sm" />
+				<span>{isRefreshing ? 'Atualizando…' : 'Atualizar'}</span>
+			</Button>
+		</div>
 		<time class="card-value card-date" datetime={times.calculatedAt}>
 			{formatDateTime(times.calculatedAt)}
 		</time>
@@ -63,6 +78,14 @@
 		gap: 4px;
 		font: var(--label);
 		color: var(--secondary-color);
+	}
+
+	.calculated-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--spacing-sm);
+		flex-wrap: wrap;
 	}
 
 	.card-value {
