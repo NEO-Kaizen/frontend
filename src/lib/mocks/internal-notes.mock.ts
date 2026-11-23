@@ -1,5 +1,6 @@
 import { getMeMock } from './auth.mock';
 import { ApiError } from '$lib/types/result';
+import { has } from '$lib/services/access.service';
 import {
 	INTERNAL_NOTE_PAGE_DEFAULT,
 	INTERNAL_NOTE_PAGE_MAX,
@@ -420,8 +421,8 @@ export async function createInternalNoteMock(
 ): Promise<TimelineNote> {
 	const normalized = normalizeProtocol(protocol);
 	const currentUser = await getMeMock();
-	if (currentUser.role === 'Solicitante') {
-		throw new ApiError(403, 'Acesso restrito aos perfis internos.');
+	if (!has('internal_note:write', currentUser)) {
+		throw new ApiError(403, 'Acesso restrito a quem possui internal_note:write.');
 	}
 
 	const note: TimelineNote = {

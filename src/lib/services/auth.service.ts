@@ -11,10 +11,11 @@ import type {
 	SessionUser
 } from '$lib/types/auth';
 import { ApiError, type Result } from '$lib/types/result';
+import { sanitizeSessionUser } from './session.service';
 
 export async function login(credentials: LoginCredentials): Promise<Result<LoginResponse>> {
 	try {
-		const data = await loginRequest(credentials);
+		const data = sanitizeSessionUser(await loginRequest(credentials));
 		return { ok: true, data };
 	} catch (error) {
 		if (error instanceof ApiError) {
@@ -37,7 +38,7 @@ export async function getMe(
 	sessionId?: string
 ): Promise<Result<SessionUser>> {
 	try {
-		const data = await getMeRequest(fetchImpl, sessionId);
+		const data = sanitizeSessionUser(await getMeRequest(fetchImpl, sessionId));
 		return { ok: true, data };
 	} catch (error) {
 		if (error instanceof ApiError) {

@@ -7,7 +7,7 @@
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Modal from '$lib/components/Modal.svelte';
-	import { canEditSolicitation, canViewTriage } from '$lib/services/access.service';
+	import { can } from '$lib/services/access.service';
 	import { getInternalNotes } from '$lib/services/internal-note.service';
 	import {
 		buildCreatePendingItemsPayload,
@@ -247,18 +247,29 @@
 		}
 	]);
 
-	// Botão Editar visível apenas para quem pode editar o conteúdo interno
-	// (Administrador ou responsável atribuído — regra em `access.service`).
-	// Gestor e demais perfis visualizam em somente leitura.
+	// Botão Editar visível apenas para quem tem `request:write` com custódia
+	// `all` ou `assigned` sobre o responsável da solicitação.
 	const currentUser = $derived(page.data.user);
-	const canEdit = $derived(canEditSolicitation(solicitation.assignee?.id, currentUser ?? null));
-	const canViewTriageTab = $derived(canViewTriage(solicitation.assignee?.id, currentUser ?? null));
+	const canEdit = $derived(
+		can('request:write', 'all', currentUser) ||
+			(can('request:write', 'assigned', currentUser) &&
+				Boolean(currentUser && solicitation.assignee?.id === currentUser.id))
+	);
+	const canViewTriageTab = $derived(
+		can('triage:read', 'all', currentUser) ||
+			(can('triage:read', 'assigned', currentUser) &&
+				Boolean(currentUser && solicitation.assignee?.id === currentUser.id))
+	);
 
 	// A permissão do mapeamento usa o responsável do mapeamento
 	// (`mappingAssignee`) do primeiro GET da solicitação + `/auth/me`
 	// (via `page.data.user`) — nunca o GET do mapeamento.
 	const mappingAssigneeId = $derived(solicitation.mappingAssignee?.id ?? null);
-	const canEditMapping = $derived(canEditSolicitation(mappingAssigneeId, currentUser ?? null));
+	const canEditMapping = $derived(
+		can('mapping:write', 'all', currentUser) ||
+			(can('mapping:write', 'assigned', currentUser) &&
+				Boolean(currentUser && mappingAssigneeId === currentUser.id))
+	);
 
 	const displayTabs = $derived(specTabs.filter((tab) => tab.id !== 'triagem' || canViewTriageTab));
 

@@ -7,6 +7,7 @@
 	import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
 	import { isPortalConfigLoadBlocked } from '$lib/config/portal-config-load';
 	import { saveTheme } from '$lib/config/portal-config.service';
+	import { has } from '$lib/services/access.service';
 	import { SectionState } from '$lib/states/section.svelte';
 	import {
 		endPreviewTheme,
@@ -50,7 +51,9 @@
 
 	// Leitura autoritativa falhou: o draft pode ser o fallback local — bloqueia
 	// edição e salvamento até a revalidação.
-	const loadFailed = $derived(isPortalConfigLoadBlocked(page.data));
+	const readOnly = $derived(
+		isPortalConfigLoadBlocked(page.data) || !has('theme:manage', page.data.user)
+	);
 
 	onMount(() => {
 		editingPalette = getThemeMode();
@@ -86,12 +89,12 @@
 	}
 
 	async function persistSave(): Promise<void> {
-		if (loadFailed) return;
+		if (readOnly) return;
 		notifySectionSave(await section.save());
 	}
 
 	async function handleSave(): Promise<void> {
-		if (loadFailed) return;
+		if (readOnly) return;
 		if (hasContrastWarning) {
 			confirmLowContrast = true;
 			return;
@@ -341,7 +344,7 @@
 			saving={section.saving}
 			restorable={section.restorable}
 			{invalid}
-			{loadFailed}
+			loadFailed={readOnly}
 			onSave={handleSave}
 			onCancel={() => section.reset()}
 			onRestoreDefaults={() => section.restoreDefaults()}
@@ -355,7 +358,7 @@
 				class:active={editingPalette === 'light'}
 				type="button"
 				aria-pressed={editingPalette === 'light'}
-				disabled={loadFailed}
+				disabled={readOnly}
 				onclick={() => setEditingPalette('light')}
 			>
 				<Icon iconName="lightMode" iconSize="sm" />
@@ -366,7 +369,7 @@
 				class:active={editingPalette === 'dark'}
 				type="button"
 				aria-pressed={editingPalette === 'dark'}
-				disabled={loadFailed}
+				disabled={readOnly}
 				onclick={() => setEditingPalette('dark')}
 			>
 				<Icon iconName="darkMode" iconSize="sm" />
@@ -392,7 +395,7 @@
 								previewBackground={field.previewBackground}
 								previewForeground={field.previewForeground}
 								fieldId={`${editingPalette}:${field.key}`}
-								disabled={loadFailed}
+								disabled={readOnly}
 								onvaliditychange={handleColorValidity}
 								onchange={(value) => setThemeToken(editingPalette, field.key, value)}
 							/>
@@ -433,7 +436,7 @@
 					label="De"
 					value={palette.gradient.from}
 					fieldId={`${editingPalette}:gradient.from`}
-					disabled={loadFailed}
+					disabled={readOnly}
 					onvaliditychange={handleColorValidity}
 					onchange={(value) => setThemeGradient(editingPalette, { from: value })}
 				/>
@@ -441,7 +444,7 @@
 					label="Até"
 					value={palette.gradient.to}
 					fieldId={`${editingPalette}:gradient.to`}
-					disabled={loadFailed}
+					disabled={readOnly}
 					onvaliditychange={handleColorValidity}
 					onchange={(value) => setThemeGradient(editingPalette, { to: value })}
 				/>
@@ -449,7 +452,7 @@
 					label={TOKEN_LABELS.onGradient}
 					value={palette.onGradient}
 					fieldId={`${editingPalette}:onGradient`}
-					disabled={loadFailed}
+					disabled={readOnly}
 					onvaliditychange={handleColorValidity}
 					onchange={(value) => setThemeToken(editingPalette, 'onGradient', value)}
 				/>
@@ -463,7 +466,7 @@
 						step="1"
 						value={palette.gradient.angle ?? 143}
 						aria-label="Ângulo do gradiente"
-						disabled={loadFailed}
+						disabled={readOnly}
 						oninput={handleGradientAngleInput}
 					/>
 				</label>
@@ -545,7 +548,7 @@
 							label="Detalhe"
 							value={advisory.tokens.color}
 							fieldId={`${editingPalette}:status.${advisory.tone}.color`}
-							disabled={loadFailed}
+							disabled={readOnly}
 							onvaliditychange={handleColorValidity}
 							onchange={(value) => updateStatusToneColor(editingPalette, advisory.tone, value)}
 						/>
@@ -554,7 +557,7 @@
 							value={advisory.tokens.background}
 							allowAlpha
 							fieldId={`${editingPalette}:status.${advisory.tone}.background`}
-							disabled={loadFailed}
+							disabled={readOnly}
 							onvaliditychange={handleColorValidity}
 							onchange={(value) => setStatusToneBackground(editingPalette, advisory.tone, value)}
 						/>
@@ -571,7 +574,7 @@
 						class:locked={advisory.tokens.backgroundLocked}
 						type="button"
 						aria-pressed={advisory.tokens.backgroundLocked}
-						disabled={loadFailed}
+						disabled={readOnly}
 						aria-label={`${
 							advisory.tokens.backgroundLocked
 								? 'Destravar o fundo (voltar ao automático)'

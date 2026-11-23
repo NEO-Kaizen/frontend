@@ -1,114 +1,111 @@
 import { redirect } from '@sveltejs/kit';
 import type { RouteId } from '$app/types';
 import type { SessionUser } from '$lib/types/auth';
-import type { UserType } from '$lib/types/user';
+import {
+	OPERATIONAL_AREA_KEYS,
+	PORTAL_READ_KEYS,
+	type PermissionCustody,
+	type PermissionKey
+} from '$lib/types/permission';
 
 const LOGIN_PATH = '/login' as const;
 const UNAUTHORIZED_PATH = '/sem-autorizacao' as const;
 const CHANGE_PASSWORD_PATH = '/redefinir-senha' as const;
-const HOME_PATH = '/' as const;
-const DASHBOARD_ROUTE = '/(admin)/home' as const;
-const DASHBOARD_PATH = '/home' as const;
+const QUEUE_PATH = '/fila' as const;
+const DASHBOARD_PATH = '/dashboard' as const;
+const USERS_PATH = '/usuarios' as const;
+const SETTINGS_PATH = '/configuracoes' as const;
+const TRACK_PATH = '/acompanhar' as const;
 
-type PostLoginRoute = typeof CHANGE_PASSWORD_PATH | typeof DASHBOARD_PATH | typeof HOME_PATH;
+type HomeRoute = Extract<
+	RouteId,
+	| '/(admin)/fila'
+	| '/(admin)/dashboard'
+	| '/(admin)/usuarios'
+	| '/(admin)/configuracoes'
+	| '/(public)/acompanhar'
+>;
 
-export type GuardRuleId = 'anySession' | 'internalArea' | 'managementOnly' | 'adminOnly';
+interface HomeRedirect {
+	keys: readonly PermissionKey[];
+	route: HomeRoute;
+	path: string;
+}
 
-const INTERNAL_PROFILES: readonly UserType[] = ['Analista', 'Gestor', 'Administrador'];
+const HOME_REDIRECTS: readonly HomeRedirect[] = [
+	{ keys: ['queue:read'], route: '/(admin)/fila', path: QUEUE_PATH },
+	{ keys: ['reports:read'], route: '/(admin)/dashboard', path: DASHBOARD_PATH },
+	{ keys: ['user:read'], route: '/(admin)/usuarios', path: USERS_PATH },
+	{ keys: PORTAL_READ_KEYS, route: '/(admin)/configuracoes', path: SETTINGS_PATH },
+	{ keys: ['request:track'], route: '/(public)/acompanhar', path: TRACK_PATH }
+];
 
-const GUARD_RULES: Record<GuardRuleId, { profiles: 'any' | readonly UserType[] }> = {
-	anySession: { profiles: 'any' },
-	internalArea: { profiles: INTERNAL_PROFILES },
-	managementOnly: { profiles: ['Gestor', 'Administrador'] },
-	adminOnly: { profiles: ['Administrador'] }
+export const ADMIN_AREA_KEYS: readonly PermissionKey[] = [
+	...OPERATIONAL_AREA_KEYS,
+	...PORTAL_READ_KEYS
+];
+
+const CUSTODY_CONTAINS: Record<PermissionCustody, readonly PermissionCustody[]> = {
+	global: ['global'],
+	own: ['own'],
+	assigned: ['assigned', 'all'],
+	all: ['all']
 };
 
-export function isInternalProfile(role: UserType): boolean {
-	return INTERNAL_PROFILES.includes(role);
+export function has(key: PermissionKey, user: SessionUser | null | undefined): boolean {
+	return Boolean(user?.permissions.some((permission) => permission.key === key));
 }
 
-// Permissão de edição do conteúdo interno da solicitação (informações e
-// mapeamento): Administrador edita qualquer uma; os demais perfis editam
-// apenas a solicitação que lhes foi atribuída (responsável). O Gestor
-// visualiza em somente leitura porque não é atribuído como responsável.
-// A regra vive aqui para nenhum componente precisar de role hardcoded.
-export function canEditSolicitation(
-	assigneeId: string | null | undefined,
-	user: SessionUser | null
+export function hasAny(
+	keys: readonly PermissionKey[],
+	user: SessionUser | null | undefined
 ): boolean {
-	if (!user) return false;
-	if (user.role === 'Administrador') return true;
-	return Boolean(assigneeId && assigneeId === user.id);
+	return keys.some((key) => has(key, user));
 }
 
-// Visualização da triagem (`GET /triage`): Administrador e Gestor sempre
-// visualizam (o Gestor em somente leitura); o Analista apenas quando é o
-// responsável atual (`assignee`) da solicitação. A edição/finalização
-// permanece restrita a `canEditSolicitation` (Administrador ou responsável).
-export function canViewTriage(
-	assigneeId: string | null | undefined,
-	user: SessionUser | null
+export function can(
+	key: PermissionKey,
+	custody: PermissionCustody,
+	user: SessionUser | null | undefined
 ): boolean {
-	if (!user) return false;
-	if (user.role === 'Administrador' || user.role === 'Gestor') return true;
-	return Boolean(assigneeId && assigneeId === user.id);
+	const accepted = CUSTODY_CONTAINS[custody];
+	return Boolean(
+		user?.permissions.some(
+			(permission) => permission.key === key && accepted.includes(permission.custody)
+		)
+	);
 }
 
-export function isProfileAllowed(role: UserType, profiles: 'any' | readonly UserType[]): boolean {
-	return profiles === 'any' || profiles.includes(role);
+function loginRedirectPath(pathname?: string): string {
+	if (pathname && isAllowedReturnTo(pathname)) {
+		return `${LOGIN_PATH}?returnTo=${encodeURIComponent(pathname)}`;
+	}
+	return LOGIN_PATH;
 }
 
-export function canAssignAnalyst(user: SessionUser | null): boolean {
-	return user?.role === 'Administrador';
+export function guardSession(user: SessionUser | null, pathname?: string): void {
+	if (!user) redirect(303, loginRedirectPath(pathname));
 }
 
-export function canCalculatePriority(user: SessionUser | null, assigneeId: string | null): boolean {
-	if (!user) return false;
-	if (user.role === 'Administrador') return true;
-	if (user.role === 'Analista' && assigneeId !== null && user.id === assigneeId) return true;
-	return false;
+export function guard(key: PermissionKey, user: SessionUser | null, pathname?: string): void {
+	guardSession(user, pathname);
+	if (!has(key, user)) redirect(303, UNAUTHORIZED_PATH);
 }
 
-// Quem pode abrir "Alterar Status" (`PATCH /requests/:protocol/status`, §3.3):
-// Administrador (bypass — qualquer `isActive`) ou o Analista com custódia da
-// solicitação (responsável de triagem ou de mapeamento). Gestor e demais
-// perfis são somente leitura. O status atual ser terminal não bloqueia por si
-// — o backend não aplica esse gate no `PATCH /status`; a elegibilidade do alvo
-// (free/ativo/não restrito) já é filtrada em `statusChangeTargets`. A lista de
-// alvos válidos é derivada do PortalConfig.
-export function canChangeStatusRole(
+export function guardAny(
+	keys: readonly PermissionKey[],
 	user: SessionUser | null,
-	assigneeId: string | null | undefined,
-	mappingAssigneeId: string | null | undefined
-): 'admin' | 'analyst' | null {
-	if (!user) return null;
-	if (user.role === 'Administrador') return 'admin';
-	if (user.role !== 'Analista') return null;
-	const hasCustody =
-		Boolean(assigneeId && assigneeId === user.id) ||
-		Boolean(mappingAssigneeId && mappingAssigneeId === user.id);
-	return hasCustody ? 'analyst' : null;
+	pathname?: string
+): void {
+	guardSession(user, pathname);
+	if (!hasAny(keys, user)) redirect(303, UNAUTHORIZED_PATH);
 }
 
-export function isAllowedReturnTo(value: string): value is PostLoginRoute {
+export function isAllowedReturnTo(value: string): boolean {
 	if (!value.startsWith('/')) return false;
-	if (value.includes('://')) return false;
 	if (value.startsWith('//')) return false;
+	if (value.includes('://') || value.includes('\\')) return false;
 	return true;
-}
-
-export function guard(rule: GuardRuleId, user: SessionUser | null, pathname?: string): void {
-	const profiles = GUARD_RULES[rule].profiles;
-	if (!user) {
-		const returnUrl =
-			pathname && isAllowedReturnTo(pathname)
-				? `${LOGIN_PATH}?returnTo=${encodeURIComponent(pathname)}`
-				: LOGIN_PATH;
-		redirect(303, returnUrl);
-	}
-	if (!isProfileAllowed(user.role, profiles)) {
-		redirect(303, UNAUTHORIZED_PATH);
-	}
 }
 
 export function redirectToLogin(url: URL, loginUrl: string): never {
@@ -117,16 +114,15 @@ export function redirectToLogin(url: URL, loginUrl: string): never {
 	redirect(303, `${loginUrl}?${searchParams.toString()}`);
 }
 
-export function getHomeRedirect(
-	user: SessionUser | null
-): Extract<RouteId, '/(admin)/home'> | null {
-	if (user && isInternalProfile(user.role)) {
-		return DASHBOARD_ROUTE;
-	}
-	return null;
+export function getHomeRedirect(user: SessionUser | null | undefined): HomeRoute | null {
+	return HOME_REDIRECTS.find((item) => hasAny(item.keys, user))?.route ?? null;
 }
 
-export function isPasswordChangeRequired(user: SessionUser | null): boolean {
+export function getHomePath(user: SessionUser | null | undefined): string | null {
+	return HOME_REDIRECTS.find((item) => hasAny(item.keys, user))?.path ?? null;
+}
+
+export function isPasswordChangeRequired(user: SessionUser | null | undefined): boolean {
 	return Boolean(user?.mustChangePassword);
 }
 
@@ -152,9 +148,5 @@ export function getPostLoginRedirect(user: SessionUser, returnTo?: string | null
 		return returnTo;
 	}
 
-	if (INTERNAL_PROFILES.includes(user.role)) {
-		return DASHBOARD_PATH;
-	}
-
-	return HOME_PATH;
+	return getHomePath(user) ?? UNAUTHORIZED_PATH;
 }

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { listPendencies, reviewPendingItems } from '$lib/services/pendency.service';
+	import { can } from '$lib/services/access.service';
 	import { PENDENCY_STATUS_LABELS, type PendingItem } from '$lib/types/pendency';
 	import type { SessionUser } from '$lib/types/auth';
 	import { formatDateTime } from '$lib/utils/dates';
@@ -34,9 +35,11 @@
 		onSaved
 	}: Props = $props();
 
-	// §3: revisar exige Administrador ou o responsável atribuído à tratativa.
+	// §3: revisar exige `pending_item:review` com custódia `all` ou `assigned`
+	// sobre o responsável da tratativa.
 	const canReview = $derived(
-		currentUser?.role === 'Administrador' || Boolean(currentUser && currentUser.id === assigneeId)
+		can('pending_item:review', 'all', currentUser) ||
+			(can('pending_item:review', 'assigned', currentUser) && currentUser?.id === assigneeId)
 	);
 
 	const tabs: { id: TabStatus; label: string }[] = [
@@ -356,7 +359,8 @@
 											</div>
 										{:else}
 											<p class="no-action">
-												Apenas o responsável pela tratativa ou um Administrador pode revisar.
+												Apenas usuários com permissão de revisão e vínculo com a tratativa podem
+												revisar.
 											</p>
 										{/if}
 									</article>

@@ -8,6 +8,7 @@
 	import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
 	import { isPortalConfigLoadBlocked } from '$lib/config/portal-config-load';
 	import { saveAssets } from '$lib/config/portal-config.service';
+	import { has } from '$lib/services/access.service';
 	import { SectionState } from '$lib/states/section.svelte';
 	import {
 		ASSET_KEYS,
@@ -89,7 +90,9 @@
 
 	// Leitura autoritativa falhou: o draft pode ser o fallback local — bloqueia
 	// edição e salvamento até a revalidação.
-	const loadFailed = $derived(isPortalConfigLoadBlocked(page.data));
+	const readOnly = $derived(
+		isPortalConfigLoadBlocked(page.data) || !has('portal_setting:manage', page.data.user)
+	);
 
 	const section = new SectionState<AssetsSection>(
 		{ assets: page.data.portalConfig.assets },
@@ -140,7 +143,7 @@
 	// Preview local até o Salvar: guarda o arquivo e troca a URL do draft pela
 	// object URL imediata. O binário só sobe no PATCH multipart de assets.
 	function handleAssetChange(event: Event, asset: AssetKey) {
-		if (loadFailed) return;
+		if (readOnly) return;
 		const input = event.currentTarget as HTMLInputElement;
 		const file = input.files?.[0];
 		input.value = '';
@@ -168,7 +171,7 @@
 	}
 
 	async function handleSave() {
-		if (loadFailed) return;
+		if (readOnly) return;
 		if (notifySectionSave(await section.save())) {
 			clearPendingFiles();
 			await invalidateAll();
@@ -198,7 +201,7 @@
 			dirty={section.dirty}
 			saving={section.saving}
 			restorable={section.restorable}
-			{loadFailed}
+			loadFailed={readOnly}
 			onSave={handleSave}
 			onCancel={handleCancel}
 			onRestoreDefaults={handleRestoreDefaults}
@@ -212,11 +215,11 @@
 					<span class="asset-label">{asset.label}</span>
 
 					{#if asset.primaryFlag}
-						<label class="asset-flag" class:disabled={section.saving || loadFailed || !logoSvg}>
+						<label class="asset-flag" class:disabled={section.saving || readOnly || !logoSvg}>
 							<input
 								type="checkbox"
 								checked={section.draft.assets.logoUsePrimaryColor}
-								disabled={section.saving || loadFailed || !logoSvg}
+								disabled={section.saving || readOnly || !logoSvg}
 								onchange={(event) => setLogoUsePrimaryColor(event.currentTarget.checked)}
 							/>
 							Usar cor primária
@@ -246,7 +249,7 @@
 							<div class="asset-actions">
 								<Button
 									variant="outline-neutral"
-									disabled={section.saving || loadFailed}
+									disabled={section.saving || readOnly}
 									onclick={() => fileInputs[variant.key]?.click()}
 								>
 									<Icon iconName="edit" iconSize="sm" />

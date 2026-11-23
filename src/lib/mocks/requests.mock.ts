@@ -1,4 +1,5 @@
 import { ApiError } from '$lib/types/result';
+import { can, has } from '$lib/services/access.service';
 import { computePrioritizationResult, getSavedPrioritizationNotes } from './prioritization.mock';
 import { mockUsers } from './users.mock';
 import { getMeMock } from './auth.mock';
@@ -1512,9 +1513,10 @@ export async function createTriageMock(
 
 	const statuses = getMockStatuses();
 	const detail = hydrateRequestMock(protocol, statuses) ?? found;
-	const hasCustody = detail.assignee?.id != null && detail.assignee.id === me.id;
-	if (me.role !== 'Administrador' && (me.role !== 'Analista' || !hasCustody)) {
-		throw new ApiError(403, 'Ação restrita ao Administrador ou ao responsável pela demanda.');
+	const canWriteAny = can('triage:write', 'all', me);
+	const canWriteAssigned = can('triage:write', 'assigned', me) && detail.assignee?.id === me.id;
+	if (!canWriteAny && !canWriteAssigned) {
+		throw new ApiError(403, 'Ação restrita a quem possui triagem:write na solicitação.');
 	}
 
 	const exitStatus = payload.exitStatus;
@@ -1701,24 +1703,26 @@ export async function updateRequestStatusMock(
 		throw new ApiError(422, 'Status já é o atual.');
 	}
 
+	const canChangeAny = can('request:status_change', 'all', me);
 	const hasCustody =
-		(detail.assignee?.id != null && detail.assignee.id === me.id) ||
-		(detail.mappingAssignee?.id != null && detail.mappingAssignee.id === me.id) ||
-		(detail.mappingAssigneeId != null && detail.mappingAssigneeId === me.id);
-	if (me.role !== 'Administrador') {
-		if (me.role !== 'Analista' || !hasCustody) {
-			throw new ApiError(403, 'Ação restrita ao Administrador ou ao responsável pela demanda.');
-		}
+		detail.assignee?.id === me.id ||
+		detail.mappingAssignee?.id === me.id ||
+		detail.mappingAssigneeId === me.id;
+	const canChangeAssigned = can('request:status_change', 'assigned', me) && hasCustody;
+	if (!canChangeAny && !canChangeAssigned) {
+		throw new ApiError(403, 'Ação restrita a quem possui request:status_change na solicitação.');
+	}
+	if (!has('request:status_override', me)) {
 		if (current?.isTerminal) {
 			throw new ApiError(
 				403,
-				'Solicitação terminal — alteração de status restrita ao Administrador.'
+				'Solicitação terminal — alteração de status restrita a request:status_change em all.'
 			);
 		}
 		const isFree =
 			!target.isRestricted && (target.triageMode === 'free' || target.mappingMode === 'free');
 		if (!isFree) {
-			throw new ApiError(403, 'Status alvo não permitido para o seu perfil.');
+			throw new ApiError(403, 'Status alvo não permitido para as chaves da sessão.');
 		}
 	}
 
