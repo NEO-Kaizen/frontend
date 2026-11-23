@@ -67,6 +67,7 @@
 		line-height: 1.4;
 		text-transform: none;
 		letter-spacing: normal;
+		white-space: normal;
 		opacity: 0;
 		pointer-events: none;
 		transform: translateY(-4px);
