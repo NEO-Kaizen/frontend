@@ -70,7 +70,11 @@ export function isAllowedReturnTo(value: string): boolean {
 	if ([...value].some((char) => char.charCodeAt(0) <= 0x1f || char.charCodeAt(0) === 0x7f)) {
 		return false;
 	}
-	return true;
+	try {
+		return new URL(value, 'http://local.invalid').origin === 'http://local.invalid';
+	} catch {
+		return false;
+	}
 }
 
 export function redirectToLogin(url: URL, loginUrl: string): never {
