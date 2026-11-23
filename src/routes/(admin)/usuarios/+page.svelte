@@ -22,6 +22,7 @@
 		UserStats,
 		UserStatus
 	} from '$lib/types/user';
+	import { has } from '$lib/utils/permission-checks';
 	import ConfirmActionModal from './components/ConfirmActionModal.svelte';
 	import CreateUserModal from './components/CreateUserModal.svelte';
 	import EditUserModal from './components/EditUserModal.svelte';
@@ -31,6 +32,8 @@
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
+
+	const canManageUsers = $derived(has('user:manage', data.user));
 
 	const tabs = [
 		{ id: 'todos', label: 'Todos', profile: undefined },
@@ -201,6 +204,11 @@
 	}
 
 	async function handleCreate(data: CreateUserFormData): Promise<CreateUserResponse> {
+		if (!canManageUsers) {
+			createError = 'Você não tem permissão para cadastrar usuários.';
+			return Promise.reject(new Error(createError));
+		}
+
 		isCreating = true;
 		createError = '';
 
@@ -248,6 +256,10 @@
 	}
 
 	function handleAction(user: AdminUser, action: UserAction) {
+		if (!canManageUsers) {
+			return;
+		}
+
 		actionError = '';
 
 		pendingAction = {
@@ -257,6 +269,10 @@
 	}
 
 	async function confirmStatusChange(status: UserStatus) {
+		if (!canManageUsers) {
+			return;
+		}
+
 		if (!pendingAction) {
 			return;
 		}
@@ -354,16 +370,18 @@
 				/>
 			</div>
 
-			<Button
-				variant="primary"
-				onclick={() => {
-					createError = '';
-					isCreateOpen = true;
-				}}
-			>
-				<Icon iconName="addUser" iconSize="sm" />
-				Adicionar Usuário
-			</Button>
+			{#if canManageUsers}
+				<Button
+					variant="primary"
+					onclick={() => {
+						createError = '';
+						isCreateOpen = true;
+					}}
+				>
+					<Icon iconName="addUser" iconSize="sm" />
+					Adicionar Usuário
+				</Button>
+			{/if}
 		</div>
 
 		<!-- =========================
@@ -424,7 +442,7 @@
 			     TABELA
 			========================= -->
 
-				<UsersTable {users} onaction={handleAction} />
+				<UsersTable {users} canManage={canManageUsers} onaction={handleAction} />
 
 				<!-- =========================
 			     PAGINAÇÃO
@@ -492,7 +510,7 @@
      CRIAR USUÁRIO
 ========================= -->
 
-{#if isCreateOpen}
+{#if canManageUsers && isCreateOpen}
 	<CreateUserModal
 		loading={isCreating}
 		error={createError}
@@ -502,7 +520,7 @@
 	/>
 {/if}
 
-{#if pendingAction?.kind === 'edit'}
+{#if canManageUsers && pendingAction?.kind === 'edit'}
 	<EditUserModal
 		user={pendingAction.user}
 		categories={data.portalConfig.categories}
@@ -515,7 +533,7 @@
      ATIVAR
 ========================= -->
 
-{#if pendingAction?.kind === 'activate'}
+{#if canManageUsers && pendingAction?.kind === 'activate'}
 	<ConfirmActionModal
 		title="Ativar usuário"
 		message={`Confirmar a ativação de "${pendingAction.user.name}"?`}
@@ -531,7 +549,7 @@
      INATIVAR
 ========================= -->
 
-{#if pendingAction?.kind === 'deactivate'}
+{#if canManageUsers && pendingAction?.kind === 'deactivate'}
 	<ConfirmActionModal
 		title="Inativar usuário"
 		message={`Ao inativar, "${pendingAction.user.name}" perde o acesso ao portal. Confirmar?`}
@@ -547,7 +565,7 @@
      REDEFINIR SENHA
 ========================= -->
 
-{#if pendingAction?.kind === 'reset' && pendingAction}
+{#if canManageUsers && pendingAction?.kind === 'reset' && pendingAction}
 	<ResetPasswordModal user={pendingAction.user} onclose={closePendingAction} />
 {/if}
 

@@ -8,6 +8,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import { can } from '$lib/services/access.service';
+	import { has } from '$lib/utils/permission-checks';
 	import { getInternalNotes } from '$lib/services/internal-note.service';
 	import {
 		buildCreatePendingItemsPayload,
@@ -260,6 +261,8 @@
 			(can('triage:read', 'assigned', currentUser) &&
 				Boolean(currentUser && solicitation.assignee?.id === currentUser.id))
 	);
+	const canViewPendenciesTab = $derived(has('pending_item:read', page.data.user));
+	const canViewInternalNotesTab = $derived(has('internal_note:read', page.data.user));
 
 	// A permissão do mapeamento usa o responsável do mapeamento
 	// (`mappingAssignee`) do primeiro GET da solicitação + `/auth/me`
@@ -271,12 +274,21 @@
 				Boolean(currentUser && mappingAssigneeId === currentUser.id))
 	);
 
-	const displayTabs = $derived(specTabs.filter((tab) => tab.id !== 'triagem' || canViewTriageTab));
+	const displayTabs = $derived(
+		specTabs.filter(
+			(tab) =>
+				(tab.id !== 'triagem' || canViewTriageTab) &&
+				(tab.id !== 'historico' || canViewPendenciesTab) &&
+				(tab.id !== 'observacoes' || canViewInternalNotesTab)
+		)
+	);
 
 	function resolveActiveTab(param: string | null): SpecTabId {
 		const tab = specTabs.find((item) => item.id === param);
 		if (tab && tab.enabled) {
 			if (tab.id === 'triagem' && !canViewTriageTab) return DEFAULT_TAB_ID;
+			if (tab.id === 'historico' && !canViewPendenciesTab) return DEFAULT_TAB_ID;
+			if (tab.id === 'observacoes' && !canViewInternalNotesTab) return DEFAULT_TAB_ID;
 			return tab.id;
 		}
 		return DEFAULT_TAB_ID;
@@ -297,6 +309,8 @@
 	function handleTabSelect(tab: SpecTabDefinition) {
 		if (!tab.enabled || isEditMode) return;
 		if (tab.id === 'triagem' && !canViewTriageTab) return;
+		if (tab.id === 'historico' && !canViewPendenciesTab) return;
+		if (tab.id === 'observacoes' && !canViewInternalNotesTab) return;
 		clearSaveSuccess();
 
 		const url = new URL(page.url);

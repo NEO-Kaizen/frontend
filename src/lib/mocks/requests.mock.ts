@@ -1,5 +1,5 @@
 import { ApiError } from '$lib/types/result';
-import { can, has } from '$lib/services/access.service';
+import { can, has } from '$lib/utils/permission-checks';
 import { computePrioritizationResult, getSavedPrioritizationNotes } from './prioritization.mock';
 import { mockUsers } from './users.mock';
 import { getMeMock } from './auth.mock';
@@ -1516,7 +1516,7 @@ export async function createTriageMock(
 	const canWriteAny = can('triage:write', 'all', me);
 	const canWriteAssigned = can('triage:write', 'assigned', me) && detail.assignee?.id === me.id;
 	if (!canWriteAny && !canWriteAssigned) {
-		throw new ApiError(403, 'Ação restrita a quem possui triagem:write na solicitação.');
+		throw new ApiError(403, 'Você não tem permissão para registrar a triagem desta solicitação.');
 	}
 
 	const exitStatus = payload.exitStatus;
@@ -1710,19 +1710,16 @@ export async function updateRequestStatusMock(
 		detail.mappingAssigneeId === me.id;
 	const canChangeAssigned = can('request:status_change', 'assigned', me) && hasCustody;
 	if (!canChangeAny && !canChangeAssigned) {
-		throw new ApiError(403, 'Ação restrita a quem possui request:status_change na solicitação.');
+		throw new ApiError(403, 'Você não tem permissão para alterar o status desta solicitação.');
 	}
 	if (!has('request:status_override', me)) {
 		if (current?.isTerminal) {
-			throw new ApiError(
-				403,
-				'Solicitação terminal — alteração de status restrita a request:status_change em all.'
-			);
+			throw new ApiError(403, 'Não é possível alterar o status de uma solicitação finalizada.');
 		}
 		const isFree =
 			!target.isRestricted && (target.triageMode === 'free' || target.mappingMode === 'free');
 		if (!isFree) {
-			throw new ApiError(403, 'Status alvo não permitido para as chaves da sessão.');
+			throw new ApiError(403, 'Este status não está disponível para sua permissão.');
 		}
 	}
 

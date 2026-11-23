@@ -1,21 +1,15 @@
 import { redirect } from '@sveltejs/kit';
+import { resolve } from '$app/paths';
 import type { RouteId } from '$app/types';
 import type { SessionUser } from '$lib/types/auth';
-import {
-	OPERATIONAL_AREA_KEYS,
-	PORTAL_READ_KEYS,
-	type PermissionCustody,
-	type PermissionKey
-} from '$lib/types/permission';
+import { OPERATIONAL_AREA_KEYS, PORTAL_READ_KEYS, type PermissionKey } from '$lib/types/permission';
+import { has, hasAny } from '$lib/utils/permission-checks';
+
+export { can, has, hasAny } from '$lib/utils/permission-checks';
 
 const LOGIN_PATH = '/login' as const;
 const UNAUTHORIZED_PATH = '/sem-autorizacao' as const;
 const CHANGE_PASSWORD_PATH = '/redefinir-senha' as const;
-const QUEUE_PATH = '/fila' as const;
-const DASHBOARD_PATH = '/dashboard' as const;
-const USERS_PATH = '/usuarios' as const;
-const SETTINGS_PATH = '/configuracoes' as const;
-const TRACK_PATH = '/acompanhar' as const;
 
 type HomeRoute = Extract<
 	RouteId,
@@ -29,52 +23,20 @@ type HomeRoute = Extract<
 interface HomeRedirect {
 	keys: readonly PermissionKey[];
 	route: HomeRoute;
-	path: string;
 }
 
 const HOME_REDIRECTS: readonly HomeRedirect[] = [
-	{ keys: ['queue:read'], route: '/(admin)/fila', path: QUEUE_PATH },
-	{ keys: ['reports:read'], route: '/(admin)/dashboard', path: DASHBOARD_PATH },
-	{ keys: ['user:read'], route: '/(admin)/usuarios', path: USERS_PATH },
-	{ keys: PORTAL_READ_KEYS, route: '/(admin)/configuracoes', path: SETTINGS_PATH },
-	{ keys: ['request:track'], route: '/(public)/acompanhar', path: TRACK_PATH }
+	{ keys: ['queue:read'], route: '/(admin)/fila' },
+	{ keys: ['reports:read'], route: '/(admin)/dashboard' },
+	{ keys: ['user:read'], route: '/(admin)/usuarios' },
+	{ keys: PORTAL_READ_KEYS, route: '/(admin)/configuracoes' },
+	{ keys: ['request:track'], route: '/(public)/acompanhar' }
 ];
 
 export const ADMIN_AREA_KEYS: readonly PermissionKey[] = [
 	...OPERATIONAL_AREA_KEYS,
 	...PORTAL_READ_KEYS
 ];
-
-const CUSTODY_CONTAINS: Record<PermissionCustody, readonly PermissionCustody[]> = {
-	global: ['global'],
-	own: ['own'],
-	assigned: ['assigned', 'all'],
-	all: ['all']
-};
-
-export function has(key: PermissionKey, user: SessionUser | null | undefined): boolean {
-	return Boolean(user?.permissions.some((permission) => permission.key === key));
-}
-
-export function hasAny(
-	keys: readonly PermissionKey[],
-	user: SessionUser | null | undefined
-): boolean {
-	return keys.some((key) => has(key, user));
-}
-
-export function can(
-	key: PermissionKey,
-	custody: PermissionCustody,
-	user: SessionUser | null | undefined
-): boolean {
-	const accepted = CUSTODY_CONTAINS[custody];
-	return Boolean(
-		user?.permissions.some(
-			(permission) => permission.key === key && accepted.includes(permission.custody)
-		)
-	);
-}
 
 function loginRedirectPath(pathname?: string): string {
 	if (pathname && isAllowedReturnTo(pathname)) {
@@ -105,6 +67,9 @@ export function isAllowedReturnTo(value: string): boolean {
 	if (!value.startsWith('/')) return false;
 	if (value.startsWith('//')) return false;
 	if (value.includes('://') || value.includes('\\')) return false;
+	if ([...value].some((char) => char.charCodeAt(0) <= 0x1f || char.charCodeAt(0) === 0x7f)) {
+		return false;
+	}
 	return true;
 }
 
@@ -119,7 +84,8 @@ export function getHomeRedirect(user: SessionUser | null | undefined): HomeRoute
 }
 
 export function getHomePath(user: SessionUser | null | undefined): string | null {
-	return HOME_REDIRECTS.find((item) => hasAny(item.keys, user))?.path ?? null;
+	const home = getHomeRedirect(user);
+	return home ? resolve(home) : null;
 }
 
 export function isPasswordChangeRequired(user: SessionUser | null | undefined): boolean {

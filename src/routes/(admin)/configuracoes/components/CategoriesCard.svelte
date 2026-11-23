@@ -31,9 +31,9 @@
 
 	// Leitura autoritativa falhou: o draft pode ser o fallback local — bloqueia
 	// edição e salvamento até a revalidação.
-	const readOnly = $derived(
-		isPortalConfigLoadBlocked(page.data) || !has('category:manage', page.data.user)
-	);
+	const loadFailed = $derived(isPortalConfigLoadBlocked(page.data));
+	const canEdit = $derived(has('category:manage', page.data.user));
+	const readOnly = $derived(loadFailed || !canEdit);
 
 	// Erro global da lista (Card 5) — nome vazio, duplicado, nenhuma ativa ou
 	// limite de itens. Sem erro, fica null e o campo não bloqueia o salvamento.
@@ -270,7 +270,8 @@
 			saving={section.saving}
 			restorable={section.restorable}
 			{invalid}
-			loadFailed={readOnly}
+			{loadFailed}
+			readOnly={!canEdit}
 			onSave={handleSave}
 			onCancel={() => section.reset()}
 			onRestoreDefaults={() => section.restoreDefaults()}

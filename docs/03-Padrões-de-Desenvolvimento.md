@@ -174,9 +174,9 @@ Toda interação deve possuir retorno visual para o usuário.
 
 ---
 
-## 7.6 Header por perfil
+## 7.6 Header por permissões
 
-O Header pode variar conforme o perfil do usuário.
+O Header pode variar conforme as permissões do usuário.
 
 Evite criar um Header completamente diferente para cada perfil.
 

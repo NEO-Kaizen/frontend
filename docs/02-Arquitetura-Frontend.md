@@ -411,7 +411,7 @@ states     → services e types
 config     → api, types e utils
 services   → api, types, mocks, utils e constants
 api        → types e utils
-mocks      → types
+mocks      → types e utils
 ```
 
 ---

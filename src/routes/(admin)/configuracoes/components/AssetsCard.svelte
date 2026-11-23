@@ -90,9 +90,9 @@
 
 	// Leitura autoritativa falhou: o draft pode ser o fallback local — bloqueia
 	// edição e salvamento até a revalidação.
-	const readOnly = $derived(
-		isPortalConfigLoadBlocked(page.data) || !has('portal_setting:manage', page.data.user)
-	);
+	const loadFailed = $derived(isPortalConfigLoadBlocked(page.data));
+	const canEdit = $derived(has('portal_setting:manage', page.data.user));
+	const readOnly = $derived(loadFailed || !canEdit);
 
 	const section = new SectionState<AssetsSection>(
 		{ assets: page.data.portalConfig.assets },
@@ -201,7 +201,8 @@
 			dirty={section.dirty}
 			saving={section.saving}
 			restorable={section.restorable}
-			loadFailed={readOnly}
+			{loadFailed}
+			readOnly={!canEdit}
 			onSave={handleSave}
 			onCancel={handleCancel}
 			onRestoreDefaults={handleRestoreDefaults}

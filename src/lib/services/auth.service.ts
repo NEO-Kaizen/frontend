@@ -16,6 +16,9 @@ import { sanitizeSessionUser } from './session.service';
 export async function login(credentials: LoginCredentials): Promise<Result<LoginResponse>> {
 	try {
 		const data = sanitizeSessionUser(await loginRequest(credentials));
+		if (!data) {
+			return { ok: false, error: { status: 401, message: 'Credenciais inválidas.' } };
+		}
 		return { ok: true, data };
 	} catch (error) {
 		if (error instanceof ApiError) {
@@ -39,6 +42,12 @@ export async function getMe(
 ): Promise<Result<SessionUser>> {
 	try {
 		const data = sanitizeSessionUser(await getMeRequest(fetchImpl, sessionId));
+		if (!data) {
+			return {
+				ok: false,
+				error: { status: 401, message: 'Sessão expirada ou inválida.' }
+			};
+		}
 		return { ok: true, data };
 	} catch (error) {
 		if (error instanceof ApiError) {

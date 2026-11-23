@@ -8,13 +8,17 @@ import {
 	type PermissionKey
 } from '$lib/types/permission';
 
-export function sanitizeSessionUser(raw: unknown): SessionUser {
+export function sanitizeSessionUser(raw: unknown): SessionUser | null {
 	const source = isRecord(raw) ? raw : {};
+	const id = readString(source.id)?.trim();
+	const email = readString(source.email)?.trim();
+
+	if (!id || !email) return null;
 
 	return {
-		id: readString(source.id) ?? '',
+		id,
 		name: readString(source.name) ?? '',
-		email: readString(source.email) ?? '',
+		email,
 		avatarUrl: readString(source.avatarUrl),
 		role: readString(source.role) || 'Solicitante',
 		mustChangePassword: source.mustChangePassword === true,

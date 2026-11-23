@@ -8,11 +8,12 @@
 
 	interface Props {
 		users: AdminUser[];
+		canManage: boolean;
 
 		onaction: (user: AdminUser, action: UserAction) => void;
 	}
 
-	let { users, onaction }: Props = $props();
+	let { users, canManage, onaction }: Props = $props();
 
 	let openMenuId = $state<string | null>(null);
 
@@ -104,7 +105,7 @@
 					</td>
 
 					<td>
-						{#if user.role === 'Administrador'}
+						{#if !canManage || user.role === 'Administrador'}
 							<span class="no-actions" aria-hidden="true"> — </span>
 						{:else}
 							<div class="actions">

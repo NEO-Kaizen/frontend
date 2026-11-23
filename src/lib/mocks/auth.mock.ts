@@ -54,7 +54,6 @@ const ANALYST_PERMISSIONS = profilePermissions({
 	assigned: [
 		'request:read',
 		'request:write',
-		'request:assign',
 		'request:status_change',
 		'queue:read',
 		'triage:read',
@@ -66,8 +65,7 @@ const ANALYST_PERMISSIONS = profilePermissions({
 		'pending_item:write',
 		'pending_item:review',
 		'internal_note:read',
-		'internal_note:write',
-		'audit:read'
+		'internal_note:write'
 	]
 });
 

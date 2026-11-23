@@ -38,9 +38,9 @@
 		(draft) => saveStatuses({ statuses: draft.statuses })
 	);
 
-	const readOnly = $derived(
-		isPortalConfigLoadBlocked(page.data) || !has('status:manage', page.data.user)
-	);
+	const loadFailed = $derived(isPortalConfigLoadBlocked(page.data));
+	const canEdit = $derived(has('status:manage', page.data.user));
+	const readOnly = $derived(loadFailed || !canEdit);
 
 	const prefersReducedMotion =
 		typeof window !== 'undefined' &&
@@ -339,7 +339,8 @@
 			saving={section.saving}
 			restorable={section.restorable}
 			{invalid}
-			loadFailed={readOnly}
+			{loadFailed}
+			readOnly={!canEdit}
 			onSave={handleSave}
 			onCancel={() => section.reset()}
 			onRestoreDefaults={() => section.restoreDefaults()}

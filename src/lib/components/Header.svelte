@@ -284,7 +284,7 @@
 		</div>
 	</div>
 
-	{#if hasOperationalAccess}
+	{#if hasOperationalAccess || navItems.length > 0}
 		<div class="separator_bar"></div>
 
 		<div class="nav">

@@ -31,9 +31,9 @@
 
 	// Leitura autoritativa falhou: o draft pode ser o fallback local — bloqueia
 	// edição e salvamento até a revalidação.
-	const readOnly = $derived(
-		isPortalConfigLoadBlocked(page.data) || !has('prioritization_config:manage', page.data.user)
-	);
+	const loadFailed = $derived(isPortalConfigLoadBlocked(page.data));
+	const canEdit = $derived(has('prioritization_config:manage', page.data.user));
+	const readOnly = $derived(loadFailed || !canEdit);
 
 	// Qualquer peso fora de 1..10 (inteiro) bloqueia o salvamento.
 	const weightsError: string | null = $derived.by(() => {
@@ -81,7 +81,8 @@
 			saving={section.saving}
 			restorable={section.restorable}
 			{invalid}
-			loadFailed={readOnly}
+			{loadFailed}
+			readOnly={!canEdit}
 			onSave={handleSave}
 			onCancel={() => section.reset()}
 			onRestoreDefaults={() => section.restoreDefaults()}

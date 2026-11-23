@@ -51,9 +51,9 @@
 
 	// Leitura autoritativa falhou: o draft pode ser o fallback local — bloqueia
 	// edição e salvamento até a revalidação.
-	const readOnly = $derived(
-		isPortalConfigLoadBlocked(page.data) || !has('theme:manage', page.data.user)
-	);
+	const loadFailed = $derived(isPortalConfigLoadBlocked(page.data));
+	const canEdit = $derived(has('theme:manage', page.data.user));
+	const readOnly = $derived(loadFailed || !canEdit);
 
 	onMount(() => {
 		editingPalette = getThemeMode();
@@ -344,7 +344,8 @@
 			saving={section.saving}
 			restorable={section.restorable}
 			{invalid}
-			loadFailed={readOnly}
+			{loadFailed}
+			readOnly={!canEdit}
 			onSave={handleSave}
 			onCancel={() => section.reset()}
 			onRestoreDefaults={() => section.restoreDefaults()}
