@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import Icon from '$lib/components/Icon.svelte';
 	import NotificationCard from '$lib/components/NotificationCard.svelte';
+	import NotificationSkeleton from '$lib/components/NotificationSkeleton.svelte';
 	import { resolveNotificationTarget } from '$lib/services/access.service';
 	import { notificationState } from '$lib/states/notification.svelte';
 	import { notifyError } from '$lib/utils/feedback';
@@ -121,7 +122,10 @@
 
 	<div class="center-body">
 		{#if notificationState.centerStatus === 'loading' || notificationState.centerStatus === 'idle'}
-			<p class="center-feedback" role="status" aria-live="polite">Carregando notificações…</p>
+			<p class="sr-only" role="status" aria-live="polite">Carregando notificações…</p>
+			<ul class="center-list" aria-hidden="true" data-testid="notification-list-skeleton">
+				<NotificationSkeleton count={3} />
+			</ul>
 		{:else if notificationState.centerStatus === 'error'}
 			<p class="center-feedback" role="alert">Não foi possível carregar as notificações.</p>
 			<button type="button" class="retry-btn" onclick={() => notificationState.loadCenter()}>
@@ -141,6 +145,12 @@
 					</li>
 				{/each}
 			</ul>
+
+			{#if notificationState.isLoadingMore}
+				<ul class="center-list" aria-hidden="true" data-testid="notification-list-more-skeleton">
+					<NotificationSkeleton count={2} />
+				</ul>
+			{/if}
 
 			{#if notificationState.nextCursor !== null}
 				<button
@@ -234,7 +244,7 @@
 		background-color: transparent;
 		color: var(--primary-color);
 		cursor: pointer;
-		transition: var(--transition-default);
+		transition: background-color var(--motion-duration) var(--motion-easing);
 	}
 
 	.close-btn:hover,
@@ -268,7 +278,7 @@
 		font-size: 13px;
 		padding: var(--spacing-sm) var(--spacing-md);
 		cursor: pointer;
-		transition: var(--transition-default);
+		transition: background-color var(--motion-duration) var(--motion-easing);
 	}
 
 	.retry-btn:hover:not(:disabled),
@@ -282,6 +292,14 @@
 	.load-more-btn:disabled {
 		cursor: wait;
 		opacity: 0.7;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.close-btn,
+		.retry-btn,
+		.load-more-btn {
+			transition: none;
+		}
 	}
 
 	.center-list {
