@@ -1,4 +1,5 @@
 import { redirect } from '@sveltejs/kit';
+import { resolve } from '$app/paths';
 import type { RouteId } from '$app/types';
 import type { SessionUser } from '$lib/types/auth';
 import type { UserType } from '$lib/types/user';
@@ -124,6 +125,17 @@ export function getHomeRedirect(
 		return DASHBOARD_ROUTE;
 	}
 	return null;
+}
+
+// Destino do clique num card de notificação: detalhe interno para perfis
+// internos, acompanhamento público para o solicitante. A regra vive aqui
+// para nenhum componente precisar de role hardcoded.
+export function resolveNotificationTarget(user: SessionUser, protocol: string): string {
+	if (isInternalProfile(user.role)) {
+		return resolve('/(admin)/fila/[protocolo]', { protocolo: protocol });
+	}
+
+	return resolve('/(public)/acompanhar/[protocolo]', { protocolo: protocol });
 }
 
 export function isPasswordChangeRequired(user: SessionUser | null): boolean {

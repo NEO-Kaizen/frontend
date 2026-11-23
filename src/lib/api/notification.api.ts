@@ -54,6 +54,54 @@ export async function listNotifications(
 	return apiClient<NotificationsPage>(`${NOTIFICATIONS_PATH}${query}`, {}, fetchImpl);
 }
 
+export interface MarkNotificationReadResponse {
+	id: string;
+	readAt: string;
+}
+
+export interface MarkAllNotificationsReadResponse {
+	markedRead: number;
+}
+
+// PATCH /notifications/:notificationId/read — idempotente (repete o instante original).
+export async function markNotificationRead(
+	notificationId: string,
+	fetchImpl?: typeof fetch
+): Promise<MarkNotificationReadResponse> {
+	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.notifications) {
+		const mod = (await import('$lib/mocks/notification.mock')) as Record<string, unknown>;
+		if (typeof mod.markNotificationReadMock === 'function') {
+			return (mod.markNotificationReadMock as typeof markNotificationRead)(notificationId);
+		}
+	}
+
+	const encoded = encodeURIComponent(notificationId);
+
+	return apiClient<MarkNotificationReadResponse>(
+		`${NOTIFICATIONS_PATH}/${encoded}/read`,
+		{ method: 'PATCH' },
+		fetchImpl
+	);
+}
+
+// PATCH /notifications/read-all — marca em massa as não lidas do usuário autenticado.
+export async function markAllNotificationsRead(
+	fetchImpl?: typeof fetch
+): Promise<MarkAllNotificationsReadResponse> {
+	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.notifications) {
+		const mod = (await import('$lib/mocks/notification.mock')) as Record<string, unknown>;
+		if (typeof mod.markAllNotificationsReadMock === 'function') {
+			return (mod.markAllNotificationsReadMock as typeof markAllNotificationsRead)();
+		}
+	}
+
+	return apiClient<MarkAllNotificationsReadResponse>(
+		`${NOTIFICATIONS_PATH}/read-all`,
+		{ method: 'PATCH' },
+		fetchImpl
+	);
+}
+
 // URL do stream SSE. O EventSource do navegador não envia headers
 // personalizados, por isso a âncora de reconexão vai na query
 // (`Last-Event-ID` como header só vale para clientes não-browser).
