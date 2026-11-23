@@ -45,6 +45,7 @@ import type {
 	PortalConfig,
 	PortalAssetsPatch,
 	PortalStatus,
+	PortalStatusPayload,
 	PortalTheme,
 	PrioritizationWeights,
 	PrioritizationWeightsSection,
@@ -59,7 +60,6 @@ import type {
 	UpdateCategoriesRequest,
 	UpdateIdentityRequest,
 	UpdatePrioritizationWeightsRequest,
-	UpdateStatusesRequest,
 	UpdateThemeRequest
 } from '$lib/types/portal-config';
 
@@ -215,27 +215,40 @@ export function saveCategories(
 }
 
 // 409 `core_status_locked` (contrato RF13 §2): o backend rejeita alteração de
-// `isPaused` em Status de núcleo. A mensagem técnica é trocada por uma
-// amigável; o rascunho do card é preservado pelo `SectionState`.
-const CORE_STATUS_LOCKED_MESSAGE = 'A pausa de Status de núcleo não pode ser alterada.';
+// `isPaused` em Status de núcleo. O código chega em `ApiError.code`; a
+// mensagem é trocada por uma amigável e o rascunho do card é preservado pelo
+// `SectionState`.
+const CORE_STATUS_LOCKED_CODE = 'core_status_locked';
+const CORE_STATUS_LOCKED_MESSAGE = 'A pausa de Status vital não pode ser alterada.';
 
-export async function saveStatuses(
-	payload: UpdateStatusesRequest
+export function saveStatuses(
+	payload: StatusesSection,
+	pristine: StatusesSection
 ): Promise<Result<StatusesSection>> {
-	const result = await persist('os status', async () => {
-		const data = await updateStatuses({ statuses: sanitizeStatuses(payload.statuses) });
-		return { statuses: sanitizeStatuses(data.statuses) };
+	return persist('os status', async () => {
+		const statuses = toStatusesPayload(sanitizeStatuses(payload.statuses), pristine.statuses);
+		try {
+			const data = await updateStatuses({ statuses });
+			return { statuses: sanitizeStatuses(data.statuses) };
+		} catch (error) {
+			if (error instanceof ApiError && error.code === CORE_STATUS_LOCKED_CODE) {
+				throw new ApiError(error.status, CORE_STATUS_LOCKED_MESSAGE, error.code);
+			}
+			throw error;
+		}
 	});
+}
 
-	if (
-		!result.ok &&
-		result.error.status === 409 &&
-		/core_status_locked/i.test(result.error.message)
-	) {
-		return { ok: false, error: { status: 409, message: CORE_STATUS_LOCKED_MESSAGE } };
-	}
-
-	return result;
+// Minimum payload de `isPaused`: só segue no PATCH quando difere do valor salvo
+// (ou para Status novos, sem valor salvo). Os demais campos seguem completos.
+function toStatusesPayload(
+	statuses: PortalStatus[],
+	pristine: PortalStatus[]
+): PortalStatusPayload[] {
+	return statuses.map(({ isPaused, ...status }) => {
+		const saved = pristine.find((item) => item.id === status.id);
+		return saved && saved.isPaused === isPaused ? status : { ...status, isPaused };
+	});
 }
 
 export function savePrioritizationWeights(
@@ -502,10 +515,8 @@ function sanitizeStatuses(value: unknown): PortalStatus[] {
 
 		const isRestricted = item.isRestricted === true;
 
-		// isPaused (RF13) — mantido só quando booleano. Ausente segue ausente:
-		// no PATCH o backend preserva o valor do banco; virar `false` aqui
-		// sobrescreveria a configuração (e geraria 409 em Status de núcleo).
-		const pause = typeof item.isPaused === 'boolean' ? { isPaused: item.isPaused } : {};
+		// isPaused (RF13) — ausente ou inválido vira `false` na leitura.
+		const isPaused = item.isPaused === true;
 
 		statuses.push({
 			id: item.id,
@@ -513,7 +524,7 @@ function sanitizeStatuses(value: unknown): PortalStatus[] {
 			isCore,
 			isPublic,
 			isTerminal,
-			...pause,
+			isPaused,
 			triageMode,
 			mappingMode,
 			isRestricted,

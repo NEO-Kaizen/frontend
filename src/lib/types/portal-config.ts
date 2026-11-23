@@ -160,10 +160,10 @@ export interface PortalStatus {
 	tone: StatusTone;
 	isActive: boolean;
 	// RF13: Status conta como período pausado (aguardando informação), não
-	// como tempo ativo. Opcional no contrato: ausente no PATCH preserva o valor
-	// do banco. Status `isCore` não podem alterá-lo (backend responde 409
-	// `core_status_locked`).
-	isPaused?: boolean;
+	// como tempo ativo. Na leitura, ausente vira `false`. No PATCH é opcional
+	// (ver `PortalStatusPayload`). Status `isCore` não podem alterá-lo
+	// (backend responde 409 `core_status_locked`).
+	isPaused: boolean;
 	// Alias compat — lidos no sanitize, nunca emitidos no PATCH v4.
 	visibility?: StatusVisibility;
 	closesRequest?: boolean;
@@ -261,8 +261,12 @@ export interface UpdateCategoriesRequest {
 	categories: PortalCategory[];
 }
 
+// Item do PATCH de Status: `isPaused` só é enviado quando foi alterado —
+// ausente, o backend preserva o valor do banco (contrato RF13 §2).
+export type PortalStatusPayload = Omit<PortalStatus, 'isPaused'> & { isPaused?: boolean };
+
 export interface UpdateStatusesRequest {
-	statuses: PortalStatus[];
+	statuses: PortalStatusPayload[];
 }
 
 export interface UpdatePrioritizationWeightsRequest {
