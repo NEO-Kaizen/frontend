@@ -34,7 +34,7 @@
 	const section = new SectionState<StatusesSection>(
 		{ statuses: page.data.portalConfig.statuses },
 		{ statuses: DEFAULT_PORTAL_CONFIG.statuses },
-		(draft) => saveStatuses({ statuses: draft.statuses })
+		(draft, pristine) => saveStatuses(draft, pristine)
 	);
 
 	const loadFailed = $derived(isPortalConfigLoadBlocked(page.data));
@@ -241,7 +241,8 @@
 	// quanto se valer só para os próximos períodos (regra do backend).
 	const PAUSE_HINT =
 		'Quando ativo, o tempo neste Status é contado como pausa (aguardando informação), e não como tempo ativo.';
-	const CORE_PAUSE_LOCKED_HINT = 'Status vital — a pausa não pode ser alterada.';
+	const CORE_PAUSE_LOCKED_HINT =
+		'Status vital: a pausa é definida pelo sistema e não pode ser alterada.';
 
 	const TONE_LABELS: Record<StatusTone, string> = {
 		error: 'Erro',
@@ -568,23 +569,30 @@
 							</button>
 						</td>
 						<td class="col-paused">
-							<button
-								type="button"
-								class="tipo-pill"
-								class:on={status.isPaused === true}
-								aria-pressed={status.isPaused === true}
-								aria-label={status.isCore
-									? `Pausa de ${status.name} (${CORE_PAUSE_LOCKED_HINT})`
-									: `Pausa de ${status.name}`}
-								title={status.isCore ? CORE_PAUSE_LOCKED_HINT : undefined}
-								disabled={section.saving || loadFailed || status.isCore}
-								onclick={(event) => {
-									popToggle(event);
-									updateStatus(status.id, { isPaused: status.isPaused !== true });
-								}}
-							>
-								{status.isPaused === true ? 'Sim' : 'Não'}
-							</button>
+							<span class="paused-field">
+								<button
+									type="button"
+									class="tipo-pill"
+									class:on={status.isPaused}
+									aria-pressed={status.isPaused}
+									aria-label="Pausa de {status.name}"
+									disabled={section.saving || loadFailed || status.isCore}
+									onclick={(event) => {
+										popToggle(event);
+										updateStatus(status.id, { isPaused: !status.isPaused });
+									}}
+								>
+									{status.isPaused ? 'Sim' : 'Não'}
+								</button>
+								<!-- Botão desabilitado não exibe `title` de forma confiável:
+								     a explicação fica num InfoTip focável ao lado. -->
+								{#if status.isCore}
+									<InfoTip
+										label="Por que a pausa de {status.name} não pode ser alterada"
+										text={CORE_PAUSE_LOCKED_HINT}
+									/>
+								{/if}
+							</span>
 						</td>
 						<td class="col-mode">
 							<BadgeSelect
@@ -873,8 +881,13 @@
 		text-align: center;
 	}
 	.col-paused {
-		width: 85px;
+		width: 105px;
 		text-align: center;
+	}
+	.paused-field {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--spacing-xs);
 	}
 	.th-with-tip {
 		display: inline-flex;
