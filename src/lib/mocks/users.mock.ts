@@ -167,7 +167,7 @@ export const mockUsers: MockUser[] = [
 		specialty: 'Especialista em indicadores',
 		categories: ['Indicador', 'Dashboard ou relatório'],
 		notes: 'Em licença até 09/2026.',
-		requestLoad: null
+		requestLoad: 0
 	},
 	{
 		id: '16',
@@ -255,7 +255,7 @@ export const mockUsers: MockUser[] = [
 		specialty: '',
 		categories: [],
 		notes: null,
-		requestLoad: null
+		requestLoad: 0
 	}
 ];
 
@@ -369,7 +369,7 @@ export function listAnalystsMock(): Promise<Analyst[]> {
 			specialty: user.specialty ?? '',
 			categories: user.categories ?? [],
 			notes: user.notes ?? null,
-			requestLoad: user.requestLoad ?? null
+			requestLoad: user.requestLoad ?? 0
 		}));
 	return delay(MOCK_LATENCY_MS).then(() => result);
 }

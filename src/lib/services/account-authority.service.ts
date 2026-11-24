@@ -9,18 +9,28 @@ function custodyContains(
 	return actorCustody === targetCustody || (actorCustody === 'all' && targetCustody === 'assigned');
 }
 
-function containsAll(targetGrants: Permission[], actorGrants: Permission[]): boolean {
-	const actorPermissions = new Map(actorGrants.map((grant) => [grant.key, grant.custody] as const));
+type PermissionGrants = Permission[] | null | undefined;
 
-	return targetGrants.every((grant) => {
+function normalizeGrants(grants: PermissionGrants): Permission[] {
+	return Array.isArray(grants) ? grants : [];
+}
+
+function containsAll(targetGrants: PermissionGrants, actorGrants: PermissionGrants): boolean {
+	const target = normalizeGrants(targetGrants);
+	const actor = normalizeGrants(actorGrants);
+	if (target.length === 0) return false;
+
+	const actorPermissions = new Map(actor.map((grant) => [grant.key, grant.custody] as const));
+
+	return target.every((grant) => {
 		const actorCustody = actorPermissions.get(grant.key);
 		return actorCustody !== undefined && custodyContains(actorCustody, grant.custody);
 	});
 }
 
 export function isAuthorityStrictlyBelow(
-	targetGrants: Permission[],
-	actorGrants: Permission[]
+	targetGrants: PermissionGrants,
+	actorGrants: PermissionGrants
 ): boolean {
 	return containsAll(targetGrants, actorGrants) && !containsAll(actorGrants, targetGrants);
 }

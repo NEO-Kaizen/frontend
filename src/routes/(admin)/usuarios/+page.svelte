@@ -413,11 +413,7 @@
 		     CONTEÚDO
 		========================= -->
 
-		<div
-			id="users-panel"
-			class={['tab-panel', { refreshing: isRefreshing }]}
-			aria-busy={isRefreshing}
-		>
+		<div class={['tab-panel', { refreshing: isRefreshing }]} aria-busy={isRefreshing}>
 			{#if isLoading}
 				<div class="state-card" role="status">
 					<span class="spinner" aria-hidden="true"></span>

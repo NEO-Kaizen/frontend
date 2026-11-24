@@ -196,7 +196,7 @@
 				: undefined
 		};
 
-		if (profiles.length > 0) {
+		if (profiles.length > 0 && profileId !== user.profile.id) {
 			changes.profileId = profileId;
 		}
 

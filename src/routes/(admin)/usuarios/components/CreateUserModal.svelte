@@ -256,7 +256,9 @@
 	{#if temporaryPassword}
 		<div class="success-content">
 			<p class="description">
-				O usuário com perfil {createdUserProfileName.toLowerCase()} foi cadastrado com sucesso.
+				O usuário foi cadastrado{createdUserProfileName
+					? ` com o perfil "${createdUserProfileName}"`
+					: ''}.
 			</p>
 
 			<div class="success-box">

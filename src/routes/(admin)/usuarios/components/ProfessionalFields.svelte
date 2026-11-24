@@ -48,7 +48,7 @@
 <section class="professional-section" aria-labelledby="professional-fields-title">
 	<div class="section-heading">
 		<h4 id="professional-fields-title">
-			{profileName ? `Dados profissionais do ${profileName}` : 'Dados profissionais'}
+			{profileName ? `Dados profissionais — ${profileName}` : 'Dados profissionais'}
 		</h4>
 		<p>Informações usadas na atribuição e no acompanhamento das solicitações.</p>
 	</div>

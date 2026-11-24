@@ -36,7 +36,7 @@ export interface Analyst {
 	specialty: string;
 	categories: RequestCategory[];
 	notes: string | null;
-	requestLoad: number | null;
+	requestLoad: number;
 }
 
 export interface UserStats {

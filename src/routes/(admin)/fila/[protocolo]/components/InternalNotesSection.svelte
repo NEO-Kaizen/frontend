@@ -382,7 +382,7 @@
 								<article class="note-entry">
 									<div class="note-meta">
 										<strong>{item.author.name}</strong>
-										<span>({item.author.profile?.name ?? 'Perfil não informado'})</span>
+										<span>({item.author.profile.name})</span>
 										{#if isCurrentUser(item)}<span>· você</span>{/if}
 										<time datetime={item.createdAt}>{formatDateTime(item.createdAt)}</time>
 									</div>
