@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
-	import { onDestroy } from 'svelte';
+	import { onDestroy, tick } from 'svelte';
 	import Button from '$lib/components/Button.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import type { Profile, ProfileKeyCatalog } from '$lib/types/profile';
@@ -112,6 +112,45 @@
 		pendingStatus = profile;
 	}
 
+	// Recarrega o `load` da página depois de mutações: filtro de usuários,
+	// perfis atribuíveis e contagens derivam do SSR, não só da aba Perfis.
+	// O override local só sai quando o `load` devolve a versão salva — no modo
+	// mock a mutação vive no browser e o `load` do SSR continua no seed.
+	async function syncPageData(saved: Profile) {
+		try {
+			await invalidateAll();
+			await tick();
+			const refreshed = profilesResult?.ok ? profilesResult.data : null;
+			if (refreshed && reflectsSavedProfile(refreshed, saved)) {
+				profilesOverride = null;
+			}
+		} catch {
+			// Mantém o estado local da aba; a próxima navegação recarrega o resto.
+		}
+	}
+
+	function reflectsSavedProfile(list: Profile[], saved: Profile): boolean {
+		const current = list.find((item) => item.id === saved.id);
+		return (
+			current != null &&
+			current.name === saved.name &&
+			(current.description ?? '') === (saved.description ?? '') &&
+			current.isActive === saved.isActive &&
+			current.isAssignableTriage === saved.isAssignableTriage &&
+			current.isAssignableMapping === saved.isAssignableMapping &&
+			sameComposition(current.permissions, saved.permissions)
+		);
+	}
+
+	function sameComposition(
+		current: Profile['permissions'],
+		saved: Profile['permissions']
+	): boolean {
+		if (current.length !== saved.length) return false;
+		const custodyByKey = new Map(current.map(({ key, custody }) => [key, custody]));
+		return saved.every(({ key, custody }) => custodyByKey.get(key) === custody);
+	}
+
 	function handleSaved(message: string, profile: Profile) {
 		const nextProfiles = profileSource();
 		profilesOverride = nextProfiles.some((item) => item.id === profile.id)
@@ -119,6 +158,7 @@
 			: [...nextProfiles, profile];
 		closeEditor();
 		showSuccessMessage(message);
+		void syncPageData(profile);
 	}
 
 	async function confirmStatusChange() {
@@ -146,6 +186,7 @@
 		showSuccessMessage(
 			`Perfil "${profile.name}" ${profile.isActive ? 'desativado' : 'ativado'} com sucesso.`
 		);
+		void syncPageData({ ...profile.source, isActive: !profile.isActive });
 	}
 </script>
 

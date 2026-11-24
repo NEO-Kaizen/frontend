@@ -68,7 +68,7 @@ serviço: `src/lib/services/profile.service.ts`.
 | GET    | `/profiles`               | `Profile[]` (inclui inativos) | `profile:read`   |
 | GET    | `/profiles/keys`          | `ProfileKeyCatalog`           | `profile:read`   |
 | POST   | `/profiles`               | `Profile`                     | `profile:manage` |
-| PATCH  | `/profiles/:id`           | `Profile` (parcial)           | `profile:manage` |
+| PATCH  | `/profiles/:id`           | `Profile` (completo)          | `profile:manage` |
 | PATCH  | `/profiles/:id/status`    | `{ id, isActive }`            | `profile:manage` |
 | POST   | `/profiles/:id/duplicate` | `Profile`                     | `profile:manage` |
 
@@ -121,7 +121,7 @@ O frontend envia apenas o que mudou; composição e flags vão juntas quando amb
 
 ## Limitação do mock
 
-No modo mock, criar/editar/ativar/desativar perfis atualiza a lista local da aba Perfis, mas não o `load` do SSR. Um reload completo da página volta ao seed de `profiles.mock.ts`, e o filtro/atribuição de usuários não enxerga o perfil criado na mesma sessão. O `userCount` também é estático e não acompanha criação/edição de usuários. Essas são limitações do mock em memória, não do fluxo real de API.
+No modo mock, as mutações de perfil acontecem no browser e não chegam ao `load` do SSR, que continua lendo o seed de `profiles.mock.ts`. A aba Perfis mostra a lista local atualizada enquanto permanece montada (sair da aba e voltar remonta o componente), mas filtro e atribuição de usuários nunca refletem a mudança e o reload completo restaura o seed. O `userCount` também é estático e não acompanha criação/edição de usuários. Essas são limitações do mock em memória, não do fluxo real de API.
 
 ## Pendências
 
