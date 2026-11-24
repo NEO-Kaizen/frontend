@@ -19,8 +19,8 @@ import type {
 	ProfileUpdateInput
 } from '$lib/types/profile';
 import type { SessionUser } from '$lib/types/auth';
-import { canEditProfile, canGrantCustody, has, isRootActor } from '$lib/utils/permission-checks';
-import { PROFILE_NAME_MAX_LENGTH } from '$lib/utils/validations';
+import { canEditProfile, canGrantCustody, has } from '$lib/utils/permission-checks';
+import { PROFILE_DESCRIPTION_MAX_LENGTH, PROFILE_NAME_MAX_LENGTH } from '$lib/utils/validations';
 
 const MOCK_LATENCY_MS = 180;
 
@@ -209,7 +209,7 @@ export async function createProfileMock(payload: ProfileCreateInput): Promise<Pr
 	const profile: Profile = {
 		id: String(nextProfileId++),
 		name,
-		description: payload.description?.trim() || null,
+		description: normalizeDescription(payload.description),
 		isActive: true,
 		isRoot: false,
 		isAssignableTriage: payload.isAssignableTriage ?? false,
@@ -227,9 +227,6 @@ export async function updateProfileMock(id: string, payload: ProfileUpdateInput)
 	const actor = await requireManagePermission();
 	const current = findProfile(id);
 
-	if (current.isRoot && !isRootActor(actor)) {
-		throw new ApiError(403, 'Apenas o Admin Root edita o perfil Admin Root.');
-	}
 	if (!canEditProfile(actor, current)) {
 		throw new ApiError(403, 'Seu perfil não tem autoridade suficiente para editar este perfil.');
 	}
@@ -244,7 +241,7 @@ export async function updateProfileMock(id: string, payload: ProfileUpdateInput)
 		...current,
 		...(payload.name !== undefined ? { name: normalizeName(payload.name) } : {}),
 		...(payload.description !== undefined
-			? { description: payload.description?.trim() || null }
+			? { description: normalizeDescription(payload.description) }
 			: {}),
 		...(payload.isAssignableTriage !== undefined
 			? { isAssignableTriage: payload.isAssignableTriage }
@@ -334,6 +331,17 @@ function normalizeName(value: string): string {
 		throw new ApiError(400, `Informe um nome de até ${PROFILE_NAME_MAX_LENGTH} caracteres.`);
 	}
 	return name;
+}
+
+function normalizeDescription(value: string | null | undefined): string | null {
+	const description = value?.trim() ?? '';
+	if (description.length > PROFILE_DESCRIPTION_MAX_LENGTH) {
+		throw new ApiError(
+			400,
+			`A descrição deve ter no máximo ${PROFILE_DESCRIPTION_MAX_LENGTH} caracteres.`
+		);
+	}
+	return description || null;
 }
 
 function assertNameAvailable(name: string, excludeId?: string): void {

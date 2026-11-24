@@ -27,11 +27,14 @@
 		'Não é possível duplicar: sua conta não pode conceder todas as permissões e escopos herdados deste perfil.';
 
 	function canDuplicateProfile(profile: Profile): boolean {
-		return profile.permissions.every((requestedPermission) =>
-			user.permissions.some(
-				(actorPermission) =>
-					actorPermission.key === requestedPermission.key &&
-					canGrantCustody(actorPermission.custody, requestedPermission.custody)
+		return (
+			canEditProfile(user, profile) &&
+			profile.permissions.every((requestedPermission) =>
+				user.permissions.some(
+					(actorPermission) =>
+						actorPermission.key === requestedPermission.key &&
+						canGrantCustody(actorPermission.custody, requestedPermission.custody)
+				)
 			)
 		);
 	}
@@ -58,8 +61,13 @@
 				{#each profiles as profile (profile.id)}
 					{@const canDuplicate = canDuplicateProfile(profile.source)}
 					{@const canEdit = canEditProfile(user, profile.source)}
-					{@const statusRestrictionMessage =
-						profile.isActive && profile.isRoot
+					{@const displayName = profile.name || 'perfil sem nome'}
+					{@const duplicateRestriction = !canEdit
+						? 'Seu perfil não tem autoridade suficiente para duplicar este perfil.'
+						: duplicateRestrictionMessage}
+					{@const statusRestrictionMessage = !canEdit
+						? 'Seu perfil não tem autoridade suficiente para alterar este perfil.'
+						: profile.isActive && profile.isRoot
 							? 'O perfil Admin Root não pode ser desativado.'
 							: profile.isActive && profile.userCount > 0
 								? profile.userCount === 1
@@ -112,7 +120,11 @@
 								<span aria-hidden="true"></span>
 								{profile.isActive ? 'Ativo' : 'Inativo'}
 							</span>
-							{#if profile.isActive && profile.isRoot}
+							{#if !canEdit}
+								<small class="status-note" id={`status-guidance-${profile.id}`}>
+									Seu perfil não tem autoridade suficiente para alterar este perfil.
+								</small>
+							{:else if profile.isActive && profile.isRoot}
 								<small class="status-note" id={`status-guidance-${profile.id}`}>
 									O perfil Admin Root não pode ser desativado.
 								</small>
@@ -130,7 +142,7 @@
 									<Button
 										variant="outline"
 										disabled={!canEdit}
-										aria-label={`Editar perfil ${profile.name}`}
+										aria-label={`Editar perfil ${displayName}`}
 										onclick={() => onedit(profile.source)}
 									>
 										Editar
@@ -145,8 +157,8 @@
 									<Button
 										variant="outline"
 										disabled={!canDuplicate}
-										title={!canDuplicate ? duplicateRestrictionMessage : undefined}
-										aria-label={`Duplicar perfil ${profile.name}`}
+										title={!canDuplicate ? duplicateRestriction : undefined}
+										aria-label={`Duplicar perfil ${displayName}`}
 										aria-describedby={!canDuplicate
 											? `duplicate-guidance-${profile.id}`
 											: undefined}
@@ -159,7 +171,7 @@
 										disabled={!canEdit ||
 											(profile.isActive && (profile.isRoot || profile.userCount > 0))}
 										title={statusRestrictionMessage || undefined}
-										aria-label={`${profile.isActive ? 'Desativar' : 'Ativar'} perfil ${profile.name}`}
+										aria-label={`${profile.isActive ? 'Desativar' : 'Ativar'} perfil ${displayName}`}
 										aria-describedby={statusRestrictionMessage
 											? `status-guidance-${profile.id}`
 											: undefined}
@@ -170,7 +182,7 @@
 								</div>
 								{#if !canDuplicate}
 									<small id={`duplicate-guidance-${profile.id}`} class="action-note">
-										{duplicateRestrictionMessage}
+										{duplicateRestriction}
 									</small>
 								{/if}
 							</td>

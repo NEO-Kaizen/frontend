@@ -105,7 +105,8 @@ O frontend envia apenas o que mudou; composição e flags vão juntas quando amb
 
 ## Regras assumidas
 
-- Nome único entre perfis **ativos**, comparado sem diferenciar maiúsculas/minúsculas.
+- Nome único entre perfis **ativos**, comparado sem diferenciar maiúsculas/minúsculas; nome até 60 caracteres e descrição até 255.
+- Editar, duplicar e alterar status exigem que o alvo esteja **estritamente abaixo** da autoridade do ator. O Admin Root é exceção e gerencia qualquer perfil; o perfil Root só pode ser editado pelo Root.
 - `own` e `global` são custódias fixas; chaves custodiais aceitam `assigned`/`all`.
 - Dependências do catálogo precisam estar presentes na composição.
 - Ator só concede chave/escopo que ele próprio possui.
@@ -120,7 +121,7 @@ O frontend envia apenas o que mudou; composição e flags vão juntas quando amb
 
 ## Limitação do mock
 
-No modo mock, criar/editar/ativar/desativar perfis atualiza a lista local da aba Perfis, mas não o `load` do SSR. Um reload completo da página volta ao seed de `profiles.mock.ts`, e o filtro/atribuição de usuários não enxerga o perfil criado na mesma sessão. Isso é uma limitação do mock em memória, não do fluxo real de API.
+No modo mock, criar/editar/ativar/desativar perfis atualiza a lista local da aba Perfis, mas não o `load` do SSR. Um reload completo da página volta ao seed de `profiles.mock.ts`, e o filtro/atribuição de usuários não enxerga o perfil criado na mesma sessão. O `userCount` também é estático e não acompanha criação/edição de usuários. Essas são limitações do mock em memória, não do fluxo real de API.
 
 ## Pendências
 

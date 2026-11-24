@@ -331,7 +331,7 @@ O domínio `profiles` atende a gestão de perfis:
 - `PATCH /profiles/:id/status`: ativa/desativa perfil;
 - `POST /profiles/:id/duplicate`: duplica um perfil.
 
-Regras representadas no mock e na UI: nome único entre perfis ativos; perfil Root não editável/desativável por ator que não seja Root; desativação bloqueada por contagem de usuários; custódia concedível pelo ator; dependências e chaves fixas em `own`; guarda atômica de composição + flags. As leituras mock são SSR-safe e não fazem gate de sessão (o `guardAny` do load cobre); as mutações exigem `profile:manage`.
+Regras representadas no mock e na UI: nome único entre perfis ativos; perfil Root só editável pelo Root e nunca desativável; editar, ativar/desativar e duplicar exigem alvo estritamente abaixo da autoridade do ator (Root é exceção); desativação bloqueada por contagem de usuários; custódia concedível pelo ator; dependências e chaves fixas em `own`; guarda atômica de composição + flags. As leituras mock são SSR-safe e não fazem gate de sessão (o `guardAny` do load cobre); as mutações exigem `profile:manage`.
 
 O contrato assumido pelo frontend está em [`docs/profiles-api.md`](./profiles-api.md), com endpoints, payloads e pendências de confirmação com o backend.
 
@@ -350,6 +350,8 @@ A pasta `utils/` contém funções genéricas e reutilizáveis, como:
 - debounce.
 
 Uma função que representa uma regra específica do MAAT deve pertencer a um service, e não a `utils/`.
+
+Exceção: helpers puros de autorização (`has`, `can`, `canGrantCustody`, `canEditProfile`) vivem em `utils/permission-checks.ts` para serem consumidos por UI, services e mocks sem criar ciclo. Regras que orquestram dados continuam nos services.
 
 ### Constants
 

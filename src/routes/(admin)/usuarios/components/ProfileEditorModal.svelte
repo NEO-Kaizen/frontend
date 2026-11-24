@@ -14,7 +14,7 @@
 	import type { Permission, PermissionCustody, PermissionKey } from '$lib/types/permission';
 	import { createProfile, duplicateProfile, updateProfile } from '$lib/services/profile.service';
 	import { canGrantCustody } from '$lib/utils/permission-checks';
-	import { PROFILE_NAME_MAX_LENGTH } from '$lib/utils/validations';
+	import { PROFILE_DESCRIPTION_MAX_LENGTH, PROFILE_NAME_MAX_LENGTH } from '$lib/utils/validations';
 
 	interface Props {
 		mode: 'create' | 'edit' | 'duplicate';
@@ -35,7 +35,12 @@
 
 	type CatalogResource = { id: string; label: string; keys: CatalogKey[] };
 
-	const PROFILE_DESCRIPTION_MAX_LENGTH = 255;
+	const custodyLabels: Record<PermissionCustody, string> = {
+		global: 'Global',
+		own: 'Próprio',
+		assigned: 'Atribuído',
+		all: 'Todos'
+	};
 	const selfServiceKeySet = new Set<string>(SELF_SERVICE_KEYS);
 	const selfServiceKeys = SELF_SERVICE_KEYS;
 	type SelfServiceKey = (typeof SELF_SERVICE_KEYS)[number];
@@ -242,9 +247,7 @@
 		if (description.trim().length > PROFILE_DESCRIPTION_MAX_LENGTH) {
 			saveError = `A descrição deve ter no máximo ${PROFILE_DESCRIPTION_MAX_LENGTH} caracteres.`;
 		} else if (mode !== 'duplicate') {
-			if (canEditComposition && selectedKeys.length > compositionLimit) {
-				saveError = `A composição pode conter no máximo ${compositionLimit} permissões.`;
-			} else if (canEditComposition && missingDependencies.length > 0) {
+			if (canEditComposition && missingDependencies.length > 0) {
 				saveError = 'Resolva as dependências faltantes antes de salvar.';
 			} else if (
 				canEditComposition &&
@@ -466,7 +469,7 @@
 											}}
 										>
 											{#each availableCustodies as custody (custody)}
-												<option value={custody}>{custody}</option>
+												<option value={custody}>{custodyLabels[custody]}</option>
 											{/each}
 										</select>
 									</label>

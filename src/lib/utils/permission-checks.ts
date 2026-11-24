@@ -68,7 +68,8 @@ export function isAuthorityStrictlyBelow(
 
 export function canEditProfile(actor: SessionUser | null | undefined, target: Profile): boolean {
 	if (!actor) return false;
-	if (target.isRoot) return isRootActor(actor);
+	if (isRootActor(actor)) return true;
+	if (target.isRoot) return false;
 
 	return isAuthorityStrictlyBelow(target.permissions, actor.permissions);
 }

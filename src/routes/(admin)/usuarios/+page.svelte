@@ -489,7 +489,7 @@
 			<div
 				id="users-panel"
 				class={['tab-panel', { refreshing: isRefreshing }]}
-				role="tabpanel"
+				role={tabs.length > 1 ? 'tabpanel' : undefined}
 				aria-busy={isRefreshing}
 				aria-labelledby={tabs.length > 1 ? `users-tab-${activeTab}` : undefined}
 			>
