@@ -10,6 +10,7 @@
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import { exportQueueCsv } from '$lib/services/report.service';
+	import { has } from '$lib/services/access.service';
 	import { notifyError } from '$lib/utils/feedback';
 
 	import type { MetricItem } from '$lib/types/metrics';
@@ -23,7 +24,7 @@
 	const isFetching = $derived(navigating.to?.route?.id === page.route.id);
 	let isExporting = $state(false);
 
-	const canExport = $derived(data.user?.role === 'Gestor' || data.user?.role === 'Administrador');
+	const canExport = $derived(has('queue:export', data.user));
 	const hasExportableRows = $derived(data.result.ok && data.result.data.total > 0);
 
 	const queuePath = resolve('/(admin)/fila');

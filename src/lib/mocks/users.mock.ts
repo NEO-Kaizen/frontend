@@ -1,4 +1,6 @@
+import { getMeMock } from './auth.mock';
 import { ApiError } from '$lib/types/result';
+import { has } from '$lib/utils/permission-checks';
 import type { PaginatedResponse } from '$lib/types/request';
 
 import type {
@@ -353,7 +355,10 @@ export function getUserStatsMock(): UserStats {
 	};
 }
 
-export function createUserMock(payload: CreateUserPayload): Promise<CreateUserResponse> {
+export async function createUserMock(payload: CreateUserPayload): Promise<CreateUserResponse> {
+	await requirePermission('user:manage');
+	await requirePermission('profile:manage');
+
 	if (payload.role === 'administrador') {
 		return Promise.reject(new ApiError(403, 'Não é possível gerenciar contas de Administradores'));
 	}
@@ -428,10 +433,12 @@ export function createUserMock(payload: CreateUserPayload): Promise<CreateUserRe
 	}));
 }
 
-export function updateUserStatusMock(
+export async function updateUserStatusMock(
 	id: string,
 	isActive: boolean
 ): Promise<UpdateUserStatusResponse> {
+	await requirePermission('user:manage');
+
 	const user = findMockUser(id);
 
 	if (!user) {
@@ -450,7 +457,9 @@ export function updateUserStatusMock(
 	}));
 }
 
-export function resetUserPasswordMock(id: string): Promise<ResetPasswordResponse> {
+export async function resetUserPasswordMock(id: string): Promise<ResetPasswordResponse> {
+	await requirePermission('user:manage');
+
 	const user = findMockUser(id);
 
 	if (!user) {
@@ -508,6 +517,8 @@ export async function updateUserMock(
 	id: string,
 	payload: UpdateUserInput
 ): Promise<UserProfileResponse> {
+	await requirePermission('user:manage');
+
 	const user = findMockUser(id);
 	if (!user) {
 		return Promise.reject(new ApiError(404, 'Usuário não encontrado'));
@@ -543,6 +554,18 @@ export async function updateUserMock(
 	});
 
 	return delay(MOCK_LATENCY_MS).then(() => next);
+}
+
+async function requirePermission(key: 'user:manage' | 'profile:manage'): Promise<void> {
+	const currentUser = await getMeMock();
+	if (!has(key, currentUser)) {
+		throw new ApiError(
+			403,
+			key === 'user:manage'
+				? 'Você não tem permissão para gerenciar usuários.'
+				: 'Você não tem permissão para definir o perfil do usuário.'
+		);
+	}
 }
 
 function findMockUser(id: string): MockUser | undefined {

@@ -4,30 +4,48 @@
 	import type { IconName } from '$lib/types/icons';
 	import { page } from '$app/state';
 	import Button from '$lib/components/Button.svelte';
-	import type { UserType } from '$lib/types/user';
 	import Input from './Input.svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import type { RouteId } from '$app/types';
 	import { logout } from '$lib/services/auth.service';
 	import { clearDraft } from '$lib/services/solicitation-draft.service';
 	import { searchRequests } from '$lib/services/request.service';
-	import { isInternalProfile } from '$lib/services/access.service';
+	import { hasAny } from '$lib/services/access.service';
+	import {
+		OPERATIONAL_AREA_KEYS,
+		PORTAL_ACCESS_KEYS,
+		type PermissionKey
+	} from '$lib/types/permission';
 	import { onMount } from 'svelte';
 	import { getThemeMode, toggleTheme } from '$lib/states/theme.svelte';
 	import { resolveApiAssetUrl } from '$lib/utils/api-assets';
 
+	const NAV_ROUTES = {
+		home: '/(admin)/home',
+		queue: '/(admin)/fila',
+		dashboard: '/(admin)/dashboard',
+		logs: '/(admin)/historico-de-logs',
+		users: '/(admin)/usuarios',
+		settings: '/(admin)/configuracoes'
+	} as const satisfies Record<string, RouteId>;
+
 	const NAV_PATHS = {
-		home: resolve('/(admin)/home'),
-		queue: resolve('/(admin)/fila'),
-		dashboard: resolve('/(admin)/dashboard'),
-		users: resolve('/(admin)/usuarios'),
-		settings: resolve('/(admin)/configuracoes')
+		home: resolve(NAV_ROUTES.home),
+		queue: resolve(NAV_ROUTES.queue),
+		dashboard: resolve(NAV_ROUTES.dashboard),
+		logs: resolve(NAV_ROUTES.logs),
+		users: resolve(NAV_ROUTES.users),
+		settings: resolve(NAV_ROUTES.settings)
 	} as const;
+
+	type NavRoute = (typeof NAV_ROUTES)[keyof typeof NAV_ROUTES];
 
 	interface NavButton {
 		name: string;
 		icon: IconName;
-		href?: (typeof NAV_PATHS)[keyof typeof NAV_PATHS];
+		keys: readonly PermissionKey[];
+		route: NavRoute;
 		// Sem rota associada: item exibido como indisponível, sem link.
 		disabled?: boolean;
 	}
@@ -47,59 +65,52 @@
 	const isDarkTheme = $derived(isMounted && getThemeMode() === 'dark');
 
 	function isActive(item: NavButton, pathname: string): boolean {
-		if (!item.href) return false;
-		return pathname === item.href || pathname.startsWith(`${item.href}/`);
+		const href = resolve(item.route);
+		return pathname === href || pathname.startsWith(`${href}/`);
 	}
 
-	const analistaNav: NavButton[] = [
+	const navCatalog: readonly NavButton[] = [
 		{
 			name: 'Home',
 			icon: 'home',
-			href: NAV_PATHS.home
+			keys: ['queue:read'],
+			route: NAV_ROUTES.home
 		},
 		{
 			name: 'Fila Centralizada',
 			icon: 'centralQueue',
-			href: NAV_PATHS.queue
-		}
-	];
-
-	const gestorNav: NavButton[] = [
-		...analistaNav,
+			keys: ['queue:read'],
+			route: NAV_ROUTES.queue
+		},
 		{
 			name: 'Dashboard Gerencial',
 			icon: 'queueChart',
-			href: NAV_PATHS.dashboard
+			keys: ['reports:read'],
+			route: NAV_ROUTES.dashboard
 		},
 		{
 			name: 'Histórico de Logs',
 			icon: 'history',
-			href: '/(admin)/historico-de-logs'
-		}
-	];
-
-	const adminNav: NavButton[] = [
-		...gestorNav,
+			keys: ['audit:read'],
+			route: NAV_ROUTES.logs
+		},
 		{
 			name: 'Gerenciar Usuários',
 			icon: 'manageUsers',
-			href: NAV_PATHS.users
+			keys: ['user:read'],
+			route: NAV_ROUTES.users
 		},
 		{
 			name: 'Configurações',
 			icon: 'settings',
-			href: NAV_PATHS.settings
+			keys: PORTAL_ACCESS_KEYS,
+			route: NAV_ROUTES.settings
 		}
 	];
 
-	const navItems = {
-		Analista: analistaNav,
-		Gestor: gestorNav,
-		Administrador: adminNav,
-		Solicitante: []
-	} satisfies Record<UserType, NavButton[]>;
+	const navItems = $derived(navCatalog.filter((item) => hasAny(item.keys, currentUser)));
 
-	const isNotSolicitante = $derived(currentUser != null && isInternalProfile(currentUser.role));
+	const hasOperationalAccess = $derived(hasAny(OPERATIONAL_AREA_KEYS, currentUser));
 
 	const activeSearch = $derived(page.url.searchParams.get('search') ?? '');
 
@@ -123,7 +134,7 @@
 		isSearching = true;
 
 		try {
-			if (isNotSolicitante) {
+			if (hasOperationalAccess) {
 				const searchParams = new URLSearchParams({ search: value });
 
 				// Plugin não aceita query string após resolve() (eslint-plugin-svelte#1327);
@@ -273,19 +284,23 @@
 		</div>
 	</div>
 
-	{#if isNotSolicitante}
+	{#if hasOperationalAccess || navItems.length > 0}
 		<div class="separator_bar"></div>
 
 		<div class="nav">
 			<div class="nav-items-group">
-				{#each navItems[currentUser?.role ?? 'Solicitante'] as item (item.name)}
+				{#each navItems as item (item.name)}
 					{#if item.disabled}
 						<div class="nav-item inactive" aria-disabled="true">
 							<Icon iconName={item.icon} />
 							<span>{item.name}</span>
 						</div>
 					{:else}
-						<a class="nav-item" class:active={isActive(item, page.url.pathname)} href={item.href}>
+						<a
+							class="nav-item"
+							class:active={isActive(item, page.url.pathname)}
+							href={resolve(item.route)}
+						>
 							<Icon iconName={item.icon} />
 							<span>{item.name}</span>
 						</a>

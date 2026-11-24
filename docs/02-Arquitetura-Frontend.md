@@ -376,26 +376,29 @@ routes/
 ```
 
 - `(public)`: páginas públicas (anônimos e Solicitante);
-- `(app)`: páginas de qualquer usuário autenticado — `guard('anySession')`;
-- `(admin)`: páginas das áreas internas (Analista, Gestor, Administrador) — `guard('internalArea')`.
+- `(app)`: páginas de qualquer usuário autenticado — `guardSession`;
+- `(admin)`: páginas das áreas internas — `guardAny(ADMIN_AREA_KEYS)` no layout, com guards por chave nas páginas.
 
 Os grupos entre parênteses organizam as rotas sem alterar diretamente a URL e devem ser criados conforme a necessidade do projeto.
 
-**Grupo ≠ perfil.** O perfil do usuário (Solicitante, Analista, Gestor, Administrador) nunca gera um novo grupo de rotas; é resolvido na tabela `GUARD_RULES` do access service (`src/lib/services/access.service.ts`). Um futuro perfil Gestor, por exemplo, é uma linha em `profiles` de uma regra — não um grupo `(gestor)/`.
+**Grupo ≠ perfil.** O perfil do usuário nunca gera um novo grupo de rotas. O access service (`src/lib/services/access.service.ts`) expõe `has(chave)`, `hasAny(chaves)` e `can(chave, vínculo)` como funções puras sobre a sessão. Perfis customizados entram apenas pela lista efetiva de permissões devolvida por `/auth/me`.
 
-O grupo `(admin)` tem papel de guard server-side (não define layout visual): o Header permanece único, com navegação por perfil.
+O grupo `(admin)` tem papel de guard server-side (não define layout visual): o Header permanece único, com navegação anotada por chave e filtrada por `has`/`hasAny`.
 
 **Colocação de componentes.** Componentes específicos de uma página podem ficar colocalizados em `routes/.../components/` (padrão suportado pelo SvelteKit: arquivos sem prefixo `+` nunca se tornam rotas). Componentes reutilizados por várias páginas pertencem a `lib/components/`.
 
 ### Regra da home
 
-O logo e o item "Home" da navegação apontam sempre para `/`; a decisão de "qual é a home por contexto" vive em um único lugar no servidor (`(public)/+page.server.ts`, via access service):
+O logo e o item "Home" da navegação apontam sempre para `/`; o destino pós-login é calculado pelo access service a partir das chaves efetivas, nesta prioridade:
 
-- anônimo → permanece na home pública;
-- Solicitante autenticado → permanece na home pública;
-- Analista/Gestor/Administrador → `redirect(303, '/home')`.
+- `queue:read` → `/fila`;
+- `reports:read` → `/dashboard`;
+- `user:read` → `/usuarios`;
+- chaves de leitura do portal → `/configuracoes`;
+- `request:track` → `/acompanhar`;
+- senão → `/sem-autorizacao`.
 
-Nenhum `href` na UI é fixado em `/home`.
+`returnTo` e a troca de senha pendente têm precedência sobre esse cálculo. Nenhum `href` na UI é fixado em um destino por perfil.
 
 ---
 
@@ -408,7 +411,7 @@ states     → services e types
 config     → api, types e utils
 services   → api, types, mocks, utils e constants
 api        → types e utils
-mocks      → types
+mocks      → types e utils
 ```
 
 ---

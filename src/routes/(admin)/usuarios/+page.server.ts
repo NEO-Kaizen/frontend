@@ -5,12 +5,12 @@ import type { PageServerLoad } from './$types';
 const PAGE_SIZE = 10;
 
 export const load: PageServerLoad = async ({ fetch, locals, url }) => {
-	guard('adminOnly', locals.user, url.pathname);
+	guard('user:read', locals.user, url.pathname);
 
 	const [result, stats] = await Promise.all([
 		listUsers({ page: 1, pageSize: PAGE_SIZE }, fetch),
 		getUserStats(fetch)
 	]);
 
-	return { result, stats, pageSize: PAGE_SIZE };
+	return { result, stats, pageSize: PAGE_SIZE, user: locals.user };
 };

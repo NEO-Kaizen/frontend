@@ -18,11 +18,7 @@
 	import type { CriterionNotes, PrioritizationResult } from '$lib/types/prioritization';
 	import { SvelteMap } from 'svelte/reactivity';
 	import { buildFieldLookup } from '$lib/pendency/field-catalog';
-	import {
-		canAssignAnalyst,
-		canCalculatePriority,
-		canChangeStatusRole
-	} from '$lib/services/access.service';
+	import { can, has } from '$lib/services/access.service';
 	import FieldPendencyModal from './pendency/FieldPendencyModal.svelte';
 	import PendencyRequestModal from './pendency/PendencyRequestModal.svelte';
 	import AssignAction from './AssignAction.svelte';
@@ -283,28 +279,42 @@
 		priorityBadgeTheme(solicitation.prioritization.label, isPriorityCalculated)
 	);
 
-	const canAssign = $derived(canAssignAnalyst(currentUser ?? null));
-
-	const canCalculate = $derived(
-		canCalculatePriority(currentUser ?? null, solicitation.assignee?.id ?? null)
+	const canAssign = $derived(
+		can('request:assign', 'all', currentUser) ||
+			(can('request:assign', 'assigned', currentUser) &&
+				Boolean(currentUser && solicitation.assignee?.id === currentUser.id))
 	);
 
-	// "Alterar Status" (`PATCH /requests/:protocol/status` §3.3): Administrador
-	// (bypass) ou Analista com custódia. Os alvos vêm do PortalConfig (admin:
-	// qualquer ativo; analista: apenas free).
+	const canCalculate = $derived(
+		can('prioritization:write', 'all', currentUser) ||
+			(can('prioritization:write', 'assigned', currentUser) &&
+				Boolean(currentUser && solicitation.assignee?.id === currentUser.id))
+	);
+
+	// "Alterar Status" (`PATCH /requests/:protocol/status` §3.3):
+	// `request:status_override` (global) libera alvos restritos/fora do modo;
+	// `request:status_change` continua decidindo a custódia da solicitação.
+	// Os alvos vêm do PortalConfig.
 	const portalStatuses = $derived(page.data.portalConfig.statuses ?? []);
 	const currentStatusId = $derived(
 		portalStatuses.find((status) => status.name === solicitation.status)?.id ?? null
 	);
-	const statusChangeMode = $derived(
-		canChangeStatusRole(
-			currentUser ?? null,
-			solicitation.assignee?.id,
-			solicitation.mappingAssignee?.id ?? solicitation.mappingAssigneeId
-		)
-	);
+	const canOverrideStatus = $derived(has('request:status_override', currentUser));
+	const statusChangeMode = $derived.by<'all' | 'assigned' | null>(() => {
+		if (can('request:status_change', 'all', currentUser)) return 'all';
+		if (
+			can('request:status_change', 'assigned', currentUser) &&
+			currentUser &&
+			(solicitation.assignee?.id === currentUser.id ||
+				solicitation.mappingAssignee?.id === currentUser.id ||
+				solicitation.mappingAssigneeId === currentUser.id)
+		) {
+			return 'assigned';
+		}
+		return null;
+	});
 	const statusChangeOptions = $derived(
-		statusChangeMode ? statusChangeTargets(statusChangeMode, portalStatuses, currentStatusId) : []
+		statusChangeMode ? statusChangeTargets(portalStatuses, currentStatusId, canOverrideStatus) : []
 	);
 	const canChangeStatus = $derived(statusChangeOptions.length > 0);
 

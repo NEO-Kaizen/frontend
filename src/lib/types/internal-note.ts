@@ -2,8 +2,8 @@ import type { MappingResponse } from './mapping';
 import type { TriageAssessment } from './triage';
 import type { UserType } from './user';
 
-// Perfil interno (autor/ator da timeline): qualquer role exceto Solicitante.
-export type InternalRole = Exclude<UserType, 'Solicitante'>;
+// Nome exibido do autor/ator da timeline; autorização é decidida por chave, não por role.
+export type InternalRole = Exclude<UserType, 'Solicitante'> | (string & {});
 
 export interface TimelineActor {
 	id: string;

@@ -1,5 +1,7 @@
 import { getMeMock } from './auth.mock';
+import { getInternalRequestMock } from './requests.mock';
 import { ApiError } from '$lib/types/result';
+import { can } from '$lib/utils/permission-checks';
 import {
 	INTERNAL_NOTE_PAGE_DEFAULT,
 	INTERNAL_NOTE_PAGE_MAX,
@@ -21,6 +23,28 @@ const MOCK_LATENCY_MS = 350;
 const NOTE_RANK = 0;
 const EVENT_RANK = 1;
 let nextInternalNoteId = 3;
+
+type InternalNoteAccessKey = 'internal_note:read' | 'internal_note:write';
+
+async function canAccessInternalNotes(
+	protocol: string,
+	key: InternalNoteAccessKey
+): Promise<boolean> {
+	const currentUser = await getMeMock();
+	if (can(key, 'all', currentUser)) return true;
+	if (!can(key, 'assigned', currentUser)) return false;
+
+	try {
+		const detail = await getInternalRequestMock(protocol);
+		return (
+			detail.assignee?.id === currentUser.id ||
+			detail.mappingAssignee?.id === currentUser.id ||
+			detail.mappingAssigneeId === currentUser.id
+		);
+	} catch {
+		throw new ApiError(404, 'Solicitação não encontrada.');
+	}
+}
 
 // Ordem canônica ascendente (timestamp, depois nota antes de evento, depois id).
 const timelineStore = new Map<string, TimelineItem[]>([
@@ -389,6 +413,9 @@ export async function getInternalNotesMock(
 	params: { limit?: number; cursor?: string } = {}
 ): Promise<InternalNotesResponse> {
 	const normalized = normalizeProtocol(protocol);
+	if (!(await canAccessInternalNotes(normalized, 'internal_note:read'))) {
+		throw new ApiError(403, 'Você não tem permissão para visualizar observações internas.');
+	}
 	const limit = params.limit ?? INTERNAL_NOTE_PAGE_DEFAULT;
 	if (
 		!Number.isInteger(limit) ||
@@ -420,8 +447,8 @@ export async function createInternalNoteMock(
 ): Promise<TimelineNote> {
 	const normalized = normalizeProtocol(protocol);
 	const currentUser = await getMeMock();
-	if (currentUser.role === 'Solicitante') {
-		throw new ApiError(403, 'Acesso restrito aos perfis internos.');
+	if (!(await canAccessInternalNotes(normalized, 'internal_note:write'))) {
+		throw new ApiError(403, 'Você não tem permissão para criar observações internas.');
 	}
 
 	const note: TimelineNote = {
@@ -441,19 +468,22 @@ export async function createInternalNoteMock(
 	return delay(structuredClone(note));
 }
 
-export function markInternalNotesReadMock(
+export async function markInternalNotesReadMock(
 	protocol: string,
 	payload: MarkInternalNotesReadPayload
 ): Promise<void> {
 	const normalized = normalizeProtocol(protocol);
+	if (!(await canAccessInternalNotes(normalized, 'internal_note:read'))) {
+		throw new ApiError(403, 'Você não tem permissão para visualizar observações internas.');
+	}
 	if (!/^[1-9]\d*$/.test(payload.lastReadNoteId)) {
-		return Promise.reject(new ApiError(400, 'Identificador da observação inválido.'));
+		throw new ApiError(400, 'Identificador da observação inválido.');
 	}
 	const belongs = getTimeline(normalized).some(
 		(item) => item.type === 'note' && item.id === payload.lastReadNoteId
 	);
 	if (!belongs) {
-		return Promise.reject(new ApiError(400, 'Observação interna não pertence à solicitação.'));
+		throw new ApiError(400, 'Observação interna não pertence à solicitação.');
 	}
 	const incoming = BigInt(payload.lastReadNoteId);
 	const current = readCheckpoints.get(normalized) ?? 0n;

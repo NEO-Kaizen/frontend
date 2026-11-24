@@ -6,8 +6,89 @@ import type {
 	SessionUser
 } from '$lib/types/auth';
 import { ApiError } from '$lib/types/result';
+import {
+	GLOBAL_PERMISSION_KEYS,
+	PERMISSION_CUSTODIES,
+	PERMISSION_KEYS,
+	PORTAL_READ_KEYS,
+	type Permission,
+	type PermissionCustody,
+	type PermissionKey
+} from '$lib/types/permission';
 
 type MockUser = SessionUser & { password: string };
+
+function profilePermissions(
+	entries: Partial<Record<PermissionCustody, readonly PermissionKey[]>>
+): Permission[] {
+	const byKey = new Map<PermissionKey, PermissionCustody>();
+
+	for (const custody of PERMISSION_CUSTODIES) {
+		for (const key of entries[custody] ?? []) byKey.set(key, custody);
+	}
+
+	return PERMISSION_KEYS.filter((key) => byKey.has(key)).map((key) => ({
+		key,
+		custody: byKey.get(key) as PermissionCustody
+	}));
+}
+
+const ALL_PERMISSIONS: Permission[] = PERMISSION_KEYS.map((key) => ({
+	key,
+	custody:
+		key === 'request:track' || key === 'pending_item:respond'
+			? 'own'
+			: (GLOBAL_PERMISSION_KEYS as readonly string[]).includes(key)
+				? 'global'
+				: 'all'
+}));
+
+const SELF_SERVICE_PERMISSIONS = profilePermissions({
+	global: ['request:create'],
+	own: ['request:track', 'pending_item:respond']
+});
+
+const ANALYST_PERMISSIONS = profilePermissions({
+	global: ['request:create', 'assignee_directory:read'],
+	own: ['request:track', 'pending_item:respond'],
+	assigned: [
+		'request:read',
+		'request:write',
+		'request:status_change',
+		'queue:read',
+		'triage:read',
+		'triage:write',
+		'mapping:read',
+		'mapping:write',
+		'prioritization:write',
+		'pending_item:read',
+		'pending_item:write',
+		'pending_item:review',
+		'internal_note:read',
+		'internal_note:write'
+	]
+});
+
+const VIEWER_PERMISSIONS = profilePermissions({
+	global: ['request:create', 'reports:read', 'assignee_directory:read'],
+	own: ['request:track', 'pending_item:respond'],
+	all: [
+		'request:read',
+		'queue:read',
+		'queue:export',
+		'triage:read',
+		'mapping:read',
+		'pending_item:read',
+		'internal_note:read',
+		'internal_note:write',
+		'audit:read'
+	]
+});
+
+const CUSTOM_PORTAL_READER_PERMISSIONS = profilePermissions({
+	global: ['request:create', ...PORTAL_READ_KEYS],
+	own: ['request:track', 'pending_item:respond']
+});
 
 const MOCK_USERS: MockUser[] = [
 	{
@@ -17,6 +98,7 @@ const MOCK_USERS: MockUser[] = [
 		avatarUrl: null,
 		role: 'Analista',
 		mustChangePassword: false,
+		permissions: ANALYST_PERMISSIONS,
 		password: 'admin'
 	},
 	{
@@ -26,6 +108,7 @@ const MOCK_USERS: MockUser[] = [
 		avatarUrl: null,
 		role: 'Gestor',
 		mustChangePassword: false,
+		permissions: VIEWER_PERMISSIONS,
 		password: 'admin'
 	},
 	{
@@ -35,6 +118,7 @@ const MOCK_USERS: MockUser[] = [
 		avatarUrl: null,
 		role: 'Administrador',
 		mustChangePassword: false,
+		permissions: ALL_PERMISSIONS,
 		password: 'admin'
 	},
 	{
@@ -44,7 +128,28 @@ const MOCK_USERS: MockUser[] = [
 		avatarUrl: null,
 		role: 'Solicitante',
 		mustChangePassword: false,
+		permissions: SELF_SERVICE_PERMISSIONS,
 		password: 'temp123'
+	},
+	{
+		id: '5',
+		name: 'Beatriz Rocha',
+		email: 'root@maat.com.br',
+		avatarUrl: null,
+		role: 'Admin Root',
+		mustChangePassword: false,
+		permissions: ALL_PERMISSIONS,
+		password: 'admin'
+	},
+	{
+		id: '6',
+		name: 'Rafael Nunes',
+		email: 'portal@maat.com.br',
+		avatarUrl: null,
+		role: 'Leitura de portal',
+		mustChangePassword: false,
+		permissions: CUSTOM_PORTAL_READER_PERMISSIONS,
+		password: 'admin'
 	}
 ];
 
@@ -59,7 +164,6 @@ export function loginMock(credentials: LoginCredentials): Promise<LoginResponse>
 	}
 
 	setMockSessionCookie(user.id);
-
 	return Promise.resolve(toSessionUser(user));
 }
 
@@ -68,9 +172,6 @@ export function logoutMock(): Promise<null> {
 	return Promise.resolve(null);
 }
 
-// `sessionId` é o valor do cookie repassado pelo server (hooks); no browser o
-// cookie é lido diretamente. Sem JWT nem decodificação local — o mock guarda o
-// id do usuário na própria sessão.
 export function getMeMock(sessionId?: string): Promise<SessionUser> {
 	const userId = sessionId ?? readSessionCookie();
 	const user = userId ? MOCK_USERS.find((candidate) => candidate.id === userId) : undefined;
@@ -100,10 +201,14 @@ export function changePasswordMock(payload: ChangePasswordPayload): Promise<void
 
 	user.password = payload.newPassword;
 	user.mustChangePassword = false;
-
 	setMockSessionCookie(user.id);
-
 	return Promise.resolve();
+}
+
+export function getMockSessionUser(): SessionUser | null {
+	const userId = readSessionCookie();
+	const user = userId ? MOCK_USERS.find((candidate) => candidate.id === userId) : undefined;
+	return user ? toSessionUser(user) : null;
 }
 
 function toSessionUser(user: MockUser): SessionUser {
@@ -113,19 +218,9 @@ function toSessionUser(user: MockUser): SessionUser {
 		email: user.email,
 		avatarUrl: user.avatarUrl,
 		role: user.role,
-		mustChangePassword: user.mustChangePassword
+		mustChangePassword: user.mustChangePassword,
+		permissions: structuredClone(user.permissions)
 	};
-}
-
-/**
- * Sessão mockada atual (ou `null` sem login / fora do browser). Usada pelo
- * mock de acompanhamento para distinguir analista de solicitante, como o
- * backend faz pela sessão. Uso exclusivo em testes DEV.
- */
-export function getMockSessionUser(): SessionUser | null {
-	const userId = readSessionCookie();
-	const user = userId ? MOCK_USERS.find((candidate) => candidate.id === userId) : undefined;
-	return user ? toSessionUser(user) : null;
 }
 
 function readSessionCookie(): string | null {
