@@ -21,6 +21,7 @@ type MockDomains = {
 	mapping: true;
 	internalNotes: true;
 	auditHistory: true;
+	profiles: true;
 };
 export const MOCK_DOMAINS: false | MockDomains =
 	dev &&
@@ -37,5 +38,6 @@ export const MOCK_DOMAINS: false | MockDomains =
 		triage: true,
 		mapping: true,
 		internalNotes: true,
-		auditHistory: true
+		auditHistory: true,
+		profiles: true
 	} as const);

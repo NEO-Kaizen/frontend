@@ -28,20 +28,28 @@
 	import EditUserModal from './components/EditUserModal.svelte';
 	import ResetPasswordModal from './components/ResetPasswordModal.svelte';
 	import UsersTable from './components/UsersTable.svelte';
+	import ProfileManagement from './components/ProfileManagement.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 
+	const canReadUsers = $derived(has('user:read', data.user));
 	const canManageUsers = $derived(has('user:manage', data.user));
+	const canReadProfiles = $derived(has('profile:read', data.user));
+	const canManageProfiles = $derived(has('profile:manage', data.user));
 
-	const tabs = [
+	const userTabs = [
 		{ id: 'todos', label: 'Todos', profile: undefined },
 		{ id: 'administradores', label: 'Administradores', profile: 'administrador' },
 		{ id: 'analistas', label: 'Analistas', profile: 'analista' },
 		{ id: 'gestores', label: 'Gestores', profile: 'gestor' },
 		{ id: 'solicitantes', label: 'Solicitantes', profile: 'solicitante' }
 	] satisfies readonly { id: string; label: string; profile?: UserProfile }[];
+	const tabs = $derived([
+		...(canReadUsers ? userTabs : []),
+		...(canReadProfiles ? [{ id: 'perfis', label: 'Perfis' }] : [])
+	]);
 
 	type PendingAction = {
 		kind: UserAction;
@@ -78,8 +86,15 @@
 		}
 	]);
 
-	let activeTab = $state('todos');
-	let activeTabProfile = $derived(tabs.find((tab) => tab.id === activeTab)?.profile);
+	let activeTabSelection = $state('');
+	let activeTab = $derived(
+		tabs.some((tab) => tab.id === activeTabSelection)
+			? activeTabSelection
+			: canReadUsers
+				? 'todos'
+				: 'perfis'
+	);
+	let activeTabProfile = $derived(userTabs.find((tab) => tab.id === activeTab)?.profile);
 	let searchQuery = $state('');
 	let isLoading = $state(false);
 	let isRefreshing = $state(false);
@@ -174,9 +189,11 @@
 			return;
 		}
 
-		activeTab = tabId;
+		activeTabSelection = tabId;
 
-		loadUsers(1, searchQuery, 'replace');
+		if (tabId !== 'perfis') {
+			loadUsers(1, searchQuery, 'replace');
+		}
 	}
 
 	function handleSearchInput() {
@@ -326,10 +343,14 @@
 	========================= -->
 
 	<header class="page-header">
-		<h1>Gerenciamento de Usuários</h1>
+		<h1>{canReadUsers ? 'Gerenciamento de Usuários' : 'Gerenciamento de Perfis'}</h1>
 
 		<p class="page-subtitle">
-			Controle o acesso e permissões dos colaboradores no {data.portalConfig.platformName}.
+			{#if canReadUsers}
+				Controle o acesso e permissões dos colaboradores no {data.portalConfig.platformName}.
+			{:else}
+				Consulte e gerencie os perfis de acesso do {data.portalConfig.platformName}.
+			{/if}
 		</p>
 	</header>
 
@@ -337,15 +358,17 @@
 	     CARDS
 	========================= -->
 
-	<section class="stats-section">
-		<MetricsSummary {metrics} />
-	</section>
+	{#if canReadUsers}
+		<section class="stats-section">
+			<MetricsSummary {metrics} />
+		</section>
+	{/if}
 
 	<!-- =========================
 	     SUCESSO
 	========================= -->
 
-	{#if successMessage}
+	{#if canReadUsers && successMessage}
 		<p class="success-banner" role="status">
 			{successMessage}
 		</p>
@@ -355,40 +378,48 @@
 	     CARD PRINCIPAL
 	========================= -->
 
+	{#if canReadUsers || canReadProfiles}
 	<section class="users-card">
 		<!-- PESQUISA + ADICIONAR -->
 
-		<div class="toolbar">
-			<div class="search-box">
-				<Input
-					icon="search"
-					type="search"
-					placeholder="Pesquisar por nome ou e-mail..."
-					aria-label="Buscar usuários por nome ou e-mail"
-					bind:value={searchQuery}
-					oninput={handleSearchInput}
-				/>
-			</div>
+		{#if canReadUsers && activeTab !== 'perfis'}
+			<div class="toolbar">
+				<div class="search-box">
+					<Input
+						icon="search"
+						type="search"
+						placeholder="Pesquisar por nome ou e-mail..."
+						aria-label="Buscar usuários por nome ou e-mail"
+						bind:value={searchQuery}
+						oninput={handleSearchInput}
+					/>
+				</div>
 
-			{#if canManageUsers}
-				<Button
-					variant="primary"
-					onclick={() => {
-						createError = '';
-						isCreateOpen = true;
-					}}
-				>
-					<Icon iconName="addUser" iconSize="sm" />
-					Adicionar Usuário
-				</Button>
-			{/if}
-		</div>
+				{#if canManageUsers}
+					<Button
+						variant="primary"
+						onclick={() => {
+							createError = '';
+							isCreateOpen = true;
+						}}
+					>
+						<Icon iconName="addUser" iconSize="sm" />
+						Adicionar Usuário
+					</Button>
+				{/if}
+			</div>
+		{/if}
 
 		<!-- =========================
 		     ABAS
 		========================= -->
 
-		<div class="tabs" role="tablist" aria-label="Perfis de usuário">
+		<div
+			class="tabs"
+			role="tablist"
+			aria-label="Seções de gerenciamento"
+			style:grid-template-columns={`repeat(${tabs.length}, minmax(0, 1fr))`}
+		>
 			{#each tabs as tab (tab.id)}
 				<button
 					type="button"
@@ -396,8 +427,7 @@
 					id={`users-tab-${tab.id}`}
 					aria-selected={activeTab === tab.id}
 					aria-controls="users-panel"
-					class="tab"
-					class:active={activeTab === tab.id}
+					class={['tab', { active: activeTab === tab.id }]}
 					onclick={() => handleTabChange(tab.id)}
 				>
 					{tab.label}
@@ -411,19 +441,25 @@
 
 		<div
 			id="users-panel"
-			class="tab-panel"
-			class:refreshing={isRefreshing}
+			class={['tab-panel', { refreshing: isRefreshing }]}
 			role="tabpanel"
 			aria-busy={isRefreshing}
 			aria-labelledby={`users-tab-${activeTab}`}
 		>
-			{#if isLoading}
+			{#if activeTab === 'perfis' && canReadProfiles}
+				<ProfileManagement
+					user={data.user!}
+					canManage={canManageProfiles}
+					profilesResult={data.profilesResult}
+					profileKeyCatalogResult={data.profileKeyCatalogResult}
+				/>
+			{:else if canReadUsers && isLoading}
 				<div class="state-card" role="status">
 					<span class="spinner" aria-hidden="true"></span>
 
 					<p>Carregando usuários...</p>
 				</div>
-			{:else if loadError}
+			{:else if canReadUsers && loadError}
 				<div class="state-card error" role="alert">
 					<p>
 						{loadError}
@@ -431,13 +467,13 @@
 
 					<Button variant="outline" onclick={() => loadUsers()}>Tentar novamente</Button>
 				</div>
-			{:else if users.length === 0}
+			{:else if canReadUsers && users.length === 0}
 				<NotFoundState
 					title="Nenhum usuário encontrado"
 					message="Não encontramos usuários para esta busca."
 					hint="Ajuste a pesquisa ou cadastre um novo usuário."
 				/>
-			{:else}
+			{:else if canReadUsers}
 				<!-- =========================
 			     TABELA
 			========================= -->
@@ -477,8 +513,7 @@
 							{:else}
 								<button
 									type="button"
-									class="page-button"
-									class:active={currentPage === page}
+									class={['page-button', { active: currentPage === page }]}
 									onclick={() => handlePageChange(page as number)}
 									aria-label={`Página ${page}`}
 									aria-current={currentPage === page ? 'page' : undefined}
@@ -504,6 +539,7 @@
 			{/if}
 		</div>
 	</section>
+	{/if}
 </main>
 
 <!-- =========================

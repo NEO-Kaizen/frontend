@@ -97,7 +97,7 @@
 		{
 			name: 'Gerenciar Usuários',
 			icon: 'manageUsers',
-			keys: ['user:read'],
+			keys: ['user:read', 'profile:read'],
 			route: NAV_ROUTES.users
 		},
 		{
@@ -297,8 +297,7 @@
 						</div>
 					{:else}
 						<a
-							class="nav-item"
-							class:active={isActive(item, page.url.pathname)}
+							class={['nav-item', { active: isActive(item, page.url.pathname) }]}
 							href={resolve(item.route)}
 						>
 							<Icon iconName={item.icon} />
