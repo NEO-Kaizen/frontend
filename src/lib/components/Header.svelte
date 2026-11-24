@@ -15,6 +15,7 @@
 	import {
 		OPERATIONAL_AREA_KEYS,
 		PORTAL_ACCESS_KEYS,
+		QUEUE_SEARCH_KEYS,
 		type PermissionKey
 	} from '$lib/types/permission';
 	import { onMount } from 'svelte';
@@ -112,6 +113,10 @@
 
 	const hasOperationalAccess = $derived(hasAny(OPERATIONAL_AREA_KEYS, currentUser));
 
+	// Perfis administrativos (ex.: só `user:read`/`profile:read`) não têm
+	// `queue:read`; redirecioná-los para a fila cairia em /sem-autorizacao.
+	const canSearchQueue = $derived(hasAny(QUEUE_SEARCH_KEYS, currentUser));
+
 	const activeSearch = $derived(page.url.searchParams.get('search') ?? '');
 
 	// Na tela de configurações o editor de tema controla a pré-visualização
@@ -134,7 +139,7 @@
 		isSearching = true;
 
 		try {
-			if (hasOperationalAccess) {
+			if (canSearchQueue) {
 				const searchParams = new URLSearchParams({ search: value });
 
 				// Plugin não aceita query string após resolve() (eslint-plugin-svelte#1327);

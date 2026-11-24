@@ -101,6 +101,10 @@ export const OPERATIONAL_AREA_KEYS = [
 	'profile:manage'
 ] as const satisfies readonly PermissionKey[];
 
+// A busca global redireciona para a fila somente com acesso a ela; chaves
+// administrativas não implicam `queue:read` (guard de `(admin)/fila`).
+export const QUEUE_SEARCH_KEYS = ['queue:read'] as const satisfies readonly PermissionKey[];
+
 export const SELF_SERVICE_KEYS = [
 	'request:create',
 	'request:track',
