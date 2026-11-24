@@ -3,7 +3,7 @@
 	import type { SessionUser } from '$lib/types/auth';
 	import type { PermissionCustody } from '$lib/types/permission';
 	import type { Profile } from '$lib/types/profile';
-	import { canGrantCustody, isRootActor } from '$lib/utils/permission-checks';
+	import { canEditProfile, canGrantCustody } from '$lib/utils/permission-checks';
 	import type { ProfileView } from './profile-management.types';
 
 	interface Props {
@@ -57,12 +57,14 @@
 			<tbody>
 				{#each profiles as profile (profile.id)}
 					{@const canDuplicate = canDuplicateProfile(profile.source)}
-					{@const cannotEditRootProfile = profile.isRoot && !isRootActor(user)}
+					{@const canEdit = canEditProfile(user, profile.source)}
 					{@const statusRestrictionMessage =
 						profile.isActive && profile.isRoot
 							? 'O perfil Admin Root não pode ser desativado.'
 							: profile.isActive && profile.userCount > 0
-								? `Não é possível desativar: ${profile.userCount} usuário(s) ainda utiliza(m) este perfil.`
+								? profile.userCount === 1
+									? 'Não é possível desativar: 1 usuário ainda utiliza este perfil.'
+									: `Não é possível desativar: ${profile.userCount} usuários ainda utilizam este perfil.`
 								: ''}
 					<tr>
 						<th scope="row">
@@ -93,8 +95,16 @@
 						</td>
 						<td>
 							<div class="flags">
-								<span class={{ enabled: profile.isAssignableTriage }}>Triagem</span>
-								<span class={{ enabled: profile.isAssignableMapping }}>Mapeamento</span>
+								<span class={{ enabled: profile.isAssignableTriage }}>
+									Triagem<span class="sr-only">
+										{profile.isAssignableTriage ? ': habilitado' : ': desabilitado'}</span
+									>
+								</span>
+								<span class={{ enabled: profile.isAssignableMapping }}>
+									Mapeamento<span class="sr-only">
+										{profile.isAssignableMapping ? ': habilitado' : ': desabilitado'}</span
+									>
+								</span>
 							</div>
 						</td>
 						<td>
@@ -119,17 +129,17 @@
 								<div class="row-actions">
 									<Button
 										variant="outline"
-										disabled={cannotEditRootProfile}
+										disabled={!canEdit}
 										aria-label={`Editar perfil ${profile.name}`}
 										onclick={() => onedit(profile.source)}
 									>
 										Editar
 									</Button>
-									{#if cannotEditRootProfile}
+									{#if !canEdit}
 										<small class="action-note">
-											Sua sessão atual informa a função “{user.role}”. Apenas o Admin Root pode
-											editar este perfil. O servidor continua sendo a autoridade final de
-											autorização.
+											Sua sessão atual informa a função “{user.role}”. Seu perfil não tem autoridade
+											suficiente para editar este perfil. O servidor continua sendo a autoridade
+											final de autorização.
 										</small>
 									{/if}
 									<Button
@@ -146,7 +156,8 @@
 									</Button>
 									<Button
 										variant="outline-neutral"
-										disabled={profile.isActive && (profile.isRoot || profile.userCount > 0)}
+										disabled={!canEdit ||
+											(profile.isActive && (profile.isRoot || profile.userCount > 0))}
 										title={statusRestrictionMessage || undefined}
 										aria-label={`${profile.isActive ? 'Desativar' : 'Ativar'} perfil ${profile.name}`}
 										aria-describedby={statusRestrictionMessage

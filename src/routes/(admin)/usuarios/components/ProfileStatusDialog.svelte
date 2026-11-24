@@ -17,11 +17,13 @@
 <Modal title={profile.isActive ? 'Desativar perfil' : 'Ativar perfil'} {onclose}>
 	<div class="confirm-content">
 		{#if profile.isActive && profile.isRoot}
-			<p role="alert">O perfil Admin Root não pode ser desativado.</p>
+			<p>O perfil Admin Root não pode ser desativado.</p>
 		{:else if profile.isActive && profile.userCount > 0}
-			<p role="alert">
-				Este perfil não pode ser desativado enquanto {profile.userCount}
-				{profile.userCount === 1 ? 'usuário estiver' : 'usuários estiverem'} associado(s).
+			<p>
+				Este perfil não pode ser desativado enquanto
+				{profile.userCount === 1
+					? '1 usuário estiver associado'
+					: `${profile.userCount} usuários estiverem associados`}.
 			</p>
 		{:else}
 			<p>

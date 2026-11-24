@@ -14,7 +14,7 @@
 	import type { Permission, PermissionCustody, PermissionKey } from '$lib/types/permission';
 	import { createProfile, duplicateProfile, updateProfile } from '$lib/services/profile.service';
 	import { canGrantCustody } from '$lib/utils/permission-checks';
-	import { PROFILE_NAME_MAX_LENGTH as PROFILE_NAME_MAX_LENGTH_VALIDATION } from '$lib/utils/validations';
+	import { PROFILE_NAME_MAX_LENGTH } from '$lib/utils/validations';
 
 	interface Props {
 		mode: 'create' | 'edit' | 'duplicate';
@@ -35,7 +35,6 @@
 
 	type CatalogResource = { id: string; label: string; keys: CatalogKey[] };
 
-	const PROFILE_NAME_MAX_LENGTH = PROFILE_NAME_MAX_LENGTH_VALIDATION;
 	const PROFILE_DESCRIPTION_MAX_LENGTH = 255;
 	const selfServiceKeySet = new Set<string>(SELF_SERVICE_KEYS);
 	const selfServiceKeys = SELF_SERVICE_KEYS;
@@ -81,10 +80,18 @@
 	let saveError = $state('');
 	let nameError = $state('');
 
+	function humanizePermission(value: string): string {
+		return value
+			.split(':')
+			.map((part) => part.replace(/_/g, ' '))
+			.join(' · ')
+			.replace(/(^|\s)\S/g, (char) => char.toUpperCase());
+	}
+
 	function catalogResources(): CatalogResource[] {
 		const grouped: Record<string, CatalogKey[]> = {};
 		for (const definition of catalog.permissions) {
-			const resource = definition.key.split(':')[0] || 'Permissões';
+			const resource = humanizePermission(definition.key.split(':')[0] || 'Permissões');
 			const allowedCustodies = definition.allowedCustodies;
 			const fixedCustody =
 				definition.custodyType === 'global'
@@ -94,7 +101,7 @@
 						: null;
 			const normalized: CatalogKey = {
 				key: definition.key,
-				label: definition.key,
+				label: humanizePermission(definition.key),
 				fixedCustody,
 				custodies: [...allowedCustodies],
 				dependencies: [...definition.dependencies]
@@ -140,25 +147,14 @@
 
 	function findFlagRequirements(
 		name: 'isAssignableTriage' | 'isAssignableMapping'
-	): { allOf: PermissionKey[]; anyOf: PermissionKey[] } | null {
-		const predicate =
-			name === 'isAssignableTriage'
-				? catalog.assignabilityPredicates.triage
-				: catalog.assignabilityPredicates.mapping;
-		return {
-			allOf: [...predicate],
-			anyOf: []
-		};
+	): PermissionKey[] {
+		return name === 'isAssignableTriage'
+			? catalog.assignabilityPredicates.triage
+			: catalog.assignabilityPredicates.mapping;
 	}
 
 	function flagRequirementsMet(name: 'isAssignableTriage' | 'isAssignableMapping'): boolean {
-		const requirements = findFlagRequirements(name);
-		return (
-			requirements === null ||
-			(requirements.allOf.every((key) => selectedKeys.includes(key)) &&
-				(requirements.anyOf.length === 0 ||
-					requirements.anyOf.some((key) => selectedKeys.includes(key))))
-		);
+		return findFlagRequirements(name).every((key) => selectedKeys.includes(key));
 	}
 
 	const missingDependencies = $derived(
@@ -250,6 +246,12 @@
 				saveError = `A composição pode conter no máximo ${compositionLimit} permissões.`;
 			} else if (canEditComposition && missingDependencies.length > 0) {
 				saveError = 'Resolva as dependências faltantes antes de salvar.';
+			} else if (
+				canEditComposition &&
+				((isAssignableTriage && !flagRequirementsMet('isAssignableTriage')) ||
+					(isAssignableMapping && !flagRequirementsMet('isAssignableMapping')))
+			) {
+				saveError = 'Inclua as permissões exigidas pelas flags de atribuição.';
 			} else if (canEditComposition && unconfirmedSelfServiceKeys.length > 0) {
 				saveError = 'Confirme as consequências de remover as permissões de autoatendimento.';
 			} else if (

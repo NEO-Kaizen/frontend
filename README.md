@@ -144,6 +144,8 @@ A comunicação com o Backend é centralizada nas camadas de `api` e `services`,
 | Gestor        | Acompanhar solicitações e histórico        |
 | Administrador | Gerenciar usuários e áreas administrativas |
 
+Os perfis acima são os iniciais; perfis customizados podem ser criados e mantidos na aba **Perfis** de `/usuarios`, conforme o contrato em [`docs/profiles-api.md`](docs/profiles-api.md).
+
 As regras de acesso serão implementadas e refinadas conforme a evolução do projeto.
 
 ### 6. Mocks

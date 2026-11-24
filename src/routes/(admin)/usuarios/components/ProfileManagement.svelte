@@ -250,18 +250,16 @@
 		color: var(--status-green);
 	}
 	.state {
-		margin: 0;
-		padding: var(--spacing-xl);
-		color: var(--gray);
-		text-align: center;
-	}
-	.state {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
 		gap: var(--spacing-md);
 		min-height: 180px;
+		margin: 0;
+		padding: var(--spacing-xl);
+		color: var(--gray);
+		text-align: center;
 	}
 	.state p {
 		margin: 0;

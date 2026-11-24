@@ -186,6 +186,25 @@
 
 		activeTabSelection = tabId;
 	}
+
+	function handleTabKeydown(event: KeyboardEvent, index: number) {
+		if (tabs.length < 2) return;
+
+		let nextIndex: number;
+
+		if (event.key === 'ArrowRight') nextIndex = (index + 1) % tabs.length;
+		else if (event.key === 'ArrowLeft') nextIndex = (index - 1 + tabs.length) % tabs.length;
+		else if (event.key === 'Home') nextIndex = 0;
+		else if (event.key === 'End') nextIndex = tabs.length - 1;
+		else return;
+
+		event.preventDefault();
+		activeTabSelection = tabs[nextIndex].id;
+
+		const tablist = (event.currentTarget as HTMLElement).closest('[role="tablist"]');
+		const buttons = tablist?.querySelectorAll<HTMLButtonElement>('[role="tab"]');
+		buttons?.[nextIndex]?.focus();
+	}
 	function handleSearchInput() {
 		clearTimeout(searchTimer);
 
@@ -210,7 +229,7 @@
 		handlePageChange(currentPage + 1);
 	}
 
-	async function handleCreate(data: CreateUserFormData): Promise<CreateUserResponse> {
+	async function handleCreate(formData: CreateUserFormData): Promise<CreateUserResponse> {
 		if (!canManageUsers) {
 			createError = 'Você não tem permissão para cadastrar usuários.';
 			return Promise.reject(new Error(createError));
@@ -220,14 +239,14 @@
 		createError = '';
 
 		const result = await createUser({
-			name: data.name.trim(),
-			email: data.email.trim(),
-			profileId: data.profileId,
-			area: data.area,
-			department: data.department,
-			manager: data.manager,
-			additionalContact: data.additionalContact,
-			professional: data.professional
+			name: formData.name.trim(),
+			email: formData.email.trim(),
+			profileId: formData.profileId,
+			area: formData.area,
+			department: formData.department,
+			manager: formData.manager,
+			additionalContact: formData.additionalContact,
+			professional: formData.professional
 		});
 
 		isCreating = false;
@@ -418,15 +437,17 @@
 					aria-label="Seções de gerenciamento"
 					style:grid-template-columns={`repeat(${tabs.length}, minmax(0, 1fr))`}
 				>
-					{#each tabs as tab (tab.id)}
+					{#each tabs as tab, index (tab.id)}
 						<button
 							type="button"
 							role="tab"
 							id={`users-tab-${tab.id}`}
 							aria-selected={activeTab === tab.id}
 							aria-controls="users-panel"
+							tabindex={activeTab === tab.id ? 0 : -1}
 							class={['tab', { active: activeTab === tab.id }]}
 							onclick={() => handleTabChange(tab.id)}
+							onkeydown={(event) => handleTabKeydown(event, index)}
 						>
 							{tab.label}
 						</button>

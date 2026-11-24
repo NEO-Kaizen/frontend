@@ -19,7 +19,7 @@ import type {
 	ProfileUpdateInput
 } from '$lib/types/profile';
 import type { SessionUser } from '$lib/types/auth';
-import { canGrantCustody, has, isRootActor } from '$lib/utils/permission-checks';
+import { canEditProfile, canGrantCustody, has, isRootActor } from '$lib/utils/permission-checks';
 import { PROFILE_NAME_MAX_LENGTH } from '$lib/utils/validations';
 
 const MOCK_LATENCY_MS = 180;
@@ -230,6 +230,9 @@ export async function updateProfileMock(id: string, payload: ProfileUpdateInput)
 	if (current.isRoot && !isRootActor(actor)) {
 		throw new ApiError(403, 'Apenas o Admin Root edita o perfil Admin Root.');
 	}
+	if (!canEditProfile(actor, current)) {
+		throw new ApiError(403, 'Seu perfil não tem autoridade suficiente para editar este perfil.');
+	}
 
 	const nextPermissions =
 		payload.permissions === undefined
@@ -261,7 +264,7 @@ export async function updateProfileMock(id: string, payload: ProfileUpdateInput)
 			throw new ApiError(400, 'O perfil Admin Root não é atribuível.');
 		}
 	}
-	assertWorkKeyGuard(current, next, payload);
+	assertWorkKeyGuard(current, next);
 	validateAssignability(next);
 	Object.assign(current, next);
 
@@ -272,9 +275,12 @@ export async function changeProfileStatusMock(
 	id: string,
 	isActive: boolean
 ): Promise<ProfileStatusResponse> {
-	await requireManagePermission();
+	const actor = await requireManagePermission();
 	const profile = findProfile(id);
 
+	if (!canEditProfile(actor, profile)) {
+		throw new ApiError(403, 'Seu perfil não tem autoridade suficiente para alterar este perfil.');
+	}
 	if (profile.isRoot && !isActive) {
 		throw new ApiError(400, 'O perfil Admin Root não pode ser desativado.');
 	}
@@ -294,8 +300,11 @@ export async function duplicateProfileMock(
 	id: string,
 	payload: DuplicateProfileInput
 ): Promise<Profile> {
-	await requireManagePermission();
+	const actor = await requireManagePermission();
 	const source = findProfile(id);
+	if (!canEditProfile(actor, source)) {
+		throw new ApiError(403, 'Seu perfil não tem autoridade suficiente para duplicar este perfil.');
+	}
 	return createProfileMock({
 		name: payload.name,
 		description: payload.description ?? source.description,
@@ -402,7 +411,7 @@ function validateAssignability(profile: Profile): void {
 	}
 }
 
-function assertWorkKeyGuard(current: Profile, next: Profile, payload: ProfileUpdateInput): void {
+function assertWorkKeyGuard(current: Profile, next: Profile): void {
 	for (const stage of ['triage', 'mapping'] as const) {
 		const predicate = profileCatalog.assignabilityPredicates[stage];
 		const currentHasPredicate = predicate.every((key) =>
@@ -419,12 +428,6 @@ function assertWorkKeyGuard(current: Profile, next: Profile, payload: ProfileUpd
 			throw new ApiError(
 				400,
 				`Remover as chaves ${missing.join(', ')} manteria o perfil atribuível em ${stage === 'triage' ? 'triagem' : 'mapeamento'}. Desligue a flag correspondente na mesma chamada.`
-			);
-		}
-		if (current[flag] && payload[flag] !== false) {
-			throw new ApiError(
-				400,
-				`Desligue a flag de ${stage === 'triage' ? 'triagem' : 'mapeamento'} e remova as chaves na mesma edição.`
 			);
 		}
 	}

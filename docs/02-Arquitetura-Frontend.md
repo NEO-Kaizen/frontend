@@ -301,7 +301,7 @@ Os mocks devem:
 
 Os mocks são controlados por `src/lib/mocks/index.ts` — único ponto para ligar/desligar:
 
-- `MOCKS_ENABLED`: interruptor global (ligado em desenvolvimento);
+- `MOCKS_ENABLED`: interruptor global (default do repositório: desligado; ligue localmente em desenvolvimento);
 - `MOCK_DOMAINS`: toggle por domínio (`auth`, `users`, `profiles`, `request`; novos domínios entram aqui).
 
 Regras:
@@ -409,7 +409,7 @@ O logo e o item "Home" da navegação apontam sempre para `/`; o destino pós-lo
 
 - `queue:read` → `/fila`;
 - `reports:read` → `/dashboard`;
-- `user:read` → `/usuarios`;
+- `user:read` ou `profile:read` → `/usuarios`;
 - chaves de leitura do portal → `/configuracoes`;
 - `request:track` → `/acompanhar`;
 - senão → `/sem-autorizacao`.

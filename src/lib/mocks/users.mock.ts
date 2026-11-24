@@ -280,9 +280,15 @@ function requiresProfessionalProfile(profileId: string): boolean {
 	return Boolean(profile?.isAssignableTriage || profile?.isAssignableMapping);
 }
 
-function isProtectedProfile(profileId: string): boolean {
+function isAdminProfile(profileId: string): boolean {
 	const profile = listProfilesMock().find((candidate) => candidate.id === profileId);
-	return Boolean(profile?.name === 'Administrador' || profile?.isRoot);
+	return Boolean(
+		profile?.isRoot || profile?.permissions.some((permission) => permission.key === 'user:manage')
+	);
+}
+
+function isProtectedProfile(profileId: string): boolean {
+	return isAdminProfile(profileId);
 }
 
 function hasTriageProfile(profileId: string): boolean {
@@ -342,6 +348,7 @@ export function listUsersMock(query: ListUsersQuery): Promise<PaginatedResponse<
 
 	const data = result.slice(start, start + pageSize).map((user) => ({
 		...user,
+		profile: getProfileReference(user.profile.id),
 		avatarUrl: user.avatarUrl ?? null
 	}));
 
@@ -371,7 +378,7 @@ export function getUserStatsMock(): UserStats {
 		total: mockUsers.length,
 		active: mockUsers.filter((user) => user.isActive).length,
 		pending: mockUsers.filter((user) => user.mustChangePassword).length,
-		admins: mockUsers.filter((user) => user.profile.name === 'Administrador').length
+		admins: mockUsers.filter((user) => isAdminProfile(user.profile.id)).length
 	};
 }
 

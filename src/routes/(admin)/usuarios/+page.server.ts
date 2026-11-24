@@ -20,9 +20,7 @@ export const load: PageServerLoad = async ({ fetch, locals, url }) => {
 	const canReadUsers = has('user:read', locals.user);
 	const canReadProfiles = has('profile:read', locals.user);
 
-	const profileIdParam = url.searchParams.get('profileId');
-	const profileId =
-		profileIdParam && /^[1-9]\d*$/.test(profileIdParam) ? profileIdParam : undefined;
+	const profileIdParam = url.searchParams.get('profileId') ?? undefined;
 
 	const emptyUsers: Result<PaginatedResponse<AdminUser>> = {
 		ok: true,
@@ -44,8 +42,8 @@ export const load: PageServerLoad = async ({ fetch, locals, url }) => {
 		if (profilesResult.ok) {
 			activeProfiles = filterActiveProfiles(profilesResult.data);
 			validProfileId =
-				profileId && activeProfiles.some((profile) => profile.id === profileId)
-					? profileId
+				profileIdParam && activeProfiles.some((profile) => profile.id === profileIdParam)
+					? profileIdParam
 					: undefined;
 		}
 	}

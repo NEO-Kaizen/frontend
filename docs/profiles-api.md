@@ -2,7 +2,7 @@
 
 Status: **premissa do frontend, pendente de confirmação do backend**.
 
-Este documento registra o contrato consumido pela gestão de perfis (`/usuarios?tab=perfis`).
+Este documento registra o contrato consumido pela gestão de perfis (aba **Perfis** em `/usuarios`).
 Tipos de referência: `src/lib/types/profile.ts`; cliente: `src/lib/api/profile.api.ts`;
 serviço: `src/lib/services/profile.service.ts`.
 
@@ -117,6 +117,10 @@ O frontend envia apenas o que mudou; composição e flags vão juntas quando amb
 - Desativação bloqueada quando `userCount > 0`.
 - Guarda 6: remover chaves de um predicado de atribuição exige desligar a flag correspondente na mesma edição; o backend pode recusar quando houver solicitações a realocar.
 - Teto de chaves da composição vem do catálogo (`catalog.permissions.length`), não de um valor fixo.
+
+## Limitação do mock
+
+No modo mock, criar/editar/ativar/desativar perfis atualiza a lista local da aba Perfis, mas não o `load` do SSR. Um reload completo da página volta ao seed de `profiles.mock.ts`, e o filtro/atribuição de usuários não enxerga o perfil criado na mesma sessão. Isso é uma limitação do mock em memória, não do fluxo real de API.
 
 ## Pendências
 
