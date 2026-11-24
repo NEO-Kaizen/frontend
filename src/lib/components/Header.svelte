@@ -11,7 +11,7 @@
 	import { logout } from '$lib/services/auth.service';
 	import { clearDraft } from '$lib/services/solicitation-draft.service';
 	import { searchRequests } from '$lib/services/request.service';
-	import { has, hasAny } from '$lib/services/access.service';
+	import { can, hasAny } from '$lib/services/access.service';
 	import {
 		OPERATIONAL_AREA_KEYS,
 		PORTAL_ACCESS_KEYS,
@@ -120,7 +120,7 @@
 	// Sem fila nem acompanhamento o fallback público devolve 403: esconde a
 	// busca em vez de falhar em silêncio. Anônimo continua vendo (fluxo público).
 	const canSearch = $derived(
-		!isAuthenticated || canSearchQueue || has('request:track', currentUser)
+		!isAuthenticated || canSearchQueue || can('request:track', 'own', currentUser)
 	);
 
 	const activeSearch = $derived(page.url.searchParams.get('search') ?? '');
