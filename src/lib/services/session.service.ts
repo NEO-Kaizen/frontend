@@ -1,3 +1,4 @@
+import { dev } from '$app/environment';
 import type { SessionUser } from '$lib/types/auth';
 import {
 	isAllowedPermissionCustody,
@@ -15,12 +16,22 @@ export function sanitizeSessionUser(raw: unknown): SessionUser | null {
 
 	if (!id || !email) return null;
 
+	const legacyRole = readString(source.role);
+	const profileName = readProfileName(source.profile);
+
+	if (!legacyRole && !profileName && dev) {
+		// Contrato de sessão incompleto: nem `role` legado nem `profile.name`.
+		console.warn('[session] payload sem role/profile.name; usando "Solicitante".', {
+			keys: Object.keys(source)
+		});
+	}
+
 	return {
 		id,
 		name: readString(source.name) ?? '',
 		email,
 		avatarUrl: readString(source.avatarUrl),
-		role: readString(source.role) || readProfileName(source.profile) || 'Solicitante',
+		role: legacyRole || profileName || 'Solicitante',
 		mustChangePassword: source.mustChangePassword === true,
 		permissions: sanitizePermissions(source.permissions)
 	};
