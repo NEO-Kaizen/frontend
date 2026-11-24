@@ -17,7 +17,9 @@ serviço: `src/lib/services/profile.service.ts`.
 }
 ```
 
-`id` é a identidade estável; `name` é apenas exibição e não autoriza.
+`id` é a identidade estável; `name` é exibição e não autoriza no servidor. No
+frontend ele também vira o rótulo `role` da sessão quando o payload não traz
+`role`, e é por esse rótulo que a UI detecta o Root hoje — ver Pendências.
 
 ### `Permission`
 
@@ -127,4 +129,4 @@ No modo mock, as mutações de perfil acontecem no browser e não chegam ao `loa
 
 - Confirmar no backend os nomes/códigos de erro de negócio para renderização fiel na UI.
 - Confirmar se `GET /profiles` aceita `?profileId`/paginação/filtros além da lista completa.
-- Confirmar se a sessão passará a expor `isRoot` (hoje a UI usa o rótulo “Admin Root” como fallback).
+- Confirmar se a sessão passará a expor `isRoot` e `role` (hoje a UI deriva o rótulo de `profile.name` e detecta o Root pelo texto “Admin Root”; renomear esse perfil desliga a detecção na UI).
