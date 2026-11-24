@@ -155,6 +155,15 @@ const MOCK_USERS: MockUser[] = [
 
 const SESSION_COOKIE_NAME = 'session_id';
 
+// Ids dos perfis base de `profiles.mock.ts` (só para espelhar `/auth/me`).
+const MOCK_PROFILE_ID_BY_NAME: Record<string, string> = {
+	Solicitante: '1',
+	Analista: '2',
+	Gestor: '3',
+	Administrador: '4',
+	'Admin Root': '5'
+};
+
 export function loginMock(credentials: LoginCredentials): Promise<LoginResponse> {
 	const email = credentials.email.trim().toLowerCase();
 	const user = MOCK_USERS.find((candidate) => candidate.email === email);
@@ -173,14 +182,29 @@ export function logoutMock(): Promise<null> {
 }
 
 export function getMeMock(sessionId?: string): Promise<SessionUser> {
-	const userId = sessionId ?? readSessionCookie();
-	const user = userId ? MOCK_USERS.find((candidate) => candidate.id === userId) : undefined;
+	const user = findSessionUser(sessionId);
 
 	if (!user) {
 		return Promise.reject(new ApiError(401, 'Sessão expirada ou inválida.'));
 	}
 
 	return Promise.resolve(toSessionUser(user));
+}
+
+// Espelha o payload real de GET /auth/me (usado pela camada de API).
+export function getMeResponseMock(sessionId?: string): Promise<unknown> {
+	const user = findSessionUser(sessionId);
+
+	if (!user) {
+		return Promise.reject(new ApiError(401, 'Sessão expirada ou inválida.'));
+	}
+
+	return Promise.resolve(toSessionPayload(user));
+}
+
+function findSessionUser(sessionId?: string): MockUser | undefined {
+	const userId = sessionId ?? readSessionCookie();
+	return userId ? MOCK_USERS.find((candidate) => candidate.id === userId) : undefined;
 }
 
 export function changePasswordMock(payload: ChangePasswordPayload): Promise<void> {
@@ -218,6 +242,19 @@ function toSessionUser(user: MockUser): SessionUser {
 		email: user.email,
 		avatarUrl: user.avatarUrl,
 		role: user.role,
+		mustChangePassword: user.mustChangePassword,
+		permissions: structuredClone(user.permissions)
+	};
+}
+
+// Espelha GET /auth/me: identidade em `profile`, sem `role` legado.
+function toSessionPayload(user: MockUser) {
+	return {
+		id: user.id,
+		name: user.name,
+		email: user.email,
+		avatarUrl: user.avatarUrl,
+		profile: { id: MOCK_PROFILE_ID_BY_NAME[user.role] ?? '', name: user.role },
 		mustChangePassword: user.mustChangePassword,
 		permissions: structuredClone(user.permissions)
 	};
