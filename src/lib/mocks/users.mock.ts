@@ -107,7 +107,7 @@ export const mockUsers: MockUser[] = [
 		id: '10',
 		fullName: 'Amanda Nogueira',
 		email: 'amanda.nogueira@maat.com.br',
-		profile: getProfileReference('1'),
+		profile: getProfileReference('7'),
 		isActive: false,
 		mustChangePassword: false,
 		createdAt: '2026-08-26T09:35:00.000Z'

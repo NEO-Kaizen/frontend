@@ -255,7 +255,11 @@
 	}
 
 	function handleAction(user: AdminUser, action: UserAction) {
-		if (!canManageUsers || !data.administrableProfileIds.includes(user.profile.id)) {
+		if (
+			!canManageUsers ||
+			user.id === data.user?.id ||
+			!data.administrableProfileIds.includes(user.profile.id)
+		) {
 			return;
 		}
 
@@ -316,6 +320,7 @@
 		if (userId) applyUserUpdate(userId, { name: profile.fullName, profile: profile.profile });
 		pendingAction = undefined;
 		showSuccess(`Dados administrativos de "${userName}" atualizados com sucesso.`);
+		void refreshStats();
 	}
 </script>
 
@@ -401,8 +406,10 @@
 				bind:value={selectedProfileId}
 			>
 				<option value="">Todos</option>
-				{#each data.activeProfiles as profile (profile.id)}
-					<option value={profile.id}>{profile.name}</option>
+				{#each data.profiles as profile (profile.id)}
+					<option value={profile.id}>
+						{profile.name}{profile.isActive ? '' : ' (inativo)'}
+					</option>
 				{/each}
 			</select>
 
@@ -443,6 +450,7 @@
 					{users}
 					canManage={canManageUsers}
 					administrableProfileIds={data.administrableProfileIds}
+					currentUserId={data.user?.id ?? ''}
 					onaction={handleAction}
 				/>
 
@@ -526,7 +534,8 @@
 	<EditUserModal
 		user={pendingAction.user}
 		categories={data.portalConfig.categories}
-		profiles={data.assignableProfiles}
+		profiles={data.profiles}
+		assignableProfiles={data.assignableProfiles}
 		onclose={closePendingAction}
 		onsaved={handleEditSaved}
 	/>

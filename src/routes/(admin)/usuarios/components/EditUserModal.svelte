@@ -25,12 +25,15 @@
 	interface Props {
 		user: AdminUser;
 		categories: PortalCategory[];
+		/** Catálogo completo, inclusive Perfis inativos/fora da alçada do ator. */
 		profiles: Profile[];
+		/** Perfis que o ator pode atribuir no select. */
+		assignableProfiles: Profile[];
 		onclose: () => void;
 		onsaved: (profile: UserProfileResponse) => void;
 	}
 
-	let { user, categories, profiles, onclose, onsaved }: Props = $props();
+	let { user, categories, profiles, assignableProfiles, onclose, onsaved }: Props = $props();
 
 	let isLoading = $state(true);
 	let isSaving = $state(false);
@@ -38,6 +41,8 @@
 	let saveError = $state('');
 
 	let profileId = $state(untrack(() => user.profile.id));
+	let currentProfileId = $state(untrack(() => user.profile.id));
+	let currentProfileName = $state(untrack(() => user.profile.name));
 	let fullName = $state('');
 	let area = $state('');
 	let department = $state('');
@@ -59,23 +64,34 @@
 
 	const activeCategories = $derived(categories.filter((category) => category.isActive));
 	const selectedProfile = $derived(profiles.find((profile) => profile.id === profileId) ?? null);
+	const currentProfile = $derived(
+		profiles.find((profile) => profile.id === currentProfileId) ?? null
+	);
 	const requiresProfile = $derived(
 		selectedProfile ? requiresProfessionalBlock(selectedProfile) : false
 	);
-	const profileOptions = $derived(
-		profiles.map((profile) => ({ value: profile.id, label: profile.name }))
-	);
-	const currentProfileIsAssignable = $derived(
-		profiles.some((profile) => profile.id === user.profile.id)
-	);
-	const profilePlaceholder = $derived(
-		currentProfileIsAssignable ? 'Selecione' : `${user.profile.name} (perfil atual)`
-	);
+	const profileOptions = $derived.by(() => {
+		const options = assignableProfiles.map((profile) => ({
+			value: profile.id,
+			label: profile.name
+		}));
+
+		if (currentProfileId && !options.some((option) => option.value === currentProfileId)) {
+			const inactive = currentProfile?.isActive === false ? ', inativo' : '';
+
+			options.unshift({
+				value: currentProfileId,
+				label: `${currentProfileName} (perfil atual${inactive})`
+			});
+		}
+
+		return options;
+	});
 
 	function hydrate(profile: UserProfileResponse) {
-		profileId = profiles.some((candidate) => candidate.id === profile.profile.id)
-			? profile.profile.id
-			: '';
+		currentProfileId = profile.profile.id;
+		currentProfileName = profile.profile.name;
+		profileId = profile.profile.id;
 		fullName = profile.fullName;
 		area = profile.requester?.area ?? '';
 		department = profile.requester?.department ?? '';
@@ -109,8 +125,11 @@
 		categoriesError = '';
 		professionalNotesError = '';
 
-		if (profiles.length > 0 && !profiles.some((profile) => profile.id === profileId)) {
-			profileIdError = 'Selecione um perfil ativo para continuar.';
+		if (
+			profileId !== currentProfileId &&
+			!assignableProfiles.some((profile) => profile.id === profileId)
+		) {
+			profileIdError = 'Selecione um perfil válido para continuar.';
 		}
 
 		const trimmedFullName = fullName.trim();
@@ -196,7 +215,7 @@
 				: undefined
 		};
 
-		if (profiles.length > 0 && profileId !== user.profile.id) {
+		if (profileId !== currentProfileId) {
 			changes.profileId = profileId;
 		}
 
@@ -232,15 +251,16 @@
 				continua disponível ao próprio usuário.
 			</p>
 
-			{#if profiles.length > 0}
+			{#if assignableProfiles.length > 0}
 				<Select
-					label="Perfil *"
-					placeholder={profilePlaceholder}
+					label="Perfil"
 					options={profileOptions}
 					bind:value={profileId}
 					error={profileIdError}
 					disabled={isSaving}
 				/>
+			{:else}
+				<p class="current-profile">Perfil atual: <strong>{currentProfileName}</strong></p>
 			{/if}
 
 			<Input
@@ -313,6 +333,7 @@
 	}
 
 	.description,
+	.current-profile,
 	.state p {
 		margin: 0;
 		font: var(--paragrafo);

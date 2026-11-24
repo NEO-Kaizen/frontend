@@ -1,80 +1,13 @@
 import type { Profile } from '$lib/types/profile';
 import {
-	GLOBAL_PERMISSION_KEYS,
-	PERMISSION_CUSTODIES,
-	PERMISSION_KEYS,
-	type Permission,
-	type PermissionCustody,
-	type PermissionKey
-} from '$lib/types/permission';
+	ALL_PERMISSIONS,
+	ANALYST_PERMISSIONS,
+	buildProfilePermissions,
+	MANAGER_PERMISSIONS,
+	SELF_SERVICE_PERMISSIONS
+} from './profile-permissions.mock';
 
-function buildPermissions(
-	entries: Partial<Record<PermissionCustody, readonly PermissionKey[]>>
-): Permission[] {
-	const custodyByKey = new Map<PermissionKey, PermissionCustody>();
-
-	for (const custody of PERMISSION_CUSTODIES) {
-		for (const key of entries[custody] ?? []) custodyByKey.set(key, custody);
-	}
-
-	return PERMISSION_KEYS.filter((key) => custodyByKey.has(key)).map((key) => ({
-		key,
-		custody: custodyByKey.get(key) as PermissionCustody
-	}));
-}
-
-const ALL_PERMISSIONS: Permission[] = PERMISSION_KEYS.map((key) => ({
-	key,
-	custody:
-		key === 'request:track' || key === 'pending_item:respond'
-			? 'own'
-			: (GLOBAL_PERMISSION_KEYS as readonly string[]).includes(key)
-				? 'global'
-				: 'all'
-}));
-
-const SELF_SERVICE_PERMISSIONS = buildPermissions({
-	global: ['request:create'],
-	own: ['request:track', 'pending_item:respond']
-});
-
-const ANALYST_PERMISSIONS = buildPermissions({
-	global: ['request:create', 'assignee_directory:read'],
-	own: ['request:track', 'pending_item:respond'],
-	assigned: [
-		'request:read',
-		'request:write',
-		'request:status_change',
-		'queue:read',
-		'triage:read',
-		'triage:write',
-		'mapping:read',
-		'mapping:write',
-		'prioritization:write',
-		'pending_item:read',
-		'pending_item:write',
-		'pending_item:review',
-		'internal_note:read',
-		'internal_note:write'
-	]
-});
-
-const MANAGER_PERMISSIONS = buildPermissions({
-	global: ['request:create', 'reports:read', 'assignee_directory:read'],
-	own: ['request:track', 'pending_item:respond'],
-	all: [
-		'request:read',
-		'queue:read',
-		'queue:export',
-		'triage:read',
-		'mapping:read',
-		'pending_item:read',
-		'internal_note:read',
-		'audit:read'
-	]
-});
-
-const COORDINATOR_PERMISSIONS = buildPermissions({
+const COORDINATOR_PERMISSIONS = buildProfilePermissions({
 	assigned: ['request:read', 'queue:read', 'triage:read', 'pending_item:read']
 });
 
@@ -87,7 +20,7 @@ const PROFILES: Profile[] = [
 		isRoot: false,
 		isAssignableTriage: false,
 		isAssignableMapping: false,
-		userCount: 12,
+		userCount: 11,
 		permissions: SELF_SERVICE_PERMISSIONS
 	},
 	{
@@ -153,8 +86,8 @@ const PROFILES: Profile[] = [
 		isRoot: false,
 		isAssignableTriage: false,
 		isAssignableMapping: false,
-		userCount: 0,
-		permissions: []
+		userCount: 1,
+		permissions: SELF_SERVICE_PERMISSIONS
 	}
 ];
 

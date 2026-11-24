@@ -10,11 +10,13 @@
 		users: AdminUser[];
 		canManage: boolean;
 		administrableProfileIds: string[];
+		/** O backend proíbe gerenciar a própria conta pelas rotas administrativas. */
+		currentUserId: string;
 
 		onaction: (user: AdminUser, action: UserAction) => void;
 	}
 
-	let { users, canManage, administrableProfileIds, onaction }: Props = $props();
+	let { users, canManage, administrableProfileIds, currentUserId, onaction }: Props = $props();
 
 	let openMenuId = $state<string | null>(null);
 
@@ -110,7 +112,7 @@
 					</td>
 
 					<td>
-						{#if !canManage || !administrableProfileIds.includes(user.profile.id)}
+						{#if !canManage || !administrableProfileIds.includes(user.profile.id) || user.id === currentUserId}
 							<span class="no-actions" aria-hidden="true"> — </span>
 						{:else}
 							<div class="actions">

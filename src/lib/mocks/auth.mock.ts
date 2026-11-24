@@ -6,86 +6,18 @@ import type {
 	SessionUser
 } from '$lib/types/auth';
 import { ApiError } from '$lib/types/result';
+import { PORTAL_READ_KEYS } from '$lib/types/permission';
 import {
-	GLOBAL_PERMISSION_KEYS,
-	PERMISSION_CUSTODIES,
-	PERMISSION_KEYS,
-	PORTAL_READ_KEYS,
-	type Permission,
-	type PermissionCustody,
-	type PermissionKey
-} from '$lib/types/permission';
+	ALL_PERMISSIONS,
+	ANALYST_PERMISSIONS,
+	buildProfilePermissions,
+	MANAGER_PERMISSIONS,
+	SELF_SERVICE_PERMISSIONS
+} from './profile-permissions.mock';
 
 type MockUser = SessionUser & { password: string };
 
-function profilePermissions(
-	entries: Partial<Record<PermissionCustody, readonly PermissionKey[]>>
-): Permission[] {
-	const byKey = new Map<PermissionKey, PermissionCustody>();
-
-	for (const custody of PERMISSION_CUSTODIES) {
-		for (const key of entries[custody] ?? []) byKey.set(key, custody);
-	}
-
-	return PERMISSION_KEYS.filter((key) => byKey.has(key)).map((key) => ({
-		key,
-		custody: byKey.get(key) as PermissionCustody
-	}));
-}
-
-const ALL_PERMISSIONS: Permission[] = PERMISSION_KEYS.map((key) => ({
-	key,
-	custody:
-		key === 'request:track' || key === 'pending_item:respond'
-			? 'own'
-			: (GLOBAL_PERMISSION_KEYS as readonly string[]).includes(key)
-				? 'global'
-				: 'all'
-}));
-
-const SELF_SERVICE_PERMISSIONS = profilePermissions({
-	global: ['request:create'],
-	own: ['request:track', 'pending_item:respond']
-});
-
-const ANALYST_PERMISSIONS = profilePermissions({
-	global: ['request:create', 'assignee_directory:read'],
-	own: ['request:track', 'pending_item:respond'],
-	assigned: [
-		'request:read',
-		'request:write',
-		'request:status_change',
-		'queue:read',
-		'triage:read',
-		'triage:write',
-		'mapping:read',
-		'mapping:write',
-		'prioritization:write',
-		'pending_item:read',
-		'pending_item:write',
-		'pending_item:review',
-		'internal_note:read',
-		'internal_note:write'
-	]
-});
-
-const VIEWER_PERMISSIONS = profilePermissions({
-	global: ['request:create', 'reports:read', 'assignee_directory:read'],
-	own: ['request:track', 'pending_item:respond'],
-	all: [
-		'request:read',
-		'queue:read',
-		'queue:export',
-		'triage:read',
-		'mapping:read',
-		'pending_item:read',
-		'internal_note:read',
-		'internal_note:write',
-		'audit:read'
-	]
-});
-
-const CUSTOM_PORTAL_READER_PERMISSIONS = profilePermissions({
+const CUSTOM_PORTAL_READER_PERMISSIONS = buildProfilePermissions({
 	global: ['request:create', ...PORTAL_READ_KEYS],
 	own: ['request:track', 'pending_item:respond']
 });
@@ -108,7 +40,7 @@ const MOCK_USERS: MockUser[] = [
 		avatarUrl: null,
 		role: 'Gestor',
 		mustChangePassword: false,
-		permissions: VIEWER_PERMISSIONS,
+		permissions: MANAGER_PERMISSIONS,
 		password: 'admin'
 	},
 	{

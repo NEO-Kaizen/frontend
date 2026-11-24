@@ -105,7 +105,7 @@ export interface ResetPasswordResponse {
 
 // "Meus dados" — perfil completo do próprio usuário (GET /users/me).
 // Blocos são opcionais no contrato: `requester` pode não existir e
-// `professional` só é preenchido para o perfil Analista.
+// `professional` só é preenchido para Perfis designáveis na triagem/mapeamento.
 export interface RequesterProfileBlock {
 	area: string | null;
 	department: string | null;

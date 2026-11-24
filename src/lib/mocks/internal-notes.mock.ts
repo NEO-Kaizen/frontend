@@ -35,6 +35,8 @@ const PROFILE_REFERENCES = {
 
 const LEGACY_PROFILE: ProfileSnapshot = { id: null, name: 'Analista' };
 
+// TODO(#229): usar SessionUser.profile quando o payload de sessão expuser o
+// perfil, em vez de derivar o snapshot do rótulo mutável de `role`.
 function profileFromSessionRole(role: string): ProfileReference {
 	switch (role) {
 		case 'Admin Root':

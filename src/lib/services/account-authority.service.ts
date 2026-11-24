@@ -15,10 +15,15 @@ function normalizeGrants(grants: PermissionGrants): Permission[] {
 	return Array.isArray(grants) ? grants : [];
 }
 
+// Mesma semântica do backend: alvo sem permissões é considerado contido em
+// qualquer ator (domínio vazio), então fica estritamente abaixo de um ator com
+// permissões e pode ser administrado por ele.
 function containsAll(targetGrants: PermissionGrants, actorGrants: PermissionGrants): boolean {
 	const target = normalizeGrants(targetGrants);
 	const actor = normalizeGrants(actorGrants);
-	if (target.length === 0) return false;
+
+	// Alvo vazio é vacuamente contido (`every` em array vazio ⇒ true).
+	if (target.length === 0) return true;
 
 	const actorPermissions = new Map(actor.map((grant) => [grant.key, grant.custody] as const));
 
@@ -35,6 +40,8 @@ export function isAuthorityStrictlyBelow(
 	return containsAll(targetGrants, actorGrants) && !containsAll(actorGrants, targetGrants);
 }
 
+// TODO(#229): trocar por `actor.profile.isRoot` quando SessionUser expuser o
+// perfil; hoje o rótulo de `role` é o único discriminador disponível.
 export function isRootActor(actor: SessionUser | null): boolean {
 	return actor?.role === 'Admin Root';
 }

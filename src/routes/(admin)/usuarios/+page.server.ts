@@ -1,9 +1,11 @@
+import { redirect } from '@sveltejs/kit';
+
 import { guard } from '$lib/services/access.service';
 import {
 	listAdministrableProfiles,
 	listAssignableProfiles
 } from '$lib/services/account-authority.service';
-import { filterActiveProfiles, listProfiles } from '$lib/services/profile.service';
+import { listProfiles } from '$lib/services/profile.service';
 import { getUserStats, listUsers } from '$lib/services/user.service';
 import type { PageServerLoad } from './$types';
 
@@ -19,18 +21,22 @@ export const load: PageServerLoad = async ({ fetch, locals, url }) => {
 
 	const profilesResult = await listProfiles(fetch);
 	const allProfiles = profilesResult.ok ? profilesResult.data : [];
-	const activeProfiles = profilesResult.ok ? filterActiveProfiles(profilesResult.data) : [];
 	const profilesError = profilesResult.ok ? null : profilesResult.error;
 
-	const validProfileId =
-		profileId && activeProfiles.some((profile) => profile.id === profileId) ? profileId : undefined;
-	const assignableProfiles = listAssignableProfiles(locals.user, activeProfiles);
+	// Formato é defesa local; existência e status do Perfil ficam com o backend.
+	// Com o catálogo carregado, um id inexistente é canonicalizado para a URL e
+	// a UI não discordarem.
+	if (profileId && profilesResult.ok && !allProfiles.some((item) => item.id === profileId)) {
+		redirect(303, url.pathname);
+	}
+
+	const assignableProfiles = listAssignableProfiles(locals.user, allProfiles);
 	const administrableProfileIds = listAdministrableProfiles(locals.user, allProfiles).map(
 		(profile) => profile.id
 	);
 
 	const [result, stats] = await Promise.all([
-		listUsers({ page: 1, pageSize: PAGE_SIZE, profileId: validProfileId }, fetch),
+		listUsers({ page: 1, pageSize: PAGE_SIZE, profileId }, fetch),
 		getUserStats(fetch)
 	]);
 
@@ -39,8 +45,8 @@ export const load: PageServerLoad = async ({ fetch, locals, url }) => {
 		stats,
 		pageSize: PAGE_SIZE,
 		user: locals.user,
-		profileId: validProfileId ?? '',
-		activeProfiles,
+		profileId: profileId ?? '',
+		profiles: allProfiles,
 		assignableProfiles,
 		administrableProfileIds,
 		profilesError
