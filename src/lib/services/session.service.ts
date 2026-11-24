@@ -20,7 +20,7 @@ export function sanitizeSessionUser(raw: unknown): SessionUser | null {
 		name: readString(source.name) ?? '',
 		email,
 		avatarUrl: readString(source.avatarUrl),
-		role: readString(source.role) || 'Solicitante',
+		role: readString(source.role) || readProfileName(source.profile) || 'Solicitante',
 		mustChangePassword: source.mustChangePassword === true,
 		permissions: sanitizePermissions(source.permissions)
 	};
@@ -52,6 +52,13 @@ function sanitizePermissions(raw: unknown): Permission[] {
 
 function readString(value: unknown): string | null {
 	return typeof value === 'string' ? value : null;
+}
+
+// O `/auth/me` da epic entrega a identidade em `profile: { id, name }`; o
+// `role` legado só é usado quando presente.
+function readProfileName(value: unknown): string | null {
+	if (!isRecord(value)) return null;
+	return readString(value.name);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
