@@ -5,11 +5,12 @@
 	import Modal from '$lib/components/Modal.svelte';
 	import type { Profile, ProfileKeyCatalog } from '$lib/types/profile';
 	import type { SessionUser } from '$lib/types/auth';
-	import type { PermissionCustody } from '$lib/types/permission';
 	import type { Result } from '$lib/types/result';
 	import { changeProfileStatus } from '$lib/services/profile.service';
-	import { canGrantCustody, isRootActor } from '$lib/utils/permission-checks';
 	import ProfileEditorModal from './ProfileEditorModal.svelte';
+	import ProfileStatusDialog from './ProfileStatusDialog.svelte';
+	import ProfileTable from './ProfileTable.svelte';
+	import type { EditorMode, ProfileView } from './profile-management.types';
 
 	interface Props {
 		user: SessionUser;
@@ -17,30 +18,6 @@
 		profilesResult: Result<Profile[]> | null;
 		profileKeyCatalogResult: Result<ProfileKeyCatalog> | null;
 	}
-
-	type ProfileView = {
-		source: Profile;
-		id: string;
-		name: string;
-		description: string;
-		composition: Profile['permissions'];
-		isRoot: boolean;
-		isActive: boolean;
-		isAssignableTriage: boolean;
-		isAssignableMapping: boolean;
-		userCount: number;
-	};
-
-	type EditorMode = 'create' | 'edit' | 'duplicate';
-
-	const custodyLabels: Record<PermissionCustody, string> = {
-		global: 'Global',
-		own: 'Próprio',
-		assigned: 'Atribuído',
-		all: 'Todos'
-	};
-	const duplicateRestrictionMessage =
-		'Não é possível duplicar: sua conta não pode conceder todas as permissões e escopos herdados deste perfil.';
 
 	let { user, canManage, profilesResult, profileKeyCatalogResult }: Props = $props();
 	let profilesOverride = $state<Profile[] | null>(null);
@@ -88,16 +65,6 @@
 		return profilesOverride ?? (profilesResult?.ok ? profilesResult.data : []);
 	}
 
-	function canDuplicateProfile(profile: Profile): boolean {
-		return profile.permissions.every((requestedPermission) =>
-			user.permissions.some(
-				(actorPermission) =>
-					actorPermission.key === requestedPermission.key &&
-					canGrantCustody(actorPermission.custody, requestedPermission.custody)
-			)
-		);
-	}
-
 	function clearSuccessMessage() {
 		if (successMessageTimer) clearTimeout(successMessageTimer);
 		successMessageTimer = undefined;
@@ -137,6 +104,12 @@
 	function closeEditor() {
 		editorMode = null;
 		selectedProfile = null;
+	}
+
+	function openStatus(profile: ProfileView) {
+		clearSuccessMessage();
+		statusError = '';
+		pendingStatus = profile;
 	}
 
 	function handleSaved(message: string, profile: Profile) {
@@ -204,142 +177,15 @@
 			<p>{loadError}</p>
 			<Button variant="outline" onclick={reloadData}>Tentar novamente</Button>
 		</div>
-	{:else if profiles.length === 0}
-		<p class="empty-state">Nenhum perfil encontrado.</p>
 	{:else}
-		<div class="table-scroll">
-			<table>
-				<thead>
-					<tr>
-						<th scope="col">Nome</th>
-						<th scope="col">Composição</th>
-						<th scope="col">Atribuição</th>
-						<th scope="col">Status</th>
-						<th scope="col">Usuários</th>
-						{#if canManage}
-							<th scope="col"><span class="sr-only">Ações</span></th>
-						{/if}
-					</tr>
-				</thead>
-				<tbody>
-					{#each profiles as profile (profile.id)}
-						{@const canDuplicate = canDuplicateProfile(profile.source)}
-						{@const cannotEditRootProfile = profile.isRoot && !isRootActor(user)}
-						{@const statusRestrictionMessage =
-							profile.isActive && profile.isRoot
-								? 'O perfil Admin Root não pode ser desativado.'
-								: profile.isActive && profile.userCount > 0
-									? `Não é possível desativar: ${profile.userCount} usuário(s) ainda utiliza(m) este perfil.`
-									: ''}
-						<tr>
-							<th scope="row">
-								<div class="name-cell">
-									<strong>{profile.name || 'Perfil sem nome'}</strong>
-									{#if profile.isRoot}
-										<span class="root-badge">Root</span>
-									{/if}
-								</div>
-								{#if profile.description}
-									<span class="description">{profile.description}</span>
-								{/if}
-							</th>
-							<td>
-								<span class="composition-count">{profile.composition.length} chaves</span>
-								{#if profile.composition.length > 0}
-									<span class="composition-list">
-										{profile.composition
-											.map(
-												(permission) =>
-													`${permission.key} (escopo: ${custodyLabels[permission.custody]})`
-											)
-											.join(', ')}
-									</span>
-								{:else}
-									<span class="composition-list">Sem permissões</span>
-								{/if}
-							</td>
-							<td>
-								<div class="flags">
-									<span class={{ enabled: profile.isAssignableTriage }}>Triagem</span>
-									<span class={{ enabled: profile.isAssignableMapping }}>Mapeamento</span>
-								</div>
-							</td>
-							<td>
-								<span class={['status', { active: profile.isActive }]}>
-									<span aria-hidden="true"></span>
-									{profile.isActive ? 'Ativo' : 'Inativo'}
-								</span>
-								{#if profile.isActive && profile.isRoot}
-									<small class="status-note" id={`status-guidance-${profile.id}`}>
-										O perfil Admin Root não pode ser desativado.
-									</small>
-								{:else if profile.isActive && profile.userCount > 0}
-									<small class="status-note" id={`status-guidance-${profile.id}`}>
-										Não pode desativar: {profile.userCount}
-										{profile.userCount === 1 ? 'usuário utiliza' : 'usuários utilizam'} este perfil.
-									</small>
-								{/if}
-							</td>
-							<td>{profile.userCount}</td>
-							{#if canManage}
-								<td>
-									<div class="row-actions">
-										<Button
-											variant="outline"
-											disabled={cannotEditRootProfile}
-											aria-label={`Editar perfil ${profile.name}`}
-											onclick={() => openEditor('edit', profile.source)}
-										>
-											Editar
-										</Button>
-										{#if cannotEditRootProfile}
-											<small class="action-note">
-												Sua sessão atual informa a função “{user.role}”. Apenas o Admin Root pode
-												editar este perfil. O servidor continua sendo a autoridade final de
-												autorização.
-											</small>
-										{/if}
-										<Button
-											variant="outline"
-											disabled={!canDuplicate}
-											title={!canDuplicate ? duplicateRestrictionMessage : undefined}
-											aria-label={`Duplicar perfil ${profile.name}`}
-											aria-describedby={!canDuplicate
-												? `duplicate-guidance-${profile.id}`
-												: undefined}
-											onclick={() => openEditor('duplicate', profile.source)}
-										>
-											Duplicar
-										</Button>
-										<Button
-											variant="outline-neutral"
-											disabled={profile.isActive && (profile.isRoot || profile.userCount > 0)}
-											title={statusRestrictionMessage || undefined}
-											aria-label={`${profile.isActive ? 'Desativar' : 'Ativar'} perfil ${profile.name}`}
-											aria-describedby={statusRestrictionMessage
-												? `status-guidance-${profile.id}`
-												: undefined}
-											onclick={() => {
-												clearSuccessMessage();
-												pendingStatus = profile;
-												statusError = '';
-											}}
-										>
-											{profile.isActive ? 'Desativar' : 'Ativar'}
-										</Button>
-									</div>
-									{#if !canDuplicate}
-										<small id={`duplicate-guidance-${profile.id}`} class="action-note">
-											{duplicateRestrictionMessage}
-										</small>
-									{/if}
-								</td>
-							{/if}
-						</tr>
-					{/each}
-				</tbody>
-			</table>
-		</div>
+		<ProfileTable
+			{profiles}
+			{canManage}
+			{user}
+			onedit={(profile) => openEditor('edit', profile)}
+			onduplicate={(profile) => openEditor('duplicate', profile)}
+			onstatus={openStatus}
+		/>
 	{/if}
 </section>
 
@@ -364,45 +210,13 @@
 {/if}
 
 {#if pendingStatus}
-	<Modal
-		title={pendingStatus.isActive ? 'Desativar perfil' : 'Ativar perfil'}
+	<ProfileStatusDialog
+		profile={pendingStatus}
+		{isChangingStatus}
+		{statusError}
 		onclose={() => (pendingStatus = null)}
-	>
-		<div class="confirm-content">
-			{#if pendingStatus.isActive && pendingStatus.isRoot}
-				<p role="alert">O perfil Admin Root não pode ser desativado.</p>
-			{:else if pendingStatus.isActive && pendingStatus.userCount > 0}
-				<p role="alert">
-					Este perfil não pode ser desativado enquanto {pendingStatus.userCount}
-					{pendingStatus.userCount === 1 ? 'usuário estiver' : 'usuários estiverem'} associado(s).
-				</p>
-			{:else}
-				<p>
-					{pendingStatus.isActive
-						? `Ao desativar, "${pendingStatus.name}" não poderá ser atribuído a usuários.`
-						: `O perfil "${pendingStatus.name}" ficará disponível para atribuição.`}
-					Confirmar?
-				</p>
-			{/if}
-			{#if statusError}
-				<p class="form-error" role="alert">{statusError}</p>
-			{/if}
-			<div class="modal-actions">
-				<Button
-					variant="outline-neutral"
-					disabled={isChangingStatus}
-					onclick={() => (pendingStatus = null)}
-				>
-					Cancelar
-				</Button>
-				{#if !(pendingStatus.isActive && (pendingStatus.isRoot || pendingStatus.userCount > 0))}
-					<Button variant="primary" loading={isChangingStatus} onclick={confirmStatusChange}>
-						{pendingStatus.isActive ? 'Desativar' : 'Ativar'}
-					</Button>
-				{/if}
-			</div>
-		</div>
-	</Modal>
+		onconfirm={confirmStatusChange}
+	/>
 {/if}
 
 <style>
@@ -423,8 +237,7 @@
 		color: var(--heading-color);
 		font: var(--h3);
 	}
-	.panel-header p,
-	.description {
+	.panel-header p {
 		margin: 0;
 		color: var(--gray);
 		font: var(--paragrafo);
@@ -436,124 +249,6 @@
 		background: var(--status-green-bg);
 		color: var(--status-green);
 	}
-	.table-scroll {
-		overflow-x: auto;
-		border: var(--border-default);
-		border-radius: var(--radius-sm);
-	}
-	table {
-		width: 100%;
-		min-width: 880px;
-		border-collapse: collapse;
-	}
-	th,
-	td {
-		padding: var(--spacing-sm) var(--spacing-md);
-		border-bottom: var(--border-default);
-		text-align: left;
-		vertical-align: top;
-	}
-	thead th {
-		background: var(--background-color);
-		color: var(--gray);
-		font: var(--label);
-		font-size: 11px;
-		text-transform: uppercase;
-	}
-	tbody tr:last-child th,
-	tbody tr:last-child td {
-		border-bottom: 0;
-	}
-	tbody th {
-		font-weight: 400;
-	}
-	.name-cell,
-	.flags,
-	.row-actions {
-		display: flex;
-		align-items: center;
-		gap: var(--spacing-xs);
-	}
-	.name-cell strong {
-		color: var(--heading-color);
-	}
-	.root-badge {
-		padding: 2px 8px;
-		border-radius: 999px;
-		background: var(--tint);
-		color: var(--secondary-color);
-		font: var(--label);
-		font-size: 11px;
-	}
-	.description {
-		display: block;
-		margin-top: 4px;
-		font-size: 12px;
-	}
-	.composition-count {
-		display: block;
-		font: var(--label);
-	}
-	.composition-list {
-		display: block;
-		max-width: 320px;
-		margin-top: 4px;
-		color: var(--gray);
-		font-size: 12px;
-		overflow-wrap: anywhere;
-	}
-	.flags {
-		flex-wrap: wrap;
-	}
-	.flags span {
-		padding: 3px 7px;
-		border-radius: 999px;
-		background: var(--background-color);
-		color: var(--gray);
-		font-size: 11px;
-	}
-	.flags span.enabled {
-		background: var(--status-green-bg);
-		color: var(--status-green);
-	}
-	.status {
-		display: inline-flex;
-		align-items: center;
-		gap: 6px;
-		color: var(--gray);
-		white-space: nowrap;
-	}
-	.status > span {
-		width: 7px;
-		height: 7px;
-		border-radius: 50%;
-		background: currentColor;
-	}
-	.status.active {
-		color: var(--status-green);
-	}
-	.status-note {
-		display: block;
-		max-width: 170px;
-		margin-top: 4px;
-		color: var(--status-red);
-		font-size: 11px;
-	}
-	.row-actions {
-		flex-wrap: wrap;
-	}
-	.row-actions :global(button) {
-		padding: 6px 8px;
-		font-size: 12px;
-	}
-	.action-note {
-		display: block;
-		max-width: 280px;
-		margin-top: var(--spacing-xs);
-		color: var(--gray);
-		font-size: 11px;
-	}
-	.empty-state,
 	.state {
 		margin: 0;
 		padding: var(--spacing-xl);
@@ -571,8 +266,7 @@
 	.state p {
 		margin: 0;
 	}
-	.state.error,
-	.form-error {
+	.state.error {
 		color: var(--status-red);
 	}
 	.spinner {
@@ -582,37 +276,6 @@
 		border-top-color: var(--primary-color);
 		border-radius: 50%;
 		animation: spin 0.7s linear infinite;
-	}
-	.confirm-content {
-		display: flex;
-		flex-direction: column;
-		gap: var(--spacing-md);
-	}
-	.confirm-content p {
-		margin: 0;
-	}
-	.form-error {
-		padding: var(--spacing-sm);
-		border-radius: var(--radius-sm);
-		background: var(--status-error-bg);
-	}
-	.modal-actions {
-		display: flex;
-		justify-content: flex-end;
-		gap: var(--spacing-sm);
-		padding-top: var(--spacing-md);
-		border-top: var(--border-default);
-	}
-	.sr-only {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		white-space: nowrap;
-		border: 0;
 	}
 	@keyframes spin {
 		to {
