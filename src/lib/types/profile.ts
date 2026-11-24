@@ -1,8 +1,16 @@
 import type { Permission, PermissionKey, PermissionCustody } from './permission';
 
-export interface Profile {
+export interface ProfileReference {
 	id: string;
 	name: string;
+}
+
+export interface ProfileSnapshot {
+	id: string | null;
+	name: string;
+}
+
+export interface Profile extends ProfileReference {
 	description: string | null;
 	isActive: boolean;
 	isRoot: boolean;

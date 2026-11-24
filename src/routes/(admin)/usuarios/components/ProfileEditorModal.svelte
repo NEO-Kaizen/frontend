@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { untrack } from 'svelte';
 	import Button from '$lib/components/Button.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import Modal from '$lib/components/Modal.svelte';
@@ -13,6 +13,7 @@
 	import { SELF_SERVICE_KEYS } from '$lib/types/permission';
 	import type { Permission, PermissionCustody, PermissionKey } from '$lib/types/permission';
 	import { createProfile, duplicateProfile, updateProfile } from '$lib/services/profile.service';
+	import { canGrantCustody } from '$lib/utils/permission-checks';
 	import { PROFILE_NAME_MAX_LENGTH as PROFILE_NAME_MAX_LENGTH_VALIDATION } from '$lib/utils/validations';
 
 	interface Props {
@@ -21,7 +22,7 @@
 		catalog: ProfileKeyCatalog;
 		user: SessionUser;
 		onclose: () => void;
-		onsaved: (message: string) => void;
+		onsaved: (message: string, profile: Profile) => void;
 	}
 
 	type CatalogKey = {
@@ -36,7 +37,6 @@
 
 	const PROFILE_NAME_MAX_LENGTH = PROFILE_NAME_MAX_LENGTH_VALIDATION;
 	const PROFILE_DESCRIPTION_MAX_LENGTH = 255;
-	const PROFILE_COMPOSITION_MAX_KEYS = 39;
 	const selfServiceKeySet = new Set<string>(SELF_SERVICE_KEYS);
 	const selfServiceKeys = SELF_SERVICE_KEYS;
 	type SelfServiceKey = (typeof SELF_SERVICE_KEYS)[number];
@@ -46,12 +46,32 @@
 	}
 
 	let { mode, profile, catalog, user, onclose, onsaved }: Props = $props();
-	let name = $state('');
-	let description = $state('');
-	let selectedKeys = $state<PermissionKey[]>([]);
-	let selectedCustodies = $state<Partial<Record<PermissionKey, PermissionCustody>>>({});
-	let isAssignableTriage = $state(false);
-	let isAssignableMapping = $state(false);
+
+	const initialProfile = untrack(() => (profile && mode !== 'create' ? profile : null));
+
+	function duplicateProfileName(value: string): string {
+		const suffix = ' (cópia)';
+		return `${value.trim().slice(0, PROFILE_NAME_MAX_LENGTH - suffix.length)}${suffix}`;
+	}
+
+	let name = $state(
+		untrack(() =>
+			mode === 'duplicate' && initialProfile
+				? duplicateProfileName(initialProfile.name)
+				: (initialProfile?.name ?? '')
+		)
+	);
+	let description = $state(initialProfile?.description ?? '');
+	let selectedKeys = $state<PermissionKey[]>(
+		initialProfile?.permissions.map((permission) => permission.key) ?? []
+	);
+	let selectedCustodies = $state<Partial<Record<PermissionKey, PermissionCustody>>>(
+		Object.fromEntries(
+			(initialProfile?.permissions ?? []).map((permission) => [permission.key, permission.custody])
+		)
+	);
+	let isAssignableTriage = $state(initialProfile?.isAssignableTriage ?? false);
+	let isAssignableMapping = $state(initialProfile?.isAssignableMapping ?? false);
 	let removedSelfServiceConfirmed = $state<SelfServiceKey[]>([]);
 	let compositionConfirmed = $state(false);
 	let flagsConfirmed = $state(false);
@@ -86,12 +106,7 @@
 
 	const resources = $derived(catalogResources());
 	const catalogKeys = $derived(resources.flatMap((resource) => resource.keys));
-	const grantableCustodiesByActorCustody: Record<PermissionCustody, PermissionCustody[]> = {
-		global: ['global'],
-		own: ['own'],
-		assigned: ['assigned'],
-		all: ['assigned', 'all']
-	};
+	const compositionLimit = $derived(catalog.permissions.length);
 	const selfServiceConsequences: Record<SelfServiceKey, string> = {
 		'request:create': 'a pessoa perderá a capacidade de abrir novas solicitações.',
 		'request:track': 'a pessoa perderá a capacidade de acompanhar as próprias solicitações.',
@@ -101,10 +116,11 @@
 	function grantableCustodies(key: PermissionKey): PermissionCustody[] {
 		const entry = catalogKeys.find((item) => item.key === key);
 		const allowedCustodies = entry?.custodies ?? [];
-		const actorCustodies = user.permissions
-			.filter((permission) => permission.key === key)
-			.flatMap((permission) => grantableCustodiesByActorCustody[permission.custody]);
-		return [...new Set(actorCustodies)].filter((custody) => allowedCustodies.includes(custody));
+		return allowedCustodies.filter((custody) =>
+			user.permissions.some(
+				(permission) => permission.key === key && canGrantCustody(permission.custody, custody)
+			)
+		);
 	}
 
 	function actorCanGrant(key: PermissionKey, custody?: PermissionCustody): boolean {
@@ -166,7 +182,7 @@
 	);
 	const compositionChanged = $derived(
 		canEditComposition &&
-			JSON.stringify(currentPermissions()) !== JSON.stringify(buildPermissions())
+			permissionSignature(currentPermissions()) !== permissionSignature(buildPermissions())
 	);
 	const flagsChanged = $derived.by(() => {
 		return (
@@ -194,6 +210,13 @@
 		});
 	}
 
+	function permissionSignature(permissions: readonly Permission[]): string {
+		return permissions
+			.map((permission) => `${permission.key}:${permission.custody}`)
+			.sort()
+			.join('|');
+	}
+
 	function setKeySelected(key: PermissionKey, checked: boolean) {
 		if (!checked) {
 			const dependents = catalogKeys
@@ -213,31 +236,6 @@
 		removedSelfServiceConfirmed = removedSelfServiceConfirmed.filter((item) => item !== key);
 	}
 
-	function hydrate() {
-		name = '';
-		description = '';
-		selectedKeys = [];
-		selectedCustodies = {};
-		isAssignableTriage = false;
-		isAssignableMapping = false;
-		removedSelfServiceConfirmed = [];
-		compositionConfirmed = false;
-		flagsConfirmed = false;
-		identityConfirmed = false;
-		if (!profile || mode === 'create') return;
-
-		name = mode === 'duplicate' ? `${profile.name} (cópia)` : profile.name;
-		description = profile.description ?? '';
-		selectedKeys = currentPermissions().map((permission) => permission.key);
-		selectedCustodies = Object.fromEntries(
-			currentPermissions().map((permission) => [permission.key, permission.custody])
-		);
-		isAssignableTriage = profile.isAssignableTriage;
-		isAssignableMapping = profile.isAssignableMapping;
-	}
-
-	onMount(hydrate);
-
 	function validate(): boolean {
 		nameError = '';
 		saveError = '';
@@ -248,8 +246,8 @@
 		if (description.trim().length > PROFILE_DESCRIPTION_MAX_LENGTH) {
 			saveError = `A descrição deve ter no máximo ${PROFILE_DESCRIPTION_MAX_LENGTH} caracteres.`;
 		} else if (mode !== 'duplicate') {
-			if (canEditComposition && selectedKeys.length > PROFILE_COMPOSITION_MAX_KEYS) {
-				saveError = `A composição pode conter no máximo ${PROFILE_COMPOSITION_MAX_KEYS} permissões.`;
+			if (canEditComposition && selectedKeys.length > compositionLimit) {
+				saveError = `A composição pode conter no máximo ${compositionLimit} permissões.`;
 			} else if (canEditComposition && missingDependencies.length > 0) {
 				saveError = 'Resolva as dependências faltantes antes de salvar.';
 			} else if (canEditComposition && unconfirmedSelfServiceKeys.length > 0) {
@@ -309,7 +307,7 @@
 				saveError = result.error.message;
 				return;
 			}
-			onsaved(`Perfil "${name.trim()}" duplicado com sucesso.`);
+			onsaved(`Perfil "${name.trim()}" duplicado com sucesso.`, result.data);
 			return;
 		}
 
@@ -320,7 +318,7 @@
 				saveError = result.error.message;
 				return;
 			}
-			onsaved(`Perfil "${name.trim()}" criado com sucesso.`);
+			onsaved(`Perfil "${name.trim()}" criado com sucesso.`, result.data);
 			return;
 		}
 
@@ -335,7 +333,7 @@
 			saveError = result.error.message;
 			return;
 		}
-		onsaved(`Perfil "${name.trim()}" atualizado com sucesso.`);
+		onsaved(`Perfil "${name.trim()}" atualizado com sucesso.`, result.data);
 	}
 
 	const title = $derived(
@@ -361,6 +359,7 @@
 			<Input
 				label="Nome do perfil *"
 				maxlength={PROFILE_NAME_MAX_LENGTH}
+				required
 				bind:value={name}
 				oninput={() => (identityConfirmed = false)}
 				error={nameError}
@@ -383,12 +382,12 @@
 					<div>
 						<h4 id="composition-title">Composição de permissões</h4>
 						<p>
-							Selecione até {PROFILE_COMPOSITION_MAX_KEYS} permissões. As permissões que sua conta não
-							possui ficam bloqueadas e não podem ser concedidas.
+							Selecione até {compositionLimit} permissões. As permissões que sua conta não possui ficam
+							bloqueadas e não podem ser concedidas.
 						</p>
 					</div>
 					<span class="composition-limit">
-						{selectedKeys.length}/{PROFILE_COMPOSITION_MAX_KEYS}
+						{selectedKeys.length}/{compositionLimit}
 					</span>
 				</div>
 				{#if mode === 'edit' && !canEditComposition}
@@ -426,7 +425,7 @@
 											!canGrant ||
 											!canEditComposition ||
 											(!checked && missingForKey.length > 0) ||
-											(!checked && selectedKeys.length >= PROFILE_COMPOSITION_MAX_KEYS)}
+											(!checked && selectedKeys.length >= compositionLimit)}
 										onchange={(event) => setKeySelected(entry.key, event.currentTarget.checked)}
 									/>
 									<span>
@@ -448,6 +447,7 @@
 									<label class="custody-field">
 										<span>Escopo</span>
 										<select
+											aria-label={`Escopo de ${entry.key}`}
 											value={selectedCustodies[entry.key] ?? availableCustodies[0]}
 											disabled={isSaving || !canEditComposition}
 											onchange={(event) => {

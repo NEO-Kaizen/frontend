@@ -11,11 +11,10 @@ import type {
 	Profile,
 	ProfileCreateInput,
 	ProfileKeyCatalog,
+	ProfilePermissionInput,
 	ProfileStatusResponse,
 	ProfileUpdateInput
 } from '$lib/types/profile';
-import type { SessionUser } from '$lib/types/auth';
-import type { ProfilePermissionInput } from '$lib/types/profile';
 import type { Result } from '$lib/types/result';
 import {
 	isAllowedPermissionCustody,
@@ -34,18 +33,12 @@ async function runProfileOperation<T>(operation: ProfileOperation<T>): Promise<R
 	}
 }
 
-export function listProfiles(
-	actor: SessionUser | null,
-	fetchImpl?: typeof fetch
-): Promise<Result<Profile[]>> {
-	return runProfileOperation(() => listProfilesApi(actor, fetchImpl));
+export function listProfiles(fetchImpl?: typeof fetch): Promise<Result<Profile[]>> {
+	return runProfileOperation(() => listProfilesApi(fetchImpl));
 }
 
-export function getProfileKeyCatalog(
-	actor: SessionUser | null,
-	fetchImpl?: typeof fetch
-): Promise<Result<ProfileKeyCatalog>> {
-	return runProfileOperation(() => getProfileKeyCatalogApi(actor, fetchImpl));
+export function getProfileKeyCatalog(fetchImpl?: typeof fetch): Promise<Result<ProfileKeyCatalog>> {
+	return runProfileOperation(() => getProfileKeyCatalogApi(fetchImpl));
 }
 
 export function createProfile(payload: ProfileCreateInput): Promise<Result<Profile>> {
@@ -80,6 +73,14 @@ export function duplicateProfile(
 	payload: DuplicateProfileInput
 ): Promise<Result<Profile>> {
 	return runProfileOperation(() => duplicateProfileApi(id, payload));
+}
+
+export function filterActiveProfiles(profiles: Profile[]): Profile[] {
+	return profiles.filter((profile) => profile.isActive);
+}
+
+export function requiresProfessionalBlock(profile: Profile): boolean {
+	return profile.isAssignableTriage || profile.isAssignableMapping;
 }
 
 function hasValidPermissions(value: unknown): value is ProfilePermissionInput[] {

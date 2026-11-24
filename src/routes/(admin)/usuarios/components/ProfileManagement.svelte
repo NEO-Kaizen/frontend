@@ -8,7 +8,7 @@
 	import type { PermissionCustody } from '$lib/types/permission';
 	import type { Result } from '$lib/types/result';
 	import { changeProfileStatus } from '$lib/services/profile.service';
-	import { canGrantCustody } from '$lib/utils/permission-checks';
+	import { canGrantCustody, isRootActor } from '$lib/utils/permission-checks';
 	import ProfileEditorModal from './ProfileEditorModal.svelte';
 
 	interface Props {
@@ -43,13 +43,16 @@
 		'Não é possível duplicar: sua conta não pode conceder todas as permissões e escopos herdados deste perfil.';
 
 	let { user, canManage, profilesResult, profileKeyCatalogResult }: Props = $props();
-	let profiles = $derived(profilesResult?.ok ? profilesResult.data.map(normalizeProfile) : []);
+	let profilesOverride = $state<Profile[] | null>(null);
+	let profiles = $derived(profileSource().map(normalizeProfile));
 	let loadError = $derived(
-		profilesResult && !profilesResult.ok
-			? profilesResult.error.message
-			: profilesResult
-				? ''
-				: 'Não foi possível carregar os perfis.'
+		profilesOverride
+			? ''
+			: profilesResult && !profilesResult.ok
+				? profilesResult.error.message
+				: profilesResult
+					? ''
+					: 'Não foi possível carregar os perfis.'
 	);
 	let catalog = $derived(profileKeyCatalogResult?.ok ? profileKeyCatalogResult.data : null);
 	let catalogError = $derived(
@@ -79,6 +82,10 @@
 			isAssignableMapping: profile.isAssignableMapping,
 			userCount: profile.userCount
 		};
+	}
+
+	function profileSource(): Profile[] {
+		return profilesOverride ?? (profilesResult?.ok ? profilesResult.data : []);
 	}
 
 	function canDuplicateProfile(profile: Profile): boolean {
@@ -111,6 +118,7 @@
 	});
 
 	async function reloadData() {
+		profilesOverride = null;
 		isLoading = true;
 		try {
 			await invalidateAll();
@@ -131,10 +139,13 @@
 		selectedProfile = null;
 	}
 
-	async function handleSaved(message: string) {
+	function handleSaved(message: string, profile: Profile) {
+		const nextProfiles = profileSource();
+		profilesOverride = nextProfiles.some((item) => item.id === profile.id)
+			? nextProfiles.map((item) => (item.id === profile.id ? profile : item))
+			: [...nextProfiles, profile];
 		closeEditor();
 		showSuccessMessage(message);
-		await reloadData();
 	}
 
 	async function confirmStatusChange() {
@@ -156,10 +167,12 @@
 			return;
 		}
 		pendingStatus = null;
+		profilesOverride = profileSource().map((item) =>
+			item.id === profile.id ? { ...item, isActive: !profile.isActive } : item
+		);
 		showSuccessMessage(
 			`Perfil "${profile.name}" ${profile.isActive ? 'desativado' : 'ativado'} com sucesso.`
 		);
-		await reloadData();
 	}
 </script>
 
@@ -211,7 +224,7 @@
 				<tbody>
 					{#each profiles as profile (profile.id)}
 						{@const canDuplicate = canDuplicateProfile(profile.source)}
-						{@const cannotEditRootProfile = profile.isRoot && user.role !== 'Admin Root'}
+						{@const cannotEditRootProfile = profile.isRoot && !isRootActor(user)}
 						{@const statusRestrictionMessage =
 							profile.isActive && profile.isRoot
 								? 'O perfil Admin Root não pode ser desativado.'

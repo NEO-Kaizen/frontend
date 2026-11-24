@@ -1,10 +1,7 @@
+import type { ProfileReference } from '$lib/types/profile';
 import type { RequestCategory } from './request';
 
 export type UserType = 'Solicitante' | 'Analista' | 'Administrador' | 'Gestor';
-
-export type UserRole = UserType;
-
-export type UserProfile = 'solicitante' | 'analista' | 'administrador' | 'gestor';
 
 export type UserStatus = 'Ativo' | 'Inativo';
 
@@ -15,7 +12,7 @@ export interface AdminUser {
 	name: string;
 	email: string;
 	avatarUrl: string | null;
-	role: UserType;
+	profile: ProfileReference;
 	status: UserStatus;
 	mustChangePassword: boolean;
 	createdAt: string;
@@ -26,7 +23,7 @@ export interface UserSummary {
 	fullName: string;
 	email: string;
 	avatarUrl: string | null;
-	profile: UserRole;
+	profile: ProfileReference;
 	isActive: boolean;
 	mustChangePassword: boolean;
 	createdAt: string;
@@ -49,7 +46,7 @@ export interface UserStats {
 }
 
 export interface ListUsersQuery {
-	profile?: UserProfile;
+	profileId?: string;
 	search?: string;
 	category?: RequestCategory;
 	page?: number;
@@ -59,7 +56,7 @@ export interface ListUsersQuery {
 export interface CreateUserFormData {
 	name: string;
 	email: string;
-	role: UserProfile;
+	profileId: string;
 	area: string;
 	department?: string;
 	manager: string;
@@ -70,7 +67,7 @@ export interface CreateUserFormData {
 export interface CreateUserPayload {
 	fullName: string;
 	email: string;
-	role: UserProfile;
+	profileId: string;
 	requester: {
 		area: string;
 		department?: string;
@@ -84,7 +81,7 @@ export interface CreateUserResponse {
 	id: string;
 	fullName: string;
 	email: string;
-	role: UserRole;
+	profile: ProfileReference;
 	isActive: true;
 	mustChangePassword: true;
 	createdAt: string;
@@ -126,7 +123,7 @@ export interface UserProfileResponse {
 	id: string;
 	fullName: string;
 	email: string;
-	role: UserRole;
+	profile: ProfileReference;
 	avatarUrl: string | null;
 	requester: RequesterProfileBlock | null;
 	professional: ProfessionalProfileBlock | null;
@@ -157,6 +154,7 @@ export interface UpdateMyProfileInput {
 }
 
 export interface UpdateUserInput {
+	profileId?: string;
 	fullName?: string;
 	requester?: {
 		area?: string;

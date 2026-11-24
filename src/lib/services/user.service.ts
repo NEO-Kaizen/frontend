@@ -95,7 +95,7 @@ export async function createUser(data: CreateUserFormData): Promise<Result<Creat
 		const response = await createUserApi({
 			fullName: data.name.trim(),
 			email: data.email.trim(),
-			role: data.role,
+			profileId: data.profileId,
 			requester: {
 				area: data.area.trim(),
 				department: data.department?.trim() || undefined,
@@ -244,7 +244,7 @@ function mapUserSummary(user: UserSummary): AdminUser {
 		name: user.fullName,
 		email: user.email,
 		avatarUrl: user.avatarUrl,
-		role: user.profile,
+		profile: user.profile,
 		status: user.isActive ? 'Ativo' : 'Inativo',
 		mustChangePassword: user.mustChangePassword,
 		createdAt: user.createdAt
@@ -337,7 +337,7 @@ function validateCreateUser(data: CreateUserFormData): { message: string } | nul
 		};
 	}
 
-	if (data.role === 'analista') {
+	if (data.professional) {
 		const professional = data.professional;
 		if (!professional?.jobTitle.trim()) {
 			return { message: 'Informe o cargo do analista.' };

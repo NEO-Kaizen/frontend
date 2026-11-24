@@ -38,3 +38,8 @@ export function canGrantCustody(
 ): boolean {
 	return actorCustody === targetCustody || (actorCustody === 'all' && targetCustody === 'assigned');
 }
+
+// TODO: substituir pelo flag explícito de Root quando o payload de sessão expuser `isRoot`.
+export function isRootActor(user: SessionUser | null | undefined): boolean {
+	return user?.role === 'Admin Root';
+}

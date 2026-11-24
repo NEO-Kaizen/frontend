@@ -2,6 +2,7 @@ import { getMockSessionUser } from '$lib/mocks/auth.mock';
 import { ApiError } from '$lib/types/result';
 import {
 	GLOBAL_PERMISSION_KEYS,
+	PERMISSION_CUSTODIES,
 	PERMISSION_KEYS,
 	SELF_SERVICE_KEYS,
 	type Permission,
@@ -18,11 +19,10 @@ import type {
 	ProfileUpdateInput
 } from '$lib/types/profile';
 import type { SessionUser } from '$lib/types/auth';
-import { canGrantCustody, has } from '$lib/utils/permission-checks';
+import { canGrantCustody, has, isRootActor } from '$lib/utils/permission-checks';
 import { PROFILE_NAME_MAX_LENGTH } from '$lib/utils/validations';
 
 const MOCK_LATENCY_MS = 180;
-const ROOT_MOCK_ACTOR_ID = '5';
 
 const profileCatalog: ProfileKeyCatalog = {
 	permissions: PERMISSION_KEYS.map((key) => ({
@@ -39,126 +39,164 @@ const profileCatalog: ProfileKeyCatalog = {
 	}
 };
 
+function buildPermissions(
+	entries: Partial<Record<PermissionCustody, readonly PermissionKey[]>>
+): Permission[] {
+	const custodyByKey = new Map<PermissionKey, PermissionCustody>();
+
+	for (const custody of PERMISSION_CUSTODIES) {
+		for (const key of entries[custody] ?? []) custodyByKey.set(key, custody);
+	}
+
+	return PERMISSION_KEYS.filter((key) => custodyByKey.has(key)).map((key) => ({
+		key,
+		custody: custodyByKey.get(key) as PermissionCustody
+	}));
+}
+
+const ALL_PERMISSIONS: Permission[] = PERMISSION_KEYS.map((key) => ({
+	key,
+	custody:
+		key === 'request:track' || key === 'pending_item:respond'
+			? 'own'
+			: (GLOBAL_PERMISSION_KEYS as readonly string[]).includes(key)
+				? 'global'
+				: 'all'
+}));
+
+const SELF_SERVICE_PERMISSIONS = buildPermissions({
+	global: ['request:create'],
+	own: ['request:track', 'pending_item:respond']
+});
+
+const ANALYST_PERMISSIONS = buildPermissions({
+	global: ['request:create', 'assignee_directory:read'],
+	own: ['request:track', 'pending_item:respond'],
+	assigned: [
+		'request:read',
+		'request:write',
+		'request:status_change',
+		'queue:read',
+		'triage:read',
+		'triage:write',
+		'mapping:read',
+		'mapping:write',
+		'prioritization:write',
+		'pending_item:read',
+		'pending_item:write',
+		'pending_item:review',
+		'internal_note:read',
+		'internal_note:write'
+	]
+});
+
+const MANAGER_PERMISSIONS = buildPermissions({
+	global: ['request:create', 'reports:read', 'assignee_directory:read'],
+	own: ['request:track', 'pending_item:respond'],
+	all: [
+		'request:read',
+		'queue:read',
+		'queue:export',
+		'triage:read',
+		'mapping:read',
+		'pending_item:read',
+		'internal_note:read',
+		'audit:read'
+	]
+});
+
+const COORDINATOR_PERMISSIONS = buildPermissions({
+	assigned: ['request:read', 'queue:read', 'triage:read', 'pending_item:read']
+});
+
 const profileRecords: Profile[] = [
 	{
 		id: '1',
 		name: 'Solicitante',
-		description: 'Abertura e acompanhamento das próprias solicitações.',
+		description: 'Acesso às próprias solicitações e pendências.',
 		isActive: true,
 		isRoot: false,
 		isAssignableTriage: false,
 		isAssignableMapping: false,
-		userCount: 8,
-		permissions: permissionsFor(['request:create', 'request:track', 'pending_item:respond'])
+		userCount: 12,
+		permissions: SELF_SERVICE_PERMISSIONS
 	},
 	{
 		id: '2',
 		name: 'Analista',
-		description: 'Atuação operacional nas solicitações atribuídas.',
+		description: 'Atendimento das solicitações atribuídas.',
 		isActive: true,
 		isRoot: false,
 		isAssignableTriage: true,
 		isAssignableMapping: true,
-		userCount: 4,
-		permissions: permissionsFor(
-			[
-				'request:create',
-				'request:track',
-				'request:read',
-				'request:write',
-				'request:assign',
-				'request:status_change',
-				'queue:read',
-				'triage:read',
-				'triage:write',
-				'mapping:read',
-				'mapping:write',
-				'prioritization:write',
-				'pending_item:read',
-				'pending_item:write',
-				'pending_item:review',
-				'pending_item:respond',
-				'internal_note:read',
-				'internal_note:write',
-				'audit:read',
-				'assignee_directory:read'
-			],
-			'assigned'
-		)
+		userCount: 7,
+		permissions: ANALYST_PERMISSIONS
 	},
 	{
 		id: '3',
 		name: 'Gestor',
-		description: 'Leitura operacional de todas as solicitações.',
+		description: 'Acompanhamento das solicitações e indicadores.',
 		isActive: true,
 		isRoot: false,
 		isAssignableTriage: false,
 		isAssignableMapping: false,
 		userCount: 2,
-		permissions: permissionsFor([
-			'request:create',
-			'request:track',
-			'request:read',
-			'queue:read',
-			'queue:export',
-			'reports:read',
-			'triage:read',
-			'mapping:read',
-			'pending_item:read',
-			'pending_item:respond',
-			'internal_note:read',
-			'internal_note:write',
-			'audit:read',
-			'assignee_directory:read'
-		])
+		permissions: MANAGER_PERMISSIONS
 	},
 	{
 		id: '4',
 		name: 'Administrador',
-		description: 'Gestão de usuários, perfis e configurações.',
+		description: 'Administração de usuários e configurações.',
 		isActive: true,
 		isRoot: false,
 		isAssignableTriage: false,
 		isAssignableMapping: false,
-		userCount: 1,
-		permissions: allPermissionsFor()
+		userCount: 2,
+		permissions: ALL_PERMISSIONS
 	},
 	{
 		id: '5',
 		name: 'Admin Root',
-		description: 'Perfil protegido de administração raiz.',
+		description: 'Perfil raiz com acesso irrestrito.',
 		isActive: true,
 		isRoot: true,
 		isAssignableTriage: false,
 		isAssignableMapping: false,
-		userCount: 1,
-		permissions: allPermissionsFor()
+		userCount: 0,
+		permissions: ALL_PERMISSIONS
 	},
 	{
 		id: '6',
-		name: 'Auditor de exemplo',
-		description: 'Perfil customizado demonstrativo, com acesso de leitura.',
+		name: 'Coordenador',
+		description: 'Perfil customizado de acompanhamento da fila.',
 		isActive: true,
 		isRoot: false,
 		isAssignableTriage: false,
 		isAssignableMapping: false,
 		userCount: 0,
-		permissions: permissionsFor(['request:read', 'queue:read', 'reports:read', 'audit:read'])
+		permissions: COORDINATOR_PERMISSIONS
+	},
+	{
+		id: '7',
+		name: 'Perfil Inativo',
+		description: null,
+		isActive: false,
+		isRoot: false,
+		isAssignableTriage: false,
+		isAssignableMapping: false,
+		userCount: 0,
+		permissions: []
 	}
 ];
 
-let nextProfileId = 7;
+let nextProfileId = 8;
 
-export async function listProfilesMock(actor: SessionUser | null): Promise<Profile[]> {
-	await requirePermission('profile:read', actor);
-	return delay().then(() => structuredClone(profileRecords));
+export function listProfilesMock(): Profile[] {
+	return structuredClone(profileRecords);
 }
 
-export async function getProfileKeyCatalogMock(
-	actor: SessionUser | null
-): Promise<ProfileKeyCatalog> {
-	await requirePermission('profile:read', actor);
-	return delay().then(() => structuredClone(profileCatalog));
+export function getProfileKeyCatalogMock(): ProfileKeyCatalog {
+	return structuredClone(profileCatalog);
 }
 
 export async function createProfileMock(payload: ProfileCreateInput): Promise<Profile> {
@@ -188,9 +226,8 @@ export async function createProfileMock(payload: ProfileCreateInput): Promise<Pr
 export async function updateProfileMock(id: string, payload: ProfileUpdateInput): Promise<Profile> {
 	const actor = await requireManagePermission();
 	const current = findProfile(id);
-	const isRootActor = actor.id === ROOT_MOCK_ACTOR_ID;
 
-	if (current.isRoot && !isRootActor) {
+	if (current.isRoot && !isRootActor(actor)) {
 		throw new ApiError(403, 'Apenas o Admin Root edita o perfil Admin Root.');
 	}
 
@@ -268,29 +305,10 @@ export async function duplicateProfileMock(
 	});
 }
 
-async function requireManagePermission() {
-	return requirePermission('profile:manage');
-}
-
-async function requirePermission(
-	key: 'profile:read' | 'profile:manage',
-	user: SessionUser | null = getMockSessionUser()
-) {
-	if (!user) {
-		throw new ApiError(
-			403,
-			key === 'profile:read'
-				? 'Você não tem permissão para consultar perfis.'
-				: 'Você não tem permissão para gerenciar perfis.'
-		);
-	}
-	if (!has(key, user)) {
-		throw new ApiError(
-			403,
-			key === 'profile:read'
-				? 'Você não tem permissão para consultar perfis.'
-				: 'Você não tem permissão para gerenciar perfis.'
-		);
+async function requireManagePermission(): Promise<SessionUser> {
+	const user = getMockSessionUser();
+	if (!user || !has('profile:manage', user)) {
+		throw new ApiError(403, 'Você não tem permissão para gerenciar perfis.');
 	}
 	return user;
 }
@@ -410,31 +428,6 @@ function assertWorkKeyGuard(current: Profile, next: Profile, payload: ProfileUpd
 			);
 		}
 	}
-}
-
-function permissionsFor(
-	keys: readonly PermissionKey[],
-	defaultCustody: 'assigned' | 'all' = 'all'
-): Permission[] {
-	return PERMISSION_KEYS.filter((key) => keys.includes(key)).map((key) => ({
-		key,
-		custody: (GLOBAL_PERMISSION_KEYS as readonly string[]).includes(key)
-			? 'global'
-			: (SELF_SERVICE_KEYS as readonly string[]).includes(key)
-				? 'own'
-				: defaultCustody
-	}));
-}
-
-function allPermissionsFor(): Permission[] {
-	return PERMISSION_KEYS.map((key) => ({
-		key,
-		custody: GLOBAL_PERMISSION_KEYS.some((permissionKey) => permissionKey === key)
-			? 'global'
-			: SELF_SERVICE_KEYS.some((permissionKey) => permissionKey === key)
-				? 'own'
-				: 'all'
-	}));
 }
 
 function allowedCustodiesFor(key: PermissionKey): PermissionCustody[] {

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
+
 	import Button from '$lib/components/Button.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import MetricsSummary from '$lib/components/MetricsSummary.svelte';
@@ -17,7 +19,6 @@
 		CreateUserFormData,
 		CreateUserResponse,
 		UserAction,
-		UserProfile,
 		UserProfileResponse,
 		UserStats,
 		UserStatus
@@ -39,18 +40,10 @@
 	const canReadProfiles = $derived(has('profile:read', data.user));
 	const canManageProfiles = $derived(has('profile:manage', data.user));
 
-	const userTabs = [
-		{ id: 'todos', label: 'Todos', profile: undefined },
-		{ id: 'administradores', label: 'Administradores', profile: 'administrador' },
-		{ id: 'analistas', label: 'Analistas', profile: 'analista' },
-		{ id: 'gestores', label: 'Gestores', profile: 'gestor' },
-		{ id: 'solicitantes', label: 'Solicitantes', profile: 'solicitante' }
-	] satisfies readonly { id: string; label: string; profile?: UserProfile }[];
 	const tabs = $derived([
-		...(canReadUsers ? userTabs : []),
+		...(canReadUsers ? [{ id: 'usuarios', label: 'Usuários' }] : []),
 		...(canReadProfiles ? [{ id: 'perfis', label: 'Perfis' }] : [])
 	]);
-
 	type PendingAction = {
 		kind: UserAction;
 		user: AdminUser;
@@ -86,15 +79,15 @@
 		}
 	]);
 
+	let selectedProfileId = $state(untrack(() => data.profileId ?? ''));
 	let activeTabSelection = $state('');
 	let activeTab = $derived(
 		tabs.some((tab) => tab.id === activeTabSelection)
 			? activeTabSelection
 			: canReadUsers
-				? 'todos'
+				? 'usuarios'
 				: 'perfis'
 	);
-	let activeTabProfile = $derived(userTabs.find((tab) => tab.id === activeTab)?.profile);
 	let searchQuery = $state('');
 	let isLoading = $state(false);
 	let isRefreshing = $state(false);
@@ -154,7 +147,7 @@
 		}
 
 		fetchedResult = await listUsers({
-			profile: activeTabProfile,
+			profileId: selectedProfileId || undefined,
 			search: search.trim() || undefined,
 			page,
 			pageSize: data.pageSize
@@ -192,12 +185,7 @@
 		}
 
 		activeTabSelection = tabId;
-
-		if (tabId !== 'perfis') {
-			loadUsers(1, searchQuery, 'replace');
-		}
 	}
-
 	function handleSearchInput() {
 		clearTimeout(searchTimer);
 
@@ -234,7 +222,7 @@
 		const result = await createUser({
 			name: data.name.trim(),
 			email: data.email.trim(),
-			role: data.role,
+			profileId: data.profileId,
 			area: data.area,
 			department: data.department,
 			manager: data.manager,
@@ -279,6 +267,13 @@
 			return;
 		}
 
+		if (
+			action === 'edit' &&
+			!data.assignableProfiles.some((profile) => profile.id === user.profile.id)
+		) {
+			return;
+		}
+
 		actionError = '';
 
 		pendingAction = {
@@ -310,7 +305,7 @@
 
 		const userName = pendingAction.user.name;
 		const userId = pendingAction.user.id;
-		const userRole = pendingAction.user.role;
+		const profileName = pendingAction.user.profile.name;
 
 		pendingAction = undefined;
 
@@ -318,8 +313,8 @@
 
 		showSuccess(
 			status === 'Ativo'
-				? `${userRole} "${userName}" ativado com sucesso.`
-				: `${userRole} "${userName}" inativado com sucesso.`
+				? `${profileName} "${userName}" ativado com sucesso.`
+				: `${profileName} "${userName}" inativado com sucesso.`
 		);
 
 		await refreshStats();
@@ -333,7 +328,7 @@
 	function handleEditSaved(profile: UserProfileResponse) {
 		const userId = pendingAction?.user.id;
 		const userName = profile.fullName;
-		if (userId) applyUserUpdate(userId, { name: profile.fullName });
+		if (userId) applyUserUpdate(userId, { name: profile.fullName, profile: profile.profile });
 		pendingAction = undefined;
 		showSuccess(`Dados administrativos de "${userName}" atualizados com sucesso.`);
 	}
@@ -384,7 +379,7 @@
 		<section class="users-card">
 			<!-- PESQUISA + ADICIONAR -->
 
-			{#if canReadUsers && activeTab !== 'perfis'}
+			{#if canReadUsers && activeTab === 'usuarios'}
 				<div class="toolbar">
 					<div class="search-box">
 						<Input
@@ -416,26 +411,55 @@
 		     ABAS
 		========================= -->
 
-			<div
-				class="tabs"
-				role="tablist"
-				aria-label="Seções de gerenciamento"
-				style:grid-template-columns={`repeat(${tabs.length}, minmax(0, 1fr))`}
-			>
-				{#each tabs as tab (tab.id)}
-					<button
-						type="button"
-						role="tab"
-						id={`users-tab-${tab.id}`}
-						aria-selected={activeTab === tab.id}
-						aria-controls="users-panel"
-						class={['tab', { active: activeTab === tab.id }]}
-						onclick={() => handleTabChange(tab.id)}
+			{#if tabs.length > 1}
+				<div
+					class="tabs"
+					role="tablist"
+					aria-label="Seções de gerenciamento"
+					style:grid-template-columns={`repeat(${tabs.length}, minmax(0, 1fr))`}
+				>
+					{#each tabs as tab (tab.id)}
+						<button
+							type="button"
+							role="tab"
+							id={`users-tab-${tab.id}`}
+							aria-selected={activeTab === tab.id}
+							aria-controls="users-panel"
+							class={['tab', { active: activeTab === tab.id }]}
+							onclick={() => handleTabChange(tab.id)}
+						>
+							{tab.label}
+						</button>
+					{/each}
+				</div>
+			{/if}
+
+			{#if canReadUsers && canReadProfiles && activeTab === 'usuarios'}
+				<form class="profile-filter" method="GET">
+					<label for="profile-filter">Perfil</label>
+
+					<select
+						id="profile-filter"
+						name="profileId"
+						class="profile-select"
+						bind:value={selectedProfileId}
 					>
-						{tab.label}
-					</button>
-				{/each}
-			</div>
+						<option value="">Todos</option>
+						{#each data.activeProfiles as profile (profile.id)}
+							<option value={profile.id}>{profile.name}</option>
+						{/each}
+					</select>
+
+					<Button type="submit" variant="outline">Filtrar</Button>
+				</form>
+			{/if}
+
+			{#if canReadUsers && data.profilesResult && !data.profilesResult.ok}
+				<p class="profile-warning" role="alert">
+					Não foi possível carregar os perfis: {data.profilesResult.error.message} O filtro e a edição
+					por perfil ficam indisponíveis; as demais ações continuam disponíveis.
+				</p>
+			{/if}
 
 			<!-- =========================
 		     CONTEÚDO
@@ -446,15 +470,17 @@
 				class={['tab-panel', { refreshing: isRefreshing }]}
 				role="tabpanel"
 				aria-busy={isRefreshing}
-				aria-labelledby={`users-tab-${activeTab}`}
+				aria-labelledby={tabs.length > 1 ? `users-tab-${activeTab}` : undefined}
 			>
 				{#if activeTab === 'perfis' && canReadProfiles}
-					<ProfileManagement
-						user={data.user!}
-						canManage={canManageProfiles}
-						profilesResult={data.profilesResult}
-						profileKeyCatalogResult={data.profileKeyCatalogResult}
-					/>
+					{#if data.user}
+						<ProfileManagement
+							user={data.user}
+							canManage={canManageProfiles}
+							profilesResult={data.profilesResult}
+							profileKeyCatalogResult={data.profileKeyCatalogResult}
+						/>
+					{/if}
 				{:else if canReadUsers && isLoading}
 					<div class="state-card" role="status">
 						<span class="spinner" aria-hidden="true"></span>
@@ -480,7 +506,12 @@
 			     TABELA
 			========================= -->
 
-					<UsersTable {users} canManage={canManageUsers} onaction={handleAction} />
+					<UsersTable
+						{users}
+						canManage={canManageUsers}
+						editableProfileIds={data.assignableProfiles.map((profile) => profile.id)}
+						onaction={handleAction}
+					/>
 
 					<!-- =========================
 			     PAGINAÇÃO
@@ -553,6 +584,7 @@
 		loading={isCreating}
 		error={createError}
 		categories={data.portalConfig.categories}
+		profiles={data.assignableProfiles}
 		onclose={closeCreateModal}
 		oncreate={handleCreate}
 	/>
@@ -562,6 +594,7 @@
 	<EditUserModal
 		user={pendingAction.user}
 		categories={data.portalConfig.categories}
+		profiles={data.assignableProfiles}
 		onclose={closePendingAction}
 		onsaved={handleEditSaved}
 	/>
@@ -720,6 +753,66 @@
 		min-width: 0;
 	}
 
+	.profile-filter {
+		width: 100%;
+
+		display: flex;
+		align-items: flex-end;
+		flex-wrap: wrap;
+
+		gap: var(--spacing-md);
+
+		padding: var(--spacing-sm) var(--spacing-md);
+
+		background-color: var(--white);
+
+		border-top: var(--border-default);
+
+		border-bottom: var(--border-default);
+
+		flex-shrink: 0;
+	}
+
+	.profile-filter label {
+		font: var(--label);
+
+		color: var(--black);
+	}
+
+	.profile-select {
+		min-width: 200px;
+
+		padding: var(--spacing-sm);
+
+		border: var(--border-default);
+
+		border-radius: var(--radius-sm);
+
+		background-color: var(--white);
+
+		color: var(--text-color-primary);
+
+		font: var(--paragrafo);
+	}
+
+	.profile-select:focus-visible {
+		outline: 2px solid var(--secondary-color);
+
+		outline-offset: 1px;
+	}
+
+	.profile-warning {
+		margin: 0;
+
+		padding: var(--spacing-sm) var(--spacing-md);
+
+		background-color: var(--status-error-bg);
+
+		color: var(--status-red);
+
+		font: var(--paragrafo);
+	}
+
 	/* =========================
 	   ABAS
 	========================= */
@@ -729,7 +822,7 @@
 
 		display: grid;
 
-		grid-template-columns: repeat(5, 1fr);
+		grid-template-columns: repeat(2, minmax(0, 1fr));
 
 		align-items: stretch;
 

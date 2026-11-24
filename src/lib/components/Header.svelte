@@ -95,7 +95,7 @@
 			route: NAV_ROUTES.logs
 		},
 		{
-			name: 'Gerenciar Usuários',
+			name: 'Usuários e Perfis',
 			icon: 'manageUsers',
 			keys: ['user:read', 'profile:read'],
 			route: NAV_ROUTES.users

@@ -9,11 +9,12 @@
 	interface Props {
 		users: AdminUser[];
 		canManage: boolean;
+		editableProfileIds: string[];
 
 		onaction: (user: AdminUser, action: UserAction) => void;
 	}
 
-	let { users, canManage, onaction }: Props = $props();
+	let { users, canManage, editableProfileIds, onaction }: Props = $props();
 
 	let openMenuId = $state<string | null>(null);
 
@@ -33,7 +34,7 @@
 		<colgroup>
 			<col class="col-name" />
 			<col class="col-email" />
-			<col class="col-role" />
+			<col class="col-profile" />
 			<col class="col-status" />
 			<col class="col-actions" />
 		</colgroup>
@@ -57,6 +58,7 @@
 		<tbody>
 			{#each users as user (user.id)}
 				{@const avatarUrl = resolveApiAssetUrl(user.avatarUrl)}
+				{@const canEditUser = editableProfileIds.includes(user.profile.id)}
 				<tr>
 					<td>
 						<div class="user-cell">
@@ -87,16 +89,20 @@
 					</td>
 
 					<td>
-						<span class="role-badge">
-							{user.role}
+						<span class="profile-badge">
+							{user.profile.name}
 						</span>
 					</td>
 
 					<td>
 						<span
-							class:active-status={user.status === 'Ativo'}
-							class:inactive-status={user.status === 'Inativo'}
-							class="status"
+							class={[
+								'status',
+								{
+									'active-status': user.status === 'Ativo',
+									'inactive-status': user.status === 'Inativo'
+								}
+							]}
 						>
 							<span class="status-dot" aria-hidden="true"></span>
 
@@ -105,7 +111,7 @@
 					</td>
 
 					<td>
-						{#if !canManage || user.role === 'Administrador'}
+						{#if !canManage}
 							<span class="no-actions" aria-hidden="true"> — </span>
 						{:else}
 							<div class="actions">
@@ -125,6 +131,10 @@
 											<button
 												type="button"
 												class="menu-item"
+												disabled={!canEditUser}
+												title={!canEditUser
+													? 'Seu perfil não permite editar este usuário.'
+													: undefined}
 												onclick={() => handleAction(user, 'edit')}
 											>
 												<span class="menu-icon">
@@ -214,7 +224,7 @@
 		width: 32%;
 	}
 
-	.col-role {
+	.col-profile {
 		width: 15%;
 	}
 
@@ -334,7 +344,7 @@
 		text-overflow: ellipsis;
 	}
 
-	.role-badge {
+	.profile-badge {
 		display: inline-flex;
 
 		max-width: 100%;
