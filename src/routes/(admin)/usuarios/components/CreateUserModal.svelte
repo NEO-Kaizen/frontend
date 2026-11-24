@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
+
 	import { page } from '$app/state';
 
 	import Button from '$lib/components/Button.svelte';
@@ -6,8 +8,10 @@
 	import Input from '$lib/components/Input.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import Select from '$lib/components/Select.svelte';
+	import { requiresProfessionalBlock } from '$lib/services/profile.service';
+	import type { Profile } from '$lib/types/profile';
 	import type { PortalCategory } from '$lib/types/portal-config';
-	import type { CreateUserFormData, CreateUserResponse, UserProfile } from '$lib/types/user';
+	import type { CreateUserFormData, CreateUserResponse } from '$lib/types/user';
 	import {
 		PROFILE_ADDITIONAL_CONTACT_MAX_LENGTH,
 		PROFILE_AREA_MAX_LENGTH,
@@ -26,28 +30,16 @@
 		loading?: boolean;
 		error?: string;
 		categories: PortalCategory[];
+		profiles: Profile[];
 		onclose: () => void;
 		oncreate: (data: CreateUserFormData) => Promise<CreateUserResponse>;
 	}
 
-	let { loading = false, error = '', categories, onclose, oncreate }: Props = $props();
-
-	const roleOptions: { value: UserProfile; label: string }[] = [
-		{ value: 'solicitante', label: 'Solicitante' },
-		{ value: 'analista', label: 'Analista' },
-		{ value: 'gestor', label: 'Gestor' }
-	];
-
-	const roleLabels: Record<UserProfile, string> = {
-		solicitante: 'Solicitante',
-		analista: 'Analista',
-		gestor: 'Gestor',
-		administrador: 'Administrador'
-	};
+	let { loading = false, error = '', categories, profiles, onclose, oncreate }: Props = $props();
 
 	let name = $state('');
 	let email = $state('');
-	let role = $state<UserProfile>('solicitante');
+	let profileId = $state(untrack(() => profiles[0]?.id ?? ''));
 	let area = $state('');
 	let department = $state('');
 	let manager = $state('');
@@ -59,7 +51,7 @@
 
 	let nameError = $state('');
 	let emailError = $state('');
-	let roleError = $state('');
+	let profileIdError = $state('');
 	let areaError = $state('');
 	let departmentError = $state('');
 	let managerError = $state('');
@@ -71,12 +63,20 @@
 
 	let temporaryPassword = $state('');
 	let createdUserName = $state('');
-	let createdUserRole = $state<UserProfile>('solicitante');
+	let createdUserProfileName = $state('');
+
+	const selectedProfile = $derived(profiles.find((profile) => profile.id === profileId) ?? null);
+	const requiresProfessional = $derived(
+		selectedProfile ? requiresProfessionalBlock(selectedProfile) : false
+	);
+	const profileOptions = $derived(
+		profiles.map((profile) => ({ value: profile.id, label: profile.name }))
+	);
 
 	function validate(): boolean {
 		nameError = '';
 		emailError = '';
-		roleError = '';
+		profileIdError = '';
 		areaError = '';
 		departmentError = '';
 		managerError = '';
@@ -109,8 +109,10 @@
 			emailError = 'O e-mail deve ter no máximo 254 caracteres.';
 		}
 
-		if (!isRequired(role)) {
-			roleError = 'Selecione um perfil.';
+		if (profiles.length === 0) {
+			profileIdError = 'Nenhum perfil designável disponível.';
+		} else if (!profileId) {
+			profileIdError = 'Selecione um perfil.';
 		}
 
 		if (!isRequired(trimmedArea)) {
@@ -143,7 +145,7 @@
 			}
 		}
 
-		if (role === 'analista') {
+		if (requiresProfessional) {
 			const trimmedJobTitle = jobTitle.trim();
 			if (!isRequired(trimmedJobTitle)) {
 				jobTitleError = 'Informe o cargo do analista.';
@@ -169,7 +171,7 @@
 		return (
 			!nameError &&
 			!emailError &&
-			!roleError &&
+			!profileIdError &&
 			!areaError &&
 			!departmentError &&
 			!managerError &&
@@ -182,7 +184,7 @@
 	}
 
 	async function handleCreate() {
-		if (loading || !validate()) {
+		if (loading || profiles.length === 0 || !profileId || !validate()) {
 			return;
 		}
 
@@ -190,24 +192,23 @@
 			const result = await oncreate({
 				name: name.trim(),
 				email: email.trim(),
-				role,
+				profileId,
 				area: area.trim(),
 				department: department.trim() || undefined,
 				manager: manager.trim(),
 				additionalContact: additionalContact.trim() || undefined,
-				professional:
-					role === 'analista'
-						? {
-								jobTitle: jobTitle.trim(),
-								specialties: specialties.map((item) => item.trim()),
-								attendedCategoryIds,
-								notes: professionalNotes.trim() || undefined
-							}
-						: undefined
+				professional: requiresProfessional
+					? {
+							jobTitle: jobTitle.trim(),
+							specialties: specialties.map((item) => item.trim()),
+							attendedCategoryIds,
+							notes: professionalNotes.trim() || undefined
+						}
+					: undefined
 			});
 
 			createdUserName = result.fullName;
-			createdUserRole = role;
+			createdUserProfileName = selectedProfile?.name ?? '';
 			temporaryPassword = result.temporaryPassword;
 		} catch {
 			return;
@@ -217,7 +218,7 @@
 	function handleClose() {
 		name = '';
 		email = '';
-		role = 'solicitante';
+		profileId = profiles[0]?.id ?? '';
 		area = '';
 		department = '';
 		manager = '';
@@ -229,7 +230,7 @@
 
 		nameError = '';
 		emailError = '';
-		roleError = '';
+		profileIdError = '';
 		areaError = '';
 		departmentError = '';
 		managerError = '';
@@ -241,7 +242,7 @@
 
 		temporaryPassword = '';
 		createdUserName = '';
-		createdUserRole = 'solicitante';
+		createdUserProfileName = '';
 
 		onclose();
 	}
@@ -255,7 +256,7 @@
 	{#if temporaryPassword}
 		<div class="success-content">
 			<p class="description">
-				O {roleLabels[createdUserRole].toLowerCase()} foi cadastrado com sucesso.
+				O usuário com perfil {createdUserProfileName.toLowerCase()} foi cadastrado com sucesso.
 			</p>
 
 			<div class="success-box">
@@ -313,7 +314,13 @@
 
 			<div class="form-row">
 				<div class="field">
-					<Select label="Perfil" options={roleOptions} bind:value={role} error={roleError} />
+					<Select
+						label="Perfil *"
+						options={profileOptions}
+						bind:value={profileId}
+						error={profileIdError}
+						disabled={loading || profiles.length === 0}
+					/>
 				</div>
 
 				<div class="field">
@@ -323,8 +330,15 @@
 				</div>
 			</div>
 
-			{#if role === 'analista'}
+			{#if profiles.length === 0}
+				<p class="form-error" role="alert">
+					Nenhum perfil designável disponível. Solicite a configuração de perfis ao administrador.
+				</p>
+			{/if}
+
+			{#if selectedProfile && requiresProfessional}
 				<ProfessionalFields
+					profileName={selectedProfile.name}
 					categories={categories.filter((category) => category.isActive)}
 					bind:jobTitle
 					bind:specialties
@@ -419,7 +433,9 @@
 			<div class="modal-actions">
 				<Button variant="outline-neutral" onclick={handleClose} disabled={loading}>Cancelar</Button>
 
-				<Button variant="primary" onclick={handleCreate} {loading}>Cadastrar usuário</Button>
+				<Button variant="primary" onclick={handleCreate} {loading} disabled={profiles.length === 0}>
+					Cadastrar usuário
+				</Button>
 			</div>
 		</div>
 	{/if}

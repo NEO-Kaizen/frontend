@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
+
 	import Button from '$lib/components/Button.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import MetricsSummary from '$lib/components/MetricsSummary.svelte';
@@ -17,7 +19,6 @@
 		CreateUserFormData,
 		CreateUserResponse,
 		UserAction,
-		UserProfile,
 		UserProfileResponse,
 		UserStats,
 		UserStatus
@@ -34,14 +35,6 @@
 	let { data }: PageProps = $props();
 
 	const canManageUsers = $derived(has('user:manage', data.user));
-
-	const tabs = [
-		{ id: 'todos', label: 'Todos', profile: undefined },
-		{ id: 'administradores', label: 'Administradores', profile: 'administrador' },
-		{ id: 'analistas', label: 'Analistas', profile: 'analista' },
-		{ id: 'gestores', label: 'Gestores', profile: 'gestor' },
-		{ id: 'solicitantes', label: 'Solicitantes', profile: 'solicitante' }
-	] satisfies readonly { id: string; label: string; profile?: UserProfile }[];
 
 	type PendingAction = {
 		kind: UserAction;
@@ -78,8 +71,7 @@
 		}
 	]);
 
-	let activeTab = $state('todos');
-	let activeTabProfile = $derived(tabs.find((tab) => tab.id === activeTab)?.profile);
+	let selectedProfileId = $state(untrack(() => data.profileId ?? ''));
 	let searchQuery = $state('');
 	let isLoading = $state(false);
 	let isRefreshing = $state(false);
@@ -139,7 +131,7 @@
 		}
 
 		fetchedResult = await listUsers({
-			profile: activeTabProfile,
+			profileId: selectedProfileId || undefined,
 			search: search.trim() || undefined,
 			page,
 			pageSize: data.pageSize
@@ -167,16 +159,6 @@
 
 	async function refreshStats() {
 		statsOverride = await getUserStats();
-	}
-
-	function handleTabChange(tabId: string) {
-		if (tabId === activeTab) {
-			return;
-		}
-
-		activeTab = tabId;
-
-		loadUsers(1, searchQuery, 'replace');
 	}
 
 	function handleSearchInput() {
@@ -215,7 +197,7 @@
 		const result = await createUser({
 			name: data.name.trim(),
 			email: data.email.trim(),
-			role: data.role,
+			profileId: data.profileId,
 			area: data.area,
 			department: data.department,
 			manager: data.manager,
@@ -256,7 +238,10 @@
 	}
 
 	function handleAction(user: AdminUser, action: UserAction) {
-		if (!canManageUsers) {
+		if (
+			!canManageUsers ||
+			!data.assignableProfiles.some((profile) => profile.id === user.profile.id)
+		) {
 			return;
 		}
 
@@ -291,7 +276,7 @@
 
 		const userName = pendingAction.user.name;
 		const userId = pendingAction.user.id;
-		const userRole = pendingAction.user.role;
+		const profileName = pendingAction.user.profile.name;
 
 		pendingAction = undefined;
 
@@ -299,8 +284,8 @@
 
 		showSuccess(
 			status === 'Ativo'
-				? `${userRole} "${userName}" ativado com sucesso.`
-				: `${userRole} "${userName}" inativado com sucesso.`
+				? `${profileName} "${userName}" ativado com sucesso.`
+				: `${profileName} "${userName}" inativado com sucesso.`
 		);
 
 		await refreshStats();
@@ -314,7 +299,7 @@
 	function handleEditSaved(profile: UserProfileResponse) {
 		const userId = pendingAction?.user.id;
 		const userName = profile.fullName;
-		if (userId) applyUserUpdate(userId, { name: profile.fullName });
+		if (userId) applyUserUpdate(userId, { name: profile.fullName, profile: profile.profile });
 		pendingAction = undefined;
 		showSuccess(`Dados administrativos de "${userName}" atualizados com sucesso.`);
 	}
@@ -384,26 +369,23 @@
 			{/if}
 		</div>
 
-		<!-- =========================
-		     ABAS
-		========================= -->
+		<form class="profile-filter" method="GET">
+			<label for="profile-filter">Perfil</label>
 
-		<div class="tabs" role="tablist" aria-label="Perfis de usuário">
-			{#each tabs as tab (tab.id)}
-				<button
-					type="button"
-					role="tab"
-					id={`users-tab-${tab.id}`}
-					aria-selected={activeTab === tab.id}
-					aria-controls="users-panel"
-					class="tab"
-					class:active={activeTab === tab.id}
-					onclick={() => handleTabChange(tab.id)}
-				>
-					{tab.label}
-				</button>
-			{/each}
-		</div>
+			<select
+				id="profile-filter"
+				name="profileId"
+				class="profile-select"
+				bind:value={selectedProfileId}
+			>
+				<option value="">Todos</option>
+				{#each data.activeProfiles as profile (profile.id)}
+					<option value={profile.id}>{profile.name}</option>
+				{/each}
+			</select>
+
+			<Button type="submit" variant="outline">Filtrar</Button>
+		</form>
 
 		<!-- =========================
 		     CONTEÚDO
@@ -411,11 +393,8 @@
 
 		<div
 			id="users-panel"
-			class="tab-panel"
-			class:refreshing={isRefreshing}
-			role="tabpanel"
+			class={['tab-panel', { refreshing: isRefreshing }]}
 			aria-busy={isRefreshing}
-			aria-labelledby={`users-tab-${activeTab}`}
 		>
 			{#if isLoading}
 				<div class="state-card" role="status">
@@ -442,7 +421,12 @@
 			     TABELA
 			========================= -->
 
-				<UsersTable {users} canManage={canManageUsers} onaction={handleAction} />
+				<UsersTable
+					{users}
+					canManage={canManageUsers}
+					editableProfileIds={data.assignableProfiles.map((profile) => profile.id)}
+					onaction={handleAction}
+				/>
 
 				<!-- =========================
 			     PAGINAÇÃO
@@ -477,8 +461,7 @@
 							{:else}
 								<button
 									type="button"
-									class="page-button"
-									class:active={currentPage === page}
+									class={['page-button', { active: currentPage === page }]}
 									onclick={() => handlePageChange(page as number)}
 									aria-label={`Página ${page}`}
 									aria-current={currentPage === page ? 'page' : undefined}
@@ -515,6 +498,7 @@
 		loading={isCreating}
 		error={createError}
 		categories={data.portalConfig.categories}
+		profiles={data.assignableProfiles}
 		onclose={closeCreateModal}
 		oncreate={handleCreate}
 	/>
@@ -524,6 +508,7 @@
 	<EditUserModal
 		user={pendingAction.user}
 		categories={data.portalConfig.categories}
+		profiles={data.assignableProfiles}
 		onclose={closePendingAction}
 		onsaved={handleEditSaved}
 	/>
@@ -682,22 +667,16 @@
 		min-width: 0;
 	}
 
-	/* =========================
-	   ABAS
-	========================= */
-
-	.tabs {
+	.profile-filter {
 		width: 100%;
 
-		display: grid;
+		display: flex;
+		align-items: flex-end;
+		flex-wrap: wrap;
 
-		grid-template-columns: repeat(5, 1fr);
+		gap: var(--spacing-md);
 
-		align-items: stretch;
-
-		min-height: 44px;
-
-		padding: 0 var(--spacing-sm);
+		padding: var(--spacing-sm) var(--spacing-md);
 
 		background-color: var(--white);
 
@@ -708,52 +687,32 @@
 		flex-shrink: 0;
 	}
 
-	.tab {
-		position: relative;
-
-		padding: 0 var(--spacing-sm);
-
-		border: none;
-
-		background: none;
-
-		color: var(--black);
-
+	.profile-filter label {
 		font: var(--label);
 
-		font-size: 12px;
-
-		cursor: pointer;
-
-		transition: var(--transition-default);
+		color: var(--black);
 	}
 
-	.tab::after {
-		content: '';
+	.profile-select {
+		min-width: 200px;
 
-		position: absolute;
+		padding: var(--spacing-sm);
 
-		left: 0;
-		right: 0;
-		bottom: 0;
+		border: var(--border-default);
 
-		height: 2px;
+		border-radius: var(--radius-sm);
 
-		background-color: transparent;
+		background-color: var(--white);
+
+		color: var(--text-color-primary);
+
+		font: var(--paragrafo);
 	}
 
-	.tab.active {
-		color: var(--secondary-color);
-	}
+	.profile-select:focus-visible {
+		outline: 2px solid var(--secondary-color);
 
-	.tab.active::after {
-		background-color: var(--secondary-color);
-	}
-
-	.tab:focus-visible {
-		outline: 1px solid var(--secondary-color);
-
-		outline-offset: -1px;
+		outline-offset: 1px;
 	}
 
 	.tab-panel {
@@ -960,19 +919,6 @@
 			flex-direction: column;
 
 			align-items: stretch;
-		}
-
-		.tabs {
-			display: flex;
-
-			overflow-x: auto;
-
-			padding: 0;
-		}
-
-		.tab {
-			min-width: 130px;
-			height: 44px;
 		}
 
 		.table-footer {

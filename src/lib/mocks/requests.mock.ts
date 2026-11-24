@@ -1621,15 +1621,9 @@ export async function assignAnalystMock(
 		}
 	}
 
-	const analyst = (
-		mockUsers as unknown as Array<{
-			id: string;
-			fullName: string;
-			email: string;
-			profile: string;
-			isActive: boolean;
-		}>
-	).find((u) => u.id === analystId && u.profile === 'Analista');
+	const analyst = mockUsers.find(
+		(user) => user.id === analystId && user.profile.name === 'Analista'
+	);
 
 	if (!analyst) {
 		return Promise.reject(new ApiError(404, 'Analista não encontrado.'));

@@ -1,11 +1,14 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import Button from '$lib/components/Button.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import Modal from '$lib/components/Modal.svelte';
+	import Select from '$lib/components/Select.svelte';
+	import { requiresProfessionalBlock } from '$lib/services/profile.service';
 	import { getUser, updateUser } from '$lib/services/user.service';
+	import type { Profile } from '$lib/types/profile';
 	import type { PortalCategory } from '$lib/types/portal-config';
-	import type { AdminUser, UserProfileResponse } from '$lib/types/user';
+	import type { AdminUser, UpdateUserInput, UserProfileResponse } from '$lib/types/user';
 	import {
 		isRequired,
 		isValidText,
@@ -22,17 +25,19 @@
 	interface Props {
 		user: AdminUser;
 		categories: PortalCategory[];
+		profiles: Profile[];
 		onclose: () => void;
 		onsaved: (profile: UserProfileResponse) => void;
 	}
 
-	let { user, categories, onclose, onsaved }: Props = $props();
+	let { user, categories, profiles, onclose, onsaved }: Props = $props();
 
 	let isLoading = $state(true);
 	let isSaving = $state(false);
 	let loadError = $state('');
 	let saveError = $state('');
 
+	let profileId = $state(untrack(() => user.profile.id));
 	let fullName = $state('');
 	let area = $state('');
 	let department = $state('');
@@ -42,6 +47,7 @@
 	let attendedCategoryIds = $state<number[]>([]);
 	let professionalNotes = $state('');
 
+	let profileIdError = $state('');
 	let fullNameError = $state('');
 	let areaError = $state('');
 	let departmentError = $state('');
@@ -52,8 +58,16 @@
 	let professionalNotesError = $state('');
 
 	const activeCategories = $derived(categories.filter((category) => category.isActive));
+	const selectedProfile = $derived(profiles.find((profile) => profile.id === profileId) ?? null);
+	const requiresProfile = $derived(
+		selectedProfile ? requiresProfessionalBlock(selectedProfile) : false
+	);
+	const profileOptions = $derived(
+		profiles.map((profile) => ({ value: profile.id, label: profile.name }))
+	);
 
 	function hydrate(profile: UserProfileResponse) {
+		profileId = profile.profile.id;
 		fullName = profile.fullName;
 		area = profile.requester?.area ?? '';
 		department = profile.requester?.department ?? '';
@@ -77,6 +91,7 @@
 	}
 
 	function validate(): boolean {
+		profileIdError = '';
 		fullNameError = '';
 		areaError = '';
 		departmentError = '';
@@ -85,6 +100,10 @@
 		specialtiesError = '';
 		categoriesError = '';
 		professionalNotesError = '';
+
+		if (profiles.length > 0 && !profiles.some((profile) => profile.id === profileId)) {
+			profileIdError = 'Selecione um perfil.';
+		}
 
 		const trimmedFullName = fullName.trim();
 		const trimmedArea = area.trim();
@@ -117,7 +136,7 @@
 			managerError = `O gestor deve ter no máximo ${PROFILE_MANAGER_MAX_LENGTH} caracteres.`;
 		}
 
-		if (user.role === 'Analista') {
+		if (requiresProfile) {
 			if (!jobTitle.trim()) jobTitleError = 'Informe o cargo do analista.';
 			else if (jobTitle.trim().length > PROFILE_JOB_TITLE_MAX_LENGTH) {
 				jobTitleError = `O cargo deve ter no máximo ${PROFILE_JOB_TITLE_MAX_LENGTH} caracteres.`;
@@ -135,6 +154,7 @@
 		}
 
 		return !(
+			profileIdError ||
 			fullNameError ||
 			areaError ||
 			departmentError ||
@@ -151,23 +171,28 @@
 		isSaving = true;
 		saveError = '';
 
-		const result = await updateUser(user.id, {
+		const changes: UpdateUserInput = {
 			fullName: fullName.trim(),
 			requester: {
 				area: area.trim(),
 				department: department.trim() || null,
 				manager: manager.trim()
 			},
-			professional:
-				user.role === 'Analista'
-					? {
-							jobTitle: jobTitle.trim(),
-							specialties: specialties.map((item) => item.trim()),
-							attendedCategoryIds,
-							notes: professionalNotes.trim() || undefined
-						}
-					: undefined
-		});
+			professional: requiresProfile
+				? {
+						jobTitle: jobTitle.trim(),
+						specialties: specialties.map((item) => item.trim()),
+						attendedCategoryIds,
+						notes: professionalNotes.trim() || undefined
+					}
+				: undefined
+		};
+
+		if (profiles.length > 0) {
+			changes.profileId = profileId;
+		}
+
+		const result = await updateUser(user.id, changes);
 
 		isSaving = false;
 		if (!result.ok) {
@@ -198,6 +223,16 @@
 				O Administrador pode corrigir o nome e os dados administrativos. O contato adicional
 				continua disponível ao próprio usuário.
 			</p>
+
+			{#if profiles.length > 0}
+				<Select
+					label="Perfil *"
+					options={profileOptions}
+					bind:value={profileId}
+					error={profileIdError}
+					disabled={isSaving}
+				/>
+			{/if}
 
 			<Input
 				label="Nome completo *"
@@ -232,8 +267,9 @@
 				disabled={isSaving}
 			/>
 
-			{#if user.role === 'Analista'}
+			{#if requiresProfile}
 				<ProfessionalFields
+					profileName={selectedProfile?.name ?? user.profile.name}
 					categories={activeCategories}
 					bind:jobTitle
 					bind:specialties
