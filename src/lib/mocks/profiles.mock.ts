@@ -17,9 +17,12 @@ import type {
 	ProfileStatusResponse,
 	ProfileUpdateInput
 } from '$lib/types/profile';
-import { has } from '$lib/utils/permission-checks';
+import type { SessionUser } from '$lib/types/auth';
+import { canGrantCustody, has } from '$lib/utils/permission-checks';
+import { PROFILE_NAME_MAX_LENGTH } from '$lib/utils/validations';
 
 const MOCK_LATENCY_MS = 180;
+const ROOT_MOCK_ACTOR_ID = '5';
 
 const profileCatalog: ProfileKeyCatalog = {
 	permissions: PERMISSION_KEYS.map((key) => ({
@@ -118,7 +121,7 @@ const profileRecords: Profile[] = [
 		isAssignableTriage: false,
 		isAssignableMapping: false,
 		userCount: 1,
-		permissions: allPermissionsFor('all')
+		permissions: allPermissionsFor()
 	},
 	{
 		id: '5',
@@ -129,7 +132,7 @@ const profileRecords: Profile[] = [
 		isAssignableTriage: false,
 		isAssignableMapping: false,
 		userCount: 1,
-		permissions: allPermissionsFor('all')
+		permissions: allPermissionsFor()
 	},
 	{
 		id: '6',
@@ -146,13 +149,15 @@ const profileRecords: Profile[] = [
 
 let nextProfileId = 7;
 
-export async function listProfilesMock(): Promise<Profile[]> {
-	await requirePermission('profile:read');
+export async function listProfilesMock(actor: SessionUser | null): Promise<Profile[]> {
+	await requirePermission('profile:read', actor);
 	return delay().then(() => structuredClone(profileRecords));
 }
 
-export async function getProfileKeyCatalogMock(): Promise<ProfileKeyCatalog> {
-	await requirePermission('profile:read');
+export async function getProfileKeyCatalogMock(
+	actor: SessionUser | null
+): Promise<ProfileKeyCatalog> {
+	await requirePermission('profile:read', actor);
 	return delay().then(() => structuredClone(profileCatalog));
 }
 
@@ -183,7 +188,7 @@ export async function createProfileMock(payload: ProfileCreateInput): Promise<Pr
 export async function updateProfileMock(id: string, payload: ProfileUpdateInput): Promise<Profile> {
 	const actor = await requireManagePermission();
 	const current = findProfile(id);
-	const isRootActor = actor.id === '5';
+	const isRootActor = actor.id === ROOT_MOCK_ACTOR_ID;
 
 	if (current.isRoot && !isRootActor) {
 		throw new ApiError(403, 'Apenas o Admin Root edita o perfil Admin Root.');
@@ -267,8 +272,18 @@ async function requireManagePermission() {
 	return requirePermission('profile:manage');
 }
 
-async function requirePermission(key: 'profile:read' | 'profile:manage') {
-	const user = getMockSessionUser();
+async function requirePermission(
+	key: 'profile:read' | 'profile:manage',
+	user: SessionUser | null = getMockSessionUser()
+) {
+	if (!user) {
+		throw new ApiError(
+			403,
+			key === 'profile:read'
+				? 'Você não tem permissão para consultar perfis.'
+				: 'Você não tem permissão para gerenciar perfis.'
+		);
+	}
 	if (!has(key, user)) {
 		throw new ApiError(
 			403,
@@ -277,7 +292,7 @@ async function requirePermission(key: 'profile:read' | 'profile:manage') {
 				: 'Você não tem permissão para gerenciar perfis.'
 		);
 	}
-	return user!;
+	return user;
 }
 
 function findProfile(id: string): Profile {
@@ -288,7 +303,9 @@ function findProfile(id: string): Profile {
 
 function normalizeName(value: string): string {
 	const name = value.trim();
-	if (!name || name.length > 60) throw new ApiError(400, 'Informe um nome de até 60 caracteres.');
+	if (!name || name.length > PROFILE_NAME_MAX_LENGTH) {
+		throw new ApiError(400, `Informe um nome de até ${PROFILE_NAME_MAX_LENGTH} caracteres.`);
+	}
 	return name;
 }
 
@@ -340,9 +357,7 @@ function assertNoEscalation(
 	);
 	for (const permission of requested) {
 		const custody = actorCustody.get(permission.key);
-		const allowed =
-			custody === permission.custody || (custody === 'all' && permission.custody === 'assigned');
-		if (!allowed) {
+		if (!canGrantCustody(custody, permission.custody)) {
 			throw new ApiError(
 				400,
 				custody
@@ -411,14 +426,14 @@ function permissionsFor(
 	}));
 }
 
-function allPermissionsFor(custody: 'all'): Permission[] {
+function allPermissionsFor(): Permission[] {
 	return PERMISSION_KEYS.map((key) => ({
 		key,
-		custody: (GLOBAL_PERMISSION_KEYS as readonly string[]).includes(key)
+		custody: GLOBAL_PERMISSION_KEYS.some((permissionKey) => permissionKey === key)
 			? 'global'
-			: (SELF_SERVICE_KEYS as readonly string[]).includes(key)
+			: SELF_SERVICE_KEYS.some((permissionKey) => permissionKey === key)
 				? 'own'
-				: custody
+				: 'all'
 	}));
 }
 

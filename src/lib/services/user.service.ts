@@ -12,6 +12,7 @@ import {
 
 import type { PaginatedResponse } from '$lib/types/request';
 import { ApiError, type Result } from '$lib/types/result';
+import { mapApiError } from '$lib/utils/api-error';
 
 import type {
 	AdminUser,
@@ -235,25 +236,6 @@ export async function updateUser(
 	} catch (error) {
 		return mapApiError(error);
 	}
-}
-
-function mapApiError<T>(error: unknown): Result<T> {
-	if (error instanceof ApiError) {
-		return {
-			ok: false,
-			error: {
-				status: error.status,
-				message: error.message
-			}
-		};
-	}
-
-	return {
-		ok: false,
-		error: {
-			message: 'Não foi possível conectar ao servidor.'
-		}
-	};
 }
 
 function mapUserSummary(user: UserSummary): AdminUser {

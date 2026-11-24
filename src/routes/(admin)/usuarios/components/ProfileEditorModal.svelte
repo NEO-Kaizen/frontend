@@ -10,8 +10,10 @@
 		ProfileUpdateInput
 	} from '$lib/types/profile';
 	import type { SessionUser } from '$lib/types/auth';
+	import { SELF_SERVICE_KEYS } from '$lib/types/permission';
 	import type { Permission, PermissionCustody, PermissionKey } from '$lib/types/permission';
 	import { createProfile, duplicateProfile, updateProfile } from '$lib/services/profile.service';
+	import { PROFILE_NAME_MAX_LENGTH as PROFILE_NAME_MAX_LENGTH_VALIDATION } from '$lib/utils/validations';
 
 	interface Props {
 		mode: 'create' | 'edit' | 'duplicate';
@@ -23,29 +25,34 @@
 	}
 
 	type CatalogKey = {
-		key: string;
+		key: PermissionKey;
 		label: string;
-		description: string;
-		resource: string;
-		fixedCustody: string | null;
-		custodies: string[];
-		dependencies: string[];
+		fixedCustody: PermissionCustody | null;
+		custodies: PermissionCustody[];
+		dependencies: PermissionKey[];
 	};
 
 	type CatalogResource = { id: string; label: string; keys: CatalogKey[] };
 
-	const PROFILE_NAME_MAX_LENGTH = 60;
+	const PROFILE_NAME_MAX_LENGTH = PROFILE_NAME_MAX_LENGTH_VALIDATION;
 	const PROFILE_DESCRIPTION_MAX_LENGTH = 255;
 	const PROFILE_COMPOSITION_MAX_KEYS = 39;
+	const selfServiceKeySet = new Set<string>(SELF_SERVICE_KEYS);
+	const selfServiceKeys = SELF_SERVICE_KEYS;
+	type SelfServiceKey = (typeof SELF_SERVICE_KEYS)[number];
+
+	function isSelfServiceKey(key: PermissionKey): key is SelfServiceKey {
+		return selfServiceKeySet.has(key);
+	}
 
 	let { mode, profile, catalog, user, onclose, onsaved }: Props = $props();
 	let name = $state('');
 	let description = $state('');
-	let selectedKeys = $state<string[]>([]);
-	let selectedCustodies = $state<Record<string, string>>({});
+	let selectedKeys = $state<PermissionKey[]>([]);
+	let selectedCustodies = $state<Partial<Record<PermissionKey, PermissionCustody>>>({});
 	let isAssignableTriage = $state(false);
 	let isAssignableMapping = $state(false);
-	let removedSelfServiceConfirmed = $state<string[]>([]);
+	let removedSelfServiceConfirmed = $state<SelfServiceKey[]>([]);
 	let compositionConfirmed = $state(false);
 	let flagsConfirmed = $state(false);
 	let identityConfirmed = $state(false);
@@ -63,13 +70,11 @@
 				definition.custodyType === 'global'
 					? 'global'
 					: allowedCustodies.length === 1
-						? allowedCustodies[0]
+						? (allowedCustodies[0] ?? null)
 						: null;
 			const normalized: CatalogKey = {
 				key: definition.key,
 				label: definition.key,
-				description: '',
-				resource,
 				fixedCustody,
 				custodies: [...allowedCustodies],
 				dependencies: [...definition.dependencies]
@@ -81,20 +86,19 @@
 
 	const resources = $derived(catalogResources());
 	const catalogKeys = $derived(resources.flatMap((resource) => resource.keys));
-	const selfServiceKeys = ['request:create', 'request:track', 'pending_item:respond'];
 	const grantableCustodiesByActorCustody: Record<PermissionCustody, PermissionCustody[]> = {
 		global: ['global'],
 		own: ['own'],
 		assigned: ['assigned'],
 		all: ['assigned', 'all']
 	};
-	const selfServiceConsequences: Record<string, string> = {
+	const selfServiceConsequences: Record<SelfServiceKey, string> = {
 		'request:create': 'a pessoa perderá a capacidade de abrir novas solicitações.',
 		'request:track': 'a pessoa perderá a capacidade de acompanhar as próprias solicitações.',
 		'pending_item:respond': 'a pessoa não poderá responder a pedidos de informação pendente.'
 	};
 
-	function grantableCustodies(key: string): PermissionCustody[] {
+	function grantableCustodies(key: PermissionKey): PermissionCustody[] {
 		const entry = catalogKeys.find((item) => item.key === key);
 		const allowedCustodies = entry?.custodies ?? [];
 		const actorCustodies = user.permissions
@@ -103,7 +107,7 @@
 		return [...new Set(actorCustodies)].filter((custody) => allowedCustodies.includes(custody));
 	}
 
-	function actorCanGrant(key: string, custody?: PermissionCustody): boolean {
+	function actorCanGrant(key: PermissionKey, custody?: PermissionCustody): boolean {
 		const availableCustodies = grantableCustodies(key);
 		return custody ? availableCustodies.includes(custody) : availableCustodies.length > 0;
 	}
@@ -118,7 +122,9 @@
 		return profile?.permissions ?? [];
 	}
 
-	function findFlagRequirements(name: string): { allOf: string[]; anyOf: string[] } | null {
+	function findFlagRequirements(
+		name: 'isAssignableTriage' | 'isAssignableMapping'
+	): { allOf: PermissionKey[]; anyOf: PermissionKey[] } | null {
 		const predicate =
 			name === 'isAssignableTriage'
 				? catalog.assignabilityPredicates.triage
@@ -129,7 +135,7 @@
 		};
 	}
 
-	function flagRequirementsMet(name: string): boolean {
+	function flagRequirementsMet(name: 'isAssignableTriage' | 'isAssignableMapping'): boolean {
 		const requirements = findFlagRequirements(name);
 		return (
 			requirements === null ||
@@ -179,16 +185,16 @@
 		return selectedKeys.map((key) => {
 			const current = existing.find((permission) => permission.key === key);
 			const entry = catalogKeys.find((item) => item.key === key);
-			const custody =
+			const custody: PermissionCustody =
 				(Object.hasOwn(selectedCustodies, key) ? selectedCustodies[key] : current?.custody) ??
 				entry?.fixedCustody ??
 				grantableCustodies(key)[0] ??
 				'global';
-			return { key: key as PermissionKey, custody: custody as PermissionCustody };
+			return { key, custody };
 		});
 	}
 
-	function setKeySelected(key: string, checked: boolean) {
+	function setKeySelected(key: PermissionKey, checked: boolean) {
 		if (!checked) {
 			const dependents = catalogKeys
 				.filter((entry) => selectedKeys.includes(entry.key) && entry.dependencies.includes(key))
@@ -426,9 +432,6 @@
 									<span>
 										<strong>{entry.label}</strong>
 										<code>{entry.key}</code>
-										{#if entry.description}
-											<small>{entry.description}</small>
-										{/if}
 										{#if !canGrant}
 											<small class="blocked-note">
 												Sua conta não possui a permissão e o escopo necessários para concedê-la.
@@ -448,10 +451,15 @@
 											value={selectedCustodies[entry.key] ?? availableCustodies[0]}
 											disabled={isSaving || !canEditComposition}
 											onchange={(event) => {
+												const custody = availableCustodies.find(
+													(availableCustody) => availableCustody === event.currentTarget.value
+												);
+												if (!custody) return;
+
 												compositionConfirmed = false;
 												selectedCustodies = {
 													...selectedCustodies,
-													[entry.key]: event.currentTarget.value
+													[entry.key]: custody
 												};
 											}}
 										>
@@ -463,7 +471,7 @@
 								{:else if checked && entry.fixedCustody}
 									<span class="fixed-custody">Escopo fixo: {entry.fixedCustody}</span>
 								{/if}
-								{#if checked && selfServiceKeys.includes(entry.key)}
+								{#if checked && isSelfServiceKey(entry.key)}
 									<span class="self-service-note">Autoatendimento</span>
 								{/if}
 							</div>

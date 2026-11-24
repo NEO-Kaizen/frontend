@@ -175,7 +175,9 @@
 			ok: true,
 			data: {
 				...current.data,
-				data: current.data.data.map((user) => (user.id === id ? { ...user, ...changes } : user))
+				data: current.data.data.map((currentUser) =>
+					currentUser.id === id ? { ...currentUser, ...changes } : currentUser
+				)
 			}
 		};
 	}
@@ -379,166 +381,166 @@
 	========================= -->
 
 	{#if canReadUsers || canReadProfiles}
-	<section class="users-card">
-		<!-- PESQUISA + ADICIONAR -->
+		<section class="users-card">
+			<!-- PESQUISA + ADICIONAR -->
 
-		{#if canReadUsers && activeTab !== 'perfis'}
-			<div class="toolbar">
-				<div class="search-box">
-					<Input
-						icon="search"
-						type="search"
-						placeholder="Pesquisar por nome ou e-mail..."
-						aria-label="Buscar usuários por nome ou e-mail"
-						bind:value={searchQuery}
-						oninput={handleSearchInput}
-					/>
+			{#if canReadUsers && activeTab !== 'perfis'}
+				<div class="toolbar">
+					<div class="search-box">
+						<Input
+							icon="search"
+							type="search"
+							placeholder="Pesquisar por nome ou e-mail..."
+							aria-label="Buscar usuários por nome ou e-mail"
+							bind:value={searchQuery}
+							oninput={handleSearchInput}
+						/>
+					</div>
+
+					{#if canManageUsers}
+						<Button
+							variant="primary"
+							onclick={() => {
+								createError = '';
+								isCreateOpen = true;
+							}}
+						>
+							<Icon iconName="addUser" iconSize="sm" />
+							Adicionar Usuário
+						</Button>
+					{/if}
 				</div>
+			{/if}
 
-				{#if canManageUsers}
-					<Button
-						variant="primary"
-						onclick={() => {
-							createError = '';
-							isCreateOpen = true;
-						}}
-					>
-						<Icon iconName="addUser" iconSize="sm" />
-						Adicionar Usuário
-					</Button>
-				{/if}
-			</div>
-		{/if}
-
-		<!-- =========================
+			<!-- =========================
 		     ABAS
 		========================= -->
 
-		<div
-			class="tabs"
-			role="tablist"
-			aria-label="Seções de gerenciamento"
-			style:grid-template-columns={`repeat(${tabs.length}, minmax(0, 1fr))`}
-		>
-			{#each tabs as tab (tab.id)}
-				<button
-					type="button"
-					role="tab"
-					id={`users-tab-${tab.id}`}
-					aria-selected={activeTab === tab.id}
-					aria-controls="users-panel"
-					class={['tab', { active: activeTab === tab.id }]}
-					onclick={() => handleTabChange(tab.id)}
-				>
-					{tab.label}
-				</button>
-			{/each}
-		</div>
+			<div
+				class="tabs"
+				role="tablist"
+				aria-label="Seções de gerenciamento"
+				style:grid-template-columns={`repeat(${tabs.length}, minmax(0, 1fr))`}
+			>
+				{#each tabs as tab (tab.id)}
+					<button
+						type="button"
+						role="tab"
+						id={`users-tab-${tab.id}`}
+						aria-selected={activeTab === tab.id}
+						aria-controls="users-panel"
+						class={['tab', { active: activeTab === tab.id }]}
+						onclick={() => handleTabChange(tab.id)}
+					>
+						{tab.label}
+					</button>
+				{/each}
+			</div>
 
-		<!-- =========================
+			<!-- =========================
 		     CONTEÚDO
 		========================= -->
 
-		<div
-			id="users-panel"
-			class={['tab-panel', { refreshing: isRefreshing }]}
-			role="tabpanel"
-			aria-busy={isRefreshing}
-			aria-labelledby={`users-tab-${activeTab}`}
-		>
-			{#if activeTab === 'perfis' && canReadProfiles}
-				<ProfileManagement
-					user={data.user!}
-					canManage={canManageProfiles}
-					profilesResult={data.profilesResult}
-					profileKeyCatalogResult={data.profileKeyCatalogResult}
-				/>
-			{:else if canReadUsers && isLoading}
-				<div class="state-card" role="status">
-					<span class="spinner" aria-hidden="true"></span>
+			<div
+				id="users-panel"
+				class={['tab-panel', { refreshing: isRefreshing }]}
+				role="tabpanel"
+				aria-busy={isRefreshing}
+				aria-labelledby={`users-tab-${activeTab}`}
+			>
+				{#if activeTab === 'perfis' && canReadProfiles}
+					<ProfileManagement
+						user={data.user!}
+						canManage={canManageProfiles}
+						profilesResult={data.profilesResult}
+						profileKeyCatalogResult={data.profileKeyCatalogResult}
+					/>
+				{:else if canReadUsers && isLoading}
+					<div class="state-card" role="status">
+						<span class="spinner" aria-hidden="true"></span>
 
-					<p>Carregando usuários...</p>
-				</div>
-			{:else if canReadUsers && loadError}
-				<div class="state-card error" role="alert">
-					<p>
-						{loadError}
-					</p>
+						<p>Carregando usuários...</p>
+					</div>
+				{:else if canReadUsers && loadError}
+					<div class="state-card error" role="alert">
+						<p>
+							{loadError}
+						</p>
 
-					<Button variant="outline" onclick={() => loadUsers()}>Tentar novamente</Button>
-				</div>
-			{:else if canReadUsers && users.length === 0}
-				<NotFoundState
-					title="Nenhum usuário encontrado"
-					message="Não encontramos usuários para esta busca."
-					hint="Ajuste a pesquisa ou cadastre um novo usuário."
-				/>
-			{:else if canReadUsers}
-				<!-- =========================
+						<Button variant="outline" onclick={() => loadUsers()}>Tentar novamente</Button>
+					</div>
+				{:else if canReadUsers && users.length === 0}
+					<NotFoundState
+						title="Nenhum usuário encontrado"
+						message="Não encontramos usuários para esta busca."
+						hint="Ajuste a pesquisa ou cadastre um novo usuário."
+					/>
+				{:else if canReadUsers}
+					<!-- =========================
 			     TABELA
 			========================= -->
 
-				<UsersTable {users} canManage={canManageUsers} onaction={handleAction} />
+					<UsersTable {users} canManage={canManageUsers} onaction={handleAction} />
 
-				<!-- =========================
+					<!-- =========================
 			     PAGINAÇÃO
 			========================= -->
 
-				<div class="table-footer">
-					<p class="count">
-						Exibindo
-						{startItem}-{endItem}
-						de {total}
-						usuário{total === 1 ? '' : 's'}
-					</p>
+					<div class="table-footer">
+						<p class="count">
+							Exibindo
+							{startItem}-{endItem}
+							de {total}
+							usuário{total === 1 ? '' : 's'}
+						</p>
 
-					<div class="pagination" aria-label="Paginação">
-						<!-- ANTERIOR -->
+						<div class="pagination" aria-label="Paginação">
+							<!-- ANTERIOR -->
 
-						<button
-							type="button"
-							class="nav-button"
-							disabled={currentPage === 1}
-							onclick={previousPage}
-							aria-label="Página anterior"
-						>
-							‹
-						</button>
+							<button
+								type="button"
+								class="nav-button"
+								disabled={currentPage === 1}
+								onclick={previousPage}
+								aria-label="Página anterior"
+							>
+								‹
+							</button>
 
-						<!-- PÁGINAS -->
+							<!-- PÁGINAS -->
 
-						{#each visiblePages as page, index (`${page}-${index}`)}
-							{#if page === '...'}
-								<span class="dots"> ... </span>
-							{:else}
-								<button
-									type="button"
-									class={['page-button', { active: currentPage === page }]}
-									onclick={() => handlePageChange(page as number)}
-									aria-label={`Página ${page}`}
-									aria-current={currentPage === page ? 'page' : undefined}
-								>
-									{page}
-								</button>
-							{/if}
-						{/each}
+							{#each visiblePages as page, index (`${page}-${index}`)}
+								{#if page === '...'}
+									<span class="dots"> ... </span>
+								{:else}
+									<button
+										type="button"
+										class={['page-button', { active: currentPage === page }]}
+										onclick={() => handlePageChange(page as number)}
+										aria-label={`Página ${page}`}
+										aria-current={currentPage === page ? 'page' : undefined}
+									>
+										{page}
+									</button>
+								{/if}
+							{/each}
 
-						<!-- PRÓXIMA -->
+							<!-- PRÓXIMA -->
 
-						<button
-							type="button"
-							class="nav-button"
-							disabled={currentPage === totalPages || totalPages === 0}
-							onclick={nextPage}
-							aria-label="Próxima página"
-						>
-							›
-						</button>
+							<button
+								type="button"
+								class="nav-button"
+								disabled={currentPage === totalPages || totalPages === 0}
+								onclick={nextPage}
+								aria-label="Próxima página"
+							>
+								›
+							</button>
+						</div>
 					</div>
-				</div>
-			{/if}
-		</div>
-	</section>
+				{/if}
+			</div>
+		</section>
 	{/if}
 </main>
 

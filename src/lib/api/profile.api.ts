@@ -8,22 +8,29 @@ import type {
 	ProfileStatusResponse,
 	ProfileUpdateInput
 } from '$lib/types/profile';
+import type { SessionUser } from '$lib/types/auth';
 
 const PROFILES_PATH = '/profiles';
 
-export async function listProfiles(fetchImpl?: typeof fetch): Promise<Profile[]> {
+export async function listProfiles(
+	actor: SessionUser | null,
+	fetchImpl?: typeof fetch
+): Promise<Profile[]> {
 	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.profiles) {
 		const { listProfilesMock } = await import('$lib/mocks/profiles.mock');
-		return listProfilesMock();
+		return listProfilesMock(actor);
 	}
 
 	return apiClient<Profile[]>(PROFILES_PATH, {}, fetchImpl);
 }
 
-export async function getProfileKeyCatalog(fetchImpl?: typeof fetch): Promise<ProfileKeyCatalog> {
+export async function getProfileKeyCatalog(
+	actor: SessionUser | null,
+	fetchImpl?: typeof fetch
+): Promise<ProfileKeyCatalog> {
 	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.profiles) {
 		const { getProfileKeyCatalogMock } = await import('$lib/mocks/profiles.mock');
-		return getProfileKeyCatalogMock();
+		return getProfileKeyCatalogMock(actor);
 	}
 
 	return apiClient<ProfileKeyCatalog>(`${PROFILES_PATH}/keys`, {}, fetchImpl);

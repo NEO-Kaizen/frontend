@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
+	import { onDestroy } from 'svelte';
 	import Button from '$lib/components/Button.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import type { Profile, ProfileKeyCatalog } from '$lib/types/profile';
@@ -7,6 +8,7 @@
 	import type { PermissionCustody } from '$lib/types/permission';
 	import type { Result } from '$lib/types/result';
 	import { changeProfileStatus } from '$lib/services/profile.service';
+	import { canGrantCustody } from '$lib/utils/permission-checks';
 	import ProfileEditorModal from './ProfileEditorModal.svelte';
 
 	interface Props {
@@ -21,7 +23,7 @@
 		id: string;
 		name: string;
 		description: string;
-		composition: string[];
+		composition: Profile['permissions'];
 		isRoot: boolean;
 		isActive: boolean;
 		isAssignableTriage: boolean;
@@ -31,11 +33,11 @@
 
 	type EditorMode = 'create' | 'edit' | 'duplicate';
 
-	const grantableCustodiesByActorCustody: Record<PermissionCustody, PermissionCustody[]> = {
-		global: ['global'],
-		own: ['own'],
-		assigned: ['assigned'],
-		all: ['assigned', 'all']
+	const custodyLabels: Record<PermissionCustody, string> = {
+		global: 'Global',
+		own: 'Próprio',
+		assigned: 'Atribuído',
+		all: 'Todos'
 	};
 	const duplicateRestrictionMessage =
 		'Não é possível duplicar: sua conta não pode conceder todas as permissões e escopos herdados deste perfil.';
@@ -62,6 +64,7 @@
 	let isChangingStatus = $state(false);
 	let statusError = $state('');
 	let successMessage = $state('');
+	let successMessageTimer: ReturnType<typeof setTimeout> | undefined;
 
 	function normalizeProfile(profile: Profile): ProfileView {
 		return {
@@ -69,7 +72,7 @@
 			id: profile.id,
 			name: profile.name,
 			description: profile.description ?? '',
-			composition: profile.permissions.map((permission) => permission.key),
+			composition: profile.permissions.map(({ key, custody }) => ({ key, custody })),
 			isRoot: profile.isRoot,
 			isActive: profile.isActive,
 			isAssignableTriage: profile.isAssignableTriage,
@@ -83,12 +86,29 @@
 			user.permissions.some(
 				(actorPermission) =>
 					actorPermission.key === requestedPermission.key &&
-					grantableCustodiesByActorCustody[actorPermission.custody].includes(
-						requestedPermission.custody
-					)
+					canGrantCustody(actorPermission.custody, requestedPermission.custody)
 			)
 		);
 	}
+
+	function clearSuccessMessage() {
+		if (successMessageTimer) clearTimeout(successMessageTimer);
+		successMessageTimer = undefined;
+		successMessage = '';
+	}
+
+	function showSuccessMessage(message: string) {
+		clearSuccessMessage();
+		successMessage = message;
+		successMessageTimer = setTimeout(() => {
+			successMessage = '';
+			successMessageTimer = undefined;
+		}, 5000);
+	}
+
+	onDestroy(() => {
+		if (successMessageTimer) clearTimeout(successMessageTimer);
+	});
 
 	async function reloadData() {
 		isLoading = true;
@@ -101,6 +121,7 @@
 
 	function openEditor(mode: EditorMode, profile: Profile | null = null) {
 		if (!canManage) return;
+		clearSuccessMessage();
 		editorMode = mode;
 		selectedProfile = profile;
 	}
@@ -112,7 +133,7 @@
 
 	async function handleSaved(message: string) {
 		closeEditor();
-		successMessage = message;
+		showSuccessMessage(message);
 		await reloadData();
 	}
 
@@ -124,6 +145,7 @@
 		) {
 			return;
 		}
+		clearSuccessMessage();
 		isChangingStatus = true;
 		statusError = '';
 		const profile = pendingStatus;
@@ -134,7 +156,9 @@
 			return;
 		}
 		pendingStatus = null;
-		successMessage = `Perfil "${profile.name}" ${profile.isActive ? 'desativado' : 'ativado'} com sucesso.`;
+		showSuccessMessage(
+			`Perfil "${profile.name}" ${profile.isActive ? 'desativado' : 'ativado'} com sucesso.`
+		);
 		await reloadData();
 	}
 </script>
@@ -187,6 +211,13 @@
 				<tbody>
 					{#each profiles as profile (profile.id)}
 						{@const canDuplicate = canDuplicateProfile(profile.source)}
+						{@const cannotEditRootProfile = profile.isRoot && user.role !== 'Admin Root'}
+						{@const statusRestrictionMessage =
+							profile.isActive && profile.isRoot
+								? 'O perfil Admin Root não pode ser desativado.'
+								: profile.isActive && profile.userCount > 0
+									? `Não é possível desativar: ${profile.userCount} usuário(s) ainda utiliza(m) este perfil.`
+									: ''}
 						<tr>
 							<th scope="row">
 								<div class="name-cell">
@@ -202,7 +233,14 @@
 							<td>
 								<span class="composition-count">{profile.composition.length} chaves</span>
 								{#if profile.composition.length > 0}
-									<span class="composition-list">{profile.composition.join(', ')}</span>
+									<span class="composition-list">
+										{profile.composition
+											.map(
+												(permission) =>
+													`${permission.key} (escopo: ${custodyLabels[permission.custody]})`
+											)
+											.join(', ')}
+									</span>
 								{:else}
 									<span class="composition-list">Sem permissões</span>
 								{/if}
@@ -219,9 +257,11 @@
 									{profile.isActive ? 'Ativo' : 'Inativo'}
 								</span>
 								{#if profile.isActive && profile.isRoot}
-									<small class="status-note">O perfil Admin Root não pode ser desativado.</small>
+									<small class="status-note" id={`status-guidance-${profile.id}`}>
+										O perfil Admin Root não pode ser desativado.
+									</small>
 								{:else if profile.isActive && profile.userCount > 0}
-									<small class="status-note">
+									<small class="status-note" id={`status-guidance-${profile.id}`}>
 										Não pode desativar: {profile.userCount}
 										{profile.userCount === 1 ? 'usuário utiliza' : 'usuários utilizam'} este perfil.
 									</small>
@@ -231,13 +271,26 @@
 							{#if canManage}
 								<td>
 									<div class="row-actions">
-										<Button variant="outline" onclick={() => openEditor('edit', profile.source)}>
+										<Button
+											variant="outline"
+											disabled={cannotEditRootProfile}
+											aria-label={`Editar perfil ${profile.name}`}
+											onclick={() => openEditor('edit', profile.source)}
+										>
 											Editar
 										</Button>
+										{#if cannotEditRootProfile}
+											<small class="action-note">
+												Sua sessão atual informa a função “{user.role}”. Apenas o Admin Root pode
+												editar este perfil. O servidor continua sendo a autoridade final de
+												autorização.
+											</small>
+										{/if}
 										<Button
 											variant="outline"
 											disabled={!canDuplicate}
 											title={!canDuplicate ? duplicateRestrictionMessage : undefined}
+											aria-label={`Duplicar perfil ${profile.name}`}
 											aria-describedby={!canDuplicate
 												? `duplicate-guidance-${profile.id}`
 												: undefined}
@@ -248,12 +301,13 @@
 										<Button
 											variant="outline-neutral"
 											disabled={profile.isActive && (profile.isRoot || profile.userCount > 0)}
-											title={profile.isActive && profile.isRoot
-												? 'O perfil Admin Root não pode ser desativado.'
-												: profile.isActive && profile.userCount > 0
-													? `Não é possível desativar: ${profile.userCount} usuário(s) ainda utiliza(m) este perfil.`
-													: undefined}
+											title={statusRestrictionMessage || undefined}
+											aria-label={`${profile.isActive ? 'Desativar' : 'Ativar'} perfil ${profile.name}`}
+											aria-describedby={statusRestrictionMessage
+												? `status-guidance-${profile.id}`
+												: undefined}
 											onclick={() => {
+												clearSuccessMessage();
 												pendingStatus = profile;
 												statusError = '';
 											}}

@@ -31,3 +31,10 @@ export function can(
 		)
 	);
 }
+
+export function canGrantCustody(
+	actorCustody: PermissionCustody | undefined,
+	targetCustody: PermissionCustody
+): boolean {
+	return actorCustody === targetCustody || (actorCustody === 'all' && targetCustody === 'assigned');
+}
