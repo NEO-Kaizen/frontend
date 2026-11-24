@@ -333,6 +333,8 @@ O domínio `profiles` atende a gestão de perfis:
 
 Regras representadas no mock e na UI: nome único entre perfis ativos; perfil Root não editável/desativável por ator que não seja Root; desativação bloqueada por contagem de usuários; custódia concedível pelo ator; dependências e chaves fixas em `own`; guarda atômica de composição + flags. As leituras mock são SSR-safe e não fazem gate de sessão (o `guardAny` do load cobre); as mutações exigem `profile:manage`.
 
+O contrato assumido pelo frontend está em [`docs/profiles-api.md`](./profiles-api.md), com endpoints, payloads e pendências de confirmação com o backend.
+
 ---
 
 ## 11. Utils e constants
