@@ -76,6 +76,7 @@ npm run dev -- --open
 - **Dashboard:** disponibiliza informações para acompanhamento das solicitações.
 - **Histórico:** permite acompanhar registros e atividades realizadas no sistema.
 - **Gerenciamento de usuários:** permite que administradores realizem o gerenciamento dos usuários da aplicação.
+- **Gestão de perfis:** permite criar, editar, duplicar e ativar/desativar perfis de acesso, com composição de permissões e escopos.
 - **Controle de acesso:** disponibiliza funcionalidades de acordo com o perfil e as permissões do usuário.
 
 > Algumas funcionalidades ainda estão em desenvolvimento e serão disponibilizadas progressivamente.

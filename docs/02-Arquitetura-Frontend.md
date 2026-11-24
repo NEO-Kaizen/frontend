@@ -52,6 +52,7 @@ src/
 │   │
 │   ├── mocks/
 │   │   ├── users.mock.ts
+│   │   ├── profiles.mock.ts
 │   │   ├── requests.mock.ts
 │   │   ├── auth.mock.ts
 │   │   └── index.ts
@@ -301,7 +302,7 @@ Os mocks devem:
 Os mocks são controlados por `src/lib/mocks/index.ts` — único ponto para ligar/desligar:
 
 - `MOCKS_ENABLED`: interruptor global (ligado em desenvolvimento);
-- `MOCK_DOMAINS`: toggle por domínio (`auth`, `request`; novos domínios entram aqui).
+- `MOCK_DOMAINS`: toggle por domínio (`auth`, `users`, `profiles`, `request`; novos domínios entram aqui).
 
 Regras:
 
@@ -318,6 +319,19 @@ Toda integração com o backend nasce acompanhada do mock correspondente, sempre
 - os `*.api.ts` consomem o toggle com `import.meta.env.DEV` inline no ponto de chamada, via import dinâmico do módulo de mock.
 
 Esse formato garante duas coisas: o frontend funciona integralmente desacoplado do backend (desenvolvimento e testes sem API), e o código de mock nunca entra no bundle de produção. Mocks fora desse padrão — imports estáticos, flags em runtime lidas no build de produção — quebram uma das duas garantias e não devem ser introduzidos.
+
+### Domínio `profiles`
+
+O domínio `profiles` atende a gestão de perfis:
+
+- `GET /profiles`: lista os perfis, incluindo inativos;
+- `GET /profiles/keys`: catálogo de chaves, custódias permitidas, dependências e predicados de atribuição;
+- `POST /profiles`: cria perfil;
+- `PATCH /profiles/:id`: edição parcial de identidade, composição e flags;
+- `PATCH /profiles/:id/status`: ativa/desativa perfil;
+- `POST /profiles/:id/duplicate`: duplica um perfil.
+
+Regras representadas no mock e na UI: nome único entre perfis ativos; perfil Root não editável/desativável por ator que não seja Root; desativação bloqueada por contagem de usuários; custódia concedível pelo ator; dependências e chaves fixas em `own`; guarda atômica de composição + flags. As leituras mock são SSR-safe e não fazem gate de sessão (o `guardAny` do load cobre); as mutações exigem `profile:manage`.
 
 ---
 
