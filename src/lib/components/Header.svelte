@@ -11,7 +11,7 @@
 	import { logout } from '$lib/services/auth.service';
 	import { clearDraft } from '$lib/services/solicitation-draft.service';
 	import { searchRequests } from '$lib/services/request.service';
-	import { hasAny } from '$lib/services/access.service';
+	import { has, hasAny } from '$lib/services/access.service';
 	import {
 		OPERATIONAL_AREA_KEYS,
 		PORTAL_ACCESS_KEYS,
@@ -117,6 +117,12 @@
 	// `queue:read`; redirecioná-los para a fila cairia em /sem-autorizacao.
 	const canSearchQueue = $derived(hasAny(QUEUE_SEARCH_KEYS, currentUser));
 
+	// Sem fila nem acompanhamento o fallback público devolve 403: esconde a
+	// busca em vez de falhar em silêncio. Anônimo continua vendo (fluxo público).
+	const canSearch = $derived(
+		!isAuthenticated || canSearchQueue || has('request:track', currentUser)
+	);
+
 	const activeSearch = $derived(page.url.searchParams.get('search') ?? '');
 
 	// Na tela de configurações o editor de tema controla a pré-visualização
@@ -207,22 +213,24 @@
 		</a>
 
 		<div class="top_bar-interactables">
-			<form role="search" class="search-container" onsubmit={handleSearchSubmit}>
-				<Input
-					type="search"
-					placeholder="Buscar solicitação"
-					aria-label="Buscar solicitação"
-					name="pesquisar-chamados"
-					value={activeSearch}
-					disabled={isSearching}
-					actionIcon="search"
-					actionLabel="Buscar"
-					onAction={() => {
-						const form = document.querySelector('form[role="search"]') as HTMLFormElement | null;
-						form?.requestSubmit();
-					}}
-				/>
-			</form>
+			{#if canSearch}
+				<form role="search" class="search-container" onsubmit={handleSearchSubmit}>
+					<Input
+						type="search"
+						placeholder="Buscar solicitação"
+						aria-label="Buscar solicitação"
+						name="pesquisar-chamados"
+						value={activeSearch}
+						disabled={isSearching}
+						actionIcon="search"
+						actionLabel="Buscar"
+						onAction={() => {
+							const form = document.querySelector('form[role="search"]') as HTMLFormElement | null;
+							form?.requestSubmit();
+						}}
+					/>
+				</form>
+			{/if}
 
 			<Button
 				variant="primary"
