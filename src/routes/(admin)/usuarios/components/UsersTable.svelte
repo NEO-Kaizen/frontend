@@ -9,12 +9,12 @@
 	interface Props {
 		users: AdminUser[];
 		canManage: boolean;
-		editableProfileIds: string[];
+		administrableProfileIds: string[];
 
 		onaction: (user: AdminUser, action: UserAction) => void;
 	}
 
-	let { users, canManage, editableProfileIds, onaction }: Props = $props();
+	let { users, canManage, administrableProfileIds, onaction }: Props = $props();
 
 	let openMenuId = $state<string | null>(null);
 
@@ -110,7 +110,7 @@
 					</td>
 
 					<td>
-						{#if !canManage || !editableProfileIds.includes(user.profile.id)}
+						{#if !canManage || !administrableProfileIds.includes(user.profile.id)}
 							<span class="no-actions" aria-hidden="true"> — </span>
 						{:else}
 							<div class="actions">

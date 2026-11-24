@@ -1,5 +1,6 @@
 import { ApiError } from '$lib/types/result';
 import { can, has } from '$lib/utils/permission-checks';
+import { listProfilesMock } from './profiles.mock';
 import { computePrioritizationResult, getSavedPrioritizationNotes } from './prioritization.mock';
 import { mockUsers } from './users.mock';
 import { getMeMock } from './auth.mock';
@@ -1594,6 +1595,12 @@ export function getTriageMock(protocol: string): Promise<TriageAssessment | null
 	return delay(MOCK_LATENCY_MS).then(() => (current ? structuredClone(current) : null));
 }
 
+function isTriageAssignee(profileId: string): boolean {
+	return (
+		listProfilesMock().find((profile) => profile.id === profileId)?.isAssignableTriage === true
+	);
+}
+
 export async function assignAnalystMock(
 	protocol: string,
 	analystId: string,
@@ -1622,7 +1629,7 @@ export async function assignAnalystMock(
 	}
 
 	const analyst = mockUsers.find(
-		(user) => user.id === analystId && user.profile.name === 'Analista'
+		(user) => user.id === analystId && isTriageAssignee(user.profile.id)
 	);
 
 	if (!analyst) {

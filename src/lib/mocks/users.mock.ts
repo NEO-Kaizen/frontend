@@ -270,24 +270,29 @@ const MOCK_LATENCY_MS = 400;
 
 const TEMPORARY_PASSWORD_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%&';
 
+function findProfile(profileId: string) {
+	return listProfilesMock().find((candidate) => candidate.id === profileId);
+}
+
 function findProfileReference(profileId: string): ProfileReference | undefined {
-	const profile = listProfilesMock().find((candidate) => candidate.id === profileId);
+	const profile = findProfile(profileId);
 	return profile ? { id: profile.id, name: profile.name } : undefined;
 }
 
 function requiresProfessionalProfile(profileId: string): boolean {
-	const profile = listProfilesMock().find((candidate) => candidate.id === profileId);
+	const profile = findProfile(profileId);
 	return Boolean(profile?.isAssignableTriage || profile?.isAssignableMapping);
 }
 
 function isProtectedProfile(profileId: string): boolean {
-	const profile = listProfilesMock().find((candidate) => candidate.id === profileId);
-	return Boolean(profile?.name === 'Administrador' || profile?.isRoot);
+	const profile = findProfile(profileId);
+	return Boolean(
+		profile?.isRoot || profile?.permissions.some((permission) => permission.key === 'user:manage')
+	);
 }
 
 function hasTriageProfile(profileId: string): boolean {
-	const profile = listProfilesMock().find((candidate) => candidate.id === profileId);
-	return profile?.isAssignableTriage === true;
+	return findProfile(profileId)?.isAssignableTriage === true;
 }
 
 function getProfileReference(profileId: string): ProfileReference {
@@ -355,14 +360,17 @@ export function listUsersMock(query: ListUsersQuery): Promise<PaginatedResponse<
 }
 
 export function listAnalystsMock(): Promise<Analyst[]> {
-	// Espelha o backend: `GET /users/analysts` retorna só ativos, sem `isActive` no DTO.
 	const result = mockUsers
 		.filter((user) => user.isActive && hasTriageProfile(user.profile.id))
-		.map((user) => {
-			const { isActive: _active, ...rest } = user;
-			void _active;
-			return rest as Analyst;
-		});
+		.map((user) => ({
+			id: user.id,
+			fullName: user.fullName,
+			email: user.email,
+			specialty: user.specialty ?? '',
+			categories: user.categories ?? [],
+			notes: user.notes ?? null,
+			requestLoad: user.requestLoad ?? null
+		}));
 	return delay(MOCK_LATENCY_MS).then(() => result);
 }
 
@@ -371,7 +379,7 @@ export function getUserStatsMock(): UserStats {
 		total: mockUsers.length,
 		active: mockUsers.filter((user) => user.isActive).length,
 		pending: mockUsers.filter((user) => user.mustChangePassword).length,
-		admins: mockUsers.filter((user) => user.profile.name === 'Administrador').length
+		admins: mockUsers.filter((user) => isProtectedProfile(user.profile.id)).length
 	};
 }
 

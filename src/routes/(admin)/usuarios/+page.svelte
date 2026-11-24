@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 
+	import { refreshAll } from '$app/navigation';
 	import Button from '$lib/components/Button.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import MetricsSummary from '$lib/components/MetricsSummary.svelte';
@@ -34,7 +35,23 @@
 
 	let { data }: PageProps = $props();
 
-	const canManageUsers = $derived(has('user:manage', data.user));
+	const canManageUsers = $derived(has('user:manage', data.user) && !data.profilesError);
+
+	const profilesErrorMessage = $derived.by(() => {
+		if (!data.profilesError) {
+			return '';
+		}
+
+		if (data.profilesError.status === 403) {
+			return 'Você não tem permissão para carregar os perfis.';
+		}
+
+		if (data.profilesError.status !== undefined) {
+			return 'Não foi possível carregar os perfis.';
+		}
+
+		return 'Falha de conexão ao carregar os perfis.';
+	});
 
 	type PendingAction = {
 		kind: UserAction;
@@ -238,10 +255,7 @@
 	}
 
 	function handleAction(user: AdminUser, action: UserAction) {
-		if (
-			!canManageUsers ||
-			!data.assignableProfiles.some((profile) => profile.id === user.profile.id)
-		) {
+		if (!canManageUsers || !data.administrableProfileIds.includes(user.profile.id)) {
 			return;
 		}
 
@@ -336,6 +350,14 @@
 		</p>
 	{/if}
 
+	{#if profilesErrorMessage}
+		<div class="profiles-error" role="alert">
+			<p>{profilesErrorMessage}</p>
+
+			<Button variant="outline" onclick={() => refreshAll()}>Tentar novamente</Button>
+		</div>
+	{/if}
+
 	<!-- =========================
 	     CARD PRINCIPAL
 	========================= -->
@@ -424,7 +446,7 @@
 				<UsersTable
 					{users}
 					canManage={canManageUsers}
-					editableProfileIds={data.assignableProfiles.map((profile) => profile.id)}
+					administrableProfileIds={data.administrableProfileIds}
 					onaction={handleAction}
 				/>
 
@@ -605,6 +627,29 @@
 		color: var(--status-green);
 
 		border-radius: var(--radius-sm);
+
+		font: var(--label);
+	}
+
+	.profiles-error {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--spacing-md);
+
+		padding: var(--spacing-sm) var(--spacing-md);
+
+		background-color: var(--status-red-bg);
+
+		border: var(--border-default);
+		border-radius: var(--radius-sm);
+	}
+
+	.profiles-error p {
+		margin: 0;
+
+		color: var(--status-red);
 
 		font: var(--label);
 	}

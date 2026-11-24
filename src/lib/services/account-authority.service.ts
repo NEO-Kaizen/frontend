@@ -25,13 +25,32 @@ export function isAuthorityStrictlyBelow(
 	return containsAll(targetGrants, actorGrants) && !containsAll(actorGrants, targetGrants);
 }
 
-export function canManageProfile(actor: SessionUser | null, target: Profile): boolean {
-	if (!actor || !target.isActive || target.isRoot) return false;
-	if (actor.role === 'Admin Root') return true;
+export function isRootActor(actor: SessionUser | null): boolean {
+	return actor?.role === 'Admin Root';
+}
+
+function hasAuthorityOverProfile(actor: SessionUser | null, target: Profile): boolean {
+	if (!actor || target.isRoot) return false;
+	if (isRootActor(actor)) return true;
 
 	return isAuthorityStrictlyBelow(target.permissions, actor.permissions);
 }
 
-export function listManageableProfiles(actor: SessionUser | null, profiles: Profile[]): Profile[] {
-	return profiles.filter((profile) => canManageProfile(actor, profile));
+export function canAssignProfile(actor: SessionUser | null, target: Profile): boolean {
+	return target.isActive && hasAuthorityOverProfile(actor, target);
+}
+
+export function canManageUserWithProfile(actor: SessionUser | null, target: Profile): boolean {
+	return hasAuthorityOverProfile(actor, target);
+}
+
+export function listAssignableProfiles(actor: SessionUser | null, profiles: Profile[]): Profile[] {
+	return profiles.filter((profile) => canAssignProfile(actor, profile));
+}
+
+export function listAdministrableProfiles(
+	actor: SessionUser | null,
+	profiles: Profile[]
+): Profile[] {
+	return profiles.filter((profile) => canManageUserWithProfile(actor, profile));
 }

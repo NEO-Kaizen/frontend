@@ -65,9 +65,17 @@
 	const profileOptions = $derived(
 		profiles.map((profile) => ({ value: profile.id, label: profile.name }))
 	);
+	const currentProfileIsAssignable = $derived(
+		profiles.some((profile) => profile.id === user.profile.id)
+	);
+	const profilePlaceholder = $derived(
+		currentProfileIsAssignable ? 'Selecione' : `${user.profile.name} (perfil atual)`
+	);
 
 	function hydrate(profile: UserProfileResponse) {
-		profileId = profile.profile.id;
+		profileId = profiles.some((candidate) => candidate.id === profile.profile.id)
+			? profile.profile.id
+			: '';
 		fullName = profile.fullName;
 		area = profile.requester?.area ?? '';
 		department = profile.requester?.department ?? '';
@@ -102,7 +110,7 @@
 		professionalNotesError = '';
 
 		if (profiles.length > 0 && !profiles.some((profile) => profile.id === profileId)) {
-			profileIdError = 'Selecione um perfil.';
+			profileIdError = 'Selecione um perfil ativo para continuar.';
 		}
 
 		const trimmedFullName = fullName.trim();
@@ -227,6 +235,7 @@
 			{#if profiles.length > 0}
 				<Select
 					label="Perfil *"
+					placeholder={profilePlaceholder}
 					options={profileOptions}
 					bind:value={profileId}
 					error={profileIdError}
