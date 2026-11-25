@@ -1,16 +1,12 @@
 <script lang="ts">
+	import { invalidateAll } from '$app/navigation';
 	import { untrack } from 'svelte';
 
 	import Button from '$lib/components/Button.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import MetricsSummary from '$lib/components/MetricsSummary.svelte';
 	import NotFoundState from '$lib/components/NotFoundState.svelte';
-	import {
-		createUser,
-		getUserStats,
-		listUsers,
-		updateUserStatus
-	} from '$lib/services/user.service';
+	import { createUser, listUsers, updateUserStatus } from '$lib/services/user.service';
 	import type { MetricItem } from '$lib/types/metrics';
 	import type { PaginatedResponse } from '$lib/types/request';
 	import type { Result } from '$lib/types/result';
@@ -175,8 +171,11 @@
 		};
 	}
 
-	async function refreshStats() {
-		statsOverride = await getUserStats();
+	// Mutações de usuário mudam a contagem de vinculados por perfil; recarregar o
+	// load mantém `userCount` e o bloqueio de desativação coerentes.
+	async function refreshAfterUserMutation() {
+		statsOverride = null;
+		await invalidateAll();
 	}
 
 	function handleTabChange(tabId: string) {
@@ -261,7 +260,7 @@
 		showSuccess(`"${result.data.fullName}" cadastrado com sucesso.`);
 
 		await loadUsers(1, '');
-		await refreshStats();
+		await refreshAfterUserMutation();
 
 		return result.data;
 	}
@@ -336,7 +335,7 @@
 				: `${profileName} "${userName}" inativado com sucesso.`
 		);
 
-		await refreshStats();
+		await refreshAfterUserMutation();
 	}
 
 	function closePendingAction() {
@@ -350,6 +349,7 @@
 		if (userId) applyUserUpdate(userId, { name: profile.fullName, profile: profile.profile });
 		pendingAction = undefined;
 		showSuccess(`Dados administrativos de "${userName}" atualizados com sucesso.`);
+		void refreshAfterUserMutation();
 	}
 </script>
 
