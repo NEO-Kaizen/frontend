@@ -64,11 +64,8 @@ async function canAccessInternalNotes(
 
 	try {
 		const detail = await getInternalRequestMock(protocol);
-		return (
-			detail.assignee?.id === currentUser.id ||
-			detail.mappingAssignee?.id === currentUser.id ||
-			detail.mappingAssigneeId === currentUser.id
-		);
+		// `assigned` para notas internas alcança só o Responsável da solicitação.
+		return detail.assignee?.id === currentUser.id;
 	} catch {
 		throw new ApiError(404, 'Solicitação não encontrada.');
 	}

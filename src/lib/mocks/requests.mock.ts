@@ -1705,10 +1705,7 @@ export async function updateRequestStatusMock(
 	}
 
 	const canChangeAny = can('request:status_change', 'all', me);
-	const hasCustody =
-		detail.assignee?.id === me.id ||
-		detail.mappingAssignee?.id === me.id ||
-		detail.mappingAssigneeId === me.id;
+	const hasCustody = detail.assignee?.id === me.id;
 	const canChangeAssigned = can('request:status_change', 'assigned', me) && hasCustody;
 	if (!canChangeAny && !canChangeAssigned) {
 		throw new ApiError(403, 'Você não tem permissão para alterar o status desta solicitação.');

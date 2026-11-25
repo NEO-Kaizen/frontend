@@ -7,7 +7,7 @@
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Modal from '$lib/components/Modal.svelte';
-	import { can, has } from '$lib/utils/permission-checks';
+	import { can, canAccessResponsible } from '$lib/utils/permission-checks';
 	import { getInternalNotes } from '$lib/services/internal-note.service';
 	import {
 		buildCreatePendingItemsPayload,
@@ -260,8 +260,14 @@
 			(can('triage:read', 'assigned', currentUser) &&
 				Boolean(currentUser && solicitation.assignee?.id === currentUser.id))
 	);
-	const canViewPendenciesTab = $derived(has('pending_item:read', page.data.user));
-	const canViewInternalNotesTab = $derived(has('internal_note:read', page.data.user));
+	// Pendências e observações internas também são chaves de linha: `assigned`
+	// só alcança o Responsável da solicitação (`assignee_user_id`), como no backend.
+	const canViewPendenciesTab = $derived(
+		canAccessResponsible('pending_item:read', currentUser, solicitation.assignee?.id)
+	);
+	const canViewInternalNotesTab = $derived(
+		canAccessResponsible('internal_note:read', currentUser, solicitation.assignee?.id)
+	);
 
 	// A permissão do mapeamento usa o responsável do mapeamento
 	// (`mappingAssignee`) do primeiro GET da solicitação + `/auth/me`

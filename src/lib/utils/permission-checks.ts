@@ -40,6 +40,20 @@ export function canGrantCustody(
 	return actorCustody === targetCustody || (actorCustody === 'all' && targetCustody === 'assigned');
 }
 
+/**
+ * Chave de linha alcança o Responsável? `all` dispensa vínculo; `assigned`
+ * exige que o ator seja o Responsável corrente. Espelha `hasResponsibleCustody`
+ * do backend, inclusive para chaves `global` (que sempre passam).
+ */
+export function canAccessResponsible(
+	key: PermissionKey,
+	user: SessionUser | null | undefined,
+	responsibleId: string | null | undefined
+): boolean {
+	if (!user) return false;
+	return can(key, 'all', user) || (can(key, 'assigned', user) && responsibleId === user.id);
+}
+
 export function isRootActor(user: SessionUser | null | undefined): boolean {
 	return user?.isRoot === true;
 }

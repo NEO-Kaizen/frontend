@@ -314,10 +314,7 @@
 		if (can('request:status_change', 'all', currentUser)) return 'all';
 		if (
 			can('request:status_change', 'assigned', currentUser) &&
-			currentUser &&
-			(solicitation.assignee?.id === currentUser.id ||
-				solicitation.mappingAssignee?.id === currentUser.id ||
-				solicitation.mappingAssigneeId === currentUser.id)
+			Boolean(currentUser && solicitation.assignee?.id === currentUser.id)
 		) {
 			return 'assigned';
 		}
