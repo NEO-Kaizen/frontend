@@ -4,7 +4,6 @@
 	import Button from '$lib/components/Button.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import MetricsSummary from '$lib/components/MetricsSummary.svelte';
-	import NotFoundState from '$lib/components/NotFoundState.svelte';
 	import { createUser, listUsers, updateUserStatus } from '$lib/services/user.service';
 	import type { MetricItem } from '$lib/types/metrics';
 	import type { PaginatedResponse } from '$lib/types/request';
@@ -23,7 +22,7 @@
 	import CreateUserModal from './components/CreateUserModal.svelte';
 	import EditUserModal from './components/EditUserModal.svelte';
 	import ResetPasswordModal from './components/ResetPasswordModal.svelte';
-	import UsersTable from './components/UsersTable.svelte';
+	import UsersPanel from './components/UsersPanel.svelte';
 	import ProfileManagement from './components/ProfileManagement.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import type { PageProps } from './$types';
@@ -92,6 +91,7 @@
 
 	let selectedProfileId = $state(untrack(() => data.profileId ?? ''));
 	let activeTabSelection = $state('');
+	let tabButtons: HTMLButtonElement[] = $state([]);
 	let activeTab = $derived(
 		tabs.some((tab) => tab.id === activeTabSelection)
 			? activeTabSelection
@@ -106,11 +106,7 @@
 	let fetchedResult = $state<Result<PaginatedResponse<AdminUser>> | null>(null);
 	let result = $derived(fetchedResult ?? data.result);
 
-	let users = $derived<AdminUser[]>(result.ok ? result.data.data : []);
-	let loadError = $derived(result.ok ? '' : result.error.message);
-	let total = $derived(result.ok ? result.data.total : 0);
 	let currentPage = $derived(result.ok ? result.data.page : 1);
-	let totalPages = $derived(result.ok ? result.data.totalPages : 0);
 	let searchTimer: ReturnType<typeof setTimeout> | undefined;
 
 	// Navegações de filtro (GET) trocam `data.result`; limpar o override evita
@@ -134,32 +130,12 @@
 	let isActing = $state(false);
 	let actionError = $state('');
 
-	let startItem = $derived(total === 0 ? 0 : (currentPage - 1) * data.pageSize + 1);
-
-	let endItem = $derived(Math.min(currentPage * data.pageSize, total));
-
-	let visiblePages = $derived.by(() => {
-		if (totalPages <= 5) {
-			return Array.from({ length: totalPages }, (_, index) => index + 1);
-		}
-
-		if (currentPage <= 3) {
-			return [1, 2, 3, '...', totalPages];
-		}
-
-		if (currentPage >= totalPages - 2) {
-			return [1, '...', totalPages - 2, totalPages - 1, totalPages];
-		}
-
-		return [1, '...', currentPage, '...', totalPages];
-	});
-
 	async function loadUsers(
 		page = currentPage,
 		search = searchQuery,
 		mode: 'refresh' | 'replace' = 'refresh'
 	) {
-		const canRefreshInPlace = result.ok && users.length > 0;
+		const canRefreshInPlace = result.ok && result.data.data.length > 0;
 
 		if (mode === 'replace' || !canRefreshInPlace) {
 			isLoading = true;
@@ -224,10 +200,7 @@
 
 		event.preventDefault();
 		activeTabSelection = tabs[nextIndex].id;
-
-		const tablist = (event.currentTarget as HTMLElement).closest('[role="tablist"]');
-		const buttons = tablist?.querySelectorAll<HTMLButtonElement>('[role="tab"]');
-		buttons?.[nextIndex]?.focus();
+		tabButtons[nextIndex]?.focus();
 	}
 	function handleSearchInput() {
 		clearTimeout(searchTimer);
@@ -238,19 +211,7 @@
 	}
 
 	function handlePageChange(page: number) {
-		if (page < 1 || page > totalPages || page === currentPage) {
-			return;
-		}
-
 		loadUsers(page, searchQuery);
-	}
-
-	function previousPage() {
-		handlePageChange(currentPage - 1);
-	}
-
-	function nextPage() {
-		handlePageChange(currentPage + 1);
 	}
 
 	async function handleCreate(formData: CreateUserFormData): Promise<CreateUserResponse> {
@@ -480,6 +441,7 @@
 							aria-controls="users-panel"
 							tabindex={activeTab === tab.id ? 0 : -1}
 							class={['tab', { active: activeTab === tab.id }]}
+							bind:this={tabButtons[index]}
 							onclick={() => handleTabChange(tab.id)}
 							onkeydown={(event) => handleTabKeydown(event, index)}
 						>
@@ -536,95 +498,19 @@
 							profileKeyCatalogResult={data.profileKeyCatalogResult}
 						/>
 					{/if}
-				{:else if canReadUsers && isLoading}
-					<div class="state-card" role="status">
-						<span class="spinner" aria-hidden="true"></span>
-
-						<p>Carregando usuários...</p>
-					</div>
-				{:else if canReadUsers && loadError}
-					<div class="state-card error" role="alert">
-						<p>
-							{loadError}
-						</p>
-
-						<Button variant="outline" onclick={() => loadUsers()}>Tentar novamente</Button>
-					</div>
-				{:else if canReadUsers && users.length === 0}
-					<NotFoundState
-						title="Nenhum usuário encontrado"
-						message="Não encontramos usuários para esta busca."
-						hint="Ajuste a pesquisa ou cadastre um novo usuário."
-					/>
-				{:else if canReadUsers}
-					<!-- =========================
-			     TABELA
-			========================= -->
-
-					<UsersTable
-						{users}
-						canManage={canManageUsers}
+				{:else}
+					<UsersPanel
+						{result}
+						{canReadUsers}
+						{canManageUsers}
 						administrableProfileIds={data.administrableProfileIds}
 						currentUserId={data.user?.id ?? ''}
+						{isLoading}
+						pageSize={data.pageSize}
 						onaction={handleAction}
+						onretry={() => loadUsers()}
+						onpagechange={handlePageChange}
 					/>
-
-					<!-- =========================
-			     PAGINAÇÃO
-			========================= -->
-
-					<div class="table-footer">
-						<p class="count">
-							Exibindo
-							{startItem}-{endItem}
-							de {total}
-							usuário{total === 1 ? '' : 's'}
-						</p>
-
-						<div class="pagination" aria-label="Paginação">
-							<!-- ANTERIOR -->
-
-							<button
-								type="button"
-								class="nav-button"
-								disabled={currentPage === 1}
-								onclick={previousPage}
-								aria-label="Página anterior"
-							>
-								‹
-							</button>
-
-							<!-- PÁGINAS -->
-
-							{#each visiblePages as page, index (`${page}-${index}`)}
-								{#if page === '...'}
-									<span class="dots"> ... </span>
-								{:else}
-									<button
-										type="button"
-										class={['page-button', { active: currentPage === page }]}
-										onclick={() => handlePageChange(page as number)}
-										aria-label={`Página ${page}`}
-										aria-current={currentPage === page ? 'page' : undefined}
-									>
-										{page}
-									</button>
-								{/if}
-							{/each}
-
-							<!-- PRÓXIMA -->
-
-							<button
-								type="button"
-								class="nav-button"
-								disabled={currentPage === totalPages || totalPages === 0}
-								onclick={nextPage}
-								aria-label="Próxima página"
-							>
-								›
-							</button>
-						</div>
-					</div>
 				{/if}
 			</div>
 		</section>
@@ -985,184 +871,6 @@
 	}
 
 	/* =========================
-	   ESTADOS
-	========================= */
-
-	.state-card {
-		width: 100%;
-
-		min-height: 250px;
-
-		display: flex;
-		flex-direction: column;
-
-		align-items: center;
-		justify-content: center;
-
-		gap: var(--spacing-md);
-
-		padding: var(--spacing-xl);
-
-		background-color: var(--white);
-
-		text-align: center;
-	}
-
-	.state-card p {
-		margin: 0;
-
-		color: var(--gray);
-	}
-
-	.state-card.error p {
-		color: var(--status-red);
-	}
-
-	.spinner {
-		width: 24px;
-		height: 24px;
-
-		border: 3px solid var(--white-gray);
-
-		border-top-color: var(--primary-color);
-
-		border-radius: 50%;
-
-		animation: spin 0.7s linear infinite;
-	}
-
-	@keyframes spin {
-		to {
-			transform: rotate(360deg);
-		}
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.spinner {
-			animation: none;
-		}
-	}
-
-	/* =========================
-	   RODAPÉ
-	========================= */
-
-	.table-footer {
-		width: 100%;
-
-		min-height: 62px;
-
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-
-		gap: var(--spacing-md);
-
-		padding: var(--spacing-sm) var(--spacing-md);
-
-		background-color: var(--white);
-
-		border-top: var(--border-default);
-
-		flex-shrink: 0;
-	}
-
-	.count {
-		margin: 0;
-
-		font: var(--label);
-
-		font-size: 11px;
-
-		color: var(--gray);
-
-		white-space: nowrap;
-	}
-
-	/* =========================
-	   PAGINAÇÃO
-	========================= */
-
-	.pagination {
-		display: flex;
-
-		align-items: center;
-
-		justify-content: flex-end;
-
-		gap: 4px;
-	}
-
-	.page-button,
-	.nav-button {
-		min-width: 30px;
-		height: 30px;
-
-		display: inline-flex;
-
-		align-items: center;
-		justify-content: center;
-
-		padding: 0 var(--spacing-sm);
-
-		border: none;
-
-		border-radius: var(--radius-sm);
-
-		background: transparent;
-
-		color: var(--black);
-
-		font: var(--label);
-
-		font-size: 12px;
-
-		cursor: pointer;
-
-		transition: var(--transition-default);
-	}
-
-	.page-button:hover:not(.active),
-	.nav-button:hover:not(:disabled) {
-		background-color: var(--tint);
-
-		color: var(--secondary-color);
-	}
-
-	.page-button.active {
-		background-color: var(--primary-color);
-
-		color: var(--on-primary);
-	}
-
-	.nav-button {
-		font-size: 20px;
-		line-height: 1;
-	}
-
-	.nav-button:disabled {
-		color: var(--white-gray);
-
-		cursor: default;
-	}
-
-	.dots {
-		min-width: 25px;
-		height: 30px;
-
-		display: inline-flex;
-
-		align-items: center;
-		justify-content: center;
-
-		font: var(--label);
-
-		font-size: 12px;
-
-		color: var(--gray);
-	}
-
-	/* =========================
 	   RESPONSIVO
 	========================= */
 
@@ -1184,18 +892,6 @@
 		.tab {
 			min-width: 130px;
 			height: 44px;
-		}
-
-		.table-footer {
-			flex-direction: column;
-
-			align-items: flex-start;
-		}
-
-		.pagination {
-			width: 100%;
-
-			justify-content: flex-end;
 		}
 	}
 </style>
