@@ -107,7 +107,7 @@ export const mockUsers: MockUser[] = [
 		id: '10',
 		fullName: 'Amanda Nogueira',
 		email: 'amanda.nogueira@maat.com.br',
-		profile: getProfileReference('1'),
+		profile: getProfileReference('7'),
 		isActive: false,
 		mustChangePassword: false,
 		createdAt: '2026-08-26T09:35:00.000Z'
@@ -167,7 +167,7 @@ export const mockUsers: MockUser[] = [
 		specialty: 'Especialista em indicadores',
 		categories: ['Indicador', 'Dashboard ou relatório'],
 		notes: 'Em licença até 09/2026.',
-		requestLoad: null
+		requestLoad: 0
 	},
 	{
 		id: '16',
@@ -255,7 +255,16 @@ export const mockUsers: MockUser[] = [
 		specialty: '',
 		categories: [],
 		notes: null,
-		requestLoad: null
+		requestLoad: 0
+	},
+	{
+		id: '24',
+		fullName: 'Pessoa Perfil Custom',
+		email: 'pessoa.custom@maat.com.br',
+		profile: getProfileReference('6'),
+		isActive: true,
+		mustChangePassword: false,
+		createdAt: '2026-08-28T10:00:00.000Z'
 	}
 ];
 
@@ -270,30 +279,29 @@ const MOCK_LATENCY_MS = 400;
 
 const TEMPORARY_PASSWORD_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%&';
 
+function findProfile(profileId: string) {
+	return listProfilesMock().find((candidate) => candidate.id === profileId);
+}
+
 function findProfileReference(profileId: string): ProfileReference | undefined {
-	const profile = listProfilesMock().find((candidate) => candidate.id === profileId);
+	const profile = findProfile(profileId);
 	return profile ? { id: profile.id, name: profile.name } : undefined;
 }
 
 function requiresProfessionalProfile(profileId: string): boolean {
-	const profile = listProfilesMock().find((candidate) => candidate.id === profileId);
+	const profile = findProfile(profileId);
 	return Boolean(profile?.isAssignableTriage || profile?.isAssignableMapping);
 }
 
-function isAdminProfile(profileId: string): boolean {
-	const profile = listProfilesMock().find((candidate) => candidate.id === profileId);
+function isProtectedProfile(profileId: string): boolean {
+	const profile = findProfile(profileId);
 	return Boolean(
 		profile?.isRoot || profile?.permissions.some((permission) => permission.key === 'user:manage')
 	);
 }
 
-function isProtectedProfile(profileId: string): boolean {
-	return isAdminProfile(profileId);
-}
-
 function hasTriageProfile(profileId: string): boolean {
-	const profile = listProfilesMock().find((candidate) => candidate.id === profileId);
-	return profile?.isAssignableTriage === true;
+	return findProfile(profileId)?.isAssignableTriage === true;
 }
 
 function getProfileReference(profileId: string): ProfileReference {
@@ -362,14 +370,17 @@ export function listUsersMock(query: ListUsersQuery): Promise<PaginatedResponse<
 }
 
 export function listAnalystsMock(): Promise<Analyst[]> {
-	// Espelha o backend: `GET /users/analysts` retorna só ativos, sem `isActive` no DTO.
 	const result = mockUsers
 		.filter((user) => user.isActive && hasTriageProfile(user.profile.id))
-		.map((user) => {
-			const { isActive: _active, ...rest } = user;
-			void _active;
-			return rest as Analyst;
-		});
+		.map((user) => ({
+			id: user.id,
+			fullName: user.fullName,
+			email: user.email,
+			specialty: user.specialty ?? '',
+			categories: user.categories ?? [],
+			notes: user.notes ?? null,
+			requestLoad: user.requestLoad ?? 0
+		}));
 	return delay(MOCK_LATENCY_MS).then(() => result);
 }
 
@@ -378,7 +389,7 @@ export function getUserStatsMock(): UserStats {
 		total: mockUsers.length,
 		active: mockUsers.filter((user) => user.isActive).length,
 		pending: mockUsers.filter((user) => user.mustChangePassword).length,
-		admins: mockUsers.filter((user) => isAdminProfile(user.profile.id)).length
+		admins: mockUsers.filter((user) => isProtectedProfile(user.profile.id)).length
 	};
 }
 

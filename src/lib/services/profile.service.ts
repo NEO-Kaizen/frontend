@@ -21,7 +21,7 @@ import {
 	isPermissionCustody,
 	isPermissionKey
 } from '$lib/types/permission';
-import { mapApiError } from '$lib/utils/api-error';
+import { toApiFailure } from '$lib/utils/api-error';
 
 type ProfileOperation<T> = () => Promise<T>;
 
@@ -29,7 +29,7 @@ async function runProfileOperation<T>(operation: ProfileOperation<T>): Promise<R
 	try {
 		return { ok: true, data: await operation() };
 	} catch (error) {
-		return mapApiError(error);
+		return toApiFailure(error);
 	}
 }
 

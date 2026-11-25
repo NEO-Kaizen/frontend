@@ -1,7 +1,6 @@
 <script lang="ts">
-	import { invalidateAll } from '$app/navigation';
+	import { afterNavigate, invalidateAll, refreshAll } from '$app/navigation';
 	import { untrack } from 'svelte';
-
 	import Button from '$lib/components/Button.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import MetricsSummary from '$lib/components/MetricsSummary.svelte';
@@ -32,9 +31,25 @@
 	let { data }: PageProps = $props();
 
 	const canReadUsers = $derived(has('user:read', data.user));
-	const canManageUsers = $derived(has('user:manage', data.user));
 	const canReadProfiles = $derived(has('profile:read', data.user));
+	const canManageUsers = $derived(has('user:manage', data.user) && !data.profilesError);
 	const canManageProfiles = $derived(has('profile:manage', data.user));
+
+	const profilesErrorMessage = $derived.by(() => {
+		if (!data.profilesError) {
+			return '';
+		}
+
+		if (data.profilesError.status === 403) {
+			return 'Você não tem permissão para carregar os perfis.';
+		}
+
+		if (data.profilesError.status !== undefined) {
+			return 'Não foi possível carregar os perfis.';
+		}
+
+		return 'Falha de conexão ao carregar os perfis.';
+	});
 
 	const tabs = $derived([
 		...(canReadUsers ? [{ id: 'usuarios', label: 'Usuários' }] : []),
@@ -97,6 +112,16 @@
 	let currentPage = $derived(result.ok ? result.data.page : 1);
 	let totalPages = $derived(result.ok ? result.data.totalPages : 0);
 	let searchTimer: ReturnType<typeof setTimeout> | undefined;
+
+	// Navegações de filtro (GET) trocam `data.result`; limpar o override evita
+	// que a tabela continue exibindo o resultado de uma busca/paginação anterior.
+	// O select e a busca também voltam ao estado canônico da URL.
+	afterNavigate(() => {
+		clearTimeout(searchTimer);
+		fetchedResult = null;
+		selectedProfileId = data.profileId ?? '';
+		searchQuery = '';
+	});
 
 	let successMessage = $state('');
 	let successTimer: ReturnType<typeof setTimeout> | undefined;
@@ -286,8 +311,9 @@
 		}
 
 		if (
-			action === 'edit' &&
-			!data.assignableProfiles.some((profile) => profile.id === user.profile.id)
+			!canManageUsers ||
+			user.id === data.user?.id ||
+			!data.administrableProfileIds.includes(user.profile.id)
 		) {
 			return;
 		}
@@ -388,6 +414,14 @@
 		<p class="success-banner" role="status">
 			{successMessage}
 		</p>
+	{/if}
+
+	{#if profilesErrorMessage}
+		<div class="profiles-error" role="alert">
+			<p>{profilesErrorMessage}</p>
+
+			<Button variant="outline" onclick={() => refreshAll()}>Tentar novamente</Button>
+		</div>
 	{/if}
 
 	<!-- =========================
@@ -530,7 +564,8 @@
 					<UsersTable
 						{users}
 						canManage={canManageUsers}
-						editableProfileIds={data.assignableProfiles.map((profile) => profile.id)}
+						administrableProfileIds={data.administrableProfileIds}
+						currentUserId={data.user?.id ?? ''}
 						onaction={handleAction}
 					/>
 
@@ -615,7 +650,8 @@
 	<EditUserModal
 		user={pendingAction.user}
 		categories={data.portalConfig.categories}
-		profiles={data.assignableProfiles}
+		profiles={data.profiles}
+		assignableProfiles={data.assignableProfiles}
 		onclose={closePendingAction}
 		onsaved={handleEditSaved}
 	/>
@@ -712,6 +748,29 @@
 		color: var(--status-green);
 
 		border-radius: var(--radius-sm);
+
+		font: var(--label);
+	}
+
+	.profiles-error {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--spacing-md);
+
+		padding: var(--spacing-sm) var(--spacing-md);
+
+		background-color: var(--status-red-bg);
+
+		border: var(--border-default);
+		border-radius: var(--radius-sm);
+	}
+
+	.profiles-error p {
+		margin: 0;
+
+		color: var(--status-red);
 
 		font: var(--label);
 	}

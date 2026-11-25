@@ -11,8 +11,8 @@ import {
 } from '$lib/api/user.api';
 
 import type { PaginatedResponse } from '$lib/types/request';
-import { ApiError, type Result } from '$lib/types/result';
-import { mapApiError } from '$lib/utils/api-error';
+import type { Result } from '$lib/types/result';
+import { toApiFailure } from '$lib/utils/api-error';
 
 import type {
 	AdminUser,
@@ -58,22 +58,7 @@ export async function listUsers(
 			}
 		};
 	} catch (error) {
-		if (error instanceof ApiError) {
-			return {
-				ok: false,
-				error: {
-					status: error.status,
-					message: error.message
-				}
-			};
-		}
-
-		return {
-			ok: false,
-			error: {
-				message: 'Não foi possível conectar ao servidor.'
-			}
-		};
+		return toApiFailure(error);
 	}
 }
 
@@ -110,22 +95,7 @@ export async function createUser(data: CreateUserFormData): Promise<Result<Creat
 			data: response
 		};
 	} catch (error) {
-		if (error instanceof ApiError) {
-			return {
-				ok: false,
-				error: {
-					status: error.status,
-					message: error.message
-				}
-			};
-		}
-
-		return {
-			ok: false,
-			error: {
-				message: 'Não foi possível conectar ao servidor.'
-			}
-		};
+		return toApiFailure(error);
 	}
 }
 
@@ -141,22 +111,7 @@ export async function updateUserStatus(
 			data: response
 		};
 	} catch (error) {
-		if (error instanceof ApiError) {
-			return {
-				ok: false,
-				error: {
-					status: error.status,
-					message: error.message
-				}
-			};
-		}
-
-		return {
-			ok: false,
-			error: {
-				message: 'Não foi possível conectar ao servidor.'
-			}
-		};
+		return toApiFailure(error);
 	}
 }
 
@@ -169,22 +124,7 @@ export async function resetUserPassword(id: string): Promise<Result<ResetPasswor
 			data: response
 		};
 	} catch (error) {
-		if (error instanceof ApiError) {
-			return {
-				ok: false,
-				error: {
-					status: error.status,
-					message: error.message
-				}
-			};
-		}
-
-		return {
-			ok: false,
-			error: {
-				message: 'Não foi possível conectar ao servidor.'
-			}
-		};
+		return toApiFailure(error);
 	}
 }
 
@@ -200,7 +140,7 @@ export async function getMyProfile(fetchImpl?: typeof fetch): Promise<Result<Use
 			data
 		};
 	} catch (error) {
-		return mapApiError(error);
+		return toApiFailure(error);
 	}
 }
 
@@ -215,7 +155,7 @@ export async function updateMyProfile(
 			data
 		};
 	} catch (error) {
-		return mapApiError(error);
+		return toApiFailure(error);
 	}
 }
 
@@ -223,7 +163,7 @@ export async function getUser(id: string): Promise<Result<UserProfileResponse>> 
 	try {
 		return { ok: true, data: await getUserApi(id) };
 	} catch (error) {
-		return mapApiError(error);
+		return toApiFailure(error);
 	}
 }
 
@@ -234,7 +174,7 @@ export async function updateUser(
 	try {
 		return { ok: true, data: await updateUserApi(id, input) };
 	} catch (error) {
-		return mapApiError(error);
+		return toApiFailure(error);
 	}
 }
 

@@ -9,12 +9,14 @@
 	interface Props {
 		users: AdminUser[];
 		canManage: boolean;
-		editableProfileIds: string[];
+		administrableProfileIds: string[];
+		/** O backend proíbe gerenciar a própria conta pelas rotas administrativas. */
+		currentUserId: string;
 
 		onaction: (user: AdminUser, action: UserAction) => void;
 	}
 
-	let { users, canManage, editableProfileIds, onaction }: Props = $props();
+	let { users, canManage, administrableProfileIds, currentUserId, onaction }: Props = $props();
 
 	let openMenuId = $state<string | null>(null);
 
@@ -58,7 +60,7 @@
 		<tbody>
 			{#each users as user (user.id)}
 				{@const avatarUrl = resolveApiAssetUrl(user.avatarUrl)}
-				{@const canEditUser = editableProfileIds.includes(user.profile.id)}
+				{@const canEditUser = administrableProfileIds.includes(user.profile.id)}
 				<tr>
 					<td>
 						<div class="user-cell">
@@ -111,7 +113,7 @@
 					</td>
 
 					<td>
-						{#if !canManage}
+						{#if !canManage || !administrableProfileIds.includes(user.profile.id) || user.id === currentUserId}
 							<span class="no-actions" aria-hidden="true"> — </span>
 						{:else}
 							<div class="actions">
