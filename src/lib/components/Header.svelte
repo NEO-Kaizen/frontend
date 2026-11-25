@@ -11,10 +11,11 @@
 	import { logout } from '$lib/services/auth.service';
 	import { clearDraft } from '$lib/services/solicitation-draft.service';
 	import { searchRequests } from '$lib/services/request.service';
-	import { hasAny } from '$lib/services/access.service';
+	import { can, hasAny } from '$lib/services/access.service';
 	import {
 		OPERATIONAL_AREA_KEYS,
 		PORTAL_ACCESS_KEYS,
+		QUEUE_SEARCH_KEYS,
 		type PermissionKey
 	} from '$lib/types/permission';
 	import { onMount } from 'svelte';
@@ -95,9 +96,9 @@
 			route: NAV_ROUTES.logs
 		},
 		{
-			name: 'Gerenciar Usuários',
+			name: 'Usuários e Perfis',
 			icon: 'manageUsers',
-			keys: ['user:read'],
+			keys: ['user:read', 'profile:read'],
 			route: NAV_ROUTES.users
 		},
 		{
@@ -111,6 +112,16 @@
 	const navItems = $derived(navCatalog.filter((item) => hasAny(item.keys, currentUser)));
 
 	const hasOperationalAccess = $derived(hasAny(OPERATIONAL_AREA_KEYS, currentUser));
+
+	// Perfis administrativos (ex.: só `user:read`/`profile:read`) não têm
+	// `queue:read`; redirecioná-los para a fila cairia em /sem-autorizacao.
+	const canSearchQueue = $derived(hasAny(QUEUE_SEARCH_KEYS, currentUser));
+
+	// Sem fila nem acompanhamento o fallback público devolve 403: esconde a
+	// busca em vez de falhar em silêncio. Anônimo continua vendo (fluxo público).
+	const canSearch = $derived(
+		!isAuthenticated || canSearchQueue || can('request:track', 'own', currentUser)
+	);
 
 	const activeSearch = $derived(page.url.searchParams.get('search') ?? '');
 
@@ -134,7 +145,7 @@
 		isSearching = true;
 
 		try {
-			if (hasOperationalAccess) {
+			if (canSearchQueue) {
 				const searchParams = new URLSearchParams({ search: value });
 
 				// Plugin não aceita query string após resolve() (eslint-plugin-svelte#1327);
@@ -202,22 +213,24 @@
 		</a>
 
 		<div class="top_bar-interactables">
-			<form role="search" class="search-container" onsubmit={handleSearchSubmit}>
-				<Input
-					type="search"
-					placeholder="Buscar solicitação"
-					aria-label="Buscar solicitação"
-					name="pesquisar-chamados"
-					value={activeSearch}
-					disabled={isSearching}
-					actionIcon="search"
-					actionLabel="Buscar"
-					onAction={() => {
-						const form = document.querySelector('form[role="search"]') as HTMLFormElement | null;
-						form?.requestSubmit();
-					}}
-				/>
-			</form>
+			{#if canSearch}
+				<form role="search" class="search-container" onsubmit={handleSearchSubmit}>
+					<Input
+						type="search"
+						placeholder="Buscar solicitação"
+						aria-label="Buscar solicitação"
+						name="pesquisar-chamados"
+						value={activeSearch}
+						disabled={isSearching}
+						actionIcon="search"
+						actionLabel="Buscar"
+						onAction={() => {
+							const form = document.querySelector('form[role="search"]') as HTMLFormElement | null;
+							form?.requestSubmit();
+						}}
+					/>
+				</form>
+			{/if}
 
 			<Button
 				variant="primary"
@@ -297,8 +310,7 @@
 						</div>
 					{:else}
 						<a
-							class="nav-item"
-							class:active={isActive(item, page.url.pathname)}
+							class={['nav-item', { active: isActive(item, page.url.pathname) }]}
 							href={resolve(item.route)}
 						>
 							<Icon iconName={item.icon} />

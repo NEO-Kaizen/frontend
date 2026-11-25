@@ -32,7 +32,7 @@ interface HomeRedirect {
 const HOME_REDIRECTS: readonly HomeRedirect[] = [
 	{ keys: ['queue:read'], route: '/(admin)/fila' },
 	{ keys: ['reports:read'], route: '/(admin)/dashboard' },
-	{ keys: ['user:read'], route: '/(admin)/usuarios' },
+	{ keys: ['user:read', 'profile:read'], route: '/(admin)/usuarios' },
 	{ keys: PORTAL_ACCESS_KEYS, route: '/(admin)/configuracoes' },
 	{ keys: ['request:track'], route: '/(public)/acompanhar' }
 ];

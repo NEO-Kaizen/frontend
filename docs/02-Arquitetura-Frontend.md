@@ -52,6 +52,7 @@ src/
 │   │
 │   ├── mocks/
 │   │   ├── users.mock.ts
+│   │   ├── profiles.mock.ts
 │   │   ├── requests.mock.ts
 │   │   ├── auth.mock.ts
 │   │   └── index.ts
@@ -300,8 +301,8 @@ Os mocks devem:
 
 Os mocks são controlados por `src/lib/mocks/index.ts` — único ponto para ligar/desligar:
 
-- `MOCKS_ENABLED`: interruptor global (ligado em desenvolvimento);
-- `MOCK_DOMAINS`: toggle por domínio (`auth`, `request`; novos domínios entram aqui).
+- `MOCKS_ENABLED`: interruptor global (default do repositório: desligado; ligue localmente em desenvolvimento);
+- `MOCK_DOMAINS`: toggle por domínio (`auth`, `users`, `profiles`, `request`; novos domínios entram aqui).
 
 Regras:
 
@@ -319,6 +320,21 @@ Toda integração com o backend nasce acompanhada do mock correspondente, sempre
 
 Esse formato garante duas coisas: o frontend funciona integralmente desacoplado do backend (desenvolvimento e testes sem API), e o código de mock nunca entra no bundle de produção. Mocks fora desse padrão — imports estáticos, flags em runtime lidas no build de produção — quebram uma das duas garantias e não devem ser introduzidos.
 
+### Domínio `profiles`
+
+O domínio `profiles` atende a gestão de perfis:
+
+- `GET /profiles`: lista os perfis, incluindo inativos;
+- `GET /profiles/keys`: catálogo de chaves, custódias permitidas, dependências e predicados de atribuição;
+- `POST /profiles`: cria perfil;
+- `PATCH /profiles/:id`: edição parcial de identidade, composição e flags;
+- `PATCH /profiles/:id/status`: ativa/desativa perfil;
+- `POST /profiles/:id/duplicate`: duplica um perfil.
+
+Regras representadas no mock e na UI: nome único entre perfis ativos; perfil Root só editável pelo Root e nunca desativável; editar, ativar/desativar e duplicar exigem alvo estritamente abaixo da autoridade do ator (Root é exceção); desativação bloqueada por contagem de usuários; custódia concedível pelo ator; dependências e chaves fixas em `own` ou `global`; guarda atômica de composição + flags. As leituras mock são SSR-safe e não fazem gate de sessão (o `guardAny` do load cobre); as mutações exigem `profile:manage`.
+
+O contrato assumido pelo frontend está em [`docs/profiles-api.md`](./profiles-api.md), com endpoints, payloads e pendências de confirmação com o backend.
+
 ---
 
 ## 11. Utils e constants
@@ -334,6 +350,8 @@ A pasta `utils/` contém funções genéricas e reutilizáveis, como:
 - debounce.
 
 Uma função que representa uma regra específica do MAAT deve pertencer a um service, e não a `utils/`.
+
+Exceção: helpers puros de autorização (`has`, `can`, `canGrantCustody`, `canEditProfile`) vivem em `utils/permission-checks.ts` para serem consumidos por UI, services e mocks sem criar ciclo. Regras que orquestram dados continuam nos services.
 
 ### Constants
 
@@ -395,7 +413,7 @@ O logo e o item "Home" da navegação apontam sempre para `/`; o destino pós-lo
 
 - `queue:read` → `/fila`;
 - `reports:read` → `/dashboard`;
-- `user:read` → `/usuarios`;
+- `user:read` ou `profile:read` → `/usuarios`;
 - chaves de leitura do portal → `/configuracoes`;
 - `request:track` → `/acompanhar`;
 - senão → `/sem-autorizacao`.

@@ -29,6 +29,8 @@ export interface UserSummary {
 	createdAt: string;
 }
 
+// Assignment DTO: backend `GET /users/analysts` retorna só ativos,
+// então `isActive` não faz parte do contrato.
 export interface Analyst {
 	id: string;
 	fullName: string;

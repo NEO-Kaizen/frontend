@@ -356,6 +356,7 @@ export function listUsersMock(query: ListUsersQuery): Promise<PaginatedResponse<
 
 	const data = result.slice(start, start + pageSize).map((user) => ({
 		...user,
+		profile: getProfileReference(user.profile.id),
 		avatarUrl: user.avatarUrl ?? null
 	}));
 

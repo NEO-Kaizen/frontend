@@ -60,6 +60,7 @@
 		<tbody>
 			{#each users as user (user.id)}
 				{@const avatarUrl = resolveApiAssetUrl(user.avatarUrl)}
+				{@const canEditUser = administrableProfileIds.includes(user.profile.id)}
 				<tr>
 					<td>
 						<div class="user-cell">
@@ -132,6 +133,10 @@
 											<button
 												type="button"
 												class="menu-item"
+												disabled={!canEditUser}
+												title={!canEditUser
+													? 'Seu perfil não permite editar este usuário.'
+													: undefined}
 												onclick={() => handleAction(user, 'edit')}
 											>
 												<span class="menu-icon">

@@ -7,6 +7,7 @@ import type {
 } from '$lib/types/auth';
 import { ApiError } from '$lib/types/result';
 import { PORTAL_READ_KEYS } from '$lib/types/permission';
+import { BASE_PROFILE_IDS } from './profile-seed.mock';
 import {
 	ALL_PERMISSIONS,
 	ANALYST_PERMISSIONS,
@@ -105,14 +106,29 @@ export function logoutMock(): Promise<null> {
 }
 
 export function getMeMock(sessionId?: string): Promise<SessionUser> {
-	const userId = sessionId ?? readSessionCookie();
-	const user = userId ? MOCK_USERS.find((candidate) => candidate.id === userId) : undefined;
+	const user = findSessionUser(sessionId);
 
 	if (!user) {
 		return Promise.reject(new ApiError(401, 'Sessão expirada ou inválida.'));
 	}
 
 	return Promise.resolve(toSessionUser(user));
+}
+
+// Espelha o payload real de GET /auth/me (usado pela camada de API).
+export function getMeResponseMock(sessionId?: string): Promise<unknown> {
+	const user = findSessionUser(sessionId);
+
+	if (!user) {
+		return Promise.reject(new ApiError(401, 'Sessão expirada ou inválida.'));
+	}
+
+	return Promise.resolve(toSessionPayload(user));
+}
+
+function findSessionUser(sessionId?: string): MockUser | undefined {
+	const userId = sessionId ?? readSessionCookie();
+	return userId ? MOCK_USERS.find((candidate) => candidate.id === userId) : undefined;
 }
 
 export function changePasswordMock(payload: ChangePasswordPayload): Promise<void> {
@@ -150,6 +166,22 @@ function toSessionUser(user: MockUser): SessionUser {
 		email: user.email,
 		avatarUrl: user.avatarUrl,
 		role: user.role,
+		mustChangePassword: user.mustChangePassword,
+		permissions: structuredClone(user.permissions)
+	};
+}
+
+// Espelha GET /auth/me: identidade em `profile`, sem `role` legado.
+function toSessionPayload(user: MockUser) {
+	return {
+		id: user.id,
+		name: user.name,
+		email: user.email,
+		avatarUrl: user.avatarUrl,
+		profile: {
+			id: BASE_PROFILE_IDS[user.role as keyof typeof BASE_PROFILE_IDS] ?? '',
+			name: user.role
+		},
 		mustChangePassword: user.mustChangePassword,
 		permissions: structuredClone(user.permissions)
 	};

@@ -1,6 +1,7 @@
 import type { SessionUser } from '$lib/types/auth';
 import type { Permission, PermissionCustody } from '$lib/types/permission';
 import type { Profile } from '$lib/types/profile';
+import { isRootActor } from '$lib/utils/permission-checks';
 
 function custodyContains(
 	actorCustody: PermissionCustody,
@@ -33,17 +34,11 @@ function containsAll(targetGrants: PermissionGrants, actorGrants: PermissionGran
 	});
 }
 
-export function isAuthorityStrictlyBelow(
+function isAuthorityStrictlyBelow(
 	targetGrants: PermissionGrants,
 	actorGrants: PermissionGrants
 ): boolean {
 	return containsAll(targetGrants, actorGrants) && !containsAll(actorGrants, targetGrants);
-}
-
-// TODO(#229): trocar por `actor.profile.isRoot` quando SessionUser expuser o
-// perfil; hoje o rótulo de `role` é o único discriminador disponível.
-export function isRootActor(actor: SessionUser | null): boolean {
-	return actor?.role === 'Admin Root';
 }
 
 function hasAuthorityOverProfile(actor: SessionUser | null, target: Profile): boolean {
@@ -51,6 +46,13 @@ function hasAuthorityOverProfile(actor: SessionUser | null, target: Profile): bo
 	if (isRootActor(actor)) return true;
 
 	return isAuthorityStrictlyBelow(target.permissions, actor.permissions);
+}
+
+// Edição/alteração de status exigem alvo ativo e estritamente abaixo do ator.
+export function canManageProfile(actor: SessionUser | null, target: Profile): boolean {
+	if (!actor || !target.isActive || target.isRoot) return false;
+
+	return hasAuthorityOverProfile(actor, target);
 }
 
 export function canAssignProfile(actor: SessionUser | null, target: Profile): boolean {

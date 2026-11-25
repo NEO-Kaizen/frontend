@@ -35,8 +35,8 @@ export async function logout(): Promise<unknown> {
 // cookie é HttpOnly e a validação ocorre exclusivamente em /auth/me.
 export async function getMe(fetchImpl?: typeof fetch, sessionId?: string): Promise<unknown> {
 	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.auth) {
-		const { getMeMock } = await import('$lib/mocks/auth.mock');
-		return getMeMock(sessionId);
+		const { getMeResponseMock } = await import('$lib/mocks/auth.mock');
+		return getMeResponseMock(sessionId);
 	}
 
 	return apiClient<unknown>(ME_PATH, {}, fetchImpl);
