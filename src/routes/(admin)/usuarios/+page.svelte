@@ -98,8 +98,11 @@
 
 	// Navegações de filtro (GET) trocam `data.result`; limpar o override evita
 	// que a tabela continue exibindo o resultado de uma busca/paginação anterior.
+	// O select e a busca também voltam ao estado canônico da URL.
 	afterNavigate(() => {
 		fetchedResult = null;
+		selectedProfileId = data.profileId ?? '';
+		searchQuery = '';
 	});
 
 	let users = $derived<AdminUser[]>(result.ok ? result.data.data : []);
