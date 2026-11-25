@@ -16,11 +16,11 @@ export function sanitizeSessionUser(raw: unknown): SessionUser | null {
 
 	if (!id || !email) return null;
 
-	const legacyRole = readString(source.role);
+	const legacyRoleName = readString(source.role)?.trim() || null;
 	const profileName = readProfileName(source.profile);
 	const profileIsRoot = readProfileIsRoot(source.profile);
 
-	if (!legacyRole && !profileName && dev) {
+	if (!legacyRoleName && !profileName && dev) {
 		// Contrato de sessão incompleto: nem `role` legado nem `profile.name`.
 		console.warn('[session] payload sem role/profile.name; usando "Solicitante".', {
 			keys: Object.keys(source)
@@ -39,7 +39,10 @@ export function sanitizeSessionUser(raw: unknown): SessionUser | null {
 		name: readString(source.name) ?? '',
 		email,
 		avatarUrl: readString(source.avatarUrl),
-		role: legacyRole || profileName || 'Solicitante',
+		profile: {
+			id: readProfileId(source.profile) ?? '',
+			name: profileName ?? legacyRoleName ?? 'Solicitante'
+		},
 		isRoot: profileIsRoot === true,
 		mustChangePassword: source.mustChangePassword === true,
 		permissions: sanitizePermissions(source.permissions)
@@ -74,11 +77,16 @@ function readString(value: unknown): string | null {
 	return typeof value === 'string' ? value : null;
 }
 
-// O `/auth/me` da epic entrega a identidade em `profile: { id, name, isRoot }`;
-// o `role` legado só é usado como rótulo de exibição, nunca para autorização.
+// O `/auth/me` entrega `profile: { id, name, isRoot }`; o `role` legado só é
+// usado como fallback de nome, nunca para autorização.
 function readProfileName(value: unknown): string | null {
 	if (!isRecord(value)) return null;
-	return readString(value.name);
+	return readString(value.name)?.trim() || null;
+}
+
+function readProfileId(value: unknown): string | null {
+	if (!isRecord(value)) return null;
+	return readString(value.id)?.trim() || null;
 }
 
 function readProfileIsRoot(value: unknown): boolean | null {

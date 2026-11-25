@@ -1,4 +1,4 @@
-import type { UserType } from './user';
+import type { ProfileReference } from './profile';
 import type { Permission } from './permission';
 
 export interface LoginCredentials {
@@ -6,15 +6,13 @@ export interface LoginCredentials {
 	password: string;
 }
 
-export type SessionRole = UserType | (string & {});
-
 export interface SessionUser {
 	id: string;
 	name: string;
 	email: string;
 	avatarUrl: string | null;
-	role: SessionRole;
-	/** Marca estável do Perfil Root. Autorização nunca usa `role`. */
+	profile: ProfileReference;
+	/** Marca estável do Perfil Root. Autorização nunca usa `profile.name`. */
 	isRoot: boolean;
 	mustChangePassword: boolean;
 	permissions: Permission[];

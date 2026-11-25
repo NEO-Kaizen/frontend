@@ -71,7 +71,7 @@ export const ANALYST_PERMISSIONS = buildProfilePermissions({
 	]
 });
 
-export const MANAGER_PERMISSIONS = buildProfilePermissions({
+export const VIEWER_PERMISSIONS = buildProfilePermissions({
 	global: ['request:create', 'reports:read', 'assignee_directory:read'],
 	own: ['request:track', 'pending_item:respond'],
 	all: [

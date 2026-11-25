@@ -28,29 +28,18 @@ let nextInternalNoteId = 3;
 const PROFILE_REFERENCES = {
 	solicitante: { id: '1', name: 'Solicitante' },
 	analista: { id: '2', name: 'Analista' },
-	gestor: { id: '3', name: 'Gestor' },
+	visualizador: { id: '3', name: 'Visualizador' },
 	administrador: { id: '4', name: 'Administrador' },
 	adminRoot: { id: '5', name: 'Admin Root' }
 } as const satisfies Record<string, ProfileReference>;
 
 const LEGACY_PROFILE: ProfileSnapshot = { id: null, name: 'Analista' };
 
-// Snapshot histórico de exibição: `SessionUser` expõe `role` apenas como
-// rótulo. Não é regra de autorização — a checagem de acesso usa `internal_note:*`.
-function profileFromSessionRole(role: string): ProfileReference {
-	switch (role) {
-		case 'Admin Root':
-			return PROFILE_REFERENCES.adminRoot;
-		case 'Administrador':
-			return PROFILE_REFERENCES.administrador;
-		case 'Gestor':
-			return PROFILE_REFERENCES.gestor;
-		case 'Analista':
-			return PROFILE_REFERENCES.analista;
-		default:
-			return PROFILE_REFERENCES.solicitante;
-	}
-}
+// Snapshot histórico: notas antigas conservam o rótulo da época da criação.
+const PROFILE_SNAPSHOT_BEFORE_VISUALIZADOR_RENAME: ProfileSnapshot = {
+	id: '3',
+	name: 'Gestor'
+};
 
 type InternalNoteAccessKey = 'internal_note:read' | 'internal_note:write';
 
@@ -141,7 +130,11 @@ const timelineStore = new Map<string, TimelineItem[]>([
 				id: '2',
 				content: 'A área responsável foi acionada e deve retornar até o fim do dia.',
 				createdAt: '2026-09-18T16:20:00.000Z',
-				author: { id: '2', name: 'Marcos Lima', profile: PROFILE_REFERENCES.gestor }
+				author: {
+					id: '2',
+					name: 'Marcos Lima',
+					profile: PROFILE_SNAPSHOT_BEFORE_VISUALIZADOR_RENAME
+				}
 			},
 			{
 				type: 'event',
@@ -493,7 +486,7 @@ export async function createInternalNoteMock(
 		author: {
 			id: currentUser.id,
 			name: currentUser.name,
-			profile: profileFromSessionRole(currentUser.role)
+			profile: structuredClone(currentUser.profile)
 		}
 	};
 	const timeline = [...getTimeline(normalized), note].sort(compareAsc);

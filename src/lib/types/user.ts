@@ -1,8 +1,6 @@
 import type { ProfileReference } from '$lib/types/profile';
 import type { RequestCategory } from './request';
 
-export type UserType = 'Solicitante' | 'Analista' | 'Administrador' | 'Gestor';
-
 export type UserStatus = 'Ativo' | 'Inativo';
 
 export type UserAction = 'activate' | 'deactivate' | 'reset' | 'edit';

@@ -6,7 +6,7 @@
 export const BASE_PROFILE_IDS = {
 	Solicitante: '1',
 	Analista: '2',
-	Gestor: '3',
+	Visualizador: '3',
 	Administrador: '4',
 	'Admin Root': '5'
 } as const;

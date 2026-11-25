@@ -264,7 +264,7 @@
 				>
 					<div class="profile_block-identification">
 						<p class="profile_block-name">{currentUser?.name}</p>
-						<p class="profile_block-role">{currentUser?.role}</p>
+						<p class="profile_block-role">{currentUser?.profile.name}</p>
 					</div>
 					<span class="profile_block-avatar">
 						{#if userAvatarUrl}
