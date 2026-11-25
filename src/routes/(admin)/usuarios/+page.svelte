@@ -96,21 +96,22 @@
 	let fetchedResult = $state<Result<PaginatedResponse<AdminUser>> | null>(null);
 	let result = $derived(fetchedResult ?? data.result);
 
-	// Navegações de filtro (GET) trocam `data.result`; limpar o override evita
-	// que a tabela continue exibindo o resultado de uma busca/paginação anterior.
-	// O select e a busca também voltam ao estado canônico da URL.
-	afterNavigate(() => {
-		fetchedResult = null;
-		selectedProfileId = data.profileId ?? '';
-		searchQuery = '';
-	});
-
 	let users = $derived<AdminUser[]>(result.ok ? result.data.data : []);
 	let loadError = $derived(result.ok ? '' : result.error.message);
 	let total = $derived(result.ok ? result.data.total : 0);
 	let currentPage = $derived(result.ok ? result.data.page : 1);
 	let totalPages = $derived(result.ok ? result.data.totalPages : 0);
 	let searchTimer: ReturnType<typeof setTimeout> | undefined;
+
+	// Navegações de filtro (GET) trocam `data.result`; limpar o override evita
+	// que a tabela continue exibindo o resultado de uma busca/paginação anterior.
+	// O select e a busca também voltam ao estado canônico da URL.
+	afterNavigate(() => {
+		clearTimeout(searchTimer);
+		fetchedResult = null;
+		selectedProfileId = data.profileId ?? '';
+		searchQuery = '';
+	});
 
 	let successMessage = $state('');
 	let successTimer: ReturnType<typeof setTimeout> | undefined;
