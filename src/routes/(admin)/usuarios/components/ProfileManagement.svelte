@@ -7,10 +7,11 @@
 	import type { SessionUser } from '$lib/types/auth';
 	import type { Result } from '$lib/types/result';
 	import { changeProfileStatus } from '$lib/services/profile.service';
+	import { profileStatusRestriction } from '$lib/utils/profile-status';
 	import ProfileEditorModal from './ProfileEditorModal.svelte';
 	import ProfileStatusDialog from './ProfileStatusDialog.svelte';
 	import ProfileTable from './ProfileTable.svelte';
-	import type { EditorMode, ProfileView } from './profile-management.types';
+	import type { EditorMode } from './profile-management.types';
 
 	interface Props {
 		user: SessionUser;
@@ -21,7 +22,7 @@
 
 	let { user, canManage, profilesResult, profileKeyCatalogResult }: Props = $props();
 	let profilesOverride = $state<Profile[] | null>(null);
-	let profiles = $derived(profileSource().map(normalizeProfile));
+	let profiles = $derived(profileSource());
 	let loadError = $derived(
 		profilesOverride
 			? ''
@@ -40,26 +41,11 @@
 	let isLoading = $state(false);
 	let editorMode = $state<EditorMode | null>(null);
 	let selectedProfile = $state<Profile | null>(null);
-	let pendingStatus = $state<ProfileView | null>(null);
+	let pendingStatus = $state<Profile | null>(null);
 	let isChangingStatus = $state(false);
 	let statusError = $state('');
 	let successMessage = $state('');
 	let successMessageTimer: ReturnType<typeof setTimeout> | undefined;
-
-	function normalizeProfile(profile: Profile): ProfileView {
-		return {
-			source: profile,
-			id: profile.id,
-			name: profile.name,
-			description: profile.description ?? '',
-			composition: profile.permissions.map(({ key, custody }) => ({ key, custody })),
-			isRoot: profile.isRoot,
-			isActive: profile.isActive,
-			isAssignableTriage: profile.isAssignableTriage,
-			isAssignableMapping: profile.isAssignableMapping,
-			userCount: profile.userCount
-		};
-	}
 
 	function profileSource(): Profile[] {
 		return profilesOverride ?? (profilesResult?.ok ? profilesResult.data : []);
@@ -106,7 +92,7 @@
 		selectedProfile = null;
 	}
 
-	function openStatus(profile: ProfileView) {
+	function openStatus(profile: Profile) {
 		clearSuccessMessage();
 		statusError = '';
 		pendingStatus = profile;
@@ -162,11 +148,10 @@
 	}
 
 	async function confirmStatusChange() {
-		if (
-			!canManage ||
-			!pendingStatus ||
-			(pendingStatus.isActive && (pendingStatus.isRoot || pendingStatus.userCount > 0))
-		) {
+		if (!canManage || !pendingStatus) {
+			return;
+		}
+		if (profileStatusRestriction(pendingStatus, { canEdit: canManage }).blocked) {
 			return;
 		}
 		clearSuccessMessage();
@@ -186,7 +171,7 @@
 		showSuccessMessage(
 			`Perfil "${profile.name}" ${profile.isActive ? 'desativado' : 'ativado'} com sucesso.`
 		);
-		void syncPageData({ ...profile.source, isActive: !profile.isActive });
+		void syncPageData({ ...profile, isActive: !profile.isActive });
 	}
 </script>
 

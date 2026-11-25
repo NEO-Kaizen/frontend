@@ -1,10 +1,11 @@
 <script lang="ts">
 	import Button from '$lib/components/Button.svelte';
 	import Modal from '$lib/components/Modal.svelte';
-	import type { ProfileView } from './profile-management.types';
+	import type { Profile } from '$lib/types/profile';
+	import { profileStatusRestriction } from '$lib/utils/profile-status';
 
 	interface Props {
-		profile: ProfileView;
+		profile: Profile;
 		isChangingStatus: boolean;
 		statusError: string;
 		onclose: () => void;
@@ -12,19 +13,14 @@
 	}
 
 	let { profile, isChangingStatus, statusError, onclose, onconfirm }: Props = $props();
+
+	const restriction = $derived(profileStatusRestriction(profile, { canEdit: true }));
 </script>
 
 <Modal title={profile.isActive ? 'Desativar perfil' : 'Ativar perfil'} {onclose}>
 	<div class="confirm-content">
-		{#if profile.isActive && profile.isRoot}
-			<p>O perfil Admin Root não pode ser desativado.</p>
-		{:else if profile.isActive && profile.userCount > 0}
-			<p>
-				Este perfil não pode ser desativado enquanto
-				{profile.userCount === 1
-					? '1 usuário estiver associado'
-					: `${profile.userCount} usuários estiverem associados`}.
-			</p>
+		{#if profile.isActive && restriction.blocked}
+			<p>{restriction.dialogMessage}</p>
 		{:else}
 			<p>
 				{profile.isActive
@@ -40,7 +36,7 @@
 			<Button variant="outline-neutral" disabled={isChangingStatus} onclick={onclose}>
 				Cancelar
 			</Button>
-			{#if !(profile.isActive && (profile.isRoot || profile.userCount > 0))}
+			{#if !restriction.blocked}
 				<Button variant="primary" loading={isChangingStatus} onclick={onconfirm}>
 					{profile.isActive ? 'Desativar' : 'Ativar'}
 				</Button>

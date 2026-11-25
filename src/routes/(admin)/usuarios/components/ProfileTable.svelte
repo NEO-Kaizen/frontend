@@ -1,28 +1,22 @@
 <script lang="ts">
 	import Button from '$lib/components/Button.svelte';
 	import type { SessionUser } from '$lib/types/auth';
-	import type { PermissionCustody } from '$lib/types/permission';
 	import type { Profile } from '$lib/types/profile';
 	import { canEditProfile, canGrantCustody } from '$lib/utils/permission-checks';
-	import type { ProfileView } from './profile-management.types';
+	import { custodyLabels } from '$lib/utils/profile-labels';
+	import { profileStatusRestriction } from '$lib/utils/profile-status';
 
 	interface Props {
-		profiles: ProfileView[];
+		profiles: Profile[];
 		canManage: boolean;
 		user: SessionUser;
 		onedit: (profile: Profile) => void;
 		onduplicate: (profile: Profile) => void;
-		onstatus: (profile: ProfileView) => void;
+		onstatus: (profile: Profile) => void;
 	}
 
 	let { profiles, canManage, user, onedit, onduplicate, onstatus }: Props = $props();
 
-	const custodyLabels: Record<PermissionCustody, string> = {
-		global: 'Global',
-		own: 'Próprio',
-		assigned: 'Atribuído',
-		all: 'Todos'
-	};
 	const duplicateRestrictionMessage =
 		'Não é possível duplicar: sua conta não pode conceder todas as permissões e escopos herdados deste perfil.';
 
@@ -59,21 +53,14 @@
 			</thead>
 			<tbody>
 				{#each profiles as profile (profile.id)}
-					{@const canDuplicate = canDuplicateProfile(profile.source)}
-					{@const canEdit = canEditProfile(user, profile.source)}
+					{@const canDuplicate = canDuplicateProfile(profile)}
+					{@const canEdit = canEditProfile(user, profile)}
 					{@const displayName = profile.name || 'perfil sem nome'}
 					{@const duplicateRestriction = !canEdit
 						? 'Seu perfil não tem autoridade suficiente para duplicar este perfil.'
 						: duplicateRestrictionMessage}
-					{@const statusRestrictionMessage = !canEdit
-						? 'Seu perfil não tem autoridade suficiente para alterar este perfil.'
-						: profile.isActive && profile.isRoot
-							? 'O perfil Admin Root não pode ser desativado.'
-							: profile.isActive && profile.userCount > 0
-								? profile.userCount === 1
-									? 'Não é possível desativar: 1 usuário ainda utiliza este perfil.'
-									: `Não é possível desativar: ${profile.userCount} usuários ainda utilizam este perfil.`
-								: ''}
+					{@const statusRestriction = profileStatusRestriction(profile, { canEdit })}
+					{@const statusRestrictionMessage = statusRestriction.tableMessage}
 					<tr>
 						<th scope="row">
 							<div class="name-cell">
@@ -87,10 +74,10 @@
 							{/if}
 						</th>
 						<td>
-							<span class="composition-count">{profile.composition.length} chaves</span>
-							{#if profile.composition.length > 0}
+							<span class="composition-count">{profile.permissions.length} chaves</span>
+							{#if profile.permissions.length > 0}
 								<span class="composition-list">
-									{profile.composition
+									{profile.permissions
 										.map(
 											(permission) =>
 												`${permission.key} (escopo: ${custodyLabels[permission.custody]})`
@@ -143,7 +130,7 @@
 										variant="outline"
 										disabled={!canEdit}
 										aria-label={`Editar perfil ${displayName}`}
-										onclick={() => onedit(profile.source)}
+										onclick={() => onedit(profile)}
 									>
 										Editar
 									</Button>
@@ -162,7 +149,7 @@
 										aria-describedby={!canDuplicate
 											? `duplicate-guidance-${profile.id}`
 											: undefined}
-										onclick={() => onduplicate(profile.source)}
+										onclick={() => onduplicate(profile)}
 									>
 										Duplicar
 									</Button>
