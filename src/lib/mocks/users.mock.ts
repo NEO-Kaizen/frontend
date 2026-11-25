@@ -369,7 +369,10 @@ export function listUsersMock(query: ListUsersQuery): Promise<PaginatedResponse<
 	}));
 }
 
-export function listAnalystsMock(): Promise<Analyst[]> {
+// O mock não modela `requester_user_id`; a exclusão do criador é responsabilidade
+// do backend (B9). `protocol` fica no contrato para espelhar a rota real.
+export function listAnalystsMock(protocol?: string): Promise<Analyst[]> {
+	void protocol;
 	const result = mockUsers
 		.filter((user) => user.isActive && hasTriageProfile(user.profile.id))
 		.map((user) => ({

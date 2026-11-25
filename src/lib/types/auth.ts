@@ -14,6 +14,8 @@ export interface SessionUser {
 	email: string;
 	avatarUrl: string | null;
 	role: SessionRole;
+	/** Marca estável do Perfil Root. Autorização nunca usa `role`. */
+	isRoot: boolean;
 	mustChangePassword: boolean;
 	permissions: Permission[];
 }

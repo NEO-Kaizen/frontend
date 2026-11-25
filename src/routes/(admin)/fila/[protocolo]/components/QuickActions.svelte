@@ -17,6 +17,8 @@
 		requestChangeBlockedHint?: string | null;
 		onAction?: (key: string) => void;
 		hiddenActionKeys?: readonly string[];
+		/** Ações visíveis por permissão, mas bloqueadas por outra dependência. */
+		disabledActionHints?: Readonly<Record<string, string>>;
 		hasExistingPriority?: boolean;
 		existingPriorityDisplay?: string | null;
 	}
@@ -30,6 +32,7 @@
 		requestChangeBlockedHint = null,
 		onAction,
 		hiddenActionKeys = [],
+		disabledActionHints = {},
 		hasExistingPriority = false,
 		existingPriorityDisplay = null
 	}: Props = $props();
@@ -92,6 +95,10 @@
 			filtered = filtered.filter((a) => a.key !== 'requestChange');
 		}
 		return filtered.map((a) => {
+			const disabledHint = disabledActionHints[a.key];
+			if (disabledHint) {
+				return { ...a, disabled: true, hint: disabledHint };
+			}
 			if (a.key === 'priorityCalculator' && hasExistingPriority) {
 				return {
 					...a,

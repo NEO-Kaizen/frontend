@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { fly, fade, scale } from 'svelte/transition';
 	import { cubicInOut, cubicOut } from 'svelte/easing';
@@ -109,10 +108,10 @@
 
 	const selectedAnalyst = $derived(analysts.find((a) => a.id === selectedId) ?? null);
 
-	async function loadAnalysts(): Promise<void> {
+	async function loadAnalysts(forProtocol: string): Promise<void> {
 		isLoading = true;
 		loadError = null;
-		const result = await listAnalysts();
+		const result = await listAnalysts(forProtocol);
 		if (result.ok) {
 			// Backend retorna só ativos — lista direta sem paginação, filtros no front
 			analysts = result.data as Analyst[];
@@ -123,8 +122,10 @@
 		}
 	}
 
-	onMount(() => {
-		void loadAnalysts();
+	// Recarrega quando o protocolo muda: o backend exclui o criador da solicitação.
+	$effect(() => {
+		const currentProtocol = protocol;
+		void loadAnalysts(currentProtocol);
 	});
 
 	function handleSelect(id: string): void {
@@ -188,7 +189,7 @@
 	}
 
 	function handleRetry(): void {
-		void loadAnalysts();
+		void loadAnalysts(protocol);
 	}
 </script>
 
@@ -455,20 +456,6 @@
 		overflow: hidden;
 	}
 
-	.assign-subtitle {
-		margin: 0;
-		font-family: var(--font-inter);
-		font-size: 13px;
-		font-weight: 400;
-		color: var(--gray);
-		line-height: 1.4;
-	}
-
-	.protocol-highlight {
-		color: var(--primary-color);
-		font-weight: 700;
-	}
-
 	.current-banner {
 		display: flex;
 		align-items: center;
@@ -487,11 +474,6 @@
 	.current-banner :global(.material-symbols-outlined) {
 		color: var(--primary-color);
 		flex-shrink: 0;
-	}
-
-	.banner-hint {
-		color: var(--gray);
-		font-weight: 400;
 	}
 
 	.filters-row {

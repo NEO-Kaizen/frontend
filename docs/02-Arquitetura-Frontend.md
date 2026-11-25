@@ -401,7 +401,7 @@ Os grupos entre parênteses organizam as rotas sem alterar diretamente a URL e d
 
 **Grupo ≠ perfil.** O perfil do usuário nunca gera um novo grupo de rotas. O access service (`src/lib/services/access.service.ts`) expõe `has(chave)`, `hasAny(chaves)` e `can(chave, vínculo)` como funções puras sobre a sessão. Perfis customizados entram apenas pela lista efetiva de permissões devolvida por `/auth/me`.
 
-**Alçada administrativa.** A autorização para gerenciar usuários é calculada por dominância estrita de permissões (`isAuthorityStrictlyBelow`), não por nome de Perfil, rótulo da sessão ou `isActive`. O service `src/lib/services/account-authority.service.ts` separa Perfis designáveis em formulários (ativos, não Root e abaixo do ator) de Perfis cujos usuários podem ser administrados (não Root e abaixo do ator, inclusive inativos). A identificação de Admin Root ainda usa `role === 'Admin Root'` enquanto `SessionUser` não expõe `profile`; veja `docs/adr/0001-alcada-por-permissoes.md`.
+**Alçada administrativa.** A autorização para gerenciar usuários é calculada por dominância estrita de permissões (`isAuthorityStrictlyBelow`), não por nome de Perfil, rótulo da sessão ou `isActive`. O service `src/lib/services/account-authority.service.ts` separa Perfis designáveis em formulários (ativos, não Root e abaixo do ator) de Perfis cujos usuários podem ser administrados (não Root e abaixo do ator, inclusive inativos). A identificação de Admin Root usa `user.isRoot`, a marca estável de `SessionUser`; o rótulo `role` serve apenas para exibição. Veja `docs/adr/0001-alcada-por-permissoes.md`.
 
 O grupo `(admin)` tem papel de guard server-side (não define layout visual): o Header permanece único, com navegação anotada por chave e filtrada por `has`/`hasAny`.
 

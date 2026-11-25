@@ -1,10 +1,5 @@
 import { browser } from '$app/environment';
-import type {
-	ChangePasswordPayload,
-	LoginCredentials,
-	LoginResponse,
-	SessionUser
-} from '$lib/types/auth';
+import type { ChangePasswordPayload, LoginCredentials, SessionUser } from '$lib/types/auth';
 import { ApiError } from '$lib/types/result';
 import { PORTAL_READ_KEYS } from '$lib/types/permission';
 import { BASE_PROFILE_IDS } from './profile-seed.mock';
@@ -30,6 +25,7 @@ const MOCK_USERS: MockUser[] = [
 		email: 'analista@maat.com.br',
 		avatarUrl: null,
 		role: 'Analista',
+		isRoot: false,
 		mustChangePassword: false,
 		permissions: ANALYST_PERMISSIONS,
 		password: 'admin'
@@ -40,6 +36,7 @@ const MOCK_USERS: MockUser[] = [
 		email: 'gestor@maat.com.br',
 		avatarUrl: null,
 		role: 'Gestor',
+		isRoot: false,
 		mustChangePassword: false,
 		permissions: MANAGER_PERMISSIONS,
 		password: 'admin'
@@ -50,6 +47,7 @@ const MOCK_USERS: MockUser[] = [
 		email: 'admin@maat.com.br',
 		avatarUrl: null,
 		role: 'Administrador',
+		isRoot: false,
 		mustChangePassword: false,
 		permissions: ALL_PERMISSIONS,
 		password: 'admin'
@@ -60,6 +58,7 @@ const MOCK_USERS: MockUser[] = [
 		email: 'solicitante@maat.com.br',
 		avatarUrl: null,
 		role: 'Solicitante',
+		isRoot: false,
 		mustChangePassword: false,
 		permissions: SELF_SERVICE_PERMISSIONS,
 		password: 'temp123'
@@ -70,6 +69,7 @@ const MOCK_USERS: MockUser[] = [
 		email: 'root@maat.com.br',
 		avatarUrl: null,
 		role: 'Admin Root',
+		isRoot: true,
 		mustChangePassword: false,
 		permissions: ALL_PERMISSIONS,
 		password: 'admin'
@@ -80,6 +80,7 @@ const MOCK_USERS: MockUser[] = [
 		email: 'portal@maat.com.br',
 		avatarUrl: null,
 		role: 'Leitura de portal',
+		isRoot: false,
 		mustChangePassword: false,
 		permissions: CUSTOM_PORTAL_READER_PERMISSIONS,
 		password: 'admin'
@@ -88,7 +89,9 @@ const MOCK_USERS: MockUser[] = [
 
 const SESSION_COOKIE_NAME = 'session_id';
 
-export function loginMock(credentials: LoginCredentials): Promise<LoginResponse> {
+// Espelha POST /auth/login: o payload traz `profile` (com `isRoot`), não
+// `role`; a sessão só é montada depois de `sanitizeSessionUser`.
+export function loginMock(credentials: LoginCredentials): Promise<unknown> {
 	const email = credentials.email.trim().toLowerCase();
 	const user = MOCK_USERS.find((candidate) => candidate.email === email);
 
@@ -97,7 +100,7 @@ export function loginMock(credentials: LoginCredentials): Promise<LoginResponse>
 	}
 
 	setMockSessionCookie(user.id);
-	return Promise.resolve(toSessionUser(user));
+	return Promise.resolve(toSessionPayload(user));
 }
 
 export function logoutMock(): Promise<null> {
@@ -166,6 +169,7 @@ function toSessionUser(user: MockUser): SessionUser {
 		email: user.email,
 		avatarUrl: user.avatarUrl,
 		role: user.role,
+		isRoot: user.isRoot,
 		mustChangePassword: user.mustChangePassword,
 		permissions: structuredClone(user.permissions)
 	};
@@ -180,7 +184,8 @@ function toSessionPayload(user: MockUser) {
 		avatarUrl: user.avatarUrl,
 		profile: {
 			id: BASE_PROFILE_IDS[user.role as keyof typeof BASE_PROFILE_IDS] ?? '',
-			name: user.role
+			name: user.role,
+			isRoot: user.isRoot
 		},
 		mustChangePassword: user.mustChangePassword,
 		permissions: structuredClone(user.permissions)

@@ -279,10 +279,20 @@
 		priorityBadgeTheme(solicitation.prioritization.label, isPriorityCalculated)
 	);
 
-	const canAssign = $derived(
+	const canAssignBase = $derived(
 		can('request:assign', 'all', currentUser) ||
 			(can('request:assign', 'assigned', currentUser) &&
 				Boolean(currentUser && solicitation.assignee?.id === currentUser.id))
+	);
+	const canReadAssigneeDirectory = $derived(has('assignee_directory:read', currentUser));
+	const canAssign = $derived(canAssignBase && canReadAssigneeDirectory);
+	const assignUnavailableReason = $derived(
+		canAssignBase && !canReadAssigneeDirectory
+			? 'Seu perfil pode atribuir, mas não possui acesso ao diretório de responsáveis.'
+			: null
+	);
+	const assignDisabledHints = $derived<Readonly<Record<string, string>>>(
+		assignUnavailableReason ? { assignResponsible: assignUnavailableReason } : {}
 	);
 
 	const canCalculate = $derived(
@@ -321,7 +331,7 @@
 	const hiddenQuickActionKeys = $derived.by(() => {
 		const hidden: string[] = [];
 
-		if (!canAssign) {
+		if (!canAssignBase) {
 			hidden.push('assignResponsible');
 		}
 
@@ -535,6 +545,7 @@
 		onRequestChange={enterPendencyMode}
 		isRequestChangeBlocked={isPendencyBlocked}
 		hiddenActionKeys={hiddenQuickActionKeys}
+		disabledActionHints={assignDisabledHints}
 		hasExistingPriority={isPriorityCalculated}
 		existingPriorityDisplay={isPriorityCalculated
 			? `${displayScore}/${maxScore} — ${priorityLabel}`

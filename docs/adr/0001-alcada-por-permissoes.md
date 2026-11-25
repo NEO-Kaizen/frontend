@@ -12,7 +12,7 @@ A tela de usuários precisa responder a três perguntas distintas:
 2. quais usuários podem ser administrados (editar, ativar/desativar, redefinir senha);
 3. se o Perfil de origem de uma nota ou registro deve ser exibido como snapshot histórico.
 
-O frontend não recebe o `profile` do usuário da sessão (`SessionUser`); recebe apenas `role` e a lista efetiva de permissões. Enquanto `SessionUser` não expõe `profile` (evolução futura), a identificação de Admin Root depende de um shim temporário pelo rótulo `role`.
+O frontend não recebia o `profile` do usuário da sessão (`SessionUser`); recebia apenas `role` e a lista efetiva de permissões. Naquele momento, a identificação de Admin Root dependia de um shim temporário pelo rótulo `role`; hoje `SessionUser` expõe `isRoot` e o shim foi removido (ver Consequências).
 
 Também havia duas noções sendo tratadas como uma só: “Perfil que posso designar” e “Perfil cujos usuários posso administrar”. Isso fazia com que usuários de Perfis inativos perdessem ações de administração, inclusive a migração para um Perfil ativo.
 
@@ -26,7 +26,7 @@ A alçada administrativa será calculada por **dominância estrita de permissõe
 - `canManageUserWithProfile` exige não Root e dominância estrita, independentemente do status do Perfil;
 - `listAssignableProfiles` alimenta formulários;
 - `listAdministrableProfiles` alimenta ações da tabela;
-- Admin Root é tratado como exceção via `isRootActor`, com o shim `role === 'Admin Root'` mantido até que `SessionUser` exponha `profile`;
+- Admin Root é tratado como exceção via `isRootActor`, que lê a marca estável `SessionUser.isRoot`;
 - o dropdown de filtro exibe todos os Perfis conhecidos, marcando os inativos, e o `?profileId=` é validado apenas por formato no server; um id inexistente canonicaliza a URL via `redirect(303)`, e a existência/status fica com o backend.
 
 ## Alternativas rejeitadas
@@ -46,6 +46,6 @@ A alçada administrativa será calculada por **dominância estrita de permissõe
 - Ao migrar para um Perfil sem bloco profissional, o frontend omite `professional`; a extensão existente é preservada, coerente com o contrato de atualização sem reenvio de Perfil.
 - O Perfil Admin Root permanece fora das rotas administrativas mesmo para o ator Root, como no backend (`is_root`); “Root vê tudo” significa todos os Perfis não-Root.
 - Enquanto #229 não expõe `profile` no `SessionUser`, `sanitizeSessionUser` usa `profile.name` como fallback de `role`; sem isso, o `/auth/me` do backend novo (sem `role`) faria todo ator virar “Solicitante” e quebraria a identificação do Root.
-- O shim de Root fica documentado como dívida técnica; quando `SessionUser` expuser `profile`, `isRootActor` passa a usar `actor.profile.isRoot` e o `role` deixa de ser usado para autorização.
-- O mock de notas internas também mantém um shim de `role` em `profileFromSessionRole` para montar o snapshot de Perfil do autor; é dívida temporária para o #229, como o `isRootActor`, e não deve ser tratado como regra definitiva de derivação por rótulo.
+- O shim de Root por `role` foi **removido**: `isRootActor(user)` usa `user.isRoot === true`, a sessão recebe `profile.isRoot` obrigatório e o nome do Perfil Root voltou a ser editável. Um Perfil customizado chamado “Admin Root” não recebe autoridade de Root.
+- O mock de notas internas mantém um mapa de `role` para o snapshot histórico de exibição do autor. Ele não participa de autorização: a checagem de acesso usa as chaves `internal_note:*`.
 - Mocks devem derivar comportamento de flags (`isAssignableTriage`, `isAssignableMapping`, `isRoot`) e permissões, não de rótulos. A matriz de permissões tem fonte única em `src/lib/mocks/profile-permissions.mock.ts`, e o catálogo inclui um Perfil inativo com permissões e usuários para exercitar a alçada.
