@@ -67,6 +67,16 @@ export async function getSessionTracking(
 	return apiClient<TrackingDetailsResponse>(trackingPath(protocol, '/tracking'), {}, fetchImpl);
 }
 
+export function cancelRequest(
+	protocol: string,
+	justification: string
+): Promise<{ status: 'Cancelado' }> {
+	return apiClient(trackingPath(protocol, '/cancel'), {
+		method: 'POST',
+		body: JSON.stringify({ justification })
+	});
+}
+
 export type TrackingDetails = PublicRequestDetails | RequesterRequestDetails;
 
 export function isAuthenticatedDetails(
