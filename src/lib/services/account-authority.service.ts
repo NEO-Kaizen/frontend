@@ -1,6 +1,7 @@
 import type { SessionUser } from '$lib/types/auth';
 import type { Permission, PermissionCustody } from '$lib/types/permission';
 import type { Profile } from '$lib/types/profile';
+import { isRootActor } from '$lib/utils/permission-checks';
 
 function custodyContains(
 	actorCustody: PermissionCustody,
@@ -33,17 +34,11 @@ function containsAll(targetGrants: PermissionGrants, actorGrants: PermissionGran
 	});
 }
 
-export function isAuthorityStrictlyBelow(
+function isAuthorityStrictlyBelow(
 	targetGrants: PermissionGrants,
 	actorGrants: PermissionGrants
 ): boolean {
 	return containsAll(targetGrants, actorGrants) && !containsAll(actorGrants, targetGrants);
-}
-
-// Premissa temporária (docs/profiles-api.md): o payload de sessão não expõe
-// `isRoot`, então a UI deriva do rótulo e o editor bloqueia renomear o Root.
-export function isRootActor(actor: SessionUser | null): boolean {
-	return actor?.role === 'Admin Root';
 }
 
 function hasAuthorityOverProfile(actor: SessionUser | null, target: Profile): boolean {

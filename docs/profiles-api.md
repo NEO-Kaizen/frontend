@@ -118,7 +118,7 @@ O frontend envia apenas o que mudou; composição e flags vão juntas quando amb
   - não pode ser atribuível à triagem/mapeamento;
   - não pode perder `profile:manage`.
 - Desativação bloqueada quando `userCount > 0`.
-- Guarda 6: remover chaves de um predicado de atribuição exige desligar a flag correspondente na mesma edição. A UI orienta desligar a flag na mensagem de validação. A recusa por “solicitações a realocar” é do backend (o mock em memória não tem esse dado) e precisa de critério de aceite próprio no contrato.
+- Guarda 6: remover chaves de um predicado de atribuição exige desligar a flag correspondente na mesma edição. A UI orienta desligar a flag na mensagem de validação. A recusa por “solicitações a realocar” é aplicada pelo backend com o código `profile_work_key_open_requests`; o mock em memória não reproduz esse cenário.
 - Teto de chaves da composição vem do catálogo (`catalog.permissions.length`), não de um valor fixo.
 
 ## Limitação do mock

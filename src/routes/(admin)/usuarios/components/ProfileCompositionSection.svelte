@@ -10,7 +10,7 @@
 		type CatalogResource,
 		type MissingDependency,
 		type SelfServiceKey
-	} from './profile-editor.rules';
+	} from '$lib/services/profiles/profile-editor.rules';
 
 	interface Props {
 		resources: CatalogResource[];

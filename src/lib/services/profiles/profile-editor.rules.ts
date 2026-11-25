@@ -202,6 +202,17 @@ export function permissionSignature(permissions: readonly Permission[]): string 
 		.join('|');
 }
 
+/**
+ * Compara duas composições como conjunto (`key:custody`), ignorando ordem.
+ * Usado pelo editor e pela reconciliação do `load`.
+ */
+export function sameComposition(
+	current: readonly Permission[],
+	saved: readonly Permission[]
+): boolean {
+	return permissionSignature(current) === permissionSignature(saved);
+}
+
 export function validateProfileForm(input: ProfileFormValidationInput): ProfileFormValidation {
 	let nameError = '';
 	let saveError = '';

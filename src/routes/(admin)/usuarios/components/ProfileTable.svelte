@@ -4,7 +4,7 @@
 	import type { Profile } from '$lib/types/profile';
 	import { canEditProfile, canGrantCustody } from '$lib/utils/permission-checks';
 	import { custodyLabels } from '$lib/utils/profile-labels';
-	import { profileStatusRestriction } from '$lib/utils/profile-status';
+	import { profileStatusRestriction } from '$lib/services/profiles/profile-status.service';
 
 	interface Props {
 		profiles: Profile[];

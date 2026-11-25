@@ -23,7 +23,7 @@
 		validateProfileForm,
 		type ProfileEditorMode,
 		type SelfServiceKey
-	} from './profile-editor.rules';
+	} from '$lib/services/profiles/profile-editor.rules';
 
 	interface Props {
 		mode: ProfileEditorMode;

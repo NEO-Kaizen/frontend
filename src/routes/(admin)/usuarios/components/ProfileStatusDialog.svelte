@@ -2,7 +2,7 @@
 	import Button from '$lib/components/Button.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import type { Profile } from '$lib/types/profile';
-	import { profileStatusRestriction } from '$lib/utils/profile-status';
+	import { profileStatusRestriction } from '$lib/services/profiles/profile-status.service';
 
 	interface Props {
 		profile: Profile;

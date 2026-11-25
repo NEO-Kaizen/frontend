@@ -7,7 +7,8 @@
 	import type { SessionUser } from '$lib/types/auth';
 	import type { Result } from '$lib/types/result';
 	import { changeProfileStatus } from '$lib/services/profile.service';
-	import { profileStatusRestriction } from '$lib/utils/profile-status';
+	import { sameComposition } from '$lib/services/profiles/profile-editor.rules';
+	import { profileStatusRestriction } from '$lib/services/profiles/profile-status.service';
 	import ProfileEditorModal from './ProfileEditorModal.svelte';
 	import ProfileStatusDialog from './ProfileStatusDialog.svelte';
 	import ProfileTable from './ProfileTable.svelte';
@@ -126,15 +127,6 @@
 			current.isAssignableMapping === saved.isAssignableMapping &&
 			sameComposition(current.permissions, saved.permissions)
 		);
-	}
-
-	function sameComposition(
-		current: Profile['permissions'],
-		saved: Profile['permissions']
-	): boolean {
-		if (current.length !== saved.length) return false;
-		const custodyByKey = new Map(current.map(({ key, custody }) => [key, custody]));
-		return saved.every(({ key, custody }) => custodyByKey.get(key) === custody);
 	}
 
 	function handleSaved(message: string, profile: Profile) {
