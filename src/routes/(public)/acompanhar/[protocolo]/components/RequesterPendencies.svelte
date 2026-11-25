@@ -19,6 +19,7 @@
 	let response = $state<ListPendingItemsResponse | null>(null);
 	let isLoading = $state(true);
 	let loadError = $state<string | null>(null);
+	let loadErrorStatus = $state<number | undefined>(undefined);
 
 	const batches = $derived<PendingBatch[]>(toPendingBatches(response));
 
@@ -29,6 +30,7 @@
 	async function load(): Promise<void> {
 		isLoading = true;
 		loadError = null;
+		loadErrorStatus = undefined;
 		const result = await getPendingItems(protocol, identity);
 
 		if (!result.ok) {
@@ -40,6 +42,7 @@
 			}
 			isLoading = false;
 			loadError = result.error.message;
+			loadErrorStatus = result.error.status;
 			return;
 		}
 
@@ -89,9 +92,17 @@
 			<p>Carregando pendências…</p>
 		</div>
 	{:else if loadError}
-		<div class="load-state error-state" role="alert">
+		<div
+			class={['load-state', 'error-state', { restricted: loadErrorStatus === 403 }]}
+			role="alert"
+		>
+			{#if loadErrorStatus === 403}
+				<h3>Acesso restrito</h3>
+			{/if}
 			<p>{loadError}</p>
-			<Button variant="outline" onclick={() => void load()}>Tentar novamente</Button>
+			{#if loadErrorStatus !== 403}
+				<Button variant="outline" onclick={() => void load()}>Tentar novamente</Button>
+			{/if}
 		</div>
 	{:else if batches.length === 0}
 		<div class="load-state empty-state">
@@ -160,6 +171,10 @@
 
 	.error-state p {
 		color: var(--status-red);
+	}
+
+	.error-state.restricted p {
+		color: var(--gray);
 	}
 
 	.batches-block {
