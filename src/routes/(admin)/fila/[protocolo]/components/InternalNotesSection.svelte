@@ -82,6 +82,7 @@
 		'request.reassign': 'autorenew',
 		'request.unassign': 'doNotDisturb',
 		'request.status_change': 'history',
+		'request.reopen': 'history',
 		'mapping.assign': 'calendarCheck'
 	};
 
@@ -401,7 +402,7 @@
 									{#if item.justification && item.justification.trim() !== ''}
 										<p class="justification-text">{item.justification}</p>
 									{/if}
-									{#if item.action === 'request.status_change' && item.lastTechnicalMessage}
+									{#if item.lastTechnicalMessage}
 										<p class="justification-text public-return-text">
 											<strong>Retorno ao solicitante</strong>
 											<span>{item.lastTechnicalMessage}</span>

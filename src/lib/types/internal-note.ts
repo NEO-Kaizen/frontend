@@ -2,7 +2,7 @@ import type { MappingResponse } from './mapping';
 import type { TriageAssessment } from './triage';
 import type { UserType } from './user';
 
-// Perfil interno (autor/ator da timeline): qualquer role exceto Solicitante.
+// Autor de uma nota interna.
 export type InternalRole = Exclude<UserType, 'Solicitante'>;
 
 export interface TimelineActor {
@@ -18,10 +18,11 @@ export type TimelineEventAction =
 	| 'request.reassign'
 	| 'request.unassign'
 	| 'request.status_change'
+	| 'request.reopen'
 	| 'mapping.assign';
 
 // `audit_history.change_origin` — `null` em linhas legadas.
-export type TimelineChangeOrigin = 'admin' | 'system' | 'internal' | null;
+export type TimelineChangeOrigin = 'admin' | 'system' | 'internal' | 'requester' | null;
 
 export interface TimelineNote {
 	type: 'note';
@@ -42,12 +43,9 @@ export interface TimelineEvent {
 	text: string;
 	occurredAt: string;
 	// `null` = ação de sistema ou usuário removido.
-	actor: TimelineActor | null;
+	actor: (Omit<TimelineActor, 'role'> & { role: UserType }) | null;
 	changeOrigin: TimelineChangeOrigin;
-	// `justification` e `lastTechnicalMessage` são exclusivos de
-	// `request.status_change`: `justification` é a justificativa interna
-	// (opcional); `lastTechnicalMessage` é `string` 1..4000 no retorno público e
-	// `null` quando o destino é interno. Ambos ausentes nas demais ações.
+	// Justificativa interna e retorno público das transições de status.
 	justification?: string | null;
 	lastTechnicalMessage?: string | null;
 }
