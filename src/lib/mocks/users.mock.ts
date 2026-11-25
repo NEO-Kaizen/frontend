@@ -256,6 +256,15 @@ export const mockUsers: MockUser[] = [
 		categories: [],
 		notes: null,
 		requestLoad: 0
+	},
+	{
+		id: '24',
+		fullName: 'Pessoa Perfil Custom',
+		email: 'pessoa.custom@maat.com.br',
+		profile: getProfileReference('6'),
+		isActive: true,
+		mustChangePassword: false,
+		createdAt: '2026-08-28T10:00:00.000Z'
 	}
 ];
 

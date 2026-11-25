@@ -75,7 +75,7 @@ const PROFILES: Profile[] = [
 		isRoot: false,
 		isAssignableTriage: false,
 		isAssignableMapping: false,
-		userCount: 0,
+		userCount: 1,
 		permissions: COORDINATOR_PERMISSIONS
 	},
 	{
