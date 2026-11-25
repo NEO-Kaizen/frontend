@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 
-	import { refreshAll } from '$app/navigation';
+	import { afterNavigate, refreshAll } from '$app/navigation';
 	import Button from '$lib/components/Button.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import MetricsSummary from '$lib/components/MetricsSummary.svelte';
@@ -95,6 +95,12 @@
 
 	let fetchedResult = $state<Result<PaginatedResponse<AdminUser>> | null>(null);
 	let result = $derived(fetchedResult ?? data.result);
+
+	// Navegações de filtro (GET) trocam `data.result`; limpar o override evita
+	// que a tabela continue exibindo o resultado de uma busca/paginação anterior.
+	afterNavigate(() => {
+		fetchedResult = null;
+	});
 
 	let users = $derived<AdminUser[]>(result.ok ? result.data.data : []);
 	let loadError = $derived(result.ok ? '' : result.error.message);
