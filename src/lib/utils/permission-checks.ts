@@ -40,7 +40,8 @@ export function canGrantCustody(
 	return actorCustody === targetCustody || (actorCustody === 'all' && targetCustody === 'assigned');
 }
 
-// TODO: substituir pelo flag explícito de Root quando o payload de sessão expuser `isRoot`.
+// Premissa temporária (docs/profiles-api.md): o payload de sessão não expõe
+// `isRoot`, então a UI deriva do rótulo e o editor bloqueia renomear o Root.
 export function isRootActor(user: SessionUser | null | undefined): boolean {
 	return user?.role === 'Admin Root';
 }

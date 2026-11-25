@@ -53,6 +53,11 @@
 
 	const initialProfile = untrack(() => (profile && mode !== 'create' ? profile : null));
 
+	// O payload de sessão ainda não expõe `isRoot`; a UI detecta Root pelo nome
+	// do perfil (docs/profiles-api.md). Enquanto isso, renomear o Root desligaria
+	// a autoridade, então a edição do nome fica bloqueada para ele.
+	const isRootNameLocked = $derived(mode === 'edit' && profile?.isRoot === true);
+
 	function duplicateProfileName(value: string): string {
 		const suffix = ' (cópia)';
 		return `${value.trim().slice(0, PROFILE_NAME_MAX_LENGTH - suffix.length)}${suffix}`;
@@ -254,7 +259,11 @@
 				((isAssignableTriage && !flagRequirementsMet('isAssignableTriage')) ||
 					(isAssignableMapping && !flagRequirementsMet('isAssignableMapping')))
 			) {
-				saveError = 'Inclua as permissões exigidas pelas flags de atribuição.';
+				const blockedFlags = [
+					isAssignableTriage && !flagRequirementsMet('isAssignableTriage') ? 'triagem' : null,
+					isAssignableMapping && !flagRequirementsMet('isAssignableMapping') ? 'mapeamento' : null
+				].filter(Boolean);
+				saveError = `Desligue a flag de ${blockedFlags.join(' e ')} para remover as chaves que ela exige, tudo na mesma edição.`;
 			} else if (canEditComposition && unconfirmedSelfServiceKeys.length > 0) {
 				saveError = 'Confirme as consequências de remover as permissões de autoatendimento.';
 			} else if (
@@ -368,7 +377,7 @@
 				bind:value={name}
 				oninput={() => (identityConfirmed = false)}
 				error={nameError}
-				disabled={isSaving}
+				disabled={isSaving || isRootNameLocked}
 			/>
 			<label class="field">
 				<span>Descrição</span>
@@ -380,6 +389,13 @@
 					oninput={() => (identityConfirmed = false)}></textarea>
 			</label>
 		</div>
+
+		{#if isRootNameLocked}
+			<p class="helper">
+				O nome do perfil Root não pode ser alterado enquanto a sessão não expuser
+				<code>isRoot</code>.
+			</p>
+		{/if}
 
 		{#if mode !== 'duplicate'}
 			<section class="form-section" aria-labelledby="composition-title">
