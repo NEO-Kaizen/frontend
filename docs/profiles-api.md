@@ -129,4 +129,4 @@ No modo mock, as mutações de perfil acontecem no browser e não chegam ao `loa
 
 - Confirmar no backend os nomes/códigos de erro de negócio para renderização fiel na UI.
 - Confirmar se `GET /profiles` aceita `?profileId`/paginação/filtros além da lista completa.
-- Confirmar se a sessão passará a expor `isRoot` e `role` (hoje a UI deriva o rótulo de `profile.name` e detecta o Root pelo texto “Admin Root”; renomear esse perfil desliga a detecção na UI).
+- Confirmar se a sessão passará a expor `isRoot` e `role` (hoje a UI deriva o rótulo de `profile.name`, detecta o Root pelo texto “Admin Root” e bloqueia renomear esse perfil no editor).
