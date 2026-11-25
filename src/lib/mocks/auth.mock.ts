@@ -7,6 +7,7 @@ import type {
 } from '$lib/types/auth';
 import { ApiError } from '$lib/types/result';
 import { PORTAL_READ_KEYS } from '$lib/types/permission';
+import { BASE_PROFILE_IDS } from './profile-seed.mock';
 import {
 	ALL_PERMISSIONS,
 	ANALYST_PERMISSIONS,
@@ -86,15 +87,6 @@ const MOCK_USERS: MockUser[] = [
 ];
 
 const SESSION_COOKIE_NAME = 'session_id';
-
-// Ids dos perfis base de `profiles.mock.ts` (só para espelhar `/auth/me`).
-const MOCK_PROFILE_ID_BY_NAME: Record<string, string> = {
-	Solicitante: '1',
-	Analista: '2',
-	Gestor: '3',
-	Administrador: '4',
-	'Admin Root': '5'
-};
 
 export function loginMock(credentials: LoginCredentials): Promise<LoginResponse> {
 	const email = credentials.email.trim().toLowerCase();
@@ -186,7 +178,10 @@ function toSessionPayload(user: MockUser) {
 		name: user.name,
 		email: user.email,
 		avatarUrl: user.avatarUrl,
-		profile: { id: MOCK_PROFILE_ID_BY_NAME[user.role] ?? '', name: user.role },
+		profile: {
+			id: BASE_PROFILE_IDS[user.role as keyof typeof BASE_PROFILE_IDS] ?? '',
+			name: user.role
+		},
 		mustChangePassword: user.mustChangePassword,
 		permissions: structuredClone(user.permissions)
 	};

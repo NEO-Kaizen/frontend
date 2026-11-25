@@ -1,4 +1,5 @@
 import { getMockSessionUser } from '$lib/mocks/auth.mock';
+import { BASE_PROFILE_IDS } from './profile-seed.mock';
 import { ApiError } from '$lib/types/result';
 import {
 	GLOBAL_PERMISSION_KEYS,
@@ -51,7 +52,7 @@ const COORDINATOR_PERMISSIONS = buildProfilePermissions({
 
 const profileRecords: Profile[] = [
 	{
-		id: '1',
+		id: BASE_PROFILE_IDS.Solicitante,
 		name: 'Solicitante',
 		description: 'Acesso às próprias solicitações e pendências.',
 		isActive: true,
@@ -62,7 +63,7 @@ const profileRecords: Profile[] = [
 		permissions: SELF_SERVICE_PERMISSIONS
 	},
 	{
-		id: '2',
+		id: BASE_PROFILE_IDS.Analista,
 		name: 'Analista',
 		description: 'Atendimento das solicitações atribuídas.',
 		isActive: true,
@@ -73,7 +74,7 @@ const profileRecords: Profile[] = [
 		permissions: ANALYST_PERMISSIONS
 	},
 	{
-		id: '3',
+		id: BASE_PROFILE_IDS.Gestor,
 		name: 'Gestor',
 		description: 'Acompanhamento das solicitações e indicadores.',
 		isActive: true,
@@ -84,7 +85,7 @@ const profileRecords: Profile[] = [
 		permissions: MANAGER_PERMISSIONS
 	},
 	{
-		id: '4',
+		id: BASE_PROFILE_IDS.Administrador,
 		name: 'Administrador',
 		description: 'Administração de usuários e configurações.',
 		isActive: true,
@@ -95,7 +96,7 @@ const profileRecords: Profile[] = [
 		permissions: ALL_PERMISSIONS
 	},
 	{
-		id: '5',
+		id: BASE_PROFILE_IDS['Admin Root'],
 		name: 'Admin Root',
 		description: 'Perfil raiz com acesso irrestrito.',
 		isActive: true,
@@ -194,6 +195,11 @@ export async function updateProfileMock(id: string, payload: ProfileUpdateInput)
 
 	if (next.name !== current.name) assertNameAvailable(next.name, id);
 	if (current.isRoot) {
+		if (next.name !== current.name) {
+			// A UI deriva a autoridade de Root do rótulo "Admin Root" (a sessão
+			// ainda não expõe `isRoot`); renomear desligaria a detecção.
+			throw new ApiError(400, 'O perfil Admin Root não pode ser renomeado.');
+		}
 		if (!next.permissions.some((permission) => permission.key === 'profile:manage')) {
 			throw new ApiError(400, 'O perfil Admin Root não pode perder profile:manage.');
 		}
