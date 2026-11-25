@@ -56,7 +56,6 @@ export const ANALYST_PERMISSIONS = buildProfilePermissions({
 	assigned: [
 		'request:read',
 		'request:write',
-		'request:assign',
 		'request:status_change',
 		'queue:read',
 		'triage:read',
@@ -68,8 +67,7 @@ export const ANALYST_PERMISSIONS = buildProfilePermissions({
 		'pending_item:write',
 		'pending_item:review',
 		'internal_note:read',
-		'internal_note:write',
-		'audit:read'
+		'internal_note:write'
 	]
 });
 

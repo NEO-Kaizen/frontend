@@ -44,5 +44,7 @@ A alçada administrativa será calculada por **dominância estrita de permissõe
 - A própria conta não expõe ações administrativas na tabela, espelhando o `403 self_management_forbidden` do backend.
 - O filtro por Perfil inativo envia `profileId` ao backend; a canonicalização via `redirect(303)` só ocorre com o catálogo carregado, e a aceitação de Perfis inativos em `GET /users` é premissa do contrato do backend.
 - Ao migrar para um Perfil sem bloco profissional, o frontend omite `professional`; a extensão existente é preservada, coerente com o contrato de atualização sem reenvio de Perfil.
+- O Perfil Admin Root permanece fora das rotas administrativas mesmo para o ator Root, como no backend (`is_root`); “Root vê tudo” significa todos os Perfis não-Root.
+- Enquanto #229 não expõe `profile` no `SessionUser`, `sanitizeSessionUser` usa `profile.name` como fallback de `role`; sem isso, o `/auth/me` do backend novo (sem `role`) faria todo ator virar “Solicitante” e quebraria a identificação do Root.
 - O shim de Root fica documentado como dívida técnica; quando `SessionUser` expuser `profile`, `isRootActor` passa a usar `actor.profile.isRoot` e o `role` deixa de ser usado para autorização.
 - Mocks devem derivar comportamento de flags (`isAssignableTriage`, `isAssignableMapping`, `isRoot`) e permissões, não de rótulos. A matriz de permissões tem fonte única em `src/lib/mocks/profile-permissions.mock.ts`, e o catálogo inclui um Perfil inativo com permissões e usuários para exercitar a alçada.

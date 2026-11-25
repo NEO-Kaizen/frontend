@@ -12,10 +12,6 @@ export async function listProfiles(fetchImpl?: typeof fetch): Promise<Result<Pro
 	}
 }
 
-export function filterActiveProfiles(profiles: Profile[]): Profile[] {
-	return profiles.filter((profile) => profile.isActive);
-}
-
 export function requiresProfessionalBlock(profile: Profile): boolean {
 	return profile.isAssignableTriage || profile.isAssignableMapping;
 }

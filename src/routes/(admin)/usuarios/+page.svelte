@@ -420,7 +420,7 @@
 		     CONTEÚDO
 		========================= -->
 
-		<div class={['tab-panel', { refreshing: isRefreshing }]} aria-busy={isRefreshing}>
+		<div class={['users-panel', { refreshing: isRefreshing }]} aria-busy={isRefreshing}>
 			{#if isLoading}
 				<div class="state-card" role="status">
 					<span class="spinner" aria-hidden="true"></span>
@@ -765,7 +765,7 @@
 		outline-offset: 1px;
 	}
 
-	.tab-panel {
+	.users-panel {
 		width: 100%;
 
 		display: flex;
@@ -776,7 +776,7 @@
 		transition: opacity 0.15s ease;
 	}
 
-	.tab-panel.refreshing {
+	.users-panel.refreshing {
 		opacity: 0.55;
 
 		pointer-events: none;
