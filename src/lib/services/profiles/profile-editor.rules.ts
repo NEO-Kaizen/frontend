@@ -1,5 +1,5 @@
 import type { SessionUser } from '$lib/types/auth';
-import { SELF_SERVICE_KEYS } from '$lib/types/permission';
+import { SELF_SERVICE_KEYS, isPermissionKey } from '$lib/types/permission';
 import type { Permission, PermissionCustody, PermissionKey } from '$lib/types/permission';
 import type {
 	Profile,
@@ -95,6 +95,9 @@ export function duplicateProfileName(value: string): string {
 export function groupCatalogResources(catalog: ProfileKeyCatalog): CatalogResource[] {
 	const grouped: Record<string, CatalogKey[]> = {};
 	for (const definition of catalog.permissions) {
+		// O catálogo do backend pode estar à frente/atrás do contrato local:
+		// chaves removidas (ex.: `form:*`) não entram na UI.
+		if (!isPermissionKey(definition.key)) continue;
 		const resource = definition.key.split(':')[0] || 'permissions';
 		const allowedCustodies = definition.allowedCustodies;
 		const fixedCustody =
