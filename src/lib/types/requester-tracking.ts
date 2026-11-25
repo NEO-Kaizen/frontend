@@ -100,12 +100,26 @@ export interface RequesterOperational extends PublicOperationalImpacts {
 }
 
 export interface RequesterRequestDetails extends Omit<PublicRequestDetails, 'impacts'> {
-	canCancel: boolean;
+	canCancel?: boolean;
+	cancelCycleRef?: string;
+	canReopen?: boolean;
+	closureRef?: string;
 	operational: RequesterOperational;
 	complementary?: ComplementaryBlock;
 	schedulePreferences: string[] | null;
 	mappingDate: string | null;
 	attachments: RequesterAttachment[];
+}
+
+export interface ReopenRequestPayload {
+	justification: string;
+	closureRef: string;
+}
+
+export interface ReopenRequestResponse {
+	protocol: string;
+	statusId: 1;
+	status: 'Solicitação enviada';
 }
 
 export type TrackingDetailsResponse =

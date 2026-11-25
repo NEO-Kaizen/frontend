@@ -2,6 +2,7 @@ import {
 	cancelRequest as cancelRequestApi,
 	getPublicTracking as getPublicTrackingApi,
 	getSessionTracking as getSessionTrackingApi,
+	reopenRequest as reopenRequestApi,
 	verifyPublicAccess as verifyPublicAccessApi
 } from '$lib/api/requester-tracking.api';
 import { getPendingItems as getPendingItemsApi } from '$lib/api/pending-item.api';
@@ -12,10 +13,39 @@ import type {
 	PublicVerifyPayload,
 	PublicVerifyResult,
 	RequesterIdentity,
+	ReopenRequestPayload,
+	ReopenRequestResponse,
 	TrackingDetailsResponse
 } from '$lib/types/requester-tracking';
 import { ApiError, type Result } from '$lib/types/result';
 import { isValidEmail } from '$lib/utils/validations';
+
+export const MAX_REQUEST_JUSTIFICATION_LENGTH = 4000;
+
+export async function reopenRequest(
+	protocol: string,
+	payload: ReopenRequestPayload
+): Promise<Result<ReopenRequestResponse>> {
+	try {
+		const data = await reopenRequestApi(protocol, payload);
+		if (
+			data?.protocol !== protocol ||
+			data.statusId !== 1 ||
+			data.status !== 'Solicitação enviada'
+		) {
+			return { ok: false, error: { message: 'Não foi possível confirmar a reabertura.' } };
+		}
+		return { ok: true, data };
+	} catch (error) {
+		if (error instanceof ApiError) {
+			return {
+				ok: false,
+				error: { status: error.status, code: error.code, message: error.message }
+			};
+		}
+		return { ok: false, error: { message: 'Não foi possível confirmar a reabertura.' } };
+	}
+}
 
 // Service do SOLICITANTE: leitura (tracking, pendências) com dois transportes
 // (contrato v0.5 §2) — público via `X-Requester-Identity` (a identidade vive em
@@ -52,10 +82,11 @@ async function toResult<T>(
 
 export async function cancelRequest(
 	protocol: string,
-	justification: string
+	justification: string,
+	cancelCycleRef?: string
 ): Promise<Result<{ status: 'Cancelado' }>> {
 	try {
-		return { ok: true, data: await cancelRequestApi(protocol, justification) };
+		return { ok: true, data: await cancelRequestApi(protocol, justification, cancelCycleRef) };
 	} catch (error) {
 		if (error instanceof ApiError) {
 			return {
