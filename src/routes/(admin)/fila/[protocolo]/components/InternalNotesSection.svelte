@@ -5,7 +5,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import Textarea from '$lib/components/Textarea.svelte';
 	import { toastState } from '$lib/states/toast.svelte';
-	import { has } from '$lib/services/access.service';
+	import { canAccessResponsible } from '$lib/utils/permission-checks';
 	import {
 		createInternalNote,
 		getInternalNotes,
@@ -30,6 +30,7 @@
 	// páginas mais antigas carregadas sob demanda via scroll-up (D-N5/D-N8).
 	interface Props {
 		protocol: string;
+		assigneeId: string | null;
 		items: TimelineItem[];
 		nextCursor: string | null;
 		triages: TriageHistoryEntry[];
@@ -45,6 +46,7 @@
 
 	let {
 		protocol,
+		assigneeId,
 		items,
 		nextCursor,
 		triages,
@@ -67,8 +69,11 @@
 	let lastMarkedNoteId = $state<string | null>(null);
 
 	// Leitura e escrita são chaves distintas: quem só lê continua vendo a
-	// timeline, mas o composer não aparece.
-	const canWrite = $derived(has('internal_note:write', page.data.user));
+	// timeline, mas o composer não aparece. A escrita também respeita a
+	// custódia `assigned` (só o Responsável corrente envia).
+	const canWrite = $derived(
+		canAccessResponsible('internal_note:write', page.data.user, assigneeId)
+	);
 
 	// Página mais recente invertida para ordem canônica → última nota dela é a
 	// mais nova da timeline (alvo do markThrough, §7).

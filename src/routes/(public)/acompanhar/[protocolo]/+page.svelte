@@ -333,8 +333,7 @@
 				id="tracking-tab-solicitacao"
 				aria-selected={activeTab === 'solicitacao'}
 				aria-controls="tracking-panel"
-				class="tab-item"
-				class:active={activeTab === 'solicitacao'}
+				class={['tab-item', { active: activeTab === 'solicitacao' }]}
 				onclick={() => selectTab('solicitacao')}
 			>
 				<Icon iconName="description" iconSize="sm" />
@@ -346,8 +345,7 @@
 				id="tracking-tab-pendencias"
 				aria-selected={activeTab === 'pendencias'}
 				aria-controls="tracking-panel"
-				class="tab-item"
-				class:active={activeTab === 'pendencias'}
+				class={['tab-item', { active: activeTab === 'pendencias' }]}
 				onclick={() => selectTab('pendencias')}
 			>
 				<Icon iconName="pending" iconSize="sm" />

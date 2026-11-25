@@ -8,6 +8,8 @@
 	import { SELF_SERVICE_KEYS } from '$lib/types/permission';
 	import type { Permission, PermissionCustody, PermissionKey } from '$lib/types/permission';
 	import { createProfile, duplicateProfile, updateProfile } from '$lib/services/profile.service';
+	import { permissionLabel } from '$lib/services/profiles/permission-ui';
+	import { custodyLabels } from '$lib/utils/profile-labels';
 	import ProfileAssignmentFlags from './ProfileAssignmentFlags.svelte';
 	import ProfileCompositionSection from './ProfileCompositionSection.svelte';
 	import ProfileIdentityFields from './ProfileIdentityFields.svelte';
@@ -132,6 +134,19 @@
 			.filter((permission) => !selectedKeys.includes(permission.key))
 			.map((permission) => permission.key)
 	);
+	const custodyChanges = $derived.by(() => {
+		const previousCustodies = new Map(
+			currentPermissions().map((permission) => [permission.key, permission.custody])
+		);
+		return builtPermissions.flatMap((permission) => {
+			const previous = previousCustodies.get(permission.key);
+			return previous && previous !== permission.custody
+				? [
+						`${permissionLabel(permission.key)}: ${custodyLabels[previous]} → ${custodyLabels[permission.custody]}`
+					]
+				: [];
+		});
+	});
 	const flagChanges = $derived.by(() => {
 		const changes: string[] = [];
 		if (isAssignableTriage !== (profile?.isAssignableTriage ?? false)) {
@@ -337,6 +352,9 @@
 							{/if}
 							{#if removedKeys.length > 0}
 								<li>Removidas: {removedKeys.join(', ')}</li>
+							{/if}
+							{#if custodyChanges.length > 0}
+								<li>Escopo alterado: {custodyChanges.join('; ')}</li>
 							{/if}
 						</ul>
 					</li>

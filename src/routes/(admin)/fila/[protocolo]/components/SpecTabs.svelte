@@ -785,6 +785,7 @@
 				{:else if activeTab === 'observacoes'}
 					<InternalNotesSection
 						protocol={solicitation.protocol}
+						assigneeId={solicitation.assignee?.id ?? null}
 						items={timelineItems}
 						nextCursor={timelineNextCursor}
 						{triages}

@@ -27,7 +27,8 @@
 
 	let dialog = $state<HTMLDialogElement>();
 
-	const titleId = `confirm-dialog-title-${Math.random().toString(36).slice(2, 8)}`;
+	const uid = $props.id();
+	const titleId = `confirm-dialog-title-${uid}`;
 
 	$effect(() => {
 		if (!dialog) return;
@@ -52,6 +53,11 @@
 	oncancel={(e) => {
 		e.preventDefault();
 		onClose();
+	}}
+	onkeydown={(e) => {
+		// O Esc é tratado pelo `cancel` nativo; impedir o borbulhamento evita
+		// que o Modal pai também feche e descarte o formulário em edição.
+		if (e.key === 'Escape') e.stopPropagation();
 	}}
 >
 	<div class="content">

@@ -42,8 +42,8 @@ export function canGrantCustody(
 
 /**
  * Chave de linha alcança o Responsável? `all` dispensa vínculo; `assigned`
- * exige que o ator seja o Responsável corrente. Espelha `hasResponsibleCustody`
- * do backend, inclusive para chaves `global` (que sempre passam).
+ * exige que o ator seja o Responsável corrente. Chaves `global` não são
+ * cobertas por este helper.
  */
 export function canAccessResponsible(
 	key: PermissionKey,
