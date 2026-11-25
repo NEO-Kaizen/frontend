@@ -25,6 +25,8 @@ export interface ProfileKeyDefinition {
 	custodyType: 'global' | 'custodial';
 	allowedCustodies: PermissionCustody[];
 	dependencies: PermissionKey[];
+	/** Campo opcional futuro: o backend pode enviar a copy de cada chave. */
+	description?: string;
 }
 
 export interface ProfileKeyCatalog {

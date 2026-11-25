@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import Button from '$lib/components/Button.svelte';
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import type { Profile, ProfileKeyCatalog } from '$lib/types/profile';
 	import type { SessionUser } from '$lib/types/auth';
@@ -38,11 +39,6 @@
 
 	const initialProfile = untrack(() => (profile && mode !== 'create' ? profile : null));
 
-	// O payload de sessão ainda não expõe `isRoot`; a UI detecta Root pelo nome
-	// do perfil (docs/profiles-api.md). Enquanto isso, renomear o Root desligaria
-	// a autoridade, então a edição do nome fica bloqueada para ele.
-	const isRootNameLocked = $derived(mode === 'edit' && profile?.isRoot === true);
-
 	let name = $state(
 		untrack(() =>
 			mode === 'duplicate' && initialProfile
@@ -62,9 +58,7 @@
 	let isAssignableTriage = $state(initialProfile?.isAssignableTriage ?? false);
 	let isAssignableMapping = $state(initialProfile?.isAssignableMapping ?? false);
 	let removedSelfServiceConfirmed = $state<SelfServiceKey[]>([]);
-	let compositionConfirmed = $state(false);
-	let flagsConfirmed = $state(false);
-	let identityConfirmed = $state(false);
+	let confirmOpen = $state(false);
 	let isSaving = $state(false);
 	let saveError = $state('');
 	let nameError = $state('');
@@ -95,6 +89,9 @@
 		})
 	);
 	const missingDependencies = $derived(findMissingDependencies(catalogKeys, selectedKeys));
+	const hasAssignedCustody = $derived(
+		builtPermissions.some((permission) => permission.custody === 'assigned')
+	);
 	const removedSelfServiceKeys = $derived(
 		SELF_SERVICE_KEYS.filter(
 			(key) =>
@@ -126,6 +123,25 @@
 			name.trim() !== (profile?.name ?? '') || description.trim() !== (profile?.description ?? '')
 		);
 	});
+	const hasPendingChanges = $derived(identityChanged || compositionChanged || flagsChanged);
+	const addedKeys = $derived(
+		selectedKeys.filter((key) => !currentPermissions().some((permission) => permission.key === key))
+	);
+	const removedKeys = $derived(
+		currentPermissions()
+			.filter((permission) => !selectedKeys.includes(permission.key))
+			.map((permission) => permission.key)
+	);
+	const flagChanges = $derived.by(() => {
+		const changes: string[] = [];
+		if (isAssignableTriage !== (profile?.isAssignableTriage ?? false)) {
+			changes.push(`Triagem: ${isAssignableTriage ? 'ligada' : 'desligada'}`);
+		}
+		if (isAssignableMapping !== (profile?.isAssignableMapping ?? false)) {
+			changes.push(`Mapeamento: ${isAssignableMapping ? 'ligada' : 'desligada'}`);
+		}
+		return changes;
+	});
 
 	function validate(): boolean {
 		const { nameError: nextNameError, saveError: nextSaveError } = validateProfileForm({
@@ -136,19 +152,23 @@
 			missingDependencies,
 			isAssignableTriage,
 			isAssignableMapping,
+			hasAssignedCustody,
 			triageRequirementsMet,
 			mappingRequirementsMet,
-			unconfirmedSelfServiceKeys,
-			compositionChanged,
-			flagsChanged,
-			identityChanged,
-			compositionConfirmed,
-			flagsConfirmed,
-			identityConfirmed
+			unconfirmedSelfServiceKeys
 		});
 		nameError = nextNameError;
 		saveError = nextSaveError;
 		return !nameError && !saveError;
+	}
+
+	function requestSave(): void {
+		if (isSaving || !validate()) return;
+		if (mode === 'edit' && hasPendingChanges) {
+			confirmOpen = true;
+			return;
+		}
+		void handleSave();
 	}
 
 	async function handleSave() {
@@ -224,7 +244,7 @@
 		class="profile-form"
 		onsubmit={(event) => {
 			event.preventDefault();
-			handleSave();
+			requestSave();
 		}}
 	>
 		<ProfileIdentityFields
@@ -232,9 +252,7 @@
 			bind:description
 			{nameError}
 			disabled={isSaving}
-			{isRootNameLocked}
 			showDuplicateHelper={mode === 'duplicate'}
-			onedit={() => (identityConfirmed = false)}
 		/>
 
 		{#if mode !== 'duplicate'}
@@ -251,36 +269,16 @@
 				bind:selectedKeys
 				bind:selectedCustodies
 				bind:removedSelfServiceConfirmed
-				oncompositionchange={() => (compositionConfirmed = false)}
 			/>
 
 			<ProfileAssignmentFlags
 				bind:isAssignableTriage
 				bind:isAssignableMapping
+				{hasAssignedCustody}
 				{triageRequirementsMet}
 				{mappingRequirementsMet}
 				{isSaving}
-				onflagschange={() => (flagsConfirmed = false)}
 			/>
-		{/if}
-
-		{#if mode === 'edit' && identityChanged}
-			<label class="section-confirmation">
-				<input type="checkbox" bind:checked={identityConfirmed} disabled={isSaving} />
-				Confirmo a alteração dos dados de identificação do perfil.
-			</label>
-		{/if}
-		{#if mode === 'edit' && compositionChanged}
-			<label class="section-confirmation">
-				<input type="checkbox" bind:checked={compositionConfirmed} disabled={isSaving} />
-				Confirmo a alteração da composição de permissões.
-			</label>
-		{/if}
-		{#if mode === 'edit' && flagsChanged}
-			<label class="section-confirmation">
-				<input type="checkbox" bind:checked={flagsConfirmed} disabled={isSaving} />
-				Confirmo a alteração das flags de atribuição.
-			</label>
 		{/if}
 
 		{#if saveError}
@@ -292,7 +290,7 @@
 				type="submit"
 				variant="primary"
 				loading={isSaving}
-				disabled={mode === 'edit' && !identityChanged && !compositionChanged && !flagsChanged}
+				disabled={mode === 'edit' && !hasPendingChanges}
 			>
 				{mode === 'create'
 					? 'Criar perfil'
@@ -302,6 +300,60 @@
 			</Button>
 		</div>
 	</form>
+
+	<ConfirmDialog
+		open={confirmOpen}
+		title="Confirmar alterações do perfil"
+		description="Revise o que será alterado antes de salvar."
+		confirmLabel="Salvar alterações"
+		onConfirm={() => {
+			confirmOpen = false;
+			void handleSave();
+		}}
+		onClose={() => (confirmOpen = false)}
+	>
+		{#snippet details()}
+			<ul class="change-list">
+				{#if identityChanged}
+					<li>
+						<strong>Identificação</strong>
+						<ul>
+							{#if name.trim() !== (profile?.name ?? '')}
+								<li>Nome: “{profile?.name ?? ''}” → “{name.trim()}”</li>
+							{/if}
+							{#if description.trim() !== (profile?.description ?? '')}
+								<li>Descrição alterada</li>
+							{/if}
+						</ul>
+					</li>
+				{/if}
+				{#if compositionChanged}
+					<li>
+						<strong>Composição</strong>
+						<ul>
+							<li>{builtPermissions.length} permissões selecionadas</li>
+							{#if addedKeys.length > 0}
+								<li>Incluídas: {addedKeys.join(', ')}</li>
+							{/if}
+							{#if removedKeys.length > 0}
+								<li>Removidas: {removedKeys.join(', ')}</li>
+							{/if}
+						</ul>
+					</li>
+				{/if}
+				{#if flagsChanged}
+					<li>
+						<strong>Atribuição</strong>
+						<ul>
+							{#each flagChanges as change (change)}
+								<li>{change}</li>
+							{/each}
+						</ul>
+					</li>
+				{/if}
+			</ul>
+		{/snippet}
+	</ConfirmDialog>
 </Modal>
 
 <style>
@@ -310,12 +362,21 @@
 		flex-direction: column;
 		gap: var(--spacing-md);
 	}
-	.section-confirmation {
-		display: flex;
-		align-items: flex-start;
-		gap: var(--spacing-sm);
+	.change-list,
+	.change-list ul {
+		margin: 0;
+		padding-left: 18px;
 		color: var(--black);
 		font: var(--paragrafo);
+	}
+	.change-list {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-sm);
+	}
+	.change-list strong {
+		color: var(--heading-color);
+		font: var(--label);
 	}
 	.form-error {
 		margin: 0;

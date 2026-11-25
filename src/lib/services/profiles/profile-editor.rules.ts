@@ -9,6 +9,7 @@ import type {
 } from '$lib/types/profile';
 import { canGrantCustody } from '$lib/utils/permission-checks';
 import { PROFILE_DESCRIPTION_MAX_LENGTH, PROFILE_NAME_MAX_LENGTH } from '$lib/utils/validations';
+import { permissionDescription, permissionLabel, resourceLabel } from './permission-ui';
 
 export type ProfileEditorMode = 'create' | 'edit' | 'duplicate';
 
@@ -19,6 +20,7 @@ export type SelfServiceKey = (typeof SELF_SERVICE_KEYS)[number];
 export interface CatalogKey {
 	key: PermissionKey;
 	label: string;
+	description: string;
 	fixedCustody: PermissionCustody | null;
 	custodies: PermissionCustody[];
 	dependencies: PermissionKey[];
@@ -51,15 +53,10 @@ export interface ProfileFormValidationInput {
 	missingDependencies: readonly MissingDependency[];
 	isAssignableTriage: boolean;
 	isAssignableMapping: boolean;
+	hasAssignedCustody: boolean;
 	triageRequirementsMet: boolean;
 	mappingRequirementsMet: boolean;
 	unconfirmedSelfServiceKeys: readonly PermissionKey[];
-	compositionChanged: boolean;
-	flagsChanged: boolean;
-	identityChanged: boolean;
-	compositionConfirmed: boolean;
-	flagsConfirmed: boolean;
-	identityConfirmed: boolean;
 }
 
 export interface ProfileFormValidation {
@@ -90,14 +87,6 @@ export function isSelfServiceKey(key: PermissionKey): key is SelfServiceKey {
 	return SELF_SERVICE_KEY_SET.has(key);
 }
 
-function humanizePermission(value: string): string {
-	return value
-		.split(':')
-		.map((part) => part.replace(/_/g, ' '))
-		.join(' · ')
-		.replace(/(^|\s)\S/g, (char) => char.toUpperCase());
-}
-
 export function duplicateProfileName(value: string): string {
 	const suffix = ' (cópia)';
 	return `${value.trim().slice(0, PROFILE_NAME_MAX_LENGTH - suffix.length)}${suffix}`;
@@ -106,7 +95,7 @@ export function duplicateProfileName(value: string): string {
 export function groupCatalogResources(catalog: ProfileKeyCatalog): CatalogResource[] {
 	const grouped: Record<string, CatalogKey[]> = {};
 	for (const definition of catalog.permissions) {
-		const resource = humanizePermission(definition.key.split(':')[0] || 'Permissões');
+		const resource = definition.key.split(':')[0] || 'permissions';
 		const allowedCustodies = definition.allowedCustodies;
 		const fixedCustody =
 			definition.custodyType === 'global'
@@ -116,14 +105,19 @@ export function groupCatalogResources(catalog: ProfileKeyCatalog): CatalogResour
 					: null;
 		const normalized: CatalogKey = {
 			key: definition.key,
-			label: humanizePermission(definition.key),
+			label: permissionLabel(definition.key),
+			description: definition.description?.trim() || permissionDescription(definition.key),
 			fixedCustody,
 			custodies: [...allowedCustodies],
 			dependencies: [...definition.dependencies]
 		};
 		grouped[resource] = [...(grouped[resource] ?? []), normalized];
 	}
-	return Object.entries(grouped).map(([label, keys]) => ({ id: label, label, keys }));
+	return Object.entries(grouped).map(([id, keys]) => ({
+		id,
+		label: resourceLabel(id),
+		keys
+	}));
 }
 
 export function grantableCustodies(
@@ -161,6 +155,64 @@ export function findMissingDependencies(
 					.map((dependency) => ({ key: entry.key, dependency }))
 			: []
 	);
+}
+
+/**
+ * Fechamento transitivo das dependências, na ordem do catálogo. Usado quando
+ * uma chave é marcada: a UI inclui as dependências em vez de exigir marcação
+ * manual.
+ */
+export function expandWithDependencies(
+	selectedKeys: readonly PermissionKey[],
+	catalogKeys: readonly CatalogKey[]
+): PermissionKey[] {
+	const dependenciesByKey = new Map<PermissionKey, readonly PermissionKey[]>(
+		catalogKeys.map((entry) => [entry.key, entry.dependencies])
+	);
+
+	const selected = new Set<PermissionKey>(selectedKeys);
+	const pending = [...selectedKeys];
+
+	while (pending.length > 0) {
+		const key = pending.pop();
+		if (!key) continue;
+		for (const dependency of dependenciesByKey.get(key) ?? []) {
+			if (selected.has(dependency)) continue;
+			selected.add(dependency);
+			pending.push(dependency);
+		}
+	}
+
+	const ordered = catalogKeys.filter((entry) => selected.has(entry.key)).map((entry) => entry.key);
+	const known = new Set(ordered);
+
+	return [...ordered, ...[...selected].filter((key) => !known.has(key))];
+}
+
+/** Chaves selecionadas que exigem `key` — a remoção de `key` fica bloqueada. */
+export function dependentsOf(
+	key: PermissionKey,
+	selectedKeys: readonly PermissionKey[],
+	catalogKeys: readonly CatalogKey[]
+): PermissionKey[] {
+	return catalogKeys
+		.filter((entry) => selectedKeys.includes(entry.key) && entry.dependencies.includes(key))
+		.map((entry) => entry.key);
+}
+
+/**
+ * Dependências de `key` que o ator não pode conceder. Sem isso, marcar a chave
+ * geraria uma composição que o próprio ator não consegue salvar.
+ */
+export function ungrantableDependencies(
+	user: SessionUser,
+	key: PermissionKey,
+	catalog: ProfileKeyCatalog
+): PermissionKey[] {
+	const catalogKeys = groupCatalogResources(catalog).flatMap((resource) => resource.keys);
+	return expandWithDependencies([key], catalogKeys)
+		.filter((dependency) => dependency !== key)
+		.filter((dependency) => grantableCustodies(user, dependency, catalog).length === 0);
 }
 
 export function flagRequirementsMet(
@@ -236,12 +288,12 @@ export function validateProfileForm(input: ProfileFormValidationInput): ProfileF
 		} else if (input.canEditComposition && input.unconfirmedSelfServiceKeys.length > 0) {
 			saveError = 'Confirme as consequências de remover as permissões de autoatendimento.';
 		} else if (
-			input.mode === 'edit' &&
-			((input.compositionChanged && !input.compositionConfirmed) ||
-				(input.flagsChanged && !input.flagsConfirmed) ||
-				(input.identityChanged && !input.identityConfirmed))
+			input.hasAssignedCustody &&
+			!input.isAssignableTriage &&
+			!input.isAssignableMapping
 		) {
-			saveError = 'Confirme cada seção alterada antes de salvar.';
+			saveError =
+				'O escopo “Atribuído” exige que o perfil seja atribuível à triagem ou ao mapeamento. Ligue uma das flags e inclua as chaves exigidas, ou troque o escopo para “Todas”.';
 		}
 	}
 	return { nameError, saveError };

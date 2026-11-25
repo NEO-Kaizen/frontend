@@ -1,12 +1,17 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import type { SessionUser } from '$lib/types/auth';
 	import type { PermissionCustody, PermissionKey } from '$lib/types/permission';
 	import { custodyLabels } from '$lib/utils/profile-labels';
 	import type { ProfileKeyCatalog } from '$lib/types/profile';
+	import { permissionLabel } from '$lib/services/profiles/permission-ui';
 	import {
 		SELF_SERVICE_CONSEQUENCES,
+		dependentsOf,
+		expandWithDependencies,
 		grantableCustodies,
 		isSelfServiceKey,
+		ungrantableDependencies,
 		type CatalogResource,
 		type MissingDependency,
 		type SelfServiceKey
@@ -44,26 +49,102 @@
 		oncompositionchange
 	}: Props = $props();
 
-	let dependencyGuidance = $state('');
 	const catalogKeys = $derived(resources.flatMap((resource) => resource.keys));
+	const keyToResourceId = $derived.by(() => {
+		const map: Partial<Record<PermissionKey, string>> = {};
+		for (const resource of resources) {
+			for (const entry of resource.keys) map[entry.key] = resource.id;
+		}
+		return map;
+	});
 
-	function setKeySelected(key: PermissionKey, checked: boolean) {
+	// Abre os grupos que já têm seleção; sem seleção, abre o primeiro.
+	let openGroups = $state<Record<string, boolean>>(
+		untrack(() => initialOpenGroups(resources, selectedKeys))
+	);
+	let dependencyFeedback = $state('');
+
+	const selectedGroupCount = $derived(
+		resources.filter((resource) => resource.keys.some((entry) => selectedKeys.includes(entry.key)))
+			.length
+	);
+
+	function initialOpenGroups(
+		groups: readonly CatalogResource[],
+		keys: readonly PermissionKey[]
+	): Record<string, boolean> {
+		const anySelected = groups.some((group) =>
+			group.keys.some((entry) => keys.includes(entry.key))
+		);
+		const state: Record<string, boolean> = {};
+		groups.forEach((group, index) => {
+			state[group.id] =
+				group.keys.some((entry) => keys.includes(entry.key)) || (!anySelected && index === 0);
+		});
+		return state;
+	}
+
+	function toggleGroup(id: string, open: boolean): void {
+		openGroups[id] = open;
+	}
+
+	function expandAll(): void {
+		openGroups = Object.fromEntries(resources.map((resource) => [resource.id, true]));
+	}
+
+	function collapseAll(): void {
+		openGroups = Object.fromEntries(resources.map((resource) => [resource.id, false]));
+	}
+
+	function openGroupsFor(keys: readonly PermissionKey[]): void {
+		const next = { ...openGroups };
+		for (const key of keys) {
+			const resourceId = keyToResourceId[key];
+			if (resourceId) next[resourceId] = true;
+		}
+		openGroups = next;
+	}
+
+	function setKeySelected(key: PermissionKey, checked: boolean): void {
 		if (!checked) {
-			const dependents = catalogKeys
-				.filter((entry) => selectedKeys.includes(entry.key) && entry.dependencies.includes(key))
-				.map((entry) => entry.key);
+			const dependents = dependentsOf(key, selectedKeys, catalogKeys);
 			if (dependents.length > 0) {
-				dependencyGuidance = `Desmarque primeiro as permissões dependentes: ${dependents.join(', ')}.`;
+				dependencyFeedback = `Remova primeiro as permissões que exigem ${permissionLabel(key)}: ${dependents
+					.map(permissionLabel)
+					.join(', ')}.`;
 				return;
 			}
+
+			dependencyFeedback = '';
+			oncompositionchange?.();
+			selectedKeys = selectedKeys.filter((item) => item !== key);
+			removedSelfServiceConfirmed = removedSelfServiceConfirmed.filter((item) => item !== key);
+			return;
 		}
 
-		dependencyGuidance = '';
+		const blockedDependencies = ungrantableDependencies(user, key, catalog);
+		if (blockedDependencies.length > 0) {
+			dependencyFeedback = `Não é possível incluir ${permissionLabel(key)}: sua conta não pode conceder ${blockedDependencies
+				.map(permissionLabel)
+				.join(', ')}.`;
+			return;
+		}
+
+		const nextKeys = expandWithDependencies([...selectedKeys, key], catalogKeys);
+		const included = nextKeys.filter(
+			(candidate) => candidate !== key && !selectedKeys.includes(candidate)
+		);
+
 		oncompositionchange?.();
-		selectedKeys = checked
-			? [...new Set([...selectedKeys, key])]
-			: selectedKeys.filter((item) => item !== key);
+		selectedKeys = nextKeys;
 		removedSelfServiceConfirmed = removedSelfServiceConfirmed.filter((item) => item !== key);
+
+		if (included.length > 0) {
+			openGroupsFor(included);
+			dependencyFeedback = `Incluímos automaticamente: ${included.map(permissionLabel).join(', ')}.`;
+		} else {
+			dependencyFeedback = '';
+		}
 	}
 </script>
 
@@ -80,98 +161,130 @@
 			{selectedKeys.length}/{compositionLimit}
 		</span>
 	</div>
+	<p class="composition-summary">
+		{selectedKeys.length}/{compositionLimit} permissões em {selectedGroupCount} grupos
+	</p>
 	{#if isCompositionLocked}
 		<p class="composition-lock-note" role="note">
 			A composição está bloqueada porque sua conta não pode conceder todas as permissões deste
 			perfil. Você ainda pode alterar o nome, a descrição e as flags de atribuição.
 		</p>
 	{/if}
+	<div class="group-controls">
+		<button type="button" class="link-button" onclick={expandAll}>Expandir todos</button>
+		<button type="button" class="link-button" onclick={collapseAll}>Recolher todos</button>
+	</div>
 	{#each resources as resource (resource.id)}
-		<fieldset class="resource-group">
-			<legend>{resource.label}</legend>
-			{#each resource.keys as entry (entry.key)}
-				{@const checked = selectedKeys.includes(entry.key)}
-				{@const availableCustodies = grantableCustodies(user, entry.key, catalog)}
-				{@const canGrant = availableCustodies.length > 0}
-				{@const missingForKey = entry.dependencies.filter(
-					(dependency) => !selectedKeys.includes(dependency)
-				)}
-				{@const custodySelector = checked && !entry.fixedCustody && availableCustodies.length > 1}
-				<div
-					class={[
-						'permission-row',
-						{
-							blocked: !canGrant || !canEditComposition || (!checked && missingForKey.length > 0)
-						}
-					]}
-				>
-					<label class="permission-choice">
-						<input
-							type="checkbox"
-							{checked}
-							disabled={isSaving ||
-								!canGrant ||
-								!canEditComposition ||
-								(!checked && missingForKey.length > 0) ||
-								(!checked && selectedKeys.length >= compositionLimit)}
-							onchange={(event) => setKeySelected(entry.key, event.currentTarget.checked)}
-						/>
-						<span>
-							<strong>{entry.label}</strong>
-							<code>{entry.key}</code>
-							{#if !canGrant}
-								<small class="blocked-note">
-									Sua conta não possui a permissão e o escopo necessários para concedê-la.
-								</small>
-							{/if}
-							{#if !checked && missingForKey.length > 0}
-								<small class="blocked-note">
-									Inclua primeiro: {missingForKey.join(', ')}.
-								</small>
-							{/if}
-						</span>
-					</label>
-					{#if custodySelector}
-						<label class="custody-field">
-							<span>Escopo</span>
-							<select
-								aria-label={`Escopo de ${entry.key}`}
-								value={selectedCustodies[entry.key] ?? availableCustodies[0]}
-								disabled={isSaving || !canEditComposition}
-								onchange={(event) => {
-									const custody = availableCustodies.find(
-										(availableCustody) => availableCustody === event.currentTarget.value
-									);
-									if (!custody) return;
-
-									oncompositionchange?.();
-									selectedCustodies = {
-										...selectedCustodies,
-										[entry.key]: custody
-									};
-								}}
-							>
-								{#each availableCustodies as custody (custody)}
-									<option value={custody}>{custodyLabels[custody]}</option>
-								{/each}
-							</select>
+		{@const selectedCount = resource.keys.filter((entry) =>
+			selectedKeys.includes(entry.key)
+		).length}
+		<details
+			class={['resource-group', { 'has-selection': selectedCount > 0 }]}
+			open={openGroups[resource.id] ?? false}
+			ontoggle={(event) => toggleGroup(resource.id, event.currentTarget.open)}
+		>
+			<summary
+				class="resource-summary"
+				aria-label={`${resource.label}: ${selectedCount} de ${resource.keys.length} selecionadas`}
+			>
+				<span class="chevron" aria-hidden="true">▸</span>
+				<span class="resource-name">{resource.label}</span>
+				<span class="resource-count">{selectedCount}/{resource.keys.length}</span>
+			</summary>
+			<div class="resource-content" role="group" aria-label={resource.label}>
+				{#each resource.keys as entry (entry.key)}
+					{@const checked = selectedKeys.includes(entry.key)}
+					{@const availableCustodies = grantableCustodies(user, entry.key, catalog)}
+					{@const canGrant = availableCustodies.length > 0}
+					{@const dependents = checked ? dependentsOf(entry.key, selectedKeys, catalogKeys) : []}
+					{@const requiredBy = dependents.length > 0}
+					{@const blockedDependencies =
+						!checked && canGrant ? ungrantableDependencies(user, entry.key, catalog) : []}
+					{@const custodySelector = checked && !entry.fixedCustody && availableCustodies.length > 1}
+					<div
+						class={[
+							'permission-row',
+							{
+								blocked: !canGrant || !canEditComposition || blockedDependencies.length > 0
+							}
+						]}
+					>
+						<label class="permission-choice">
+							<input
+								type="checkbox"
+								{checked}
+								disabled={isSaving ||
+									!canGrant ||
+									!canEditComposition ||
+									requiredBy ||
+									blockedDependencies.length > 0 ||
+									(!checked && selectedKeys.length >= compositionLimit)}
+								onchange={(event) => setKeySelected(entry.key, event.currentTarget.checked)}
+							/>
+							<span>
+								<strong>{entry.label}</strong>
+								{#if entry.description}
+									<span class="permission-description">{entry.description}</span>
+								{/if}
+								<code>{entry.key}</code>
+								{#if requiredBy}
+									<small class="requirement-note">
+										Exigida por {dependents.map(permissionLabel).join(', ')}.
+									</small>
+								{/if}
+								{#if !canGrant}
+									<small class="blocked-note">
+										Sua conta não possui a permissão e o escopo necessários para concedê-la.
+									</small>
+								{/if}
+								{#if blockedDependencies.length > 0}
+									<small class="blocked-note">
+										Depende de {blockedDependencies.map(permissionLabel).join(', ')}, que sua conta
+										não pode conceder.
+									</small>
+								{/if}
+							</span>
 						</label>
-					{:else if checked && entry.fixedCustody}
-						<span class="fixed-custody">Escopo fixo: {entry.fixedCustody}</span>
-					{/if}
-					{#if checked && isSelfServiceKey(entry.key)}
-						<span class="self-service-note">Autoatendimento</span>
-					{/if}
-				</div>
-			{/each}
-		</fieldset>
+						{#if custodySelector}
+							<label class="custody-field">
+								<span>Escopo</span>
+								<select
+									aria-label={`Escopo de ${entry.key}`}
+									value={selectedCustodies[entry.key] ?? availableCustodies[0]}
+									disabled={isSaving || !canEditComposition}
+									onchange={(event) => {
+										const custody = availableCustodies.find(
+											(availableCustody) => availableCustody === event.currentTarget.value
+										);
+										if (!custody) return;
+
+										oncompositionchange?.();
+										selectedCustodies = {
+											...selectedCustodies,
+											[entry.key]: custody
+										};
+									}}
+								>
+									{#each availableCustodies as custody (custody)}
+										<option value={custody}>{custodyLabels[custody]}</option>
+									{/each}
+								</select>
+							</label>
+						{:else if checked && entry.fixedCustody}
+							<span class="fixed-custody">Escopo fixo: {entry.fixedCustody}</span>
+						{/if}
+						{#if checked && isSelfServiceKey(entry.key)}
+							<span class="self-service-note">Autoatendimento</span>
+						{/if}
+					</div>
+				{/each}
+			</div>
+		</details>
 	{:else}
 		<p class="catalog-empty">O catálogo não contém permissões disponíveis.</p>
 	{/each}
 
-	{#if dependencyGuidance}
-		<p class="dependency-guidance" role="status">{dependencyGuidance}</p>
-	{/if}
+	<p class="dependency-guidance" role="status" aria-live="polite">{dependencyFeedback}</p>
 
 	{#if missingDependencies.length > 0}
 		<div class="dependency-error" role="alert">
@@ -214,6 +327,12 @@
 		padding-top: var(--spacing-md);
 		border-top: var(--border-default);
 	}
+	.section-heading {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: var(--spacing-sm);
+	}
 	.section-heading h4 {
 		margin: 0 0 4px;
 		color: var(--heading-color);
@@ -224,17 +343,82 @@
 		color: var(--gray);
 		font: var(--paragrafo);
 	}
+	.composition-limit {
+		flex-shrink: 0;
+		color: var(--secondary-color);
+		font: var(--label);
+	}
+	.composition-summary {
+		margin: 0;
+		color: var(--gray);
+		font: var(--paragrafo);
+	}
+	.group-controls {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--spacing-md);
+	}
+	.link-button {
+		padding: 0;
+		border: 0;
+		background: transparent;
+		color: var(--secondary-color);
+		font: var(--label);
+		text-decoration: underline;
+		cursor: pointer;
+	}
+	.link-button:focus-visible {
+		outline: 2px solid var(--secondary-color);
+		outline-offset: 2px;
+	}
 	.resource-group {
 		min-width: 0;
-		margin: 0;
-		padding: var(--spacing-sm);
 		border: var(--border-default);
 		border-radius: var(--radius-sm);
 	}
-	.resource-group legend {
-		padding: 0 6px;
+	.resource-group.has-selection {
+		border-color: var(--secondary-color);
+	}
+	.resource-summary {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-sm);
+		padding: var(--spacing-sm);
 		color: var(--heading-color);
 		font: var(--label);
+		cursor: pointer;
+		list-style: none;
+	}
+	.resource-summary::-webkit-details-marker {
+		display: none;
+	}
+	.resource-summary::marker {
+		content: '';
+	}
+	.resource-summary:focus-visible {
+		outline: 2px solid var(--secondary-color);
+		outline-offset: -2px;
+		border-radius: var(--radius-sm);
+	}
+	.chevron {
+		flex-shrink: 0;
+		color: var(--secondary-color);
+		transition: transform 150ms ease;
+	}
+	.resource-group[open] .chevron {
+		transform: rotate(90deg);
+	}
+	.resource-name {
+		flex: 1;
+		min-width: 0;
+	}
+	.resource-count {
+		flex-shrink: 0;
+		color: var(--gray);
+		font-size: 12px;
+	}
+	.resource-content {
+		padding: 0 var(--spacing-sm) var(--spacing-sm);
 	}
 	.permission-row {
 		display: flex;
@@ -263,6 +447,11 @@
 		color: var(--black);
 		font: var(--label);
 	}
+	.permission-description {
+		color: var(--gray);
+		font: var(--paragrafo);
+		font-size: 12px;
+	}
 	.permission-choice code,
 	.self-service-confirmations code {
 		color: var(--secondary-color);
@@ -281,6 +470,9 @@
 	.permission-choice .blocked-note {
 		color: var(--status-red);
 	}
+	.permission-choice .requirement-note {
+		color: var(--secondary-color);
+	}
 	.composition-lock-note,
 	.dependency-guidance {
 		margin: 0;
@@ -292,6 +484,9 @@
 	.dependency-guidance {
 		border: 1px solid var(--status-orange);
 		color: var(--heading-color);
+	}
+	.dependency-guidance:empty {
+		display: none;
 	}
 	.custody-field {
 		display: flex;

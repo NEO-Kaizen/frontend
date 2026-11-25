@@ -1,10 +1,13 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import Button from './Button.svelte';
 
 	interface Props {
 		open: boolean;
 		title: string;
 		description?: string;
+		/** Conteúdo adicional (ex.: lista de mudanças) entre a descrição e as ações. */
+		details?: Snippet;
 		confirmLabel?: string;
 		cancelLabel?: string;
 		onConfirm: () => void;
@@ -15,6 +18,7 @@
 		open,
 		title,
 		description = '',
+		details,
 		confirmLabel = 'Confirmar',
 		cancelLabel = 'Cancelar',
 		onConfirm,
@@ -42,6 +46,7 @@
 
 <dialog
 	bind:this={dialog}
+	class={{ wide: Boolean(details) }}
 	role="alertdialog"
 	aria-labelledby={titleId}
 	oncancel={(e) => {
@@ -54,6 +59,12 @@
 
 		{#if description}
 			<p>{description}</p>
+		{/if}
+
+		{#if details}
+			<div class="details">
+				{@render details()}
+			</div>
 		{/if}
 
 		<div class="actions">
@@ -76,6 +87,15 @@
 
 	dialog::backdrop {
 		background-color: rgba(15, 26, 42, 0.5);
+	}
+
+	dialog.wide {
+		width: min(560px, 92vw);
+	}
+
+	.details {
+		width: 100%;
+		text-align: left;
 	}
 
 	.content {

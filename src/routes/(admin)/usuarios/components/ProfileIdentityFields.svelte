@@ -7,9 +7,7 @@
 		description?: string;
 		nameError?: string;
 		disabled?: boolean;
-		isRootNameLocked?: boolean;
 		showDuplicateHelper?: boolean;
-		onedit?: () => void;
 	}
 
 	let {
@@ -17,9 +15,7 @@
 		description = $bindable(''),
 		nameError = '',
 		disabled = false,
-		isRootNameLocked = false,
-		showDuplicateHelper = false,
-		onedit
+		showDuplicateHelper = false
 	}: Props = $props();
 </script>
 
@@ -36,9 +32,8 @@
 			maxlength={PROFILE_NAME_MAX_LENGTH}
 			required
 			bind:value={name}
-			oninput={onedit}
 			error={nameError}
-			disabled={disabled || isRootNameLocked}
+			{disabled}
 		/>
 		<label class="field">
 			<span>Descrição</span>
@@ -46,17 +41,9 @@
 				bind:value={description}
 				maxlength={PROFILE_DESCRIPTION_MAX_LENGTH}
 				rows="2"
-				{disabled}
-				oninput={onedit}></textarea>
+				{disabled}></textarea>
 		</label>
 	</div>
-
-	{#if isRootNameLocked}
-		<p class="helper">
-			O nome do perfil Root não pode ser alterado enquanto a sessão não expuser
-			<code>isRoot</code>.
-		</p>
-	{/if}
 </div>
 
 <style>
