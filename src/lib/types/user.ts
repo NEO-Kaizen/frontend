@@ -1,10 +1,7 @@
+import type { ProfileReference } from '$lib/types/profile';
 import type { RequestCategory } from './request';
 
 export type UserType = 'Solicitante' | 'Analista' | 'Administrador' | 'Gestor';
-
-export type UserRole = UserType;
-
-export type UserProfile = 'solicitante' | 'analista' | 'administrador' | 'gestor';
 
 export type UserStatus = 'Ativo' | 'Inativo';
 
@@ -15,7 +12,7 @@ export interface AdminUser {
 	name: string;
 	email: string;
 	avatarUrl: string | null;
-	role: UserType;
+	profile: ProfileReference;
 	status: UserStatus;
 	mustChangePassword: boolean;
 	createdAt: string;
@@ -26,19 +23,20 @@ export interface UserSummary {
 	fullName: string;
 	email: string;
 	avatarUrl: string | null;
-	profile: UserRole;
+	profile: ProfileReference;
 	isActive: boolean;
 	mustChangePassword: boolean;
 	createdAt: string;
 }
 
-// Assignment DTO: backend `GET /users/analysts` retorna só ativos,
-// então `isActive` não faz parte do contrato (ver contratos/contract-assign-action.md).
-export interface Analyst extends Omit<UserSummary, 'isActive' | 'avatarUrl'> {
+export interface Analyst {
+	id: string;
+	fullName: string;
+	email: string;
 	specialty: string;
 	categories: RequestCategory[];
 	notes: string | null;
-	requestLoad: number | null;
+	requestLoad: number;
 }
 
 export interface UserStats {
@@ -49,7 +47,7 @@ export interface UserStats {
 }
 
 export interface ListUsersQuery {
-	profile?: UserProfile;
+	profileId?: string;
 	search?: string;
 	category?: RequestCategory;
 	page?: number;
@@ -59,7 +57,7 @@ export interface ListUsersQuery {
 export interface CreateUserFormData {
 	name: string;
 	email: string;
-	role: UserProfile;
+	profileId: string;
 	area: string;
 	department?: string;
 	manager: string;
@@ -70,7 +68,7 @@ export interface CreateUserFormData {
 export interface CreateUserPayload {
 	fullName: string;
 	email: string;
-	role: UserProfile;
+	profileId: string;
 	requester: {
 		area: string;
 		department?: string;
@@ -84,7 +82,7 @@ export interface CreateUserResponse {
 	id: string;
 	fullName: string;
 	email: string;
-	role: UserRole;
+	profile: ProfileReference;
 	isActive: true;
 	mustChangePassword: true;
 	createdAt: string;
@@ -107,7 +105,7 @@ export interface ResetPasswordResponse {
 
 // "Meus dados" — perfil completo do próprio usuário (GET /users/me).
 // Blocos são opcionais no contrato: `requester` pode não existir e
-// `professional` só é preenchido para o perfil Analista.
+// `professional` só é preenchido para Perfis designáveis na triagem/mapeamento.
 export interface RequesterProfileBlock {
 	area: string | null;
 	department: string | null;
@@ -126,7 +124,7 @@ export interface UserProfileResponse {
 	id: string;
 	fullName: string;
 	email: string;
-	role: UserRole;
+	profile: ProfileReference;
 	avatarUrl: string | null;
 	requester: RequesterProfileBlock | null;
 	professional: ProfessionalProfileBlock | null;
@@ -157,6 +155,7 @@ export interface UpdateMyProfileInput {
 }
 
 export interface UpdateUserInput {
+	profileId?: string;
 	fullName?: string;
 	requester?: {
 		area?: string;

@@ -15,6 +15,7 @@ type MockDomains = {
 	request: true;
 	portalConfig: true;
 	users: true;
+	profiles: true;
 	prioritization: true;
 	pendingItems: true;
 	triage: true;
@@ -32,6 +33,7 @@ export const MOCK_DOMAINS: false | MockDomains =
 		request: true,
 		portalConfig: true,
 		users: true,
+		profiles: true,
 		prioritization: true,
 		pendingItems: true,
 		triage: true,

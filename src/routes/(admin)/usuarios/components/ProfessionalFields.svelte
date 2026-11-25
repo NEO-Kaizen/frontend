@@ -21,6 +21,7 @@
 		categoriesError?: string;
 		notesError?: string;
 		disabled?: boolean;
+		profileName?: string;
 	}
 
 	let {
@@ -33,7 +34,8 @@
 		specialtiesError = '',
 		categoriesError = '',
 		notesError = '',
-		disabled = false
+		disabled = false,
+		profileName = ''
 	}: Props = $props();
 
 	function toggleCategory(id: number) {
@@ -45,7 +47,9 @@
 
 <section class="professional-section" aria-labelledby="professional-fields-title">
 	<div class="section-heading">
-		<h4 id="professional-fields-title">Dados profissionais do Analista</h4>
+		<h4 id="professional-fields-title">
+			{profileName ? `Dados profissionais — ${profileName}` : 'Dados profissionais'}
+		</h4>
 		<p>Informações usadas na atribuição e no acompanhamento das solicitações.</p>
 	</div>
 

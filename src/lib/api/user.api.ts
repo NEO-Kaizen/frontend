@@ -83,8 +83,8 @@ export async function listUsers(
 
 	const params = new URLSearchParams();
 
-	if (query.profile) {
-		params.set('profile', query.profile);
+	if (query.profileId) {
+		params.set('profileId', query.profileId);
 	}
 
 	if (query.search?.trim()) {

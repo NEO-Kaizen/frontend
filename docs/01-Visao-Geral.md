@@ -94,11 +94,12 @@ O frontend deve:
 
 ## 6. Organização da documentação
 
-| Documento                          | Conteúdo                                    |
-| ---------------------------------- | ------------------------------------------- |
-| `01-Visao-Geral.md`                | Objetivo, tecnologias, perfis e princípios  |
-| `02-Arquitetura-Frontend.md`       | Camadas e fluxo da aplicação                |
-| `03-Padrões-de-Desenvolvimento.md` | Regras de TypeScript, Svelte e nomenclatura |
+| Documento                           | Conteúdo                                      |
+| ----------------------------------- | --------------------------------------------- |
+| `01-Visao-Geral.md`                 | Objetivo, tecnologias, perfis e princípios    |
+| `02-Arquitetura-Frontend.md`        | Camadas e fluxo da aplicação                  |
+| `03-Padrões-de-Desenvolvimento.md`  | Regras de TypeScript, Svelte e nomenclatura   |
+| `adr/0001-alcada-por-permissoes.md` | Regra de alçada administrativa por permissões |
 
 ---
 
