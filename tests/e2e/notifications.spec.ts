@@ -264,6 +264,18 @@ test.describe.serial('RF20 — Notificações in-app (seed descartável)', () =>
 
 			expect(assigned).toHaveLength(1);
 			assigned.forEach(assertPayload);
+
+			const category = String(assigned[0].payload.category);
+			const status = String(assigned[0].payload.status);
+
+			await bell(page).click();
+
+			const center = notificationCenter(page);
+
+			await expect(center).toBeVisible();
+			await expect(
+				center.locator('.notification-card').filter({ hasText: PROTOCOLS.lifecycle })
+			).toContainText(`Responsável designado · ${category} · ${status}`);
 		} finally {
 			await admin.dispose();
 		}
@@ -472,6 +484,20 @@ test.describe.serial('RF20 — Notificações in-app (seed descartável)', () =>
 			expect(unassigned).toHaveLength(1);
 			unassigned.forEach(assertPayload);
 			expect(unassigned[0].payload.notice).toBe(SEED_STATE.unassignedNotice);
+
+			await bell(page).click();
+
+			const center = notificationCenter(page);
+
+			await expect(center).toBeVisible();
+
+			// O seed já tem um card com o mesmo aviso para o Administrador. O
+			// primeiro card de request 3 é a Notificação recém-criada (lista mais
+			// recente primeiro); é ela que precisa exibir o notice do backend.
+			await expect(
+				center.locator('.notification-card').filter({ hasText: PROTOCOLS.lifecycle }).first()
+			).toContainText(SEED_STATE.unassignedNotice);
+
 			await validatePendingBatch(admin, PROTOCOLS.lifecycle, batch.batchId, batch.items);
 		} finally {
 			await admin.dispose();
