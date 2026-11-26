@@ -67,6 +67,7 @@ export const iconDictionary = {
 	reopen: 'replay',
 	inbox: 'inbox',
 	flag: 'flag',
+	notifications: 'notifications',
 	lightMode: 'light_mode',
 	darkMode: 'dark_mode',
 	content_copy: 'content_copy',

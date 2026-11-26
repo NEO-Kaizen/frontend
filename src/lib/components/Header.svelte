@@ -4,6 +4,7 @@
 	import type { IconName } from '$lib/types/icons';
 	import { page } from '$app/state';
 	import Button from '$lib/components/Button.svelte';
+	import NotificationBell from '$lib/components/NotificationBell.svelte';
 	import type { UserType } from '$lib/types/user';
 	import Input from './Input.svelte';
 	import { goto } from '$app/navigation';
@@ -230,6 +231,8 @@
 			{/if}
 
 			{#if isAuthenticated}
+				<NotificationBell userId={currentUser?.id ?? null} />
+
 				<div class="separator_bar-column"></div>
 
 				<a
