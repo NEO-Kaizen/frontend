@@ -25,7 +25,7 @@ import {
 	ALL_PERMISSIONS,
 	ANALYST_PERMISSIONS,
 	buildProfilePermissions,
-	MANAGER_PERMISSIONS,
+	VIEWER_PERMISSIONS,
 	SELF_SERVICE_PERMISSIONS
 } from './profile-permissions.mock';
 
@@ -74,15 +74,15 @@ const profileRecords: Profile[] = [
 		permissions: ANALYST_PERMISSIONS
 	},
 	{
-		id: BASE_PROFILE_IDS.Gestor,
-		name: 'Gestor',
+		id: BASE_PROFILE_IDS.Visualizador,
+		name: 'Visualizador',
 		description: 'Acompanhamento das solicitações e indicadores.',
 		isActive: true,
 		isRoot: false,
 		isAssignableTriage: false,
 		isAssignableMapping: false,
 		userCount: 2,
-		permissions: MANAGER_PERMISSIONS
+		permissions: VIEWER_PERMISSIONS
 	},
 	{
 		id: BASE_PROFILE_IDS.Administrador,

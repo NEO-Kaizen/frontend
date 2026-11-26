@@ -282,7 +282,7 @@ A pasta `routes/` segue o sistema de rotas baseado em arquivos do SvelteKit.
 
 - `(public)`: páginas públicas, como login;
 - `(app)`: páginas de qualquer usuário autenticado — `guard('anySession')`;
-- `(admin)`: páginas das áreas internas (Analista, Gestor, Administrador) — `guard('internalArea')`. Grupo tem papel de guard server-side, nunca de layout visual; perfil é resolvido no access service (`GUARD_RULES`), nunca criando grupos por perfil.
+- `(admin)`: páginas das áreas internas (Analista, Visualizador, Administrador) — `guardAny(ADMIN_AREA_KEYS)`. Grupo tem papel de guard server-side, nunca de layout visual; perfil é resolvido no access service pelas chaves de permissão, nunca criando grupos por perfil.
 
 Os grupos entre parênteses organizam as rotas sem alterar diretamente a URL.
 

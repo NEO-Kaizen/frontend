@@ -55,7 +55,7 @@
 				{#each profiles as profile (profile.id)}
 					{@const canDuplicate = canDuplicateProfile(profile)}
 					{@const canEdit = canEditProfile(user, profile)}
-					{@const displayName = profile.name || 'perfil sem nome'}
+					{@const profileName = profile.name || 'perfil sem nome'}
 					{@const duplicateRestriction = !canEdit
 						? 'Seu perfil não tem autoridade suficiente para duplicar este perfil.'
 						: duplicateRestrictionMessage}
@@ -129,23 +129,23 @@
 									<Button
 										variant="outline"
 										disabled={!canEdit}
-										aria-label={`Editar perfil ${displayName}`}
+										aria-label={`Editar perfil ${profileName}`}
 										onclick={() => onedit(profile)}
 									>
 										Editar
 									</Button>
 									{#if !canEdit}
 										<small class="action-note">
-											Sua sessão atual informa a função “{user.role}”. Seu perfil não tem autoridade
-											suficiente para editar este perfil. O servidor continua sendo a autoridade
-											final de autorização.
+											Sua sessão atual informa o perfil “{user.profile?.name ?? 'perfil sem nome'}”.
+											Seu perfil não tem autoridade suficiente para editar este perfil. O servidor
+											continua sendo a autoridade final de autorização.
 										</small>
 									{/if}
 									<Button
 										variant="outline"
 										disabled={!canDuplicate}
 										title={!canDuplicate ? duplicateRestriction : undefined}
-										aria-label={`Duplicar perfil ${displayName}`}
+										aria-label={`Duplicar perfil ${profileName}`}
 										aria-describedby={!canDuplicate
 											? `duplicate-guidance-${profile.id}`
 											: undefined}
@@ -158,7 +158,7 @@
 										disabled={!canEdit ||
 											(profile.isActive && (profile.isRoot || profile.userCount > 0))}
 										title={statusRestrictionMessage || undefined}
-										aria-label={`${profile.isActive ? 'Desativar' : 'Ativar'} perfil ${displayName}`}
+										aria-label={`${profile.isActive ? 'Desativar' : 'Ativar'} perfil ${profileName}`}
 										aria-describedby={statusRestrictionMessage
 											? `status-guidance-${profile.id}`
 											: undefined}

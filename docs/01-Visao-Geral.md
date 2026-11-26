@@ -29,13 +29,13 @@ A documentação desta pasta define como o frontend deve ser organizado, desenvo
 
 O sistema possui diferentes perfis, com permissões distintas.
 
-| Perfil      | Responsabilidades principais                                           |
-| ----------- | ---------------------------------------------------------------------- |
-| Root        | Gerencia administradores e possui permissões administrativas especiais |
-| Admin       | Gerencia usuários, visualiza solicitações e delega solicitações        |
-| Analista    | Visualiza solicitações atribuídas e realiza atendimentos               |
-| Gestor      | Visualiza e acompanha solicitações                                     |
-| Solicitante | Cria e acompanha suas próprias solicitações                            |
+| Perfil       | Responsabilidades principais                                           |
+| ------------ | ---------------------------------------------------------------------- |
+| Root         | Gerencia administradores e possui permissões administrativas especiais |
+| Admin        | Gerencia usuários, visualiza solicitações e delega solicitações        |
+| Analista     | Visualiza solicitações atribuídas e realiza atendimentos               |
+| Visualizador | Visualiza e acompanha solicitações                                     |
+| Solicitante  | Cria e acompanha suas próprias solicitações                            |
 
 ### Regras preliminares
 
@@ -47,7 +47,7 @@ O sistema possui diferentes perfis, com permissões distintas.
 - Usuários e registros não devem ser apagados definitivamente.
 - A remoção funcional deve ocorrer por meio de desativação.
 - O Solicitante não pode alterar o próprio perfil.
-- Analistas e Gestores também podem criar solicitações.
+- Analistas e Visualizadores também podem criar solicitações.
 - O Admin pode delegar solicitações, mas não deve alterar indevidamente o conteúdo criado por outros usuários.
 - Uma solicitação deverá possuir três sugestões de horários obrigatórias, conforme regra de negócio.
 

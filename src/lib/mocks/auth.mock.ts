@@ -7,8 +7,8 @@ import {
 	ALL_PERMISSIONS,
 	ANALYST_PERMISSIONS,
 	buildProfilePermissions,
-	MANAGER_PERMISSIONS,
-	SELF_SERVICE_PERMISSIONS
+	SELF_SERVICE_PERMISSIONS,
+	VIEWER_PERMISSIONS
 } from './profile-permissions.mock';
 
 type MockUser = SessionUser & { password: string };
@@ -24,7 +24,7 @@ const MOCK_USERS: MockUser[] = [
 		name: 'Ana Souza',
 		email: 'analista@maat.com.br',
 		avatarUrl: null,
-		role: 'Analista',
+		profile: { id: BASE_PROFILE_IDS.Analista, name: 'Analista' },
 		isRoot: false,
 		mustChangePassword: false,
 		permissions: ANALYST_PERMISSIONS,
@@ -33,12 +33,12 @@ const MOCK_USERS: MockUser[] = [
 	{
 		id: '2',
 		name: 'Marcos Lima',
-		email: 'gestor@maat.com.br',
+		email: 'visualizador@maat.com.br',
 		avatarUrl: null,
-		role: 'Gestor',
+		profile: { id: BASE_PROFILE_IDS.Visualizador, name: 'Visualizador' },
 		isRoot: false,
 		mustChangePassword: false,
-		permissions: MANAGER_PERMISSIONS,
+		permissions: VIEWER_PERMISSIONS,
 		password: 'admin'
 	},
 	{
@@ -46,7 +46,7 @@ const MOCK_USERS: MockUser[] = [
 		name: 'Adriana Castro',
 		email: 'admin@maat.com.br',
 		avatarUrl: null,
-		role: 'Administrador',
+		profile: { id: BASE_PROFILE_IDS.Administrador, name: 'Administrador' },
 		isRoot: false,
 		mustChangePassword: false,
 		permissions: ALL_PERMISSIONS,
@@ -57,7 +57,7 @@ const MOCK_USERS: MockUser[] = [
 		name: 'Carlos Mendes',
 		email: 'solicitante@maat.com.br',
 		avatarUrl: null,
-		role: 'Solicitante',
+		profile: { id: BASE_PROFILE_IDS.Solicitante, name: 'Solicitante' },
 		isRoot: false,
 		mustChangePassword: false,
 		permissions: SELF_SERVICE_PERMISSIONS,
@@ -68,7 +68,7 @@ const MOCK_USERS: MockUser[] = [
 		name: 'Beatriz Rocha',
 		email: 'root@maat.com.br',
 		avatarUrl: null,
-		role: 'Admin Root',
+		profile: { id: BASE_PROFILE_IDS['Admin Root'], name: 'Admin Root' },
 		isRoot: true,
 		mustChangePassword: false,
 		permissions: ALL_PERMISSIONS,
@@ -79,7 +79,7 @@ const MOCK_USERS: MockUser[] = [
 		name: 'Rafael Nunes',
 		email: 'portal@maat.com.br',
 		avatarUrl: null,
-		role: 'Leitura de portal',
+		profile: { id: '', name: 'Leitura de portal' },
 		isRoot: false,
 		mustChangePassword: false,
 		permissions: CUSTOM_PORTAL_READER_PERMISSIONS,
@@ -168,7 +168,7 @@ function toSessionUser(user: MockUser): SessionUser {
 		name: user.name,
 		email: user.email,
 		avatarUrl: user.avatarUrl,
-		role: user.role,
+		profile: structuredClone(user.profile),
 		isRoot: user.isRoot,
 		mustChangePassword: user.mustChangePassword,
 		permissions: structuredClone(user.permissions)
@@ -182,11 +182,7 @@ function toSessionPayload(user: MockUser) {
 		name: user.name,
 		email: user.email,
 		avatarUrl: user.avatarUrl,
-		profile: {
-			id: BASE_PROFILE_IDS[user.role as keyof typeof BASE_PROFILE_IDS] ?? '',
-			name: user.role,
-			isRoot: user.isRoot
-		},
+		profile: { ...structuredClone(user.profile), isRoot: user.isRoot },
 		mustChangePassword: user.mustChangePassword,
 		permissions: structuredClone(user.permissions)
 	};

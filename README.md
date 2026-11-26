@@ -2,7 +2,7 @@
 
 O **MAAT Flow** é uma aplicação voltada para a **gestão de solicitações**, permitindo a abertura, acompanhamento e gerenciamento de demandas de forma centralizada.
 
-A aplicação possui diferentes níveis de acesso, permitindo que **solicitantes, analistas, gestores e administradores** tenham acesso às funcionalidades de acordo com suas responsabilidades.
+A aplicação possui diferentes níveis de acesso, permitindo que **solicitantes, analistas, visualizadores e administradores** tenham acesso às funcionalidades de acordo com suas responsabilidades.
 
 > 🚧 **Projeto em desenvolvimento.** Novas funcionalidades serão adicionadas ao longo das próximas Sprints.
 
@@ -141,7 +141,7 @@ A comunicação com o Backend é centralizada nas camadas de `api` e `services`,
 | ------------- | ------------------------------------------ |
 | Solicitante   | Abrir e acompanhar solicitações            |
 | Analista      | Gerenciar solicitações e acessar a fila    |
-| Gestor        | Acompanhar solicitações e histórico        |
+| Visualizador  | Acompanhar solicitações e histórico        |
 | Administrador | Gerenciar usuários e áreas administrativas |
 
 Os perfis acima são os iniciais; perfis customizados podem ser criados e mantidos na aba **Perfis** de `/usuarios`, conforme os tipos em [`src/lib/types/profile.ts`](src/lib/types/profile.ts) e os endpoints descritos em [`docs/02-Arquitetura-Frontend.md`](docs/02-Arquitetura-Frontend.md).
