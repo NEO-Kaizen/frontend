@@ -28,7 +28,6 @@ let nextInternalNoteId = 3;
 const PROFILE_REFERENCES = {
 	solicitante: { id: '1', name: 'Solicitante' },
 	analista: { id: '2', name: 'Analista' },
-	visualizador: { id: '3', name: 'Visualizador' },
 	administrador: { id: '4', name: 'Administrador' },
 	adminRoot: { id: '5', name: 'Admin Root' }
 } as const satisfies Record<string, ProfileReference>;

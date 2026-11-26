@@ -3,7 +3,7 @@
 - Status: aceita
 - Data: 2026-11-24
 - Escopo: tela `/usuarios` e autorização administrativa no frontend
-- Atualizado em 2026-11-25 pela #237: `SessionUser` expõe `profile`; `role` legado só é fallback de nome.
+- Atualizado em 2026-11-25 pela #237: `SessionUser` expõe `profile` e `isRoot`; `role` legado só é fallback de nome.
 
 ## Contexto
 
@@ -13,7 +13,7 @@ A tela de usuários precisa responder a três perguntas distintas:
 2. quais usuários podem ser administrados (editar, ativar/desativar, redefinir senha);
 3. se o Perfil de origem de uma nota ou registro deve ser exibido como snapshot histórico.
 
-O frontend passou a receber o `profile` do usuário da sessão (`SessionUser`) e a lista efetiva de permissões; antes recebia apenas `role`, e a identificação de Admin Root dependia de um shim temporário pelo rótulo. Um payload legado com `role` é aceito somente como fallback de nome na sanitização; hoje a identificação de Admin Root usa a marca estável `isRoot`, sem depender do nome do Perfil.
+O frontend passou a receber o `profile` do usuário da sessão (`SessionUser`), a marca `isRoot` e a lista efetiva de permissões; antes recebia apenas `role`, e a identificação de Admin Root dependia de um shim temporário pelo rótulo. Um payload legado com `role` é aceito somente como fallback de nome na sanitização; hoje a identificação de Admin Root usa `isRoot`, sem depender do nome editável.
 
 Também havia duas noções sendo tratadas como uma só: “Perfil que posso designar” e “Perfil cujos usuários posso administrar”. Isso fazia com que usuários de Perfis inativos perdessem ações de administração, inclusive a migração para um Perfil ativo.
 
@@ -47,6 +47,6 @@ A alçada administrativa será calculada por **dominância estrita de permissõe
 - Ao migrar para um Perfil sem bloco profissional, o frontend omite `professional`; a extensão existente é preservada, coerente com o contrato de atualização sem reenvio de Perfil.
 - O Perfil Admin Root permanece fora das rotas administrativas mesmo para o ator Root, como no backend (`is_root`); “Root vê tudo” significa todos os Perfis não-Root.
 - `profile.name` permanece apenas como fallback do rótulo de exibição de `role` no `SessionUser`; ele não participa da autorização nem da identificação do Root.
-- O shim de Root por `role` foi **removido**: `isRootActor(user)` usa `user.isRoot === true`, a sessão recebe `profile.isRoot` obrigatório e o nome do Perfil Root voltou a ser editável. Um Perfil customizado chamado “Admin Root” não recebe autoridade de Root.
+- O shim de Root por nome foi removido: `isRootActor(user)` usa `user.isRoot === true`, a sessão recebe `profile.isRoot` obrigatório e o nome do Perfil Root voltou a ser editável. Um Perfil customizado chamado “Admin Root” não recebe autoridade de Root.
 - O mock de notas internas preserva snapshots históricos de Perfil (inclusive o nome `Gestor` anterior ao rename para `Visualizador`) e monta novas notas a partir de `SessionUser.profile`, sem derivar Perfil por rótulo de sessão. A checagem de acesso usa as chaves `internal_note:*`.
 - Mocks devem derivar comportamento de flags (`isAssignableTriage`, `isAssignableMapping`, `isRoot`) e permissões, não de rótulos. A matriz de permissões tem fonte única em `src/lib/mocks/profile-permissions.mock.ts`, e o catálogo inclui um Perfil inativo com permissões e usuários para exercitar a alçada.

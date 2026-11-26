@@ -136,9 +136,9 @@
 									</Button>
 									{#if !canEdit}
 										<small class="action-note">
-											Sua sessão atual informa o perfil “{user.profile.name}”. Seu perfil não tem
-											autoridade suficiente para editar este perfil. O servidor continua sendo a
-											autoridade final de autorização.
+											Sua sessão atual informa o perfil “{user.profile?.name ?? 'perfil sem nome'}”.
+											Seu perfil não tem autoridade suficiente para editar este perfil. O servidor
+											continua sendo a autoridade final de autorização.
 										</small>
 									{/if}
 									<Button
