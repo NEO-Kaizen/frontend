@@ -83,11 +83,13 @@
 <style>
 	dialog {
 		margin: auto;
-		border: none;
+		border: var(--border-default);
 		border-radius: var(--radius-md);
 		padding: var(--spacing-lg);
-		background-color: var(--white);
-		box-shadow: var(--regular-shadow);
+		background-color: var(--background-color);
+		box-shadow:
+			0 24px 48px rgba(0, 0, 0, 0.35),
+			0 8px 20px rgba(0, 0, 0, 0.2);
 		width: min(420px, 90vw);
 	}
 
