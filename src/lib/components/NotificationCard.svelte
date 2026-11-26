@@ -20,6 +20,7 @@
 	type="button"
 	class="notification-card"
 	class:is-unread={isUnread}
+	data-testid={notification.id}
 	disabled={isMarking}
 	aria-label={`${isUnread ? 'Não lida' : 'Lida'}: ${notification.payload.protocol} — ${notification.payload.title}. ${description}`}
 	onclick={() => onSelect(notification)}

@@ -4,6 +4,7 @@ import {
 	type APIRequestContext,
 	type Browser,
 	type BrowserContext,
+	type Locator,
 	type Page
 } from '@playwright/test';
 
@@ -174,6 +175,21 @@ export function bell(page: Page) {
 
 export function notificationCenter(page: Page) {
 	return page.getByRole('dialog', { name: 'Centro de notificações' });
+}
+
+/**
+ * Abre o Centro pelo sino e espera o diálogo ficar visível.
+ * Use apenas quando o carregamento do Centro puder ser aguardado; para
+ * observar skeletons, clique no sino diretamente.
+ */
+export async function openNotificationCenter(page: Page): Promise<Locator> {
+	await bell(page).click();
+
+	const center = notificationCenter(page);
+
+	await expect(center).toBeVisible();
+
+	return center;
 }
 
 export async function waitForBell(page: Page): Promise<void> {

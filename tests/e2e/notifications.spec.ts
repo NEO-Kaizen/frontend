@@ -19,7 +19,7 @@ import {
 	listNotifications,
 	loginApi,
 	loginPage,
-	notificationCenter,
+	openNotificationCenter,
 	openPage,
 	openPendingBatch,
 	publicRequesterApi,
@@ -143,11 +143,7 @@ test.describe.serial('RF20 — Notificações in-app (seed descartável)', () =>
 
 		const newStatus = String(unreadStatus.payload.newStatus);
 
-		await bell(page).click();
-
-		const center = notificationCenter(page);
-
-		await expect(center).toBeVisible();
+		const center = await openNotificationCenter(page);
 		expect(await readUnread(page)).toBe(before);
 
 		const card = center.getByRole('button', {
@@ -205,11 +201,7 @@ test.describe.serial('RF20 — Notificações in-app (seed descartável)', () =>
 			expect(fresh[0].payload.newStatus).toBe(target.name);
 			assertPayload(fresh[0]);
 
-			await bell(page).click();
-
-			const center = notificationCenter(page);
-
-			await expect(center).toBeVisible();
+			const center = await openNotificationCenter(page);
 			await expect(
 				center.getByRole('button', {
 					name: new RegExp(`Não lida: ${PROTOCOLS.requester}.*Novo status: ${target.name}`)
@@ -229,11 +221,7 @@ test.describe.serial('RF20 — Notificações in-app (seed descartável)', () =>
 
 		expect(before).toBeGreaterThan(0);
 
-		await bell(page).click();
-
-		const center = notificationCenter(page);
-
-		await expect(center).toBeVisible();
+		const center = await openNotificationCenter(page);
 		await center.getByRole('button', { name: 'Marcar todas como lidas' }).click();
 		await waitForCount(page, 0);
 		await page.reload();
@@ -242,7 +230,9 @@ test.describe.serial('RF20 — Notificações in-app (seed descartável)', () =>
 		expect(await getUnreadCount(page.request)).toBe(0);
 	});
 
-	test('responsible_assigned: notifica o analista em até 5s', async ({ page }) => {
+	test('responsible_assigned: notifica o analista em até 5s e exibe categoria/status no card', async ({
+		page
+	}) => {
 		await loginPage(page, 'analyst');
 
 		const before = await readUnread(page);
@@ -268,14 +258,15 @@ test.describe.serial('RF20 — Notificações in-app (seed descartável)', () =>
 			const category = String(assigned[0].payload.category);
 			const status = String(assigned[0].payload.status);
 
-			await bell(page).click();
+			const center = await openNotificationCenter(page);
 
-			const center = notificationCenter(page);
+			// A entrega é validada acima; a checagem do card fica aqui de
+			// propósito — foi no render que a regressão passou batido.
+			// `getByRole` cobre o comportamento acessível em outros testes;
+			// aqui o test id ancora o card exato pelo id da Notificação.
+			const card = center.getByTestId(assigned[0].id);
 
-			await expect(center).toBeVisible();
-			await expect(
-				center.locator('.notification-card').filter({ hasText: PROTOCOLS.lifecycle })
-			).toContainText(`Responsável designado · ${category} · ${status}`);
+			await expect(card).toContainText(`Responsável designado · ${category} · ${status}`);
 		} finally {
 			await admin.dispose();
 		}
@@ -447,7 +438,7 @@ test.describe.serial('RF20 — Notificações in-app (seed descartável)', () =>
 		}
 	});
 
-	test('pending_item_responded_unassigned: sem responsável, notifica Administradores em até 5s', async ({
+	test('pending_item_responded_unassigned: sem responsável, notifica Administradores em até 5s e exibe o notice no card', async ({
 		page
 	}) => {
 		const admin = await loginApi(USERS.admin.email);
@@ -485,18 +476,15 @@ test.describe.serial('RF20 — Notificações in-app (seed descartável)', () =>
 			unassigned.forEach(assertPayload);
 			expect(unassigned[0].payload.notice).toBe(SEED_STATE.unassignedNotice);
 
-			await bell(page).click();
+			const center = await openNotificationCenter(page);
 
-			const center = notificationCenter(page);
+			// A entrega é validada acima; a checagem do card fica aqui de
+			// propósito — foi no render que a regressão passou batido.
+			// `getByRole` cobre o comportamento acessível em outros testes;
+			// aqui o test id ancora o card exato pelo id da Notificação.
+			const card = center.getByTestId(unassigned[0].id);
 
-			await expect(center).toBeVisible();
-
-			// O seed já tem um card com o mesmo aviso para o Administrador. O
-			// primeiro card de request 3 é a Notificação recém-criada (lista mais
-			// recente primeiro); é ela que precisa exibir o notice do backend.
-			await expect(
-				center.locator('.notification-card').filter({ hasText: PROTOCOLS.lifecycle }).first()
-			).toContainText(SEED_STATE.unassignedNotice);
+			await expect(card).toContainText(`Pendência respondida. ${SEED_STATE.unassignedNotice}`);
 
 			await validatePendingBatch(admin, PROTOCOLS.lifecycle, batch.batchId, batch.items);
 		} finally {
