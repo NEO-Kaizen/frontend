@@ -1,6 +1,6 @@
 // Tipos do RF20 (Notificações in-app) — espelham o contrato HTTP do backend
-// (`docs/notifications-contract.md`): a Notificação é uma projeção por
-// destinatário e o banco é a fonte de verdade.
+// (`NEO-Kaizen/backend`, `src/docs/schemas/notifications.ts`): a Notificação é
+// uma projeção por destinatário e o banco é a fonte de verdade.
 
 export type NotificationType =
 	| 'status_changed'
@@ -8,6 +8,7 @@ export type NotificationType =
 	| 'pending_item_reopened'
 	| 'pending_item_validated'
 	| 'pending_item_responded'
+	| 'pending_item_responded_unassigned'
 	| 'mapping_scheduled'
 	| 'mapping_rescheduled'
 	| 'responsible_assigned'
@@ -23,8 +24,8 @@ export interface NotificationPayload {
 	newStatus?: string;
 	scheduledAt?: string;
 	category?: string;
-	currentStatus?: string;
-	unassignedWarning?: string;
+	status?: string;
+	notice?: string;
 }
 
 export interface NotificationItem {

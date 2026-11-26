@@ -89,8 +89,14 @@ export function describeNotification(item: NotificationItem): string {
 			return 'Pendência validada';
 		case 'pending_item_responded':
 			return 'Pendência respondida';
-		case 'pending_item_responded_unassigned':
-			return payload.unassignedWarning ?? 'Pendência respondida — sem responsável designado';
+		case 'pending_item_responded_unassigned': {
+			const notice =
+				typeof payload.notice === 'string' && payload.notice.length > 0 ? payload.notice : null;
+
+			return notice
+				? `Pendência respondida. ${notice}`
+				: 'Pendência respondida — sem responsável designado';
+		}
 		case 'mapping_scheduled':
 		case 'mapping_rescheduled': {
 			const when = payload.scheduledAt ? formatDateTime(payload.scheduledAt) : null;
@@ -99,7 +105,7 @@ export function describeNotification(item: NotificationItem): string {
 			return when ? `${action}: ${when}` : action;
 		}
 		case 'responsible_assigned': {
-			const details = [payload.category, payload.currentStatus].filter(
+			const details = [payload.category, payload.status].filter(
 				(detail): detail is string => typeof detail === 'string' && detail.length > 0
 			);
 			return details.length > 0
