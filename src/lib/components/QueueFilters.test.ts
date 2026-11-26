@@ -9,7 +9,7 @@ function renderFilters(isSearching = false) {
 	const onClear = vi.fn();
 	const onFilterChange = vi.fn();
 
-	render(QueueFilters, {
+	const { rerender } = render(QueueFilters, {
 		props: {
 			status: 'all',
 			priority: 'all',
@@ -24,7 +24,7 @@ function renderFilters(isSearching = false) {
 		}
 	});
 
-	return { onSearch, onClear, onFilterChange };
+	return { onSearch, onClear, onFilterChange, rerender };
 }
 
 function searchInput() {
@@ -69,11 +69,18 @@ describe('QueueFilters — estabilidade da busca', () => {
 		expect(onSearch).toHaveBeenCalledTimes(1);
 	});
 
-	it('marca o formulário como ocupado e desabilita o campo durante a busca', () => {
-		renderFilters(true);
+	it('mantém o campo focado e habilitado durante a busca', async () => {
+		const { rerender } = renderFilters();
+		const input = searchInput();
+
+		input.focus();
+		expect(document.activeElement).toBe(input);
+
+		await rerender({ isSearching: true });
 
 		expect(screen.getByRole('search')).toHaveAttribute('aria-busy', 'true');
-		expect(searchInput()).toBeDisabled();
+		expect(searchInput()).not.toBeDisabled();
+		expect(document.activeElement).toBe(searchInput());
 	});
 
 	it('limpar filtros cancela a busca pendente', async () => {

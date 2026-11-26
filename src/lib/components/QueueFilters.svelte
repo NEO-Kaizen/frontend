@@ -90,7 +90,6 @@
 						aria-label="Buscar por protocolo, solicitante, título da demanda ou e-mail"
 						placeholder="Protocolo, solicitante, título da demanda ou e-mail"
 						bind:value={searchValue}
-						disabled={isSearching}
 						actionIcon="search"
 						actionLabel="Buscar"
 						oninput={handleInput}
