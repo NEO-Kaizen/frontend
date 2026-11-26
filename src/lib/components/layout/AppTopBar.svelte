@@ -16,9 +16,11 @@
 	interface Props {
 		onMenu: () => void;
 		showMenu?: boolean;
+		onToggleSidebar: () => void;
+		sidebarCollapsed?: boolean;
 	}
 
-	let { onMenu, showMenu = true }: Props = $props();
+	let { onMenu, showMenu = true, onToggleSidebar, sidebarCollapsed = false }: Props = $props();
 
 	const SETTINGS_PATH = resolve('/(admin)/configuracoes');
 	const QUEUE_PATH = resolve('/(admin)/fila');
@@ -106,6 +108,17 @@
 			onclick={onMenu}
 		>
 			<Icon iconName="menu" iconSize="md" />
+		</button>
+
+		<button
+			class="topbar__collapse"
+			type="button"
+			aria-label={sidebarCollapsed ? 'Expandir menu' : 'Recolher menu'}
+			aria-controls="app-sidebar"
+			aria-expanded={!sidebarCollapsed}
+			onclick={onToggleSidebar}
+		>
+			<Icon iconName={sidebarCollapsed ? 'panelOpen' : 'panelClose'} iconSize="md" />
 		</button>
 	{/if}
 
@@ -211,7 +224,8 @@
 		border-bottom: var(--border-default);
 	}
 
-	.topbar__menu {
+	.topbar__menu,
+	.topbar__collapse {
 		display: none;
 		align-items: center;
 		justify-content: center;
@@ -230,12 +244,15 @@
 	}
 
 	.topbar__menu:hover,
-	.topbar__menu:focus-visible {
+	.topbar__menu:focus-visible,
+	.topbar__collapse:hover,
+	.topbar__collapse:focus-visible {
 		background-color: var(--tint);
 		color: var(--primary-color);
 	}
 
-	.topbar__menu:focus-visible {
+	.topbar__menu:focus-visible,
+	.topbar__collapse:focus-visible {
 		outline: 2px solid var(--secondary-color);
 		outline-offset: 2px;
 	}
@@ -348,6 +365,12 @@
 		width: 100%;
 		height: 100%;
 		object-fit: cover;
+	}
+
+	@media (min-width: 1025px) {
+		.topbar__collapse {
+			display: inline-flex;
+		}
 	}
 
 	@media (max-width: 1024px) {

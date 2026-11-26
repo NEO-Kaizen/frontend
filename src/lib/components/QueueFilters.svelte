@@ -127,7 +127,7 @@
 		box-sizing: border-box;
 		background-color: var(--white);
 		border: 1px solid var(--border-color);
-		border-radius: var(--radius-lg);
+		border-radius: var(--radius-md);
 	}
 
 	.queue-filters__main {
