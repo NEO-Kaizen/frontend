@@ -391,7 +391,7 @@ function allowedCustodiesFor(key: PermissionKey): PermissionCustody[] {
 function dependenciesFor(key: PermissionKey): PermissionKey[] {
 	if (key === 'request:create') return ['request:track'];
 	if (key === 'request:assign') return ['assignee_directory:read'];
-	if (key === 'user:manage') return ['profile:read'];
+	if (key === 'user:manage') return ['user:read', 'profile:read'];
 	if (key.endsWith(':manage')) return [key.replace(/:manage$/, ':read') as PermissionKey];
 	if (key === 'request:write') return ['request:read'];
 	if (key === 'request:status_override') return ['request:status_change'];

@@ -18,12 +18,15 @@
 		buildPermissions,
 		createProfilePayload,
 		duplicateProfileName,
+		expandWithDependencies,
 		findMissingDependencies,
 		flagRequirementsMet,
+		grantableCustodies,
 		groupCatalogResources,
 		permissionSignature,
 		updateProfilePayload,
 		validateProfileForm,
+		type AssignableFlag,
 		type ProfileEditorMode,
 		type SelfServiceKey
 	} from '$lib/services/profiles/profile-editor.rules';
@@ -110,6 +113,16 @@
 	const mappingRequirementsMet = $derived(
 		flagRequirementsMet(catalog, selectedKeys, 'isAssignableMapping')
 	);
+	const triageMissingLabels = $derived(
+		catalog.assignabilityPredicates.triage
+			.filter((key) => !selectedKeys.includes(key))
+			.map(permissionLabel)
+	);
+	const mappingMissingLabels = $derived(
+		catalog.assignabilityPredicates.mapping
+			.filter((key) => !selectedKeys.includes(key))
+			.map(permissionLabel)
+	);
 	const compositionChanged = $derived(
 		canEditComposition &&
 			permissionSignature(currentPermissions()) !== permissionSignature(builtPermissions)
@@ -126,13 +139,13 @@
 		);
 	});
 	const hasPendingChanges = $derived(identityChanged || compositionChanged || flagsChanged);
-	const addedKeys = $derived(
-		selectedKeys.filter((key) => !currentPermissions().some((permission) => permission.key === key))
+	const addedPermissions = $derived(
+		builtPermissions.filter(
+			(permission) => !currentPermissions().some((current) => current.key === permission.key)
+		)
 	);
-	const removedKeys = $derived(
-		currentPermissions()
-			.filter((permission) => !selectedKeys.includes(permission.key))
-			.map((permission) => permission.key)
+	const removedPermissions = $derived(
+		currentPermissions().filter((permission) => !selectedKeys.includes(permission.key))
 	);
 	const custodyChanges = $derived.by(() => {
 		const previousCustodies = new Map(
@@ -157,6 +170,55 @@
 		}
 		return changes;
 	});
+
+	function formatPermissionWithCustody(permission: Permission): string {
+		return `${permissionLabel(permission.key)} (${custodyLabels[permission.custody]})`;
+	}
+
+	function setAssignmentFlag(flag: AssignableFlag, checked: boolean): boolean {
+		if (isSaving) return false;
+
+		if (!checked) {
+			if (flag === 'isAssignableTriage') isAssignableTriage = false;
+			else isAssignableMapping = false;
+			saveError = '';
+			return true;
+		}
+
+		const predicate =
+			flag === 'isAssignableTriage'
+				? catalog.assignabilityPredicates.triage
+				: catalog.assignabilityPredicates.mapping;
+		const requiredKeys = expandWithDependencies([...selectedKeys, ...predicate], catalogKeys);
+		const newKeys = requiredKeys.filter((key) => !selectedKeys.includes(key));
+		const blockedKeys = newKeys.filter(
+			(key) => grantableCustodies(user, key, catalog).length === 0
+		);
+
+		if (blockedKeys.length > 0) {
+			saveError = `Não é possível marcar esta flag: sua conta não pode conceder ${blockedKeys
+				.map(permissionLabel)
+				.join(', ')}.`;
+			return false;
+		}
+		if (!canEditComposition && newKeys.length > 0) {
+			saveError = `A composição deste perfil está bloqueada para sua conta, então não é possível incluir as permissões exigidas: ${newKeys
+				.map(permissionLabel)
+				.join(', ')}.`;
+			return false;
+		}
+
+		if (newKeys.length > 0) {
+			selectedKeys = requiredKeys;
+			removedSelfServiceConfirmed = removedSelfServiceConfirmed.filter(
+				(key) => !newKeys.includes(key)
+			);
+		}
+		if (flag === 'isAssignableTriage') isAssignableTriage = true;
+		else isAssignableMapping = true;
+		saveError = '';
+		return true;
+	}
 
 	function validate(): boolean {
 		const { nameError: nextNameError, saveError: nextSaveError } = validateProfileForm({
@@ -287,12 +349,12 @@
 			/>
 
 			<ProfileAssignmentFlags
-				bind:isAssignableTriage
-				bind:isAssignableMapping
-				{hasAssignedCustody}
-				{triageRequirementsMet}
-				{mappingRequirementsMet}
+				{isAssignableTriage}
+				{isAssignableMapping}
+				{triageMissingLabels}
+				{mappingMissingLabels}
 				{isSaving}
+				onflagchange={setAssignmentFlag}
 			/>
 		{/if}
 
@@ -347,11 +409,17 @@
 						<strong>Composição</strong>
 						<ul>
 							<li>{builtPermissions.length} permissões selecionadas</li>
-							{#if addedKeys.length > 0}
-								<li>Incluídas: {addedKeys.join(', ')}</li>
+							{#if addedPermissions.length > 0}
+								<li>
+									Incluídas:
+									{addedPermissions.map(formatPermissionWithCustody).join(', ')}
+								</li>
 							{/if}
-							{#if removedKeys.length > 0}
-								<li>Removidas: {removedKeys.join(', ')}</li>
+							{#if removedPermissions.length > 0}
+								<li>
+									Removidas:
+									{removedPermissions.map(formatPermissionWithCustody).join(', ')}
+								</li>
 							{/if}
 							{#if custodyChanges.length > 0}
 								<li>Escopo alterado: {custodyChanges.join('; ')}</li>

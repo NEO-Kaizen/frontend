@@ -1,22 +1,20 @@
 <script lang="ts">
 	interface Props {
-		isAssignableTriage?: boolean;
-		isAssignableMapping?: boolean;
-		hasAssignedCustody: boolean;
-		triageRequirementsMet: boolean;
-		mappingRequirementsMet: boolean;
+		isAssignableTriage: boolean;
+		isAssignableMapping: boolean;
+		triageMissingLabels: readonly string[];
+		mappingMissingLabels: readonly string[];
 		isSaving: boolean;
-		onflagschange?: () => void;
+		onflagchange: (flag: 'isAssignableTriage' | 'isAssignableMapping', checked: boolean) => boolean;
 	}
 
 	let {
-		isAssignableTriage = $bindable(false),
-		isAssignableMapping = $bindable(false),
-		hasAssignedCustody,
-		triageRequirementsMet,
-		mappingRequirementsMet,
+		isAssignableTriage,
+		isAssignableMapping,
+		triageMissingLabels,
+		mappingMissingLabels,
 		isSaving,
-		onflagschange
+		onflagchange
 	}: Props = $props();
 </script>
 
@@ -27,37 +25,45 @@
 			<p>As opções seguem os predicados definidos no catálogo de permissões.</p>
 		</div>
 	</div>
-	{#if hasAssignedCustody && !isAssignableTriage && !isAssignableMapping}
-		<p class="assigned-warning" role="status">
-			O escopo “Atribuído” exige que o perfil seja atribuível à triagem ou ao mapeamento. Ligue uma
-			das flags e inclua as chaves exigidas, ou troque o escopo para “Todas”.
-		</p>
-	{/if}
 	<label class="flag-choice">
 		<input
 			type="checkbox"
-			bind:checked={isAssignableTriage}
-			onchange={onflagschange}
-			disabled={isSaving || (!triageRequirementsMet && !isAssignableTriage)}
+			checked={isAssignableTriage}
+			disabled={isSaving}
+			onchange={(event) => {
+				const accepted = onflagchange('isAssignableTriage', event.currentTarget.checked);
+				if (!accepted) event.currentTarget.checked = isAssignableTriage;
+			}}
 		/>
 		<span>
 			<strong>Atribuível à triagem</strong>
-			{#if !triageRequirementsMet}
-				<small>Inclua as permissões exigidas pelo catálogo para habilitar esta opção.</small>
+			{#if triageMissingLabels.length > 0}
+				<small>
+					{isAssignableTriage
+						? `Faltam as permissões exigidas: ${triageMissingLabels.join(', ')}.`
+						: `Ao marcar, incluiremos automaticamente: ${triageMissingLabels.join(', ')}.`}
+				</small>
 			{/if}
 		</span>
 	</label>
 	<label class="flag-choice">
 		<input
 			type="checkbox"
-			bind:checked={isAssignableMapping}
-			onchange={onflagschange}
-			disabled={isSaving || (!mappingRequirementsMet && !isAssignableMapping)}
+			checked={isAssignableMapping}
+			disabled={isSaving}
+			onchange={(event) => {
+				const accepted = onflagchange('isAssignableMapping', event.currentTarget.checked);
+				if (!accepted) event.currentTarget.checked = isAssignableMapping;
+			}}
 		/>
 		<span>
 			<strong>Atribuível ao mapeamento</strong>
-			{#if !mappingRequirementsMet}
-				<small>Inclua as permissões exigidas pelo catálogo para habilitar esta opção.</small>
+			{#if mappingMissingLabels.length > 0}
+				<small>
+					{isAssignableMapping
+						? `Faltam as permissões exigidas: ${mappingMissingLabels.join(', ')}.`
+						: `Ao marcar, incluiremos automaticamente: ${mappingMissingLabels.join(', ')}.`}
+				</small>
 			{/if}
 		</span>
 	</label>
@@ -100,14 +106,5 @@
 	.flag-choice small {
 		color: var(--gray);
 		font-size: 12px;
-	}
-	.assigned-warning {
-		margin: 0;
-		padding: var(--spacing-sm) var(--spacing-md);
-		border: 1px solid var(--status-orange);
-		border-radius: var(--radius-sm);
-		background: var(--status-yellow-bg);
-		color: var(--heading-color);
-		font: var(--paragrafo);
 	}
 </style>
