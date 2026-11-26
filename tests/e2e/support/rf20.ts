@@ -192,6 +192,20 @@ export async function openNotificationCenter(page: Page): Promise<Locator> {
 	return center;
 }
 
+/**
+ * Ancora a asserção de conteúdo no card da Notificação pelo test id. A
+ * entrega do payload é validada por `assertPayload`; aqui cobrimos o texto
+ * renderizado, sem depender da ordem da lista ou de um texto repetido em
+ * outra Notificação. Os testes de acessibilidade usam `getByRole`.
+ */
+export async function expectNotificationCardText(
+	center: Locator,
+	notificationId: string,
+	text: string
+): Promise<void> {
+	await expect(center.getByTestId(`notification-${notificationId}`)).toContainText(text);
+}
+
 export async function waitForBell(page: Page): Promise<void> {
 	const element = bell(page);
 

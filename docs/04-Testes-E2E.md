@@ -61,7 +61,8 @@ Variáveis opcionais:
 - **Conteúdo dos cards**: `responsible_assigned` exibe
   `Responsável designado · {categoria} · {status}` e
   `pending_item_responded_unassigned` exibe
-  `Pendência respondida. {notice}`, ancorados pelo id da Notificação.
+  `Pendência respondida. {notice}`, ancorados pelo test id `notification-{id}`
+  da Notificação.
 - **Entrega em até 5s** para os destinatários corretos:
   - `status_changed` → solicitante;
   - `responsible_assigned` → analista designado;

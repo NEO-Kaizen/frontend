@@ -11,6 +11,7 @@ import {
 	changeStatus,
 	completeMapping,
 	createPendingItem,
+	expectNotificationCardText,
 	freshNotifications,
 	getInternalRequest,
 	getPortalStatuses,
@@ -260,13 +261,11 @@ test.describe.serial('RF20 — Notificações in-app (seed descartável)', () =>
 
 			const center = await openNotificationCenter(page);
 
-			// A entrega é validada acima; a checagem do card fica aqui de
-			// propósito — foi no render que a regressão passou batido.
-			// `getByRole` cobre o comportamento acessível em outros testes;
-			// aqui o test id ancora o card exato pelo id da Notificação.
-			const card = center.getByTestId(assigned[0].id);
-
-			await expect(card).toContainText(`Responsável designado · ${category} · ${status}`);
+			await expectNotificationCardText(
+				center,
+				assigned[0].id,
+				`Responsável designado · ${category} · ${status}`
+			);
 		} finally {
 			await admin.dispose();
 		}
@@ -478,13 +477,11 @@ test.describe.serial('RF20 — Notificações in-app (seed descartável)', () =>
 
 			const center = await openNotificationCenter(page);
 
-			// A entrega é validada acima; a checagem do card fica aqui de
-			// propósito — foi no render que a regressão passou batido.
-			// `getByRole` cobre o comportamento acessível em outros testes;
-			// aqui o test id ancora o card exato pelo id da Notificação.
-			const card = center.getByTestId(unassigned[0].id);
-
-			await expect(card).toContainText(`Pendência respondida. ${SEED_STATE.unassignedNotice}`);
+			await expectNotificationCardText(
+				center,
+				unassigned[0].id,
+				`Pendência respondida. ${SEED_STATE.unassignedNotice}`
+			);
 
 			await validatePendingBatch(admin, PROTOCOLS.lifecycle, batch.batchId, batch.items);
 		} finally {

@@ -1,6 +1,6 @@
 // Tipos do RF20 (Notificações in-app) — espelham o contrato HTTP do backend
-// (`src/docs/`): a Notificação é uma projeção por destinatário e o banco é a
-// fonte de verdade.
+// (`NEO-Kaizen/backend`, `src/docs/schemas/notifications.ts`): a Notificação é
+// uma projeção por destinatário e o banco é a fonte de verdade.
 
 export type NotificationType =
 	| 'status_changed'
