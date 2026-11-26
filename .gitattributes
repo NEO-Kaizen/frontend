@@ -1,0 +1,3 @@
+# Normaliza arquivos de texto para LF no checkout, em qualquer OS.
+# Evita que clones Windows com core.autocrlf=true falhem no prettier --check.
+* text=auto eol=lf
