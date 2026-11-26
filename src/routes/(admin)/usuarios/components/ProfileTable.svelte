@@ -1,9 +1,13 @@
 <script lang="ts">
 	import Button from '$lib/components/Button.svelte';
+	import Icon from '$lib/components/Icon.svelte';
+	import InfoTip from '$lib/components/InfoTip.svelte';
 	import type { SessionUser } from '$lib/types/auth';
+	import type { Permission } from '$lib/types/permission';
 	import type { Profile } from '$lib/types/profile';
-	import { canEditProfile, canGrantCustody } from '$lib/utils/permission-checks';
+	import { permissionLabel, resourceLabel } from '$lib/services/profiles/permission-ui';
 	import { custodyLabels } from '$lib/utils/profile-labels';
+	import { canEditProfile, canGrantCustody } from '$lib/utils/permission-checks';
 	import { profileStatusRestriction } from '$lib/services/profiles/profile-status.service';
 
 	interface Props {
@@ -15,7 +19,47 @@
 		onstatus: (profile: Profile) => void;
 	}
 
+	interface PermissionGroup {
+		id: string;
+		label: string;
+		items: Permission[];
+	}
+
 	let { profiles, canManage, user, onedit, onduplicate, onstatus }: Props = $props();
+	let expandedProfileId = $state<string | null>(null);
+	let showAllPermissions = $state(false);
+
+	function groupPermissions(permissions: Permission[]): PermissionGroup[] {
+		const groups: Record<string, PermissionGroup> = {};
+		for (const permission of permissions) {
+			const id = permission.key.split(':')[0] || 'permissions';
+			let group = groups[id];
+			if (!group) {
+				group = { id, label: resourceLabel(id), items: [] };
+				groups[id] = group;
+			}
+			group.items.push(permission);
+		}
+
+		return Object.values(groups);
+	}
+
+	const expandedGroups = $derived.by(() => {
+		const profile = profiles.find((item) => item.id === expandedProfileId);
+		return profile ? groupPermissions(profile.permissions) : [];
+	});
+
+	const expandedNeedsClamp = $derived(
+		expandedProfileId !== null &&
+			expandedGroups.reduce((total, group) => total + group.items.length, 0) +
+				expandedGroups.length >
+				6
+	);
+
+	function toggleProfilePermissions(profileId: string) {
+		expandedProfileId = expandedProfileId === profileId ? null : profileId;
+		showAllPermissions = false;
+	}
 
 	const duplicateRestrictionMessage =
 		'Não é possível duplicar: sua conta não pode conceder todas as permissões e escopos herdados deste perfil.';
@@ -35,7 +79,7 @@
 </script>
 
 {#if profiles.length === 0}
-	<p class="empty-state">Nenhum perfil encontrado.</p>
+	<p class="empty-state" role="status">Nenhum perfil encontrado.</p>
 {:else}
 	<div class="table-scroll">
 		<table>
@@ -56,6 +100,10 @@
 					{@const canDuplicate = canDuplicateProfile(profile)}
 					{@const canEdit = canEditProfile(user, profile)}
 					{@const displayName = profile.name || 'perfil sem nome'}
+					{@const editRestrictionMessage = `Sua sessão atual informa a função “${user.role}”. Seu perfil não tem autoridade suficiente para editar este perfil. O servidor continua sendo a autoridade final de autorização.`}
+					{@const permissionCount = profile.permissions.length}
+					{@const isExpanded = expandedProfileId === profile.id}
+					{@const permissionsLabel = `${permissionCount} ${permissionCount === 1 ? 'permissão' : 'permissões'}`}
 					{@const duplicateRestriction = !canEdit
 						? 'Seu perfil não tem autoridade suficiente para duplicar este perfil.'
 						: duplicateRestrictionMessage}
@@ -73,19 +121,71 @@
 								<span class="description">{profile.description}</span>
 							{/if}
 						</th>
-						<td>
-							<span class="composition-count">{profile.permissions.length} chaves</span>
-							{#if profile.permissions.length > 0}
-								<span class="composition-list">
-									{profile.permissions
-										.map(
-											(permission) =>
-												`${permission.key} (escopo: ${custodyLabels[permission.custody]})`
-										)
-										.join(', ')}
-								</span>
+						<td class="composition-cell">
+							{#if permissionCount > 0}
+								<button
+									type="button"
+									id={`profile-permissions-toggle-${profile.id}`}
+									class="composition-toggle"
+									aria-expanded={isExpanded}
+									aria-controls={isExpanded ? `profile-permissions-${profile.id}` : undefined}
+									aria-label={`${isExpanded ? 'Ocultar' : 'Mostrar'} ${permissionsLabel} do perfil ${displayName}`}
+									onclick={() => toggleProfilePermissions(profile.id)}
+								>
+									{permissionsLabel}
+									<span
+										class={['composition-chevron', { expanded: isExpanded }]}
+										aria-hidden="true"
+									>
+										<Icon iconName="expandMore" iconSize="sm" />
+									</span>
+								</button>
+								{#if isExpanded}
+									<div
+										id={`profile-permissions-${profile.id}`}
+										class={[
+											'permission-list',
+											{ clamped: expandedNeedsClamp && !showAllPermissions }
+										]}
+										role="region"
+										aria-label={`Permissões do perfil ${displayName}`}
+									>
+										{#each expandedGroups as group (group.id)}
+											<section class="permission-group" aria-label={group.label}>
+												<h3 class="permission-group-title">
+													<span>{group.label}</span>
+													<span class="permission-group-count">
+														{group.items.length}
+														{group.items.length === 1 ? 'permissão' : 'permissões'}
+													</span>
+												</h3>
+												<ul role="list">
+													{#each group.items as permission (permission.key)}
+														<li>
+															<span class="permission-name">{permissionLabel(permission.key)}</span>
+															<span class="permission-scope"
+																>Escopo: {custodyLabels[permission.custody]}</span
+															>
+														</li>
+													{/each}
+												</ul>
+											</section>
+										{/each}
+									</div>
+									{#if expandedNeedsClamp}
+										<button
+											type="button"
+											class="permission-more"
+											aria-expanded={showAllPermissions}
+											aria-controls={`profile-permissions-${profile.id}`}
+											onclick={() => (showAllPermissions = !showAllPermissions)}
+										>
+											{showAllPermissions ? 'Ver menos' : 'Ver mais'}
+										</button>
+									{/if}
+								{/if}
 							{:else}
-								<span class="composition-list">Sem permissões</span>
+								<span class="composition-empty">Nenhuma permissão</span>
 							{/if}
 						</td>
 						<td>
@@ -107,20 +207,6 @@
 								<span aria-hidden="true"></span>
 								{profile.isActive ? 'Ativo' : 'Inativo'}
 							</span>
-							{#if !canEdit}
-								<small class="status-note" id={`status-guidance-${profile.id}`}>
-									Seu perfil não tem autoridade suficiente para alterar este perfil.
-								</small>
-							{:else if profile.isActive && profile.isRoot}
-								<small class="status-note" id={`status-guidance-${profile.id}`}>
-									O perfil Admin Root não pode ser desativado.
-								</small>
-							{:else if profile.isActive && profile.userCount > 0}
-								<small class="status-note" id={`status-guidance-${profile.id}`}>
-									Não pode desativar: {profile.userCount}
-									{profile.userCount === 1 ? 'usuário utiliza' : 'usuários utilizam'} este perfil.
-								</small>
-							{/if}
 						</td>
 						<td>{profile.userCount}</td>
 						{#if canManage}
@@ -135,43 +221,46 @@
 										Editar
 									</Button>
 									{#if !canEdit}
-										<small class="action-note">
-											Sua sessão atual informa a função “{user.role}”. Seu perfil não tem autoridade
-											suficiente para editar este perfil. O servidor continua sendo a autoridade
-											final de autorização.
-										</small>
+										<InfoTip
+											side="top"
+											align="end"
+											label={`Motivo da restrição para editar o perfil ${displayName}`}
+											text={editRestrictionMessage}
+										/>
 									{/if}
 									<Button
 										variant="outline"
 										disabled={!canDuplicate}
-										title={!canDuplicate ? duplicateRestriction : undefined}
 										aria-label={`Duplicar perfil ${displayName}`}
-										aria-describedby={!canDuplicate
-											? `duplicate-guidance-${profile.id}`
-											: undefined}
 										onclick={() => onduplicate(profile)}
 									>
 										Duplicar
 									</Button>
+									{#if !canDuplicate}
+										<InfoTip
+											side="top"
+											align="end"
+											label={`Motivo da restrição para duplicar o perfil ${displayName}`}
+											text={duplicateRestriction}
+										/>
+									{/if}
 									<Button
 										variant="outline-neutral"
-										disabled={!canEdit ||
-											(profile.isActive && (profile.isRoot || profile.userCount > 0))}
-										title={statusRestrictionMessage || undefined}
+										disabled={statusRestriction.blocked}
 										aria-label={`${profile.isActive ? 'Desativar' : 'Ativar'} perfil ${displayName}`}
-										aria-describedby={statusRestrictionMessage
-											? `status-guidance-${profile.id}`
-											: undefined}
 										onclick={() => onstatus(profile)}
 									>
 										{profile.isActive ? 'Desativar' : 'Ativar'}
 									</Button>
+									{#if statusRestriction.blocked}
+										<InfoTip
+											side="top"
+											align="end"
+											label={`Motivo da restrição para ${profile.isActive ? 'desativar' : 'ativar'} o perfil ${displayName}`}
+											text={statusRestrictionMessage}
+										/>
+									{/if}
 								</div>
-								{#if !canDuplicate}
-									<small id={`duplicate-guidance-${profile.id}`} class="action-note">
-										{duplicateRestriction}
-									</small>
-								{/if}
 							</td>
 						{/if}
 					</tr>
@@ -237,17 +326,156 @@
 		font-size: 12px;
 		color: var(--gray);
 	}
-	.composition-count {
-		display: block;
-		font: var(--label);
-	}
-	.composition-list {
-		display: block;
+	.composition-cell {
+		width: 320px;
 		max-width: 320px;
-		margin-top: 4px;
+	}
+	.composition-toggle {
+		display: inline-flex;
+		align-items: center;
+		white-space: nowrap;
+
+		gap: var(--spacing-xs);
+
+		padding: var(--spacing-xs) var(--spacing-sm);
+
+		border: var(--border-default);
+		border-radius: var(--radius-sm);
+
+		background-color: var(--white);
+		color: var(--secondary-color);
+
+		font: var(--label);
+
+		cursor: pointer;
+		transition: var(--transition-default);
+	}
+	.composition-toggle:hover {
+		border-color: var(--secondary-color);
+		background-color: var(--tint);
+		color: var(--primary-color);
+	}
+	.composition-toggle:focus-visible {
+		outline: 2px solid var(--secondary-color);
+		outline-offset: 2px;
+	}
+	.composition-chevron {
+		display: inline-flex;
+		transition: transform 150ms ease;
+	}
+	.composition-chevron.expanded {
+		transform: rotate(180deg);
+	}
+	.composition-empty {
 		color: var(--gray);
 		font-size: 12px;
+	}
+	.permission-list {
+		position: relative;
+		width: 100%;
+		max-width: 100%;
+		min-width: 0;
+		margin-top: var(--spacing-xs);
+	}
+	.permission-list.clamped {
+		max-height: 120px;
+		overflow: hidden;
+	}
+	.permission-list.clamped::after {
+		content: '';
+		position: absolute;
+		right: 0;
+		bottom: 0;
+		left: 0;
+		height: 24px;
+		background: linear-gradient(to bottom, transparent, var(--background-color));
+		pointer-events: none;
+	}
+	.permission-group + .permission-group {
+		margin-top: var(--spacing-sm);
+		padding-top: var(--spacing-sm);
+		border-top: 1px solid color-mix(in srgb, var(--border-color) 75%, transparent);
+	}
+	.permission-group-title {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 4px var(--spacing-sm);
+		margin: 0 0 4px;
+		padding-bottom: 4px;
+		border-bottom: 1px solid color-mix(in srgb, var(--border-color) 75%, transparent);
+		color: var(--heading-color);
+		font: var(--h4);
+		font-size: 12px;
+		line-height: 1.4;
+	}
+	.permission-group-title > span:first-child {
+		min-width: 0;
 		overflow-wrap: anywhere;
+	}
+	.permission-group-count {
+		flex-shrink: 0;
+		color: var(--gray);
+		font: var(--label);
+		font-size: 10px;
+	}
+	.permission-group ul {
+		display: flex;
+		flex-direction: column;
+		gap: 0;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+	.permission-group li {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 4px var(--spacing-sm);
+		min-width: 0;
+		padding: 5px 0;
+	}
+	.permission-group li + li {
+		border-top: 1px solid color-mix(in srgb, var(--border-color) 65%, transparent);
+	}
+	.permission-name {
+		min-width: 0;
+		color: var(--black);
+		font-size: 11px;
+		line-height: 1.45;
+		overflow-wrap: anywhere;
+	}
+	.permission-scope {
+		flex-shrink: 0;
+		padding: 1px 6px;
+		border-radius: 999px;
+		background-color: var(--tint);
+		color: var(--secondary-color);
+		font-size: 10px;
+		line-height: 1.5;
+	}
+	.permission-more {
+		margin-top: 6px;
+		padding: 3px 8px;
+		border: 1px solid var(--border-color);
+		border-radius: var(--radius-sm);
+		background-color: var(--white);
+		color: var(--secondary-color);
+		font: var(--label);
+		font-size: 11px;
+		line-height: 1.4;
+		cursor: pointer;
+	}
+	.permission-more:hover {
+		border-color: var(--secondary-color);
+		background-color: var(--tint);
+		color: var(--primary-color);
+	}
+	.permission-more:focus-visible {
+		outline: 2px solid var(--secondary-color);
+		outline-offset: 2px;
 	}
 	.flags {
 		flex-wrap: wrap;
@@ -279,26 +507,12 @@
 	.status.active {
 		color: var(--status-green);
 	}
-	.status-note {
-		display: block;
-		max-width: 170px;
-		margin-top: 4px;
-		color: var(--status-red);
-		font-size: 11px;
-	}
 	.row-actions {
 		flex-wrap: wrap;
 	}
-	.row-actions :global(button) {
+	.row-actions > :global(button) {
 		padding: 6px 8px;
 		font-size: 12px;
-	}
-	.action-note {
-		display: block;
-		max-width: 280px;
-		margin-top: var(--spacing-xs);
-		color: var(--gray);
-		font-size: 11px;
 	}
 	.empty-state {
 		margin: 0;
@@ -316,5 +530,11 @@
 		clip: rect(0, 0, 0, 0);
 		white-space: nowrap;
 		border: 0;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.composition-toggle,
+		.composition-chevron {
+			transition: none;
+		}
 	}
 </style>

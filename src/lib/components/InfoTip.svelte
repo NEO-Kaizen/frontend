@@ -6,9 +6,13 @@
 		label: string;
 		// Conteúdo do tooltip.
 		text: string;
+		// Lado do gatilho onde o tooltip será exibido.
+		side?: 'top' | 'bottom';
+		// Alinhamento horizontal do tooltip em relação ao gatilho.
+		align?: 'start' | 'end';
 	}
 
-	let { label, text }: Props = $props();
+	let { label, text, side = 'bottom', align = 'start' }: Props = $props();
 
 	const uid = $props.id();
 	const tipId = `info-tip-${uid}`;
@@ -18,7 +22,13 @@
 	<button class="info-tip" type="button" aria-label={label} aria-describedby={tipId}>
 		<span aria-hidden="true">i</span>
 	</button>
-	<span class="info-tip-tooltip" id={tipId} role="tooltip">{text}</span>
+	<span
+		class={['info-tip-tooltip', `info-tip-tooltip--${side}`, `info-tip-tooltip--align-${align}`]}
+		id={tipId}
+		role="tooltip"
+	>
+		{text}
+	</span>
 </span>
 
 <style>
@@ -53,8 +63,6 @@
 
 	.info-tip-tooltip {
 		position: absolute;
-		top: calc(100% + 8px);
-		left: 0;
 		z-index: 10;
 		width: max-content;
 		max-width: 280px;
@@ -73,9 +81,35 @@
 		transition: var(--transition-default);
 	}
 
+	.info-tip-tooltip--bottom {
+		top: calc(100% + 8px);
+	}
+
+	.info-tip-tooltip--top {
+		bottom: calc(100% + 8px);
+		transform: translateY(4px);
+	}
+
+	.info-tip-tooltip--align-start {
+		left: 0;
+	}
+
+	.info-tip-tooltip--align-end {
+		right: 0;
+	}
+
 	.info-tip-container:hover .info-tip-tooltip,
 	.info-tip-container:focus-within .info-tip-tooltip {
 		opacity: 1;
 		transform: translateY(0);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.info-tip-tooltip,
+		.info-tip-container:hover .info-tip-tooltip,
+		.info-tip-container:focus-within .info-tip-tooltip {
+			transition: none;
+			transform: none;
+		}
 	}
 </style>

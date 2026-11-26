@@ -2,7 +2,6 @@
 	import { afterNavigate, invalidateAll, refreshAll } from '$app/navigation';
 	import { untrack } from 'svelte';
 	import Button from '$lib/components/Button.svelte';
-	import Input from '$lib/components/Input.svelte';
 	import MetricsSummary from '$lib/components/MetricsSummary.svelte';
 	import { createUser, listUsers, updateUserStatus } from '$lib/services/user.service';
 	import type { MetricItem } from '$lib/types/metrics';
@@ -21,6 +20,7 @@
 	import ConfirmActionModal from './components/ConfirmActionModal.svelte';
 	import CreateUserModal from './components/CreateUserModal.svelte';
 	import EditUserModal from './components/EditUserModal.svelte';
+	import ManagementToolbar from './components/ManagementToolbar.svelte';
 	import ResetPasswordModal from './components/ResetPasswordModal.svelte';
 	import UsersPanel from './components/UsersPanel.svelte';
 	import ProfileManagement from './components/ProfileManagement.svelte';
@@ -102,7 +102,7 @@
 
 	let selectedProfileId = $state(untrack(() => data.profileId ?? ''));
 	let activeTabSelection = $state('');
-	let tabButtons: HTMLButtonElement[] = $state([]);
+	let tabButtons: HTMLButtonElement[] = [];
 	let activeTab = $derived(
 		tabs.some((tab) => tab.id === activeTabSelection)
 			? activeTabSelection
@@ -196,6 +196,15 @@
 		}
 
 		activeTabSelection = tabId;
+	}
+
+	function registerTabButton(index: number) {
+		return (button: HTMLButtonElement) => {
+			tabButtons[index] = button;
+			return () => {
+				delete tabButtons[index];
+			};
+		};
 	}
 
 	function handleTabKeydown(event: KeyboardEvent, index: number) {
@@ -402,39 +411,6 @@
 
 	{#if canReadUsers || canReadProfiles}
 		<section class="users-card">
-			<!-- PESQUISA + ADICIONAR -->
-
-			{#if canReadUsers && activeTab === 'usuarios'}
-				<div class="toolbar">
-					<div class="search-box">
-						<Input
-							icon="search"
-							type="search"
-							placeholder="Pesquisar por nome ou e-mail..."
-							aria-label="Buscar usuários por nome ou e-mail"
-							bind:value={searchQuery}
-							oninput={handleSearchInput}
-						/>
-					</div>
-
-					{#if canManageUsers}
-						<Button
-							variant="primary"
-							disabled={!canManageUsersNow}
-							title={canManageUsersNow ? undefined : profilesAvailabilityReason}
-							aria-describedby={canManageUsersNow ? undefined : 'profiles-status'}
-							onclick={() => {
-								createError = '';
-								isCreateOpen = true;
-							}}
-						>
-							<Icon iconName="addUser" iconSize="sm" />
-							Adicionar Usuário
-						</Button>
-					{/if}
-				</div>
-			{/if}
-
 			<!-- =========================
 		     ABAS
 		========================= -->
@@ -455,7 +431,7 @@
 							aria-controls="users-panel"
 							tabindex={activeTab === tab.id ? 0 : -1}
 							class={['tab', { active: activeTab === tab.id }]}
-							bind:this={tabButtons[index]}
+							{@attach registerTabButton(index)}
 							onclick={() => handleTabChange(tab.id)}
 							onkeydown={(event) => handleTabKeydown(event, index)}
 						>
@@ -465,42 +441,15 @@
 				</div>
 			{/if}
 
-			{#if canReadUsers && canReadProfiles && activeTab === 'usuarios'}
-				<form class="profile-filter" method="GET">
-					<label for="profile-filter">Perfil</label>
-
-					<select
-						id="profile-filter"
-						name="profileId"
-						class="profile-select"
-						bind:value={selectedProfileId}
-					>
-						<option value="">Todos</option>
-						{#each data.activeProfiles as profile (profile.id)}
-							<option value={profile.id}>{profile.name}</option>
-						{/each}
-					</select>
-
-					<Button type="submit" variant="outline">Filtrar</Button>
-				</form>
-			{/if}
-
-			{#if canReadUsers && data.profilesResult && !data.profilesResult.ok}
-				<p class="profile-warning" role="alert">
-					Não foi possível carregar os perfis: {data.profilesResult.error.message} O filtro e a edição
-					por perfil ficam indisponíveis; as demais ações continuam disponíveis.
-				</p>
-			{/if}
-
 			<!-- =========================
 		     CONTEÚDO
 		========================= -->
 
 			<div
 				id="users-panel"
-				class={['tab-panel', { refreshing: isRefreshing }]}
+				class="tab-panel"
 				role={tabs.length > 1 ? 'tabpanel' : undefined}
-				aria-busy={isRefreshing}
+				aria-busy={activeTab === 'usuarios' && isRefreshing}
 				aria-labelledby={tabs.length > 1 ? `users-tab-${activeTab}` : undefined}
 			>
 				{#if activeTab === 'perfis' && canReadProfiles}
@@ -512,20 +461,75 @@
 							profileKeyCatalogResult={data.profileKeyCatalogResult}
 						/>
 					{/if}
-				{:else}
-					<UsersPanel
-						{result}
-						{canReadUsers}
-						canManageUsers={canManageUsersNow}
-						actionsUnavailableReason={profilesAvailabilityReason}
-						administrableProfileIds={data.administrableProfileIds}
-						currentUserId={data.user?.id ?? ''}
-						{isLoading}
-						pageSize={data.pageSize}
-						onaction={handleAction}
-						onretry={() => loadUsers()}
-						onpagechange={handlePageChange}
-					/>
+				{:else if activeTab === 'usuarios' && canReadUsers}
+					<ManagementToolbar
+						placeholder="Pesquisar por nome ou e-mail..."
+						ariaLabel="Buscar usuários por nome ou e-mail"
+						hasActions={canManageUsers}
+						bind:value={searchQuery}
+						oninput={handleSearchInput}
+					>
+						{#snippet actions()}
+							{#if canManageUsers}
+								<Button
+									variant="primary"
+									disabled={!canManageUsersNow}
+									title={canManageUsersNow ? undefined : profilesAvailabilityReason}
+									aria-describedby={canManageUsersNow ? undefined : 'profiles-status'}
+									onclick={() => {
+										createError = '';
+										isCreateOpen = true;
+									}}
+								>
+									<Icon iconName="addUser" iconSize="sm" />
+									Adicionar Usuário
+								</Button>
+							{/if}
+						{/snippet}
+					</ManagementToolbar>
+
+					{#if canReadProfiles}
+						<form class="profile-filter" method="GET">
+							<label for="profile-filter">Perfil</label>
+
+							<select
+								id="profile-filter"
+								name="profileId"
+								class="profile-select"
+								bind:value={selectedProfileId}
+							>
+								<option value="">Todos</option>
+								{#each data.activeProfiles as profile (profile.id)}
+									<option value={profile.id}>{profile.name}</option>
+								{/each}
+							</select>
+
+							<Button type="submit" variant="outline">Filtrar</Button>
+						</form>
+					{/if}
+
+					{#if data.profilesResult && !data.profilesResult.ok}
+						<p class="profile-warning" role="alert">
+							Não foi possível carregar os perfis: {data.profilesResult.error.message} O filtro e a edição
+							por perfil ficam indisponíveis; as demais ações continuam disponíveis.
+						</p>
+					{/if}
+
+					<div class={['users-results', { refreshing: isRefreshing }]}>
+						<UsersPanel
+							{result}
+							{canReadUsers}
+							canManageUsers={canManageUsersNow}
+							actionsUnavailableReason={profilesAvailabilityReason}
+							administrableProfileIds={data.administrableProfileIds}
+							currentUserId={data.user?.id ?? ''}
+							{isLoading}
+							pageSize={data.pageSize}
+							onaction={handleAction}
+							onretry={() => loadUsers()}
+							onpagechange={handlePageChange}
+						/>
+					</div>
 				{/if}
 			</div>
 		</section>
@@ -723,44 +727,17 @@
 		box-shadow: none;
 	}
 
-	/* =========================
-	   TOOLBAR
-	========================= */
-
-	.toolbar {
-		width: 100%;
-
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-
-		gap: var(--spacing-md);
-
-		padding: var(--spacing-sm);
-
-		background-color: var(--background-color);
-
-		flex-shrink: 0;
-	}
-
-	.search-box {
-		flex: 1;
-
-		width: 100%;
-		max-width: none;
-		min-width: 0;
-	}
-
 	.profile-filter {
 		width: 100%;
 
 		display: flex;
-		align-items: flex-end;
+		align-items: center;
 		flex-wrap: wrap;
 
 		gap: var(--spacing-md);
 
 		padding: var(--spacing-sm) var(--spacing-md);
+		min-height: 74px;
 
 		background-color: var(--white);
 
@@ -830,8 +807,6 @@
 
 		background-color: var(--white);
 
-		border-top: var(--border-default);
-
 		border-bottom: var(--border-default);
 
 		flex-shrink: 0;
@@ -892,11 +867,15 @@
 		flex-direction: column;
 
 		min-height: 0;
+	}
+
+	.users-results {
+		width: 100%;
 
 		transition: opacity 0.15s ease;
 	}
 
-	.tab-panel.refreshing {
+	.users-results.refreshing {
 		opacity: 0.55;
 
 		pointer-events: none;
@@ -907,12 +886,6 @@
 	========================= */
 
 	@media (max-width: 800px) {
-		.toolbar {
-			flex-direction: column;
-
-			align-items: stretch;
-		}
-
 		.tabs {
 			display: flex;
 
@@ -924,6 +897,13 @@
 		.tab {
 			min-width: 130px;
 			height: 44px;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.tab,
+		.users-results {
+			transition: none;
 		}
 	}
 </style>
