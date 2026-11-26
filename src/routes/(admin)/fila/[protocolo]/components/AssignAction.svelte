@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { fly, fade, scale } from 'svelte/transition';
 	import { cubicInOut, cubicOut } from 'svelte/easing';
@@ -45,6 +44,7 @@
 	let loadError = $state<string | null>(null);
 	let searchText = $state('');
 	let searchCategory = $state('');
+	let loadGeneration = 0;
 	// svelte-ignore state_referenced_locally
 	let selectedId = $state<string | null>(currentAssigneeId ?? null);
 	let isSaving = $state(false);
@@ -109,10 +109,14 @@
 
 	const selectedAnalyst = $derived(analysts.find((a) => a.id === selectedId) ?? null);
 
-	async function loadAnalysts(): Promise<void> {
+	async function loadAnalysts(forProtocol: string): Promise<void> {
+		const generation = ++loadGeneration;
 		isLoading = true;
 		loadError = null;
-		const result = await listAnalysts();
+		const result = await listAnalysts(forProtocol);
+		// Troca rápida de protocolo: só a resposta da requisição mais recente
+		// pode sobrescrever a lista.
+		if (generation !== loadGeneration) return;
 		if (result.ok) {
 			// Backend retorna só ativos — lista direta sem paginação, filtros no front
 			analysts = result.data as Analyst[];
@@ -123,8 +127,10 @@
 		}
 	}
 
-	onMount(() => {
-		void loadAnalysts();
+	// Recarrega quando o protocolo muda: o backend exclui o criador da solicitação.
+	$effect(() => {
+		const currentProtocol = protocol;
+		void loadAnalysts(currentProtocol);
 	});
 
 	function handleSelect(id: string): void {
@@ -188,7 +194,7 @@
 	}
 
 	function handleRetry(): void {
-		void loadAnalysts();
+		void loadAnalysts(protocol);
 	}
 </script>
 
@@ -276,8 +282,7 @@
 				<ul class="analyst-list" role="listbox" aria-label="Lista de analistas">
 					{#each filtered as analyst, index (analyst.id)}
 						<li
-							class="analyst-card"
-							class:selected={selectedId === analyst.id}
+							class={['analyst-card', { selected: selectedId === analyst.id }]}
 							role="option"
 							aria-selected={selectedId === analyst.id}
 							in:fly={{
@@ -295,8 +300,7 @@
 							>
 								<span class="card-left">
 									<span
-										class="checkbox"
-										class:checked={selectedId === analyst.id}
+										class={['checkbox', { checked: selectedId === analyst.id }]}
 										aria-hidden="true"
 									>
 										{#if selectedId === analyst.id}
@@ -366,7 +370,7 @@
 					aria-label="Responsabilidade do analista"
 				>
 					<span class="responsibility-title">Responsável por:</span>
-					<label class="radio-option" class:selected={responsibility === 'triagem'}>
+					<label class={['radio-option', { selected: responsibility === 'triagem' }]}>
 						<input
 							type="radio"
 							name="responsibility"
@@ -378,7 +382,7 @@
 						<span class="radio-indicator" aria-hidden="true"></span>
 						Triagem
 					</label>
-					<label class="radio-option" class:selected={responsibility === 'mapeamento'}>
+					<label class={['radio-option', { selected: responsibility === 'mapeamento' }]}>
 						<input
 							type="radio"
 							name="responsibility"
@@ -455,20 +459,6 @@
 		overflow: hidden;
 	}
 
-	.assign-subtitle {
-		margin: 0;
-		font-family: var(--font-inter);
-		font-size: 13px;
-		font-weight: 400;
-		color: var(--gray);
-		line-height: 1.4;
-	}
-
-	.protocol-highlight {
-		color: var(--primary-color);
-		font-weight: 700;
-	}
-
 	.current-banner {
 		display: flex;
 		align-items: center;
@@ -487,11 +477,6 @@
 	.current-banner :global(.material-symbols-outlined) {
 		color: var(--primary-color);
 		flex-shrink: 0;
-	}
-
-	.banner-hint {
-		color: var(--gray);
-		font-weight: 400;
 	}
 
 	.filters-row {

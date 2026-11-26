@@ -2,6 +2,7 @@
 	interface Props {
 		isAssignableTriage?: boolean;
 		isAssignableMapping?: boolean;
+		hasAssignedCustody: boolean;
 		triageRequirementsMet: boolean;
 		mappingRequirementsMet: boolean;
 		isSaving: boolean;
@@ -11,6 +12,7 @@
 	let {
 		isAssignableTriage = $bindable(false),
 		isAssignableMapping = $bindable(false),
+		hasAssignedCustody,
 		triageRequirementsMet,
 		mappingRequirementsMet,
 		isSaving,
@@ -25,6 +27,12 @@
 			<p>As opções seguem os predicados definidos no catálogo de permissões.</p>
 		</div>
 	</div>
+	{#if hasAssignedCustody && !isAssignableTriage && !isAssignableMapping}
+		<p class="assigned-warning" role="status">
+			O escopo “Atribuído” exige que o perfil seja atribuível à triagem ou ao mapeamento. Ligue uma
+			das flags e inclua as chaves exigidas, ou troque o escopo para “Todas”.
+		</p>
+	{/if}
 	<label class="flag-choice">
 		<input
 			type="checkbox"
@@ -92,5 +100,14 @@
 	.flag-choice small {
 		color: var(--gray);
 		font-size: 12px;
+	}
+	.assigned-warning {
+		margin: 0;
+		padding: var(--spacing-sm) var(--spacing-md);
+		border: 1px solid var(--status-orange);
+		border-radius: var(--radius-sm);
+		background: var(--status-yellow-bg);
+		color: var(--heading-color);
+		font: var(--paragrafo);
 	}
 </style>

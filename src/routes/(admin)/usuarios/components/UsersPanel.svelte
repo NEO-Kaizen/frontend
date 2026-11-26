@@ -10,6 +10,7 @@
 		result: Result<PaginatedResponse<AdminUser>>;
 		canReadUsers: boolean;
 		canManageUsers: boolean;
+		actionsUnavailableReason?: string;
 		administrableProfileIds: string[];
 		currentUserId: string;
 		isLoading: boolean;
@@ -23,6 +24,7 @@
 		result,
 		canReadUsers,
 		canManageUsers,
+		actionsUnavailableReason = '',
 		administrableProfileIds,
 		currentUserId,
 		isLoading,
@@ -89,6 +91,7 @@
 	<UsersTable
 		{users}
 		canManage={canManageUsers}
+		{actionsUnavailableReason}
 		{administrableProfileIds}
 		{currentUserId}
 		{onaction}

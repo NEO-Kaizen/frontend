@@ -106,8 +106,9 @@ export function getPendingItems(
 	identity?: RequesterIdentity | null,
 	fetchImpl?: typeof fetch
 ): Promise<Result<ListPendenciesResponse>> {
-	return toResult(
-		getPendingItemsApi(protocol, identity, fetchImpl),
-		'Não foi possível carregar as pendências.'
+	return toResult(getPendingItemsApi(protocol, identity, fetchImpl), (status) =>
+		status === 403
+			? 'Seu perfil não tem permissão para visualizar as pendências desta solicitação.'
+			: 'Não foi possível carregar as pendências.'
 	);
 }

@@ -40,7 +40,10 @@ export async function listPendencies(
 				ok: false,
 				error: {
 					status: error.status,
-					message: 'Não foi possível carregar as pendências por campo.'
+					message:
+						error.status === 403
+							? 'Seu perfil não tem permissão para visualizar as pendências desta solicitação.'
+							: 'Não foi possível carregar as pendências por campo.'
 				}
 			};
 		}

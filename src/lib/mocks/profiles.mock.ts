@@ -47,7 +47,7 @@ const profileCatalog: ProfileKeyCatalog = {
 };
 
 const COORDINATOR_PERMISSIONS = buildProfilePermissions({
-	assigned: ['request:read', 'queue:read', 'triage:read', 'pending_item:read']
+	all: ['request:read', 'queue:read', 'triage:read', 'pending_item:read']
 });
 
 const profileRecords: Profile[] = [
@@ -195,11 +195,6 @@ export async function updateProfileMock(id: string, payload: ProfileUpdateInput)
 
 	if (next.name !== current.name) assertNameAvailable(next.name, id);
 	if (current.isRoot) {
-		if (next.name !== current.name) {
-			// A UI deriva a autoridade de Root do rótulo "Admin Root" (a sessão
-			// ainda não expõe `isRoot`); renomear desligaria a detecção.
-			throw new ApiError(400, 'O perfil Admin Root não pode ser renomeado.');
-		}
 		if (!next.permissions.some((permission) => permission.key === 'profile:manage')) {
 			throw new ApiError(400, 'O perfil Admin Root não pode perder profile:manage.');
 		}
@@ -394,6 +389,9 @@ function allowedCustodiesFor(key: PermissionKey): PermissionCustody[] {
 }
 
 function dependenciesFor(key: PermissionKey): PermissionKey[] {
+	if (key === 'request:create') return ['request:track'];
+	if (key === 'request:assign') return ['assignee_directory:read'];
+	if (key === 'user:manage') return ['profile:read'];
 	if (key.endsWith(':manage')) return [key.replace(/:manage$/, ':read') as PermissionKey];
 	if (key === 'request:write') return ['request:read'];
 	if (key === 'request:status_override') return ['request:status_change'];

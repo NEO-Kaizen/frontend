@@ -35,8 +35,8 @@ const PROFILE_REFERENCES = {
 
 const LEGACY_PROFILE: ProfileSnapshot = { id: null, name: 'Analista' };
 
-// TODO(#229): usar SessionUser.profile quando o payload de sessão expuser o
-// perfil, em vez de derivar o snapshot do rótulo mutável de `role`.
+// Snapshot histórico de exibição: `SessionUser` expõe `role` apenas como
+// rótulo. Não é regra de autorização — a checagem de acesso usa `internal_note:*`.
 function profileFromSessionRole(role: string): ProfileReference {
 	switch (role) {
 		case 'Admin Root':
@@ -64,11 +64,8 @@ async function canAccessInternalNotes(
 
 	try {
 		const detail = await getInternalRequestMock(protocol);
-		return (
-			detail.assignee?.id === currentUser.id ||
-			detail.mappingAssignee?.id === currentUser.id ||
-			detail.mappingAssigneeId === currentUser.id
-		);
+		// `assigned` para notas internas alcança só o Responsável da solicitação.
+		return detail.assignee?.id === currentUser.id;
 	} catch {
 		throw new ApiError(404, 'Solicitação não encontrada.');
 	}

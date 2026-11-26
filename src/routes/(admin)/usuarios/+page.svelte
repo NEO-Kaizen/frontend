@@ -31,8 +31,19 @@
 
 	const canReadUsers = $derived(has('user:read', data.user));
 	const canReadProfiles = $derived(has('profile:read', data.user));
-	const canManageUsers = $derived(has('user:manage', data.user) && !data.profilesError);
+	const canManageUsers = $derived(has('user:manage', data.user));
+	// Ações que dependem do catálogo de perfis (criar/editar/delegar) só podem
+	// rodar quando o ator lê perfis e o catálogo carregou.
+	const canManageUsersNow = $derived(canManageUsers && canReadProfiles && !data.profilesError);
 	const canManageProfiles = $derived(has('profile:manage', data.user));
+	const missingProfileRead = $derived(canManageUsers && !canReadProfiles);
+	const profilesAvailabilityReason = $derived.by(() => {
+		if (!canManageUsers || canManageUsersNow) return '';
+		if (!canReadProfiles) {
+			return 'Falta a permissão profile:read para listar os perfis e calcular a autoridade sobre os usuários.';
+		}
+		return 'Não foi possível carregar os perfis para calcular a autoridade sobre os usuários. Tente novamente.';
+	});
 
 	const profilesErrorMessage = $derived.by(() => {
 		if (!data.profilesError) {
@@ -215,8 +226,8 @@
 	}
 
 	async function handleCreate(formData: CreateUserFormData): Promise<CreateUserResponse> {
-		if (!canManageUsers) {
-			createError = 'Você não tem permissão para cadastrar usuários.';
+		if (!canManageUsersNow) {
+			createError = profilesAvailabilityReason || 'Você não tem permissão para cadastrar usuários.';
 			return Promise.reject(new Error(createError));
 		}
 
@@ -267,12 +278,8 @@
 	}
 
 	function handleAction(user: AdminUser, action: UserAction) {
-		if (!canManageUsers) {
-			return;
-		}
-
 		if (
-			!canManageUsers ||
+			!canManageUsersNow ||
 			user.id === data.user?.id ||
 			!data.administrableProfileIds.includes(user.profile.id)
 		) {
@@ -288,7 +295,7 @@
 	}
 
 	async function confirmStatusChange(status: UserStatus) {
-		if (!canManageUsers) {
+		if (!canManageUsersNow) {
 			return;
 		}
 
@@ -378,10 +385,14 @@
 	{/if}
 
 	{#if profilesErrorMessage}
-		<div class="profiles-error" role="alert">
+		<div id="profiles-status" class="profiles-error" role="alert">
 			<p>{profilesErrorMessage}</p>
 
 			<Button variant="outline" onclick={() => refreshAll()}>Tentar novamente</Button>
+		</div>
+	{:else if missingProfileRead}
+		<div id="profiles-status" class="profiles-status" role="alert">
+			<p>{profilesAvailabilityReason}</p>
 		</div>
 	{/if}
 
@@ -409,6 +420,9 @@
 					{#if canManageUsers}
 						<Button
 							variant="primary"
+							disabled={!canManageUsersNow}
+							title={canManageUsersNow ? undefined : profilesAvailabilityReason}
+							aria-describedby={canManageUsersNow ? undefined : 'profiles-status'}
 							onclick={() => {
 								createError = '';
 								isCreateOpen = true;
@@ -502,7 +516,8 @@
 					<UsersPanel
 						{result}
 						{canReadUsers}
-						{canManageUsers}
+						canManageUsers={canManageUsersNow}
+						actionsUnavailableReason={profilesAvailabilityReason}
 						administrableProfileIds={data.administrableProfileIds}
 						currentUserId={data.user?.id ?? ''}
 						{isLoading}
@@ -521,7 +536,7 @@
      CRIAR USUÁRIO
 ========================= -->
 
-{#if canManageUsers && isCreateOpen}
+{#if canManageUsersNow && isCreateOpen}
 	<CreateUserModal
 		loading={isCreating}
 		error={createError}
@@ -532,7 +547,7 @@
 	/>
 {/if}
 
-{#if canManageUsers && pendingAction?.kind === 'edit'}
+{#if canManageUsersNow && pendingAction?.kind === 'edit'}
 	<EditUserModal
 		user={pendingAction.user}
 		categories={data.portalConfig.categories}
@@ -547,7 +562,7 @@
      ATIVAR
 ========================= -->
 
-{#if canManageUsers && pendingAction?.kind === 'activate'}
+{#if canManageUsersNow && pendingAction?.kind === 'activate'}
 	<ConfirmActionModal
 		title="Ativar usuário"
 		message={`Confirmar a ativação de "${pendingAction.user.name}"?`}
@@ -563,7 +578,7 @@
      INATIVAR
 ========================= -->
 
-{#if canManageUsers && pendingAction?.kind === 'deactivate'}
+{#if canManageUsersNow && pendingAction?.kind === 'deactivate'}
 	<ConfirmActionModal
 		title="Inativar usuário"
 		message={`Ao inativar, "${pendingAction.user.name}" perde o acesso ao portal. Confirmar?`}
@@ -579,7 +594,7 @@
      REDEFINIR SENHA
 ========================= -->
 
-{#if canManageUsers && pendingAction?.kind === 'reset' && pendingAction}
+{#if canManageUsersNow && pendingAction?.kind === 'reset' && pendingAction}
 	<ResetPasswordModal user={pendingAction.user} onclose={closePendingAction} />
 {/if}
 
@@ -657,6 +672,23 @@
 		margin: 0;
 
 		color: var(--status-red);
+
+		font: var(--label);
+	}
+
+	.profiles-status {
+		padding: var(--spacing-sm) var(--spacing-md);
+
+		background-color: var(--status-yellow-bg);
+
+		border: var(--border-default);
+		border-radius: var(--radius-sm);
+	}
+
+	.profiles-status p {
+		margin: 0;
+
+		color: var(--heading-color);
 
 		font: var(--label);
 	}

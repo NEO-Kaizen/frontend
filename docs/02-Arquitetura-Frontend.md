@@ -333,7 +333,7 @@ O domínio `profiles` atende a gestão de perfis:
 
 Regras representadas no mock e na UI: nome único entre perfis ativos; perfil Root só editável pelo Root e nunca desativável; editar, ativar/desativar e duplicar exigem alvo estritamente abaixo da autoridade do ator (Root é exceção); desativação bloqueada por contagem de usuários; custódia concedível pelo ator; dependências e chaves fixas em `own` ou `global`; guarda atômica de composição + flags. As leituras mock são SSR-safe e não fazem gate de sessão (o `guardAny` do load cobre); as mutações exigem `profile:manage`.
 
-O contrato assumido pelo frontend está em [`docs/profiles-api.md`](./profiles-api.md), com endpoints, payloads e pendências de confirmação com o backend.
+O contrato assumido pelo frontend está tipado em [`src/lib/types/profile.ts`](../src/lib/types/profile.ts), com endpoints, payloads e regras descritos acima.
 
 ---
 
@@ -401,7 +401,7 @@ Os grupos entre parênteses organizam as rotas sem alterar diretamente a URL e d
 
 **Grupo ≠ perfil.** O perfil do usuário nunca gera um novo grupo de rotas. O access service (`src/lib/services/access.service.ts`) expõe `has(chave)`, `hasAny(chaves)` e `can(chave, vínculo)` como funções puras sobre a sessão. Perfis customizados entram apenas pela lista efetiva de permissões devolvida por `/auth/me`.
 
-**Alçada administrativa.** A autorização para gerenciar usuários é calculada por dominância estrita de permissões (`isAuthorityStrictlyBelow`), não por nome de Perfil, rótulo da sessão ou `isActive`. O service `src/lib/services/account-authority.service.ts` separa Perfis designáveis em formulários (ativos, não Root e abaixo do ator) de Perfis cujos usuários podem ser administrados (não Root e abaixo do ator, inclusive inativos). A identificação de Admin Root ainda usa `role === 'Admin Root'` enquanto `SessionUser` não expõe `profile`; veja `docs/adr/0001-alcada-por-permissoes.md`.
+**Alçada administrativa.** A autorização para gerenciar usuários é calculada por dominância estrita de permissões (`isAuthorityStrictlyBelow`), não por nome de Perfil, rótulo da sessão ou `isActive`. O service `src/lib/services/account-authority.service.ts` separa Perfis designáveis em formulários (ativos, não Root e abaixo do ator) de Perfis cujos usuários podem ser administrados (não Root e abaixo do ator, inclusive inativos). A identificação de Admin Root usa `user.isRoot`, a marca estável de `SessionUser`; o rótulo `role` serve apenas para exibição. Veja `docs/adr/0001-alcada-por-permissoes.md`.
 
 O grupo `(admin)` tem papel de guard server-side (não define layout visual): o Header permanece único, com navegação anotada por chave e filtrada por `has`/`hasAny`.
 

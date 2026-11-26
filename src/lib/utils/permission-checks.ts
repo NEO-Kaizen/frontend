@@ -40,10 +40,22 @@ export function canGrantCustody(
 	return actorCustody === targetCustody || (actorCustody === 'all' && targetCustody === 'assigned');
 }
 
-// Premissa temporária (docs/profiles-api.md): o payload de sessão não expõe
-// `isRoot`, então a UI deriva do rótulo e o editor bloqueia renomear o Root.
+/**
+ * Chave de linha alcança o Responsável? `all` dispensa vínculo; `assigned`
+ * exige que o ator seja o Responsável corrente. Chaves `global` não são
+ * cobertas por este helper.
+ */
+export function canAccessResponsible(
+	key: PermissionKey,
+	user: SessionUser | null | undefined,
+	responsibleId: string | null | undefined
+): boolean {
+	if (!user) return false;
+	return can(key, 'all', user) || (can(key, 'assigned', user) && responsibleId === user.id);
+}
+
 export function isRootActor(user: SessionUser | null | undefined): boolean {
-	return user?.role === 'Admin Root';
+	return user?.isRoot === true;
 }
 
 function containsAll(

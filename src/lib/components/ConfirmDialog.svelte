@@ -1,10 +1,13 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import Button from './Button.svelte';
 
 	interface Props {
 		open: boolean;
 		title: string;
 		description?: string;
+		/** Conteúdo adicional (ex.: lista de mudanças) entre a descrição e as ações. */
+		details?: Snippet;
 		confirmLabel?: string;
 		cancelLabel?: string;
 		onConfirm: () => void;
@@ -15,6 +18,7 @@
 		open,
 		title,
 		description = '',
+		details,
 		confirmLabel = 'Confirmar',
 		cancelLabel = 'Cancelar',
 		onConfirm,
@@ -23,7 +27,8 @@
 
 	let dialog = $state<HTMLDialogElement>();
 
-	const titleId = `confirm-dialog-title-${Math.random().toString(36).slice(2, 8)}`;
+	const uid = $props.id();
+	const titleId = `confirm-dialog-title-${uid}`;
 
 	$effect(() => {
 		if (!dialog) return;
@@ -42,11 +47,17 @@
 
 <dialog
 	bind:this={dialog}
+	class={{ wide: Boolean(details) }}
 	role="alertdialog"
 	aria-labelledby={titleId}
 	oncancel={(e) => {
 		e.preventDefault();
 		onClose();
+	}}
+	onkeydown={(e) => {
+		// O Esc é tratado pelo `cancel` nativo; impedir o borbulhamento evita
+		// que o Modal pai também feche e descarte o formulário em edição.
+		if (e.key === 'Escape') e.stopPropagation();
 	}}
 >
 	<div class="content">
@@ -54,6 +65,12 @@
 
 		{#if description}
 			<p>{description}</p>
+		{/if}
+
+		{#if details}
+			<div class="details">
+				{@render details()}
+			</div>
 		{/if}
 
 		<div class="actions">
@@ -76,6 +93,15 @@
 
 	dialog::backdrop {
 		background-color: rgba(15, 26, 42, 0.5);
+	}
+
+	dialog.wide {
+		width: min(560px, 92vw);
+	}
+
+	.details {
+		width: 100%;
+		text-align: left;
 	}
 
 	.content {

@@ -35,9 +35,7 @@ export const PERMISSION_KEYS = [
 	'portal_setting:read',
 	'portal_setting:manage',
 	'prioritization_config:read',
-	'prioritization_config:manage',
-	'form:read',
-	'form:manage'
+	'prioritization_config:manage'
 ] as const;
 
 export type PermissionKey = (typeof PERMISSION_KEYS)[number];
@@ -69,9 +67,7 @@ export const GLOBAL_PERMISSION_KEYS = [
 	'portal_setting:read',
 	'portal_setting:manage',
 	'prioritization_config:read',
-	'prioritization_config:manage',
-	'form:read',
-	'form:manage'
+	'prioritization_config:manage'
 ] as const satisfies readonly PermissionKey[];
 
 export const OPERATIONAL_AREA_KEYS = [
