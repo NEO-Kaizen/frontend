@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { getActionLabel } from '$lib/audit/audit-labels';
 	import Button from '$lib/components/Button.svelte';
+	import { getStatusTransition } from '$lib/services/status-time.service';
 	import type { RequestAuditEvent } from '$lib/types/audit';
 	import { formatDateTime } from '$lib/utils/dates';
 
@@ -38,10 +39,6 @@
 	function actorLabel(event: RequestAuditEvent): string {
 		return event.actor.kind === 'system' ? 'Sistema' : (event.actor.displayName ?? 'Não informado');
 	}
-
-	function deniedLabel(event: RequestAuditEvent): string {
-		return `Tentativa recusada: ${event.previous_value ?? '—'} para ${event.new_value ?? '—'} não aplicada`;
-	}
 </script>
 
 <section class="events-section" aria-labelledby="status-time-events-title">
@@ -61,6 +58,7 @@
 	{:else if sortedEvents.length > 0}
 		<ul class="event-list">
 			{#each sortedEvents as event (event.audit_id)}
+				{@const transition = getStatusTransition(event)}
 				<li class="event-item">
 					<div class="event-heading">
 						<strong class="event-action">{getActionLabel(event.action_type)}</strong>
@@ -68,18 +66,25 @@
 					</div>
 
 					{#if event.action_type === 'request.access_denied'}
-						<p class="event-transition event-denied" aria-label={deniedLabel(event)}>
-							Tentativa recusada:
-							<span class="denied-value">{event.previous_value ?? '—'}</span>
-							para
-							<span class="denied-value">{event.new_value ?? '—'}</span>
-							não aplicada
+						<!-- O backend grava a recusa sem Status de origem/destino; os
+						     valores só aparecem quando existirem. -->
+						<p class="event-transition event-denied">
+							{#if transition.from && transition.to}
+								Tentativa recusada:
+								<span class="denied-value">{transition.from}</span>
+								para
+								<span class="denied-value">{transition.to}</span>
+								não aplicada
+							{:else}
+								Tentativa de mudança de Status recusada — nenhuma alteração aplicada
+							{/if}
 						</p>
 					{:else}
-						<p class="event-transition" aria-label="Status anterior e novo Status">
-							<span class="status-from">{event.previous_value ?? '—'}</span>
+						<p class="event-transition">
+							<span class="status-from">{transition.from ?? '—'}</span>
 							<span aria-hidden="true">→</span>
-							<span class="status-to">{event.new_value ?? '—'}</span>
+							<span class="sr-only">para</span>
+							<span class="status-to">{transition.to ?? '—'}</span>
 						</p>
 					{/if}
 
