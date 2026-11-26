@@ -52,7 +52,6 @@ export async function exportInternalRequestPdf(protocol: string): Promise<Result
 		return toExportError(error, {
 			400: 'Não foi possível identificar a solicitação para exportação.',
 			401: 'Sua sessão expirou. Entre novamente para exportar o PDF.',
-			403: 'Seu perfil não possui permissão para exportar o PDF interno.',
 			404: 'Solicitação não encontrada.'
 		});
 	}

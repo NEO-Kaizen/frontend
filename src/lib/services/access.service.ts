@@ -55,7 +55,7 @@ export function canViewTriage(
 }
 
 export function canExportRequestPdf(user: SessionUser | null): boolean {
-	return user !== null && isProfileAllowed(user.role, GUARD_RULES.managementOnly.profiles);
+	return user !== null && isInternalProfile(user.role);
 }
 
 export function isProfileAllowed(role: UserType, profiles: 'any' | readonly UserType[]): boolean {

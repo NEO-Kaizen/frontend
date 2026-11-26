@@ -8,15 +8,35 @@
 	interface Props {
 		loading?: boolean;
 		disabled?: boolean;
+		compactProtocol?: string;
 		onExport: () => void;
 	}
 
-	let { loading = false, disabled = false, onExport }: Props = $props();
+	let { loading = false, disabled = false, compactProtocol, onExport }: Props = $props();
 </script>
 
-<Button variant="outline" {loading} {disabled} onclick={onExport}>
+<Button
+	variant="outline"
+	{loading}
+	{disabled}
+	class={compactProtocol ? 'pdf-icon-action' : undefined}
+	title={compactProtocol ? 'Exportar PDF' : undefined}
+	aria-label={compactProtocol ? `Exportar PDF de ${compactProtocol}` : undefined}
+	onclick={onExport}
+>
 	{#if !loading}
 		<Icon iconName="download" iconSize="sm" />
 	{/if}
-	<span>{loading ? 'Gerando PDF…' : 'Exportar PDF'}</span>
+	{#if !compactProtocol}
+		<span>{loading ? 'Gerando PDF…' : 'Exportar PDF'}</span>
+	{/if}
 </Button>
+
+<style>
+	:global(button.pdf-icon-action) {
+		width: 32px;
+		height: 32px;
+		padding: 0;
+		flex: none;
+	}
+</style>

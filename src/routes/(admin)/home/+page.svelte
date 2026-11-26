@@ -87,6 +87,7 @@
 			{result}
 			{isFetching}
 			detailRoute="/(admin)/fila/[protocolo]"
+			pdfExportUser={data.user}
 			{emptyTitle}
 			{emptyMessage}
 			onretry={() => void fetchTable(currentPage)}

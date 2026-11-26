@@ -418,7 +418,7 @@
 	// PDF interno (documento completo, sempre pela sessão). O backend decide a
 	// variante pela credencial; aqui só disparamos o download do blob.
 	async function handleExportPdf(): Promise<void> {
-		if (isExportingPdf) return;
+		if (!canExportPdf || isExportingPdf) return;
 
 		isExportingPdf = true;
 

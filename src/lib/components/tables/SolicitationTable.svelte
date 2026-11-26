@@ -10,6 +10,13 @@
 	import type { Result } from '$lib/types/result';
 	import { resolve } from '$app/paths';
 	import { page as appPage } from '$app/state';
+	import { SvelteSet } from 'svelte/reactivity';
+	import ExportPdfButton from '$lib/components/ExportPdfButton.svelte';
+	import { canExportRequestPdf } from '$lib/services/access.service';
+	import { exportInternalRequestPdf } from '$lib/services/request-pdf.service';
+	import { startDownload } from '$lib/utils/download';
+	import { notifyError } from '$lib/utils/feedback';
+	import type { SessionUser } from '$lib/types/auth';
 
 	const statuses = $derived(appPage.data.portalConfig.statuses);
 
@@ -21,6 +28,7 @@
 		result: Result<PaginatedResponse<RequestSummary>> | null;
 		isFetching: boolean;
 		detailRoute?: DetailRoute;
+		pdfExportUser?: SessionUser | null;
 		emptyTitle?: string;
 		emptyMessage?: string;
 		onretry?: () => void;
@@ -32,6 +40,7 @@
 		result = null,
 		isFetching = false,
 		detailRoute = '/(public)/acompanhar/[protocolo]',
+		pdfExportUser = null,
 		emptyTitle = 'Nenhuma solicitação encontrada',
 		emptyMessage,
 		onretry,
@@ -39,6 +48,26 @@
 	}: Props = $props();
 
 	const results = $derived(result?.ok ? result.data.data : []);
+	// Home e fila recebem linhas da API interna, já filtradas pelo escopo do Analista.
+	const canExportPdf = $derived(canExportRequestPdf(pdfExportUser));
+	const exportingProtocols = new SvelteSet<string>();
+
+	async function handleExportPdf(protocol: string): Promise<void> {
+		if (!canExportPdf || exportingProtocols.has(protocol)) return;
+
+		exportingProtocols.add(protocol);
+		try {
+			const result = await exportInternalRequestPdf(protocol);
+			if (!result.ok) {
+				notifyError(result.error.message);
+				return;
+			}
+
+			startDownload(result.data.blob, result.data.filename);
+		} finally {
+			exportingProtocols.delete(protocol);
+		}
+	}
 	const totalPages = $derived(result?.ok ? result.data.totalPages : 0);
 	const totalItems = $derived(result?.ok ? result.data.total : 0);
 	// Clampa a página pedida ao intervalo real, protegendo o rodapé de valores
@@ -112,13 +141,22 @@
 					{#each results as request (request.protocol)}
 						<tr>
 							<td class="protocolo">
-								<a
-									href={resolve(detailRoute, {
-										protocolo: request.protocol
-									})}
-								>
-									#{request.protocol}
-								</a>
+								<div class="protocol-cell">
+									<a
+										href={resolve(detailRoute, {
+											protocolo: request.protocol
+										})}
+									>
+										#{request.protocol}
+									</a>
+									{#if canExportPdf}
+										<ExportPdfButton
+											compactProtocol={request.protocol}
+											loading={exportingProtocols.has(request.protocol)}
+											onExport={() => void handleExportPdf(request.protocol)}
+										/>
+									{/if}
+								</div>
 							</td>
 
 							<td class="data-col">
@@ -192,6 +230,12 @@
 </div>
 
 <style>
+	.protocol-cell {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-xs);
+	}
+
 	.table-container {
 		width: 100%;
 		background: var(--white);

@@ -276,6 +276,7 @@
 		result={data.result}
 		{isFetching}
 		detailRoute="/(admin)/fila/[protocolo]"
+		pdfExportUser={data.user}
 		onpagechange={goToPage}
 	/>
 </section>
