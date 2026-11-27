@@ -57,7 +57,7 @@
 		border-radius: var(--radius-sm);
 		box-shadow: var(--regular-shadow);
 		pointer-events: auto;
-		transition: var(--transition-default);
+		animation: toast-enter var(--motion-duration) var(--motion-easing) both;
 		color: var(--on-dark);
 	}
 
@@ -95,11 +95,11 @@
 		color: inherit;
 		cursor: pointer;
 		padding: var(--spacing-xs);
-		border-radius: 4px;
+		border-radius: var(--radius-xs);
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		transition: background-color 0.2s;
+		transition: background-color var(--motion-duration) var(--motion-easing);
 	}
 
 	.toast-close-btn:hover {
@@ -109,5 +109,25 @@
 	.toast-close-btn:focus-visible {
 		outline: 2px solid var(--on-dark);
 		outline-offset: 2px;
+	}
+
+	@keyframes toast-enter {
+		from {
+			opacity: 0;
+			transform: translateY(-8px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.toast-item {
+			animation: none;
+		}
+		.toast-close-btn {
+			transition: none;
+		}
 	}
 </style>

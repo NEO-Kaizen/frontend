@@ -8,6 +8,7 @@
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Input from '$lib/components/Input.svelte';
+	import NotificationBell from '$lib/components/NotificationBell.svelte';
 	import { isInternalProfile } from '$lib/services/access.service';
 	import { searchRequests } from '$lib/services/request.service';
 	import { getThemeMode, toggleTheme } from '$lib/states/theme.svelte';
@@ -127,15 +128,9 @@
 	</form>
 
 	<div class="topbar__actions">
-		<button
-			class="topbar__icon"
-			type="button"
-			aria-label="Notificações"
-			title="Notificações (em breve)"
-			disabled
-		>
-			<Icon iconName="notifications" iconSize="md" />
-		</button>
+		{#if isAuthenticated}
+			<NotificationBell userId={currentUser?.id ?? null} />
+		{/if}
 
 		<button class="topbar__icon" type="button" aria-label="Ajuda" title="Ajuda (em breve)" disabled>
 			<Icon iconName="help" iconSize="md" />

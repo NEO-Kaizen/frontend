@@ -49,6 +49,9 @@
 		onTriageSuccess?: (updated: InternalRequestDetail) => void;
 		onPrioritizationSuccess?: (updated: InternalRequestDetail) => void;
 		onStatusChangeSuccess?: (update: StatusChangeUpdate) => void;
+		onMappingSuccess?: () => void;
+		/** Incrementado após mudança de Status, triagem ou mapeamento. */
+		statusTimeRefreshKey?: number;
 	}
 
 	let {
@@ -61,7 +64,9 @@
 		onSaveError,
 		onTriageSuccess,
 		onPrioritizationSuccess,
-		onStatusChangeSuccess
+		onStatusChangeSuccess,
+		onMappingSuccess,
+		statusTimeRefreshKey = 0
 	}: Props = $props();
 
 	const currentUser = $derived(page.data.user);
@@ -431,10 +436,6 @@
 					{solicitation.status.toUpperCase()}
 				</span>
 				<span class="protocol">{solicitation.protocol}</span>
-				<span class="notification-skeleton" aria-label="Notificações pendentes">
-					<Icon iconName="info" iconSize="sm" />
-					<span class="notification-text">0 notificações</span>
-				</span>
 			</div>
 			<h1 class="solicitation-title">{solicitation.demand.title}</h1>
 			<div class="responsible-field" aria-label="Responsável da solicitação">
@@ -516,6 +517,8 @@
 		onPendencySave={handlePendencySaveRequest}
 		onPendencyCancel={handlePendencyCancelRequest}
 		onRequestFieldChange={enterPendencyMode}
+		{onMappingSuccess}
+		{statusTimeRefreshKey}
 	/>
 
 	<QuickActions
@@ -663,24 +666,6 @@
 		font-size: 13px;
 		font-weight: 500;
 		color: var(--gray);
-	}
-
-	.notification-skeleton {
-		display: inline-flex;
-		align-items: center;
-		gap: 4px;
-		padding: 3px 8px;
-		border-radius: var(--radius-md);
-		background: var(--background-color);
-		border: 1px solid var(--white-gray);
-		font-family: var(--font-inter);
-		font-size: 11px;
-		font-weight: 500;
-		color: var(--gray);
-	}
-
-	.notification-text {
-		white-space: nowrap;
 	}
 
 	.solicitation-title {

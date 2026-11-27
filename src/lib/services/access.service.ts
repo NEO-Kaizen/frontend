@@ -56,6 +56,23 @@ export function canViewTriage(
 	return Boolean(assigneeId && assigneeId === user.id);
 }
 
+// Visualização do tempo por Status (RF13): Administrador e Gestor sempre;
+// Analista apenas com custódia da solicitação — responsável da triagem
+// (`assignee`) ou designado do mapeamento (`mappingAssignee`). Solicitante
+// nunca. `canViewTriage` não serve aqui porque ignora o mapeamento.
+export function canViewStatusTimes(
+	assigneeId: string | null | undefined,
+	mappingAssigneeId: string | null | undefined,
+	user: SessionUser | null
+): boolean {
+	if (!user) return false;
+	if (user.role === 'Administrador' || user.role === 'Gestor') return true;
+	if (user.role !== 'Analista') return false;
+	return Boolean(
+		(assigneeId && assigneeId === user.id) || (mappingAssigneeId && mappingAssigneeId === user.id)
+	);
+}
+
 export function isProfileAllowed(role: UserType, profiles: 'any' | readonly UserType[]): boolean {
 	return profiles === 'any' || profiles.includes(role);
 }
@@ -132,6 +149,17 @@ export function getHomeRedirect(user: SessionUser | null): string | null {
 		return resolve(DASHBOARD_ROUTE);
 	}
 	return null;
+}
+
+// Destino do clique num card de notificação: detalhe interno para perfis
+// internos, acompanhamento público para o solicitante. A regra vive aqui
+// para nenhum componente precisar de role hardcoded.
+export function resolveNotificationTarget(user: SessionUser, protocol: string): string {
+	if (isInternalProfile(user.role)) {
+		return resolve('/(admin)/fila/[protocolo]', { protocolo: protocol });
+	}
+
+	return resolve('/(public)/acompanhar/[protocolo]', { protocolo: protocol });
 }
 
 export function isPasswordChangeRequired(user: SessionUser | null): boolean {
