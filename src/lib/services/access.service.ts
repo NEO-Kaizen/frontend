@@ -15,7 +15,7 @@ const LOGIN_ROUTE = '/(public)/login' as const;
 const UNAUTHORIZED_ROUTE = '/(public)/sem-autorizacao' as const;
 const CHANGE_PASSWORD_ROUTE = '/(app)/redefinir-senha' as const;
 const CHANGE_PASSWORD_PATH = '/redefinir-senha' as const;
-const UNAUTHORIZED_PATH = '/sem-autorizacao' as const;
+const UNAUTHORIZED_PATH = resolve(UNAUTHORIZED_ROUTE);
 const RETURN_TO_IGNORED_ROUTES: Set<string> = new Set([
 	resolve(LOGIN_ROUTE),
 	resolve(UNAUTHORIZED_ROUTE)
@@ -26,6 +26,7 @@ type HomeRoute = Extract<
 	| '/(admin)/fila'
 	| '/(admin)/dashboard'
 	| '/(admin)/usuarios'
+	| '/(admin)/historico-de-logs'
 	| '/(admin)/configuracoes'
 	| '/(public)/acompanhar'
 >;
@@ -39,6 +40,7 @@ const HOME_REDIRECTS: readonly HomeRedirect[] = [
 	{ keys: ['queue:read'], route: '/(admin)/fila' },
 	{ keys: ['reports:read'], route: '/(admin)/dashboard' },
 	{ keys: ['user:read', 'profile:read'], route: '/(admin)/usuarios' },
+	{ keys: ['audit:read'], route: '/(admin)/historico-de-logs' },
 	{ keys: PORTAL_ACCESS_KEYS, route: '/(admin)/configuracoes' },
 	{ keys: ['request:track'], route: '/(public)/acompanhar' }
 ];

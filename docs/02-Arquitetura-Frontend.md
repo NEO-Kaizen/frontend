@@ -409,11 +409,12 @@ O grupo `(admin)` tem papel de guard server-side (não define layout visual): a 
 
 ### Regra da home
 
-O logo e o item "Home" da navegação apontam sempre para `/`; o destino pós-login é calculado pelo access service a partir das chaves efetivas, nesta prioridade:
+O item "Portal" aponta para `/` e só aparece para visitantes; o logo e o destino pós-login usam `getHomePath()`, calculado pelo access service a partir das chaves efetivas, nesta prioridade:
 
 - `queue:read` → `/fila`;
 - `reports:read` → `/dashboard`;
 - `user:read` ou `profile:read` → `/usuarios`;
+- `audit:read` → `/historico-de-logs`;
 - chaves de leitura do portal → `/configuracoes`;
 - `request:track` → `/acompanhar`;
 - senão → `/sem-autorizacao`.

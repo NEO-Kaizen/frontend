@@ -71,7 +71,8 @@ Variáveis opcionais:
   - `pending_item_responded` → responsável;
   - `pending_item_responded_unassigned` → Administradores ativos, com o aviso;
   - `mapping_scheduled` → solicitante **e** designado do Mapeamento.
-- **Centro**: abrir não marca; clique marca e navega para o acompanhamento;
+- **Centro**: abrir não marca; o clique marca e navega para o detalhe interno
+  quando a sessão tem `request:read`, senão para o acompanhamento público;
   "marcar todas" persiste após reload.
 - **Reconexão**: a rota do SSE é bloqueada para derrubar a conexão de verdade;
   a reconexão reenvia a Notificação sem duplicar o card.

@@ -294,12 +294,8 @@
 	// "Tempo por Status" é informação da própria solicitação: segue a custódia
 	// de `request:read` (qualquer ou responsável de triagem/mapeamento).
 	const canViewStatusTimeTab = $derived(
-		can('request:read', 'all', currentUser) ||
-			(can('request:read', 'assigned', currentUser) &&
-				Boolean(
-					currentUser &&
-					(solicitation.assignee?.id === currentUser.id || mappingAssigneeId === currentUser.id)
-				))
+		canAccessResponsible('request:read', currentUser, solicitation.assignee?.id) ||
+			canAccessResponsible('request:read', currentUser, mappingAssigneeId)
 	);
 
 	const displayTabs = $derived(

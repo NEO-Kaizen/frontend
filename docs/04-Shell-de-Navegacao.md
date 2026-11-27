@@ -40,11 +40,11 @@ src/routes/+layout.svelte
 
 ### Componentes
 
-| Componente   | Arquivo                                       | Responsabilidade                                                          |
-| ------------ | --------------------------------------------- | ------------------------------------------------------------------------- |
-| `AppShell`   | `src/lib/components/layout/AppShell.svelte`   | Compõe a estrutura, controla o menu mobile e a exceção do login           |
-| `AppSidebar` | `src/lib/components/layout/AppSidebar.svelte` | Logo, navegação por perfil, item ativo, logout e comportamento off-canvas |
-| `AppTopBar`  | `src/lib/components/layout/AppTopBar.svelte`  | Busca, ações, toggle de tema, perfil/“Acessar”                            |
+| Componente   | Arquivo                                       | Responsabilidade                                                              |
+| ------------ | --------------------------------------------- | ----------------------------------------------------------------------------- |
+| `AppShell`   | `src/lib/components/layout/AppShell.svelte`   | Compõe a estrutura, controla o menu mobile e a exceção do login               |
+| `AppSidebar` | `src/lib/components/layout/AppSidebar.svelte` | Logo, navegação por permissões, item ativo, logout e comportamento off-canvas |
+| `AppTopBar`  | `src/lib/components/layout/AppTopBar.svelte`  | Busca, ações, toggle de tema, perfil/“Acessar”                                |
 
 O shell fica no layout raiz para garantir a mesma estrutura em todas as rotas e
 evitar duplicação nos grupos `(public)`, `(app)` e `(admin)`.
@@ -55,38 +55,42 @@ evitar duplicação nos grupos `(public)`, `(app)` e `(admin)`.
 
 ### 4.1 Barra lateral
 
-Itens exibidos conforme o perfil (resolvido por `isInternalProfile` e pelo papel):
+Itens exibidos conforme as chaves efetivas da sessão (`has`/`hasAny`):
 
-| Item                | Rotas com acesso                | Destino                  |
-| ------------------- | ------------------------------- | ------------------------ |
-| Portal              | Todos                           | `/` ou `/home` (interno) |
-| Nova Solicitação    | Todos                           | `/solicitacao`           |
-| Acompanhamento      | Todos                           | `/acompanhar`            |
-| Fila Centralizada   | Analista, Gestor, Administrador | `/fila`                  |
-| Dashboard Gerencial | Gestor, Administrador           | `/dashboard`             |
-| Histórico de Logs   | Gestor, Administrador           | `/historico-de-logs`     |
-| Gerenciar Usuários  | Administrador                   | `/usuarios`              |
-| Configurações       | Administrador                   | `/configuracoes`         |
-| Sair                | Usuários autenticados           | Encerra a sessão         |
+| Item                | Chave exigida                      | Destino              |
+| ------------------- | ---------------------------------- | -------------------- |
+| Portal              | — (somente visitante)              | `/`                  |
+| Nova Solicitação    | `request:create`                   | `/solicitacao`       |
+| Acompanhamento      | `request:track`                    | `/acompanhar`        |
+| Fila Centralizada   | `queue:read`                       | `/fila`              |
+| Dashboard Gerencial | `reports:read`                     | `/dashboard`         |
+| Histórico de Logs   | `audit:read`                       | `/historico-de-logs` |
+| Gerenciar Usuários  | `user:read` ou `profile:read`      | `/usuarios`          |
+| Configurações       | qualquer chave de acesso ao portal | `/configuracoes`     |
+| Sair                | Usuários autenticados              | Encerra a sessão     |
 
 Observações:
 
 - Os itens `Dashboard Gerencial`, `Gerenciar Usuários` e `Configurações` não aparecem
   no protótipo, mas foram mantidos para não remover acesso existente.
-- O item ativo usa `aria-current="page"` e destaque visual; o `Portal` só é ativo na
-  home correspondente ao contexto (público ou interno).
+- O item ativo usa `aria-current="page"` e destaque visual. Usuário autenticado
+  volta para a home calculada por `getHomePath()` (fila, dashboard, usuários,
+  logs, configurações, acompanhamento) pelo logo da marca; o item `Portal` fica
+  restrito a visitantes para não duplicar o item ativo.
 - O logout limpa o rascunho de solicitação, encerra a sessão e redireciona para `/login`.
 
 ### 4.2 Barra superior
 
 - Busca:
-  - usuário interno → navega para `/fila?search=...`;
-  - demais perfis → consulta a API e abre o protocolo ou a tela de acompanhamento.
+  - com `queue:read` → navega para `/fila?search=...`;
+  - sem fila, mas com `request:track` → consulta a API e abre o protocolo ou a tela de
+    acompanhamento;
+  - sem nenhuma das duas chaves (e autenticado) → a busca é ocultada.
 - Toggle de tema claro/escuro (oculto na tela de configurações, como antes).
 - Bloco do usuário (nome, perfil e avatar) com link para `/perfil`.
 - Usuário não autenticado vê o botão “Acessar”.
-- Notificações e ajuda existem como **placeholders desabilitados** (“em breve”), pois
-  ainda não há funcionalidade associada.
+- Notificações usam o RF20 (sino, Centro e SSE); a ajuda permanece um placeholder
+  desabilitado (“em breve”).
 
 ### 4.3 Exceção: login
 
@@ -141,6 +145,9 @@ Alterados:
 - `src/routes/(public)/login/+page.svelte`
 - `src/lib/styles/global.css`
 - `src/lib/types/icons.ts`
+- `src/lib/services/access.service.ts` (navegação e home por permissões)
+- `src/routes/(admin)/fila/[protocolo]/components/SpecTabs.svelte` (abas por chave/custódia)
+- `src/lib/components/NotificationCenter.svelte` (destino interno x público por `request:read`)
 
 Removido:
 
@@ -158,17 +165,17 @@ npm run check
 npm run build
 ```
 
-Resultado: lint sem erros, build concluído e `svelte-check` com 0 erros
-(permanecem 3 warnings pré-existentes de CSS não utilizado em `AssignAction.svelte`).
-
-Nenhuma alteração foi commitada ou enviada ao repositório.
+Resultado: lint sem erros, build concluído e `svelte-check` com 0 erros e 0
+warnings. A navegação por permissões também foi exercitada com os usuários
+fictícios do mock (sidebar, guards, exportação, abas e notificações).
 
 ---
 
 ## 9. Como evoluir
 
 - Novos itens de navegação devem ser adicionados em `AppSidebar.svelte`, seguindo o
-  mesmo padrão de `NavItem` (`name`, `icon`, `href` via `resolve()` e regra de perfil).
+  mesmo padrão de `NavItem` (`name`, `icon`, `href` via `resolve()` e regra de
+  permissão com `has`/`hasAny`).
 - Ações globais (busca, notificações, ajuda, perfil) pertencem ao `AppTopBar`.
 - Se uma nova rota não deve exibir a barra lateral, estenda a condição `showSidebar`
   no `AppShell` (mantendo a regra em um único lugar).

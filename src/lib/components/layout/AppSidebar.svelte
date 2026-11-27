@@ -39,13 +39,17 @@
 	const currentUser = $derived(page.data.user);
 	const appConfig = $derived(page.data.portalConfig);
 	// A home segue a prioridade de permissões do access service (fila, dashboard,
-	// usuários, configurações, acompanhamento) e cai no portal público.
+	// usuários, logs, configurações, acompanhamento) e cai no portal público.
+	// Usuário autenticado volta para a home pelo logo; o item "Portal" fica só
+	// para visitantes, evitando dois itens ativos com o mesmo destino.
 	const homeHref = $derived<NavHref>((getHomePath(currentUser) ?? PUBLIC_HOME_PATH) as NavHref);
 
 	const navItems = $derived.by((): NavItem[] => {
-		const items: NavItem[] = [
-			{ name: 'Portal', icon: 'home', href: homeHref, exact: homeHref === PUBLIC_HOME_PATH }
-		];
+		const items: NavItem[] = [];
+
+		if (!currentUser) {
+			items.push({ name: 'Portal', icon: 'home', href: PUBLIC_HOME_PATH, exact: true });
+		}
 
 		if (has('request:create', currentUser)) {
 			items.push({ name: 'Nova Solicitação', icon: 'addCircle', href: NEW_REQUEST_PATH });
