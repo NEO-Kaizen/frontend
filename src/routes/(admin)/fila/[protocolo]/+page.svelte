@@ -22,6 +22,16 @@
 		protocol: string;
 		update: StatusChangeUpdate;
 	} | null>(null);
+
+	// A aba de tempo por Status carrega sob demanda e não faz parte do load do
+	// servidor. Este contador sinaliza quando uma ação que altera o histórico
+	// de Status concluiu, para que ela busque os dados novamente (o backend é
+	// a única fonte dos cálculos).
+	let statusTimeRefreshKey = $state(0);
+
+	function refreshStatusTime(): void {
+		statusTimeRefreshKey += 1;
+	}
 	let solicitation = $derived.by(() => {
 		const current = data.solicitation;
 		if (
@@ -44,6 +54,7 @@
 
 		// A Triagem possui endpoint próprio de leitura.
 		// Após a persistência, revalidamos os dados do servidor.
+		refreshStatusTime();
 		void invalidateAll();
 	}
 
@@ -57,6 +68,11 @@
 	function handleStatusChangeSuccess(update: StatusChangeUpdate): void {
 		if (!data.solicitation || update.protocol !== protocol) return;
 		statusOverride = { protocol: update.protocol, update };
+		refreshStatusTime();
+	}
+
+	function handleMappingSuccess(): void {
+		refreshStatusTime();
 	}
 </script>
 
@@ -90,6 +106,8 @@
 				onTriageSuccess={handleTriageSuccess}
 				onPrioritizationSuccess={handlePrioritizationSuccess}
 				onStatusChangeSuccess={handleStatusChangeSuccess}
+				onMappingSuccess={handleMappingSuccess}
+				{statusTimeRefreshKey}
 			/>
 		{/key}
 	{:else if error && error.status === 404}
