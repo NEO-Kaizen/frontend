@@ -7,7 +7,11 @@
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Modal from '$lib/components/Modal.svelte';
-	import { can, canAccessResponsible } from '$lib/utils/permission-checks';
+	import {
+		can,
+		canAccessCurrentResponsible,
+		canAccessResponsible
+	} from '$lib/utils/permission-checks';
 	import { getInternalNotes } from '$lib/services/internal-note.service';
 	import {
 		buildCreatePendingItemsPayload,
@@ -260,32 +264,31 @@
 		}
 	]);
 
-	// Botão Editar visível apenas para quem tem `request:write` com custódia
-	// `all` ou `assigned` sobre o responsável da solicitação.
 	const currentUser = $derived(page.data.user);
+	// Responsável do mapeamento do primeiro GET da solicitação + `/auth/me`
+	// (via `page.data.user`) — nunca do GET do mapeamento.
+	const mappingAssigneeId = $derived(solicitation.mappingAssignee?.id ?? null);
+	const assigneeId = $derived(solicitation.assignee?.id ?? null);
+
+	// `request:write`/`triage:read`/`internal_note:read` somam os vínculos de
+	// triagem e mapeamento, como no backend. A aba de Triagem fica visível ao
+	// designado do mapeamento, porém somente leitura (`triage:write` continua
+	// exclusivo da triagem).
 	const canEdit = $derived(
-		can('request:write', 'all', currentUser) ||
-			(can('request:write', 'assigned', currentUser) &&
-				Boolean(currentUser && solicitation.assignee?.id === currentUser.id))
+		canAccessCurrentResponsible('request:write', currentUser, assigneeId, mappingAssigneeId)
 	);
 	const canViewTriageTab = $derived(
-		can('triage:read', 'all', currentUser) ||
-			(can('triage:read', 'assigned', currentUser) &&
-				Boolean(currentUser && solicitation.assignee?.id === currentUser.id))
+		canAccessCurrentResponsible('triage:read', currentUser, assigneeId, mappingAssigneeId)
 	);
-	// Pendências e observações internas também são chaves de linha: `assigned`
-	// só alcança o Responsável da solicitação (`assignee_user_id`), como no backend.
+	// Pendências continuam exclusivas da triagem.
 	const canViewPendenciesTab = $derived(
-		canAccessResponsible('pending_item:read', currentUser, solicitation.assignee?.id)
+		canAccessResponsible('pending_item:read', currentUser, assigneeId)
 	);
 	const canViewInternalNotesTab = $derived(
-		canAccessResponsible('internal_note:read', currentUser, solicitation.assignee?.id)
+		canAccessCurrentResponsible('internal_note:read', currentUser, assigneeId, mappingAssigneeId)
 	);
 
-	// A permissão do mapeamento usa o responsável do mapeamento
-	// (`mappingAssignee`) do primeiro GET da solicitação + `/auth/me`
-	// (via `page.data.user`) — nunca o GET do mapeamento.
-	const mappingAssigneeId = $derived(solicitation.mappingAssignee?.id ?? null);
+	// A edição do mapeamento é exclusiva do designado do mapeamento.
 	const canEditMapping = $derived(
 		can('mapping:write', 'all', currentUser) ||
 			(can('mapping:write', 'assigned', currentUser) &&
@@ -294,8 +297,7 @@
 	// "Tempo por Status" é informação da própria solicitação: segue a custódia
 	// de `request:read` (qualquer ou responsável de triagem/mapeamento).
 	const canViewStatusTimeTab = $derived(
-		canAccessResponsible('request:read', currentUser, solicitation.assignee?.id) ||
-			canAccessResponsible('request:read', currentUser, mappingAssigneeId)
+		canAccessCurrentResponsible('request:read', currentUser, assigneeId, mappingAssigneeId)
 	);
 
 	const displayTabs = $derived(
@@ -812,7 +814,8 @@
 				{:else if activeTab === 'observacoes'}
 					<InternalNotesSection
 						protocol={solicitation.protocol}
-						assigneeId={solicitation.assignee?.id ?? null}
+						{assigneeId}
+						{mappingAssigneeId}
 						items={timelineItems}
 						nextCursor={timelineNextCursor}
 						{triages}

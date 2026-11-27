@@ -5,7 +5,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import Textarea from '$lib/components/Textarea.svelte';
 	import { toastState } from '$lib/states/toast.svelte';
-	import { canAccessResponsible } from '$lib/utils/permission-checks';
+	import { canAccessCurrentResponsible } from '$lib/utils/permission-checks';
 	import {
 		createInternalNote,
 		getInternalNotes,
@@ -31,6 +31,7 @@
 	interface Props {
 		protocol: string;
 		assigneeId: string | null;
+		mappingAssigneeId: string | null;
 		items: TimelineItem[];
 		nextCursor: string | null;
 		triages: TriageHistoryEntry[];
@@ -47,6 +48,7 @@
 	let {
 		protocol,
 		assigneeId,
+		mappingAssigneeId,
 		items,
 		nextCursor,
 		triages,
@@ -70,9 +72,14 @@
 
 	// Leitura e escrita são chaves distintas: quem só lê continua vendo a
 	// timeline, mas o composer não aparece. A escrita também respeita a
-	// custódia `assigned` (só o Responsável corrente envia).
+	// custódia `assigned` (o Responsável da triagem ou do mapeamento envia).
 	const canWrite = $derived(
-		canAccessResponsible('internal_note:write', page.data.user, assigneeId)
+		canAccessCurrentResponsible(
+			'internal_note:write',
+			page.data.user,
+			assigneeId,
+			mappingAssigneeId
+		)
 	);
 
 	// Página mais recente invertida para ordem canônica → última nota dela é a
