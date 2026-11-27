@@ -16,6 +16,9 @@ export const iconDictionary = {
 	search: 'search',
 	login: 'login',
 	logout: 'logout',
+	menu: 'menu',
+	notifications: 'notifications',
+	help: 'help',
 	settings: 'settings',
 	filter: 'filter_alt',
 	filterList: 'filter_list',
@@ -71,7 +74,8 @@ export const iconDictionary = {
 	darkMode: 'dark_mode',
 	content_copy: 'content_copy',
 	assignment: 'assignment_ind',
-	stacks: 'stacks'
+	stacks: 'stacks',
+	schedule: 'schedule'
 } as const;
 
 export type IconName = keyof typeof iconDictionary;

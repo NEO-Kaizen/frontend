@@ -1,5 +1,5 @@
+import { base, resolve } from '$app/paths';
 import { redirect } from '@sveltejs/kit';
-import { resolve } from '$app/paths';
 import type { RouteId } from '$app/types';
 import type { SessionUser } from '$lib/types/auth';
 import {
@@ -11,9 +11,15 @@ import { has, hasAny } from '$lib/utils/permission-checks';
 
 export { can, has, hasAny } from '$lib/utils/permission-checks';
 
-const LOGIN_PATH = '/login' as const;
-const UNAUTHORIZED_PATH = '/sem-autorizacao' as const;
+const LOGIN_ROUTE = '/(public)/login' as const;
+const UNAUTHORIZED_ROUTE = '/(public)/sem-autorizacao' as const;
+const CHANGE_PASSWORD_ROUTE = '/(app)/redefinir-senha' as const;
 const CHANGE_PASSWORD_PATH = '/redefinir-senha' as const;
+const UNAUTHORIZED_PATH = '/sem-autorizacao' as const;
+const RETURN_TO_IGNORED_ROUTES: Set<string> = new Set([
+	resolve(LOGIN_ROUTE),
+	resolve(UNAUTHORIZED_ROUTE)
+]);
 
 type HomeRoute = Extract<
 	RouteId,
@@ -42,11 +48,33 @@ export const ADMIN_AREA_KEYS: readonly PermissionKey[] = [
 	...PORTAL_ACCESS_KEYS
 ];
 
-function loginRedirectPath(pathname?: string): string {
-	if (pathname && isAllowedReturnTo(pathname)) {
-		return `${LOGIN_PATH}?returnTo=${encodeURIComponent(pathname)}`;
+export function isAllowedReturnTo(value: string): boolean {
+	if (!value.startsWith('/')) return false;
+	if (value.startsWith('//')) return false;
+	if (value.includes('://') || value.includes('\\')) return false;
+	if ([...value].some((char) => char.charCodeAt(0) <= 0x1f || char.charCodeAt(0) === 0x7f)) {
+		return false;
 	}
-	return LOGIN_PATH;
+	try {
+		const url = new URL(value, 'http://internal');
+		const isSameOrigin = url.origin === 'http://internal';
+		const isInsideApp = !base || url.pathname === base || url.pathname.startsWith(`${base}/`);
+
+		return isSameOrigin && isInsideApp;
+	} catch {
+		return false;
+	}
+}
+
+function appendReturnTo(destination: string, returnTo?: string | null): string {
+	if (!returnTo || !isAllowedReturnTo(returnTo)) return destination;
+
+	const searchParams = new URLSearchParams({ returnTo });
+	return `${destination}?${searchParams.toString()}`;
+}
+
+function loginRedirectPath(pathname?: string): string {
+	return appendReturnTo(resolve(LOGIN_ROUTE), pathname);
 }
 
 export function guardSession(user: SessionUser | null, pathname?: string): void {
@@ -67,24 +95,9 @@ export function guardAny(
 	if (!hasAny(keys, user)) redirect(303, UNAUTHORIZED_PATH);
 }
 
-export function isAllowedReturnTo(value: string): boolean {
-	if (!value.startsWith('/')) return false;
-	if (value.startsWith('//')) return false;
-	if (value.includes('://') || value.includes('\\')) return false;
-	if ([...value].some((char) => char.charCodeAt(0) <= 0x1f || char.charCodeAt(0) === 0x7f)) {
-		return false;
-	}
-	try {
-		return new URL(value, 'http://local.invalid').origin === 'http://local.invalid';
-	} catch {
-		return false;
-	}
-}
-
-export function redirectToLogin(url: URL, loginUrl: string): never {
+export function redirectToLogin(url: URL): never {
 	const returnTo = url.pathname + url.search;
-	const searchParams = new URLSearchParams({ returnTo });
-	redirect(303, `${loginUrl}?${searchParams.toString()}`);
+	redirect(303, appendReturnTo(resolve(LOGIN_ROUTE), returnTo));
 }
 
 export function getHomeRedirect(user: SessionUser | null | undefined): HomeRoute | null {
@@ -101,21 +114,24 @@ export function isPasswordChangeRequired(user: SessionUser | null | undefined): 
 }
 
 export function isPasswordChangeRoute(pathname: string): boolean {
-	return pathname.startsWith(CHANGE_PASSWORD_PATH);
+	const changePasswordPath = `${base}${CHANGE_PASSWORD_PATH}`;
+
+	return pathname === changePasswordPath || pathname.startsWith(`${changePasswordPath}/`);
 }
 
-export function guardPasswordChange(user: SessionUser | null, pathname: string): void {
-	if (user && isPasswordChangeRequired(user) && !isPasswordChangeRoute(pathname)) {
-		redirect(303, CHANGE_PASSWORD_PATH);
-	}
+export function guardPasswordChange(user: SessionUser | null, url: URL): void {
+	if (!user || !isPasswordChangeRequired(user) || isPasswordChangeRoute(url.pathname)) return;
+
+	// Um returnTo para login/sem-autorizacao devolveria o usuário à tela de
+	// entrada depois da troca obrigatória de senha, em vez da rota inicial.
+	const returnTo = RETURN_TO_IGNORED_ROUTES.has(url.pathname) ? null : url.pathname + url.search;
+
+	redirect(303, appendReturnTo(resolve(CHANGE_PASSWORD_ROUTE), returnTo));
 }
 
 export function getPostLoginRedirect(user: SessionUser, returnTo?: string | null): string {
 	if (isPasswordChangeRequired(user)) {
-		if (returnTo && isAllowedReturnTo(returnTo)) {
-			return `${CHANGE_PASSWORD_PATH}?returnTo=${encodeURIComponent(returnTo)}`;
-		}
-		return CHANGE_PASSWORD_PATH;
+		return appendReturnTo(resolve(CHANGE_PASSWORD_ROUTE), returnTo);
 	}
 
 	if (returnTo && isAllowedReturnTo(returnTo)) {
@@ -123,4 +139,15 @@ export function getPostLoginRedirect(user: SessionUser, returnTo?: string | null
 	}
 
 	return getHomePath(user) ?? UNAUTHORIZED_PATH;
+}
+
+// Destino do clique num card de notificação: detalhe interno para quem tem
+// acesso de leitura à solicitação; acompanhamento público para quem só
+// acompanha o próprio protocolo.
+export function resolveNotificationTarget(user: SessionUser, protocol: string): string {
+	if (has('request:read', user)) {
+		return resolve('/(admin)/fila/[protocolo]', { protocolo: protocol });
+	}
+
+	return resolve('/(public)/acompanhar/[protocolo]', { protocolo: protocol });
 }

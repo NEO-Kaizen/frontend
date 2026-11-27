@@ -46,9 +46,11 @@
 		solicitation: InternalRequestDetail;
 		canEdit: boolean;
 		statuses?: PortalStatus[];
+		/** Chamado após concluir o mapeamento, para recarregar a aba de tempo por Status. */
+		onSaved?: () => void;
 	}
 
-	let { solicitation, canEdit, statuses = [] }: Props = $props();
+	let { solicitation, canEdit, statuses = [], onSaved }: Props = $props();
 
 	let protocol = $derived(solicitation.protocol);
 	let editable = $derived(canEdit);
@@ -311,6 +313,7 @@
 			externalError = null;
 			toastState.add('Mapeamento concluído com sucesso.', 'success');
 			// O backend alterou o status; recarrega os dados da página.
+			onSaved?.();
 			await invalidateAll();
 		} else {
 			saveError = result.error.message;

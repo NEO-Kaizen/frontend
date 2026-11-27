@@ -8,7 +8,7 @@
 	import InfoTip from '$lib/components/InfoTip.svelte';
 	import LegendPill from '$lib/components/LegendPill.svelte';
 	import ToggleButton from '$lib/components/ToggleButton.svelte';
-	import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
+	import { DEFAULT_NEW_STATUS_PAUSED, DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
 	import { isPortalConfigLoadBlocked } from '$lib/config/portal-config-load';
 	import { saveStatuses } from '$lib/config/portal-config.service';
 	import { has } from '$lib/services/access.service';
@@ -35,7 +35,7 @@
 	const section = new SectionState<StatusesSection>(
 		{ statuses: page.data.portalConfig.statuses },
 		{ statuses: DEFAULT_PORTAL_CONFIG.statuses },
-		(draft) => saveStatuses({ statuses: draft.statuses })
+		(draft, pristine) => saveStatuses(draft, pristine)
 	);
 
 	const loadFailed = $derived(isPortalConfigLoadBlocked(page.data));
@@ -99,6 +99,7 @@
 				isCore: false,
 				isPublic: false,
 				isTerminal: false,
+				isPaused: DEFAULT_NEW_STATUS_PAUSED,
 				triageMode: 'none',
 				mappingMode: 'none',
 				isRestricted: false,
@@ -239,6 +240,13 @@
 		return `O status “${status.name}” está como Restrito e só permite Triagem e Mapeamento em “—”. Desative Restrito para escolher “${label}”.`;
 	}
 
+	// RF13 — texto neutro: vale tanto se a mudança reclassificar o histórico
+	// quanto se valer só para os próximos períodos (regra do backend).
+	const PAUSE_HINT =
+		'Quando ativo, o tempo neste Status é contado como pausa (aguardando informação), e não como tempo ativo.';
+	const CORE_PAUSE_LOCKED_HINT =
+		'Status vital: a pausa é definida pelo sistema e não pode ser alterada.';
+
 	const TONE_LABELS: Record<StatusTone, string> = {
 		error: 'Erro',
 		success: 'Sucesso',
@@ -325,7 +333,7 @@
 <SettingsCard
 	iconName="pending"
 	title="7. Status"
-	description="Defina como cada status aparece, quem vê, se finaliza, onde pode ser usado e sua cor. Identidade: nome; Vital: travados; Visibilidade: quem vê; Encerramento: se finaliza; Fluxo: onde pode ser escolhido; Tema: cor personalizável no tema."
+	description="Defina como cada status aparece, quem vê, se finaliza, onde pode ser usado e sua cor. Identidade: nome; Vital: travados; Visibilidade: quem vê; Encerramento: se finaliza; Pausa: se o tempo conta como aguardando informação; Fluxo: onde pode ser escolhido; Tema: cor personalizável no tema."
 >
 	{#snippet titleAddon()}
 		<InfoTip
@@ -470,6 +478,12 @@
 					<th scope="col" class="col-name">Nome (Identidade)</th>
 					<th scope="col" class="col-public">Público</th>
 					<th scope="col" class="col-terminal">Terminal</th>
+					<th scope="col" class="col-paused">
+						<span class="th-with-tip">
+							Pausa
+							<InfoTip label="Sobre a coluna Pausa" text={PAUSE_HINT} />
+						</span>
+					</th>
 					<th scope="col" class="col-mode">Triagem</th>
 					<th scope="col" class="col-mode">Mapeamento</th>
 					<th scope="col" class="col-restricted">Restrito</th>
@@ -557,6 +571,32 @@
 							>
 								{status.isTerminal ? 'Sim' : 'Não'}
 							</button>
+						</td>
+						<td class="col-paused">
+							<span class="paused-field">
+								<button
+									type="button"
+									class="tipo-pill"
+									class:on={status.isPaused}
+									aria-pressed={status.isPaused}
+									aria-label="Pausa de {status.name}"
+									disabled={section.saving || loadFailed || status.isCore}
+									onclick={(event) => {
+										popToggle(event);
+										updateStatus(status.id, { isPaused: !status.isPaused });
+									}}
+								>
+									{status.isPaused ? 'Sim' : 'Não'}
+								</button>
+								<!-- Botão desabilitado não exibe `title` de forma confiável:
+								     a explicação fica num InfoTip focável ao lado. -->
+								{#if status.isCore}
+									<InfoTip
+										label="Por que a pausa de {status.name} não pode ser alterada"
+										text={CORE_PAUSE_LOCKED_HINT}
+									/>
+								{/if}
+							</span>
 						</td>
 						<td class="col-mode">
 							<BadgeSelect
@@ -843,6 +883,20 @@
 	.col-terminal {
 		width: 85px;
 		text-align: center;
+	}
+	.col-paused {
+		width: 105px;
+		text-align: center;
+	}
+	.paused-field {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--spacing-xs);
+	}
+	.th-with-tip {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--spacing-xs);
 	}
 	.col-mode {
 		width: 110px;

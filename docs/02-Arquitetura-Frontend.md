@@ -279,7 +279,7 @@ Regras:
 - a configuração é resolvida no servidor (no `hooks.server.ts`, mesmo padrão do `locals.user`) e entregue por `data`; componentes não leem a API diretamente;
 - consumidores leem `page.data.portalConfig` (reativo, SSR-consistente) — não há store/estado de módulo para config; se no futuro houver mutação cliente a partir do admin (#90), um estado em `states/*.svelte.ts` (runes) pode ser adicionado na hora da necessidade;
 - `isProtocol(value)` valida apenas a estrutura do protocolo (prefixo alfanumérico de 1 a 10 caracteres + dois blocos alfanuméricos de 4), sem exigir o `protocolMask` configurado — protocolos de outros prefixos são aceitos na busca; `protocolMask` permanece em `page.data.portalConfig` para exibição (placeholder) e configuração no admin;
-- o tema (3 tokens de cor) é aplicado como exemplo/baseline no `+layout.svelte` via wrapper `.app-root` + diretivas `style:--*` (CSS custom properties): o wrapper é o container de layout (flex, centralização, `min-height: 100dvh`, fundo via `--background-color`), cobrindo o `body` — renderizado no SSR (sem `$effect`, sem flash) e reativo a `data`. Nota: o Svelte 5 não suporta interpolação `{expr}` em `<style>` (recurso removido do Svelte 4), e `:global()` só serve para CSS estático — por isso as custom properties reativas vão via `style:` num wrapper;
+- o tema (3 tokens de cor) é aplicado como exemplo/baseline no `+layout.svelte` via wrapper `.app-root` + diretivas `style:--*` (CSS custom properties): o wrapper é o container de layout (coluna de altura total, `min-height: 100dvh`, fundo via `--background-color`; a centralização do conteúdo fica no `.content-container`), cobrindo o `body` — renderizado no SSR (sem `$effect`, sem flash) e reativo a `data`. Nota: o Svelte 5 não suporta interpolação `{expr}` em `<style>` (recurso removido do Svelte 4), e `:global()` só serve para CSS estático — por isso as custom properties reativas vão via `style:` num wrapper;
 - configuração de portal (runtime) é diferente do toggle dev de mocks: o toggle dev de mock/API permanece **apenas** em `mocks/index.ts` (`dev` de `$app/environment`), inerte em produção; nenhum flag runtime do portal entra nos mocks. O mock/domínio `config` da API real será adicionado em `mocks/index.ts` quando o endpoint existir (#90);
 - a aplicação do tema completo (tokens em páginas, flash minimizado) é escopo da issue #89; esta camada apenas prepara o transporte.
 
@@ -403,7 +403,7 @@ Os grupos entre parênteses organizam as rotas sem alterar diretamente a URL e d
 
 **Alçada administrativa.** A autorização para gerenciar usuários é calculada por dominância estrita de permissões (`isAuthorityStrictlyBelow`), não por nome de Perfil, rótulo da sessão ou `isActive`. O service `src/lib/services/account-authority.service.ts` separa Perfis designáveis em formulários (ativos, não Root e abaixo do ator) de Perfis cujos usuários podem ser administrados (não Root e abaixo do ator, inclusive inativos). A identificação de Admin Root usa `user.isRoot`, a marca estável de `SessionUser`; o rótulo `role` serve apenas para exibição. Veja `docs/adr/0001-alcada-por-permissoes.md`.
 
-O grupo `(admin)` tem papel de guard server-side (não define layout visual): o Header permanece único, com navegação anotada por chave e filtrada por `has`/`hasAny`.
+O grupo `(admin)` tem papel de guard server-side (não define layout visual): a estrutura de navegação permanece única no layout raiz (`AppShell`/`AppSidebar`), com os itens anotados por chave e filtrados por `has`/`hasAny`. Detalhes em [`04-Shell-de-Navegacao.md`](./04-Shell-de-Navegacao.md).
 
 **Colocação de componentes.** Componentes específicos de uma página podem ficar colocalizados em `routes/.../components/` (padrão suportado pelo SvelteKit: arquivos sem prefixo `+` nunca se tornam rotas). Componentes reutilizados por várias páginas pertencem a `lib/components/`.
 
@@ -501,7 +501,7 @@ Regra prática:
 ### 16.3 CORS
 
 - Load universal cross-origin exige `Access-Control-Allow-Origin` na resposta (igual à origem do app) — mais um motivo para dado da própria API ir em server load, que não aplica essa checagem.
-- Chamadas feitas no browser (ex.: busca do `Header`) continuam sujeitas a CORS. Como o `apiClient` usa `credentials: 'include'`, o backend precisa responder `Access-Control-Allow-Origin` exato + `Access-Control-Allow-Credentials: true` (`*` não serve).
+- Chamadas feitas no browser (ex.: busca do `AppTopBar`) continuam sujeitas a CORS. Como o `apiClient` usa `credentials: 'include'`, o backend precisa responder `Access-Control-Allow-Origin` exato + `Access-Control-Allow-Credentials: true` (`*` não serve).
 
 ### 16.4 Fluxo
 
