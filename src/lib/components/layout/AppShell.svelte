@@ -19,6 +19,7 @@
 	const showSidebar = $derived(page.url.pathname !== LOGIN_PATH);
 
 	let isSidebarOpen = $state(false);
+	let isSidebarCollapsed = $state(false);
 
 	function openSidebar() {
 		isSidebarOpen = true;
@@ -26,6 +27,10 @@
 
 	function closeSidebar() {
 		isSidebarOpen = false;
+	}
+
+	function toggleSidebarCollapsed() {
+		isSidebarCollapsed = !isSidebarCollapsed;
 	}
 
 	function handleKeydown(event: KeyboardEvent) {
@@ -39,11 +44,16 @@
 
 <div class="app-shell">
 	{#if showSidebar}
-		<AppSidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
+		<AppSidebar isOpen={isSidebarOpen} collapsed={isSidebarCollapsed} onClose={closeSidebar} />
 	{/if}
 
 	<div class="app-shell__main">
-		<AppTopBar onMenu={openSidebar} showMenu={showSidebar} />
+		<AppTopBar
+			onMenu={openSidebar}
+			showMenu={showSidebar}
+			onToggleSidebar={toggleSidebarCollapsed}
+			sidebarCollapsed={isSidebarCollapsed}
+		/>
 
 		<div class="app-shell__content">
 			{@render children()}
