@@ -1,8 +1,14 @@
+import { resolve } from '$app/paths';
 import { redirect } from '@sveltejs/kit';
 import { getInternalRequest } from '$lib/services/request.service';
 import { getInternalNotes } from '$lib/services/internal-note.service';
 import { listPendencies } from '$lib/services/pendency.service';
-import { can, canAccessResponsible, has } from '$lib/utils/permission-checks';
+import {
+	can,
+	canAccessCurrentResponsible,
+	canAccessResponsible,
+	has
+} from '$lib/utils/permission-checks';
 import type { PageServerLoad } from './$types';
 
 // Server load (não universal): o fetch sai do servidor sem o modelo CORS do
@@ -11,11 +17,11 @@ import type { PageServerLoad } from './$types';
 export const load: PageServerLoad = async ({ params, fetch, locals }) => {
 	const protocol = params.protocolo;
 	const user = locals.user;
-	if (!user) redirect(303, '/login');
+	if (!user) redirect(303, resolve('/(public)/login'));
 
 	const canReadAny = can('request:read', 'all', user);
 	const canReadAssigned = can('request:read', 'assigned', user);
-	if (!canReadAny && !canReadAssigned) redirect(303, '/sem-autorizacao');
+	if (!canReadAny && !canReadAssigned) redirect(303, resolve('/(public)/sem-autorizacao'));
 
 	const canReadInternalNotes = has('internal_note:read', user);
 	const canReadPendencies = has('pending_item:read', user);
@@ -41,18 +47,24 @@ export const load: PageServerLoad = async ({ params, fetch, locals }) => {
 	}
 
 	const detail = result.data;
-	// `request:read` na custódia `assigned` alcança apenas o Responsável da
-	// solicitação (`assignee_user_id`); o responsável do mapeamento não conta.
-	const isRequestResponsible = detail.assignee?.id === user.id;
-	if (!canReadAny && !isRequestResponsible) redirect(303, '/sem-autorizacao');
+	// `request:read` na custódia `assigned` alcança o Responsável da triagem ou
+	// o do mapeamento corrente (o backend soma os dois vínculos).
+	const isRequestResponsible = canAccessCurrentResponsible(
+		'request:read',
+		user,
+		detail.assignee?.id,
+		detail.mappingAssignee?.id
+	);
+	if (!canReadAny && !isRequestResponsible) redirect(303, resolve('/(public)/sem-autorizacao'));
 
 	// As abas de notas e pendências também seguem a custódia da linha, não
-	// apenas a chave. Sem isso, um `assigned` não responsável veria a aba e
-	// receberia 403 do backend.
-	const canViewInternalNotes = canAccessResponsible(
+	// apenas a chave. Notas somam triagem e mapeamento; pendências seguem
+	// exclusivas da triagem.
+	const canViewInternalNotes = canAccessCurrentResponsible(
 		'internal_note:read',
 		user,
-		detail.assignee?.id
+		detail.assignee?.id,
+		detail.mappingAssignee?.id
 	);
 	const canViewPendencies = canAccessResponsible('pending_item:read', user, detail.assignee?.id);
 

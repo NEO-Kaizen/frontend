@@ -1,4 +1,5 @@
 import {
+	cancelRequest as cancelRequestApi,
 	getPublicTracking as getPublicTrackingApi,
 	getSessionTracking as getSessionTrackingApi,
 	verifyPublicAccess as verifyPublicAccessApi
@@ -46,6 +47,29 @@ async function toResult<T>(
 			return { ok: false, error: { status: error.status, message } };
 		}
 		return { ok: false, error: { message: 'Não foi possível conectar ao servidor.' } };
+	}
+}
+
+export async function cancelRequest(
+	protocol: string,
+	justification: string
+): Promise<Result<{ status: 'Cancelado' }>> {
+	try {
+		return { ok: true, data: await cancelRequestApi(protocol, justification) };
+	} catch (error) {
+		if (error instanceof ApiError) {
+			return {
+				ok: false,
+				error: { status: error.status, code: error.code, message: error.message }
+			};
+		}
+		return {
+			ok: false,
+			error: {
+				message:
+					'Não foi possível confirmar o cancelamento. Atualize a página antes de tentar novamente.'
+			}
+		};
 	}
 }
 

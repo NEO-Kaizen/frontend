@@ -19,6 +19,7 @@
 	import { SvelteMap } from 'svelte/reactivity';
 	import { buildFieldLookup } from '$lib/pendency/field-catalog';
 	import { can, has } from '$lib/services/access.service';
+	import { canAccessCurrentResponsible, canAccessResponsible } from '$lib/utils/permission-checks';
 	import FieldPendencyModal from './pendency/FieldPendencyModal.svelte';
 	import PendencyRequestModal from './pendency/PendencyRequestModal.svelte';
 	import AssignAction from './AssignAction.svelte';
@@ -45,6 +46,9 @@
 		onTriageSuccess?: (updated: InternalRequestDetail) => void;
 		onPrioritizationSuccess?: (updated: InternalRequestDetail) => void;
 		onStatusChangeSuccess?: (update: StatusChangeUpdate) => void;
+		onMappingSuccess?: () => void;
+		/** Incrementado após mudança de Status, triagem ou mapeamento. */
+		statusTimeRefreshKey?: number;
 	}
 
 	let {
@@ -57,7 +61,9 @@
 		onSaveError,
 		onTriageSuccess,
 		onPrioritizationSuccess,
-		onStatusChangeSuccess
+		onStatusChangeSuccess,
+		onMappingSuccess,
+		statusTimeRefreshKey = 0
 	}: Props = $props();
 
 	const currentUser = $derived(page.data.user);
@@ -279,10 +285,11 @@
 		priorityBadgeTheme(solicitation.prioritization.label, isPriorityCalculated)
 	);
 
+	const assigneeId = $derived(solicitation.assignee?.id ?? null);
+	const mappingAssigneeId = $derived(solicitation.mappingAssignee?.id ?? null);
+
 	const canAssignBase = $derived(
-		can('request:assign', 'all', currentUser) ||
-			(can('request:assign', 'assigned', currentUser) &&
-				Boolean(currentUser && solicitation.assignee?.id === currentUser.id))
+		canAccessCurrentResponsible('request:assign', currentUser, assigneeId, mappingAssigneeId)
 	);
 	const canReadAssigneeDirectory = $derived(has('assignee_directory:read', currentUser));
 	const canAssign = $derived(canAssignBase && canReadAssigneeDirectory);
@@ -313,8 +320,12 @@
 	const statusChangeMode = $derived.by<'all' | 'assigned' | null>(() => {
 		if (can('request:status_change', 'all', currentUser)) return 'all';
 		if (
-			can('request:status_change', 'assigned', currentUser) &&
-			Boolean(currentUser && solicitation.assignee?.id === currentUser.id)
+			canAccessCurrentResponsible(
+				'request:status_change',
+				currentUser,
+				assigneeId,
+				mappingAssigneeId
+			)
 		) {
 			return 'assigned';
 		}
@@ -338,6 +349,12 @@
 
 		if (!canChangeStatus) {
 			hidden.push('changeStatus');
+		}
+
+		// Pendências continuam exclusivas da triagem; o designado do
+		// mapeamento não deve abrir um modal que o backend vai recusar.
+		if (!canAccessResponsible('pending_item:read', currentUser, assigneeId)) {
+			hidden.push('informPending');
 		}
 
 		return hidden;
@@ -448,10 +465,6 @@
 					{solicitation.status.toUpperCase()}
 				</span>
 				<span class="protocol">{solicitation.protocol}</span>
-				<span class="notification-skeleton" aria-label="Notificações pendentes">
-					<Icon iconName="info" iconSize="sm" />
-					<span class="notification-text">0 notificações</span>
-				</span>
 			</div>
 			<h1 class="solicitation-title">{solicitation.demand.title}</h1>
 			<div class="responsible-field" aria-label="Responsável da solicitação">
@@ -533,6 +546,8 @@
 		onPendencySave={handlePendencySaveRequest}
 		onPendencyCancel={handlePendencyCancelRequest}
 		onRequestFieldChange={enterPendencyMode}
+		{onMappingSuccess}
+		{statusTimeRefreshKey}
 	/>
 
 	<QuickActions
@@ -681,24 +696,6 @@
 		font-size: 13px;
 		font-weight: 500;
 		color: var(--gray);
-	}
-
-	.notification-skeleton {
-		display: inline-flex;
-		align-items: center;
-		gap: 4px;
-		padding: 3px 8px;
-		border-radius: var(--radius-md);
-		background: var(--background-color);
-		border: 1px solid var(--white-gray);
-		font-family: var(--font-inter);
-		font-size: 11px;
-		font-weight: 500;
-		color: var(--gray);
-	}
-
-	.notification-text {
-		white-space: nowrap;
 	}
 
 	.solicitation-title {

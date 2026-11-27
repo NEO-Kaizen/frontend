@@ -11,12 +11,11 @@
 <style>
 	.login-page {
 		width: 100%;
-		max-height: calc(100vh - 40px);
+		flex: 1;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
 		overflow: hidden;
-		margin: auto 0;
 	}
 
 	.content-container {

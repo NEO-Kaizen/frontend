@@ -132,9 +132,9 @@ São responsáveis pela estrutura da aplicação.
 
 Exemplos:
 
-- Header
-- Sidebar
-- DashboardLayout
+- AppShell
+- AppSidebar
+- AppTopBar
 - PageContainer
 
 ---
@@ -174,13 +174,15 @@ Toda interação deve possuir retorno visual para o usuário.
 
 ---
 
-## 7.6 Header por permissões
+## 7.6 Navegação por permissões
 
-O Header pode variar conforme as permissões do usuário.
+A navegação (`AppSidebar`/`AppTopBar`) varia conforme as permissões do usuário.
 
-Evite criar um Header completamente diferente para cada perfil.
+Evite criar uma barra lateral completamente diferente para cada perfil.
 
 Sempre que possível, utilize o mesmo componente, alterando apenas as opções disponíveis conforme as permissões do usuário.
+
+A tela de login é a única exceção que não exibe a barra lateral.
 
 ---
 

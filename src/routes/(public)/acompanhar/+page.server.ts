@@ -1,4 +1,5 @@
 import { redirect } from '@sveltejs/kit';
+import { MOCK_DOMAINS } from '$lib/mocks';
 import { can } from '$lib/services/access.service';
 import { listRequests } from '$lib/services/request.service';
 import { parsePageParam, redirectToValidPage } from '$lib/utils/pagination';
@@ -37,7 +38,12 @@ export const load: PageServerLoad = async ({ url, fetch, locals }) => {
 			throw redirect(303, clean.pathname + (clean.search ? `?${clean.search}` : ''));
 		}
 
-		const result = await listRequests({ email, page, pageSize: PAGE_SIZE }, fetch);
+		// Com sessão, o backend resolve a identidade pelo cookie e recusa `?email`.
+		// O mock ainda não tem sessão server-side, então mantém o e-mail só em DEV.
+		const result = await listRequests(
+			MOCK_DOMAINS ? { email, page, pageSize: PAGE_SIZE } : { page, pageSize: PAGE_SIZE },
+			fetch
+		);
 
 		if (result.ok) {
 			redirectToValidPage(url, page, result.data.totalPages);

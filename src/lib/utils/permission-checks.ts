@@ -54,6 +54,24 @@ export function canAccessResponsible(
 	return can(key, 'all', user) || (can(key, 'assigned', user) && responsibleId === user.id);
 }
 
+/**
+ * Chave de linha alcança o Responsável corrente da solicitação: o da triagem
+ * (`assignee`) ou o do mapeamento (`mappingAssignee`). Usado pelas chaves que
+ * o backend aceita para os dois vínculos (request:read/write/status_change,
+ * request:assign, internal_note:*, audit:read e queue:*).
+ */
+export function canAccessCurrentResponsible(
+	key: PermissionKey,
+	user: SessionUser | null | undefined,
+	assigneeId: string | null | undefined,
+	mappingAssigneeId: string | null | undefined
+): boolean {
+	return (
+		canAccessResponsible(key, user, assigneeId) ||
+		canAccessResponsible(key, user, mappingAssigneeId)
+	);
+}
+
 export function isRootActor(user: SessionUser | null | undefined): boolean {
 	return user?.isRoot === true;
 }
