@@ -9,6 +9,10 @@ const CHANGE_PASSWORD_ROUTE = '/(app)/redefinir-senha' as const;
 const CHANGE_PASSWORD_PATH = '/redefinir-senha' as const;
 const HOME_ROUTE = '/' as const;
 const DASHBOARD_ROUTE = '/(admin)/home' as const;
+const RETURN_TO_IGNORED_ROUTES: Set<string> = new Set([
+	resolve(LOGIN_ROUTE),
+	resolve(UNAUTHORIZED_ROUTE)
+]);
 
 export type GuardRuleId = 'anySession' | 'internalArea' | 'managementOnly' | 'adminOnly';
 
@@ -107,10 +111,10 @@ function appendReturnTo(destination: string, returnTo?: string | null): string {
 	return `${destination}?${searchParams.toString()}`;
 }
 
-export function guard(rule: GuardRuleId, user: SessionUser | null, url?: URL): void {
+export function guard(rule: GuardRuleId, user: SessionUser | null, url: URL): void {
 	const profiles = GUARD_RULES[rule].profiles;
 	if (!user) {
-		const returnTo = url ? url.pathname + url.search : null;
+		const returnTo = url.pathname + url.search;
 		redirect(303, appendReturnTo(resolve(LOGIN_ROUTE), returnTo));
 	}
 	if (!isProfileAllowed(user.role, profiles)) {
@@ -141,10 +145,13 @@ export function isPasswordChangeRoute(pathname: string): boolean {
 }
 
 export function guardPasswordChange(user: SessionUser | null, url: URL): void {
-	if (user && isPasswordChangeRequired(user) && !isPasswordChangeRoute(url.pathname)) {
-		const returnTo = url.pathname + url.search;
-		redirect(303, appendReturnTo(resolve(CHANGE_PASSWORD_ROUTE), returnTo));
-	}
+	if (!user || !isPasswordChangeRequired(user) || isPasswordChangeRoute(url.pathname)) return;
+
+	// Um returnTo para login/sem-autorizacao devolveria o usuário à tela de
+	// entrada depois da troca obrigatória de senha, em vez da rota inicial.
+	const returnTo = RETURN_TO_IGNORED_ROUTES.has(url.pathname) ? null : url.pathname + url.search;
+
+	redirect(303, appendReturnTo(resolve(CHANGE_PASSWORD_ROUTE), returnTo));
 }
 
 export function getPostLoginRedirect(user: SessionUser, returnTo?: string | null): string {
