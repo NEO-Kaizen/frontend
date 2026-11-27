@@ -96,13 +96,16 @@
 					<th>RESPONSÁVEL</th>
 					<th>MAPEADOR</th>
 					<th>SOLICITANTE</th>
+					{#if canExportPdf}
+						<th class="pdf-action" scope="col" aria-label="Exportar PDF"></th>
+					{/if}
 				</tr>
 			</thead>
 
 			<tbody>
 				{#if isFetching && results.length === 0}
 					<tr>
-						<td colspan="8">
+						<td colspan={canExportPdf ? 9 : 8}>
 							<div class="loading-state" role="status" aria-live="polite">
 								<p>Carregando solicitações…</p>
 							</div>
@@ -110,7 +113,7 @@
 					</tr>
 				{:else if result === null}
 					<tr>
-						<td colspan="8">
+						<td colspan={canExportPdf ? 9 : 8}>
 							<div class="empty-state">
 								<img
 									class="empty-illustration"
@@ -128,7 +131,7 @@
 					</tr>
 				{:else if !result.ok}
 					<tr>
-						<td colspan="8">
+						<td colspan={canExportPdf ? 9 : 8}>
 							<div class="error-state" role="alert">
 								<p>{result.error.message}</p>
 								<Button variant="outline" onclick={() => (onretry ? onretry() : invalidateAll())}>
@@ -141,22 +144,9 @@
 					{#each results as request (request.protocol)}
 						<tr>
 							<td class="protocolo">
-								<div class="protocol-cell">
-									<a
-										href={resolve(detailRoute, {
-											protocolo: request.protocol
-										})}
-									>
-										#{request.protocol}
-									</a>
-									{#if canExportPdf}
-										<ExportPdfButton
-											compactProtocol={request.protocol}
-											loading={exportingProtocols.has(request.protocol)}
-											onExport={() => void handleExportPdf(request.protocol)}
-										/>
-									{/if}
-								</div>
+								<a href={resolve(detailRoute, { protocolo: request.protocol })}>
+									#{request.protocol}
+								</a>
 							</td>
 
 							<td class="data-col">
@@ -199,11 +189,20 @@
 									'-'}</td
 							>
 							<td class="solicitante">{request.requesterName}</td>
+							{#if canExportPdf}
+								<td class="pdf-action">
+									<ExportPdfButton
+										compactProtocol={request.protocol}
+										loading={exportingProtocols.has(request.protocol)}
+										onExport={() => void handleExportPdf(request.protocol)}
+									/>
+								</td>
+							{/if}
 						</tr>
 					{/each}
 				{:else}
 					<tr>
-						<td colspan="8">
+						<td colspan={canExportPdf ? 9 : 8}>
 							<div class="empty-state">
 								<h3>{emptyTitle}</h3>
 								{#if emptyMessage}
@@ -230,10 +229,12 @@
 </div>
 
 <style>
-	.protocol-cell {
-		display: flex;
-		align-items: center;
-		gap: var(--spacing-xs);
+	.pdf-action {
+		width: 6rem;
+		box-sizing: border-box;
+		padding-inline: 0;
+		text-align: center;
+		vertical-align: middle;
 	}
 
 	.table-container {
