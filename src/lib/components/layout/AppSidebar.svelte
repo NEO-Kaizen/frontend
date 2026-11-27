@@ -12,10 +12,11 @@
 
 	interface Props {
 		isOpen?: boolean;
+		collapsed?: boolean;
 		onClose?: () => void;
 	}
 
-	let { isOpen = false, onClose }: Props = $props();
+	let { isOpen = false, collapsed = false, onClose }: Props = $props();
 
 	type NavHref = ReturnType<typeof resolve>;
 
@@ -64,7 +65,7 @@
 		}
 
 		if (has('reports:read', currentUser)) {
-			items.push({ name: 'Dashboard Gerencial', icon: 'queueChart', href: DASHBOARD_PATH });
+			items.push({ name: 'Dashboard', icon: 'queueChart', href: DASHBOARD_PATH });
 		}
 
 		if (has('audit:read', currentUser)) {
@@ -105,23 +106,35 @@
 	}
 </script>
 
-<aside id="app-sidebar" class="sidebar" class:open={isOpen} aria-label="Navegação principal">
-	<a class="sidebar__brand" href={homeHref} onclick={onClose}>
-		<span class="sidebar__logo">
-			<AssetImage
-				lightSrc={appConfig.assets.logoLightUrl}
-				darkSrc={appConfig.assets.logoDarkUrl}
-				alt={appConfig.platformName}
-				tint={appConfig.assets.logoUsePrimaryColor}
-				width={28}
-				height={28}
-			/>
-		</span>
-		<span class="sidebar__brand-text">
-			<span class="sidebar__brand-title">Portal {appConfig.platformName}</span>
-			<span class="sidebar__brand-subtitle">Admin Suite</span>
-		</span>
-	</a>
+<aside
+	id="app-sidebar"
+	class="sidebar"
+	class:open={isOpen}
+	class:collapsed
+	aria-label="Navegação principal"
+>
+	<div class="sidebar__header">
+		<a class="sidebar__brand" href={homeHref} onclick={onClose}>
+			<span class="sidebar__logo">
+				<AssetImage
+					lightSrc={appConfig.assets.logoLightUrl}
+					darkSrc={appConfig.assets.logoDarkUrl}
+					alt={appConfig.platformName}
+					tint={appConfig.assets.logoUsePrimaryColor}
+					width={28}
+					height={28}
+				/>
+			</span>
+			<span class="sidebar__brand-text">
+				<span class="sidebar__brand-title">Portal {appConfig.platformName}</span>
+				<span class="sidebar__brand-subtitle">Admin Suite</span>
+			</span>
+		</a>
+
+		<button class="sidebar__close" type="button" aria-label="Fechar menu" onclick={onClose}>
+			<Icon iconName="close" iconSize="md" />
+		</button>
+	</div>
 
 	<nav class="sidebar__nav" aria-label="Menu">
 		{#each navItems as item (item.name)}
@@ -130,11 +143,12 @@
 				class="sidebar__item"
 				class:active
 				href={item.href}
+				title={collapsed ? item.name : undefined}
 				aria-current={active ? 'page' : undefined}
 				onclick={onClose}
 			>
 				<Icon iconName={item.icon} iconSize="md" />
-				<span>{item.name}</span>
+				<span class="sidebar__item-label">{item.name}</span>
 			</a>
 		{/each}
 	</nav>
@@ -144,12 +158,13 @@
 			<button
 				class="sidebar__item"
 				type="button"
+				title={collapsed ? 'Sair' : undefined}
 				disabled={isLoggingOut}
 				aria-busy={isLoggingOut}
 				onclick={handleLogout}
 			>
 				<Icon iconName="logout" iconSize="md" />
-				<span>Sair</span>
+				<span class="sidebar__item-label">Sair</span>
 			</button>
 		</div>
 	{/if}
@@ -182,16 +197,54 @@
 		overflow-y: auto;
 	}
 
+	.sidebar__header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--spacing-sm);
+	}
+
 	.sidebar__brand {
 		display: flex;
 		align-items: center;
 		gap: var(--spacing-sm);
+		flex: 1;
+		min-width: 0;
 
 		padding: 0 var(--spacing-sm);
 
 		color: inherit;
 		text-decoration: none;
 		border-radius: var(--radius-md);
+	}
+
+	.sidebar__close {
+		display: none;
+		align-items: center;
+		justify-content: center;
+
+		width: 40px;
+		height: 40px;
+		flex-shrink: 0;
+
+		border: none;
+		border-radius: 100%;
+		background: none;
+		color: var(--text-color-secondary);
+
+		cursor: pointer;
+		transition: var(--transition-default);
+	}
+
+	.sidebar__close:hover,
+	.sidebar__close:focus-visible {
+		background-color: var(--tint);
+		color: var(--primary-color);
+	}
+
+	.sidebar__close:focus-visible {
+		outline: 2px solid var(--secondary-color);
+		outline-offset: 2px;
 	}
 
 	.sidebar__brand:focus-visible {
@@ -291,6 +344,34 @@
 		display: none;
 	}
 
+	@media (min-width: 1025px) {
+		.sidebar {
+			transition:
+				width 0.25s ease-in-out,
+				padding 0.25s ease-in-out;
+		}
+
+		.sidebar.collapsed {
+			width: 76px;
+			padding-inline: var(--spacing-sm);
+		}
+
+		.sidebar.collapsed .sidebar__brand {
+			justify-content: center;
+			padding: 0;
+		}
+
+		.sidebar.collapsed .sidebar__brand-text,
+		.sidebar.collapsed .sidebar__item-label {
+			display: none;
+		}
+
+		.sidebar.collapsed .sidebar__item {
+			justify-content: center;
+			padding-inline: 0;
+		}
+	}
+
 	@media (max-width: 1024px) {
 		.sidebar {
 			position: fixed;
@@ -310,6 +391,10 @@
 			transition:
 				transform 0.3s ease-in-out,
 				visibility 0s linear 0s;
+		}
+
+		.sidebar__close {
+			display: inline-flex;
 		}
 
 		.sidebar__backdrop {

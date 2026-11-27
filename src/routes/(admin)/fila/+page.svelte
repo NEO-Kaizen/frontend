@@ -233,7 +233,7 @@
 	<title>Fila Centralizada | {data.portalConfig.platformName}</title>
 </svelte:head>
 
-<section class="queue-page">
+<main class="content-container queue-page">
 	<header class="queue-page__header">
 		<div>
 			<h1>Fila Centralizada</h1>
@@ -291,14 +291,13 @@
 		detailRoute="/(admin)/fila/[protocolo]"
 		onpagechange={goToPage}
 	/>
-</section>
+</main>
 
 <style>
 	.queue-page {
 		display: flex;
 		flex-direction: column;
 		width: 100%;
-		max-width: var(--largura-maxima-conteudo);
 		gap: var(--spacing-lg);
 	}
 
@@ -332,7 +331,7 @@
 		color: var(--gray);
 		background: var(--white);
 		border: var(--border-default);
-		border-radius: var(--radius-lg);
+		border-radius: var(--radius-md);
 		box-shadow: var(--regular-shadow);
 	}
 

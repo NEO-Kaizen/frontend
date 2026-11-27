@@ -75,7 +75,9 @@ export const iconDictionary = {
 	content_copy: 'content_copy',
 	assignment: 'assignment_ind',
 	stacks: 'stacks',
-	schedule: 'schedule'
+	schedule: 'schedule',
+	panelClose: 'left_panel_close',
+	panelOpen: 'left_panel_open'
 } as const;
 
 export type IconName = keyof typeof iconDictionary;
