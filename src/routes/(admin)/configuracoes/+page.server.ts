@@ -1,5 +1,6 @@
 import { loadPortalConfigStrict } from '$lib/config/portal-config.service';
-import { guard } from '$lib/services/access.service';
+import { guardAny } from '$lib/services/access.service';
+import { PORTAL_ACCESS_KEYS } from '$lib/types/permission';
 import type { PageServerLoad } from './$types';
 
 // Leitura autoritativa da configuração para a tela de admin: o `hooks.server`
@@ -9,7 +10,7 @@ import type { PageServerLoad } from './$types';
 // nenhum `portalConfig` é retornado (vale o do layout) e a flag
 // `portalConfigLoadError` bloqueia edição/salvamento nos cards.
 export const load: PageServerLoad = async ({ locals, url, fetch }) => {
-	guard('adminOnly', locals.user, url);
+	guardAny(PORTAL_ACCESS_KEYS, locals.user, url.pathname);
 
 	const result = await loadPortalConfigStrict(fetch);
 	if (result.ok) {

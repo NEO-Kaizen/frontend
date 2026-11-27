@@ -54,6 +54,7 @@
 	let detailsState = $state<DetailsState>(needsValidation ? 'empty' : 'loading');
 	let tracking = $state<TrackingDetailsResponse | null>(null);
 	let detailsError = $state<string | null>(null);
+	let detailsErrorStatus = $state<number | undefined>(undefined);
 	let notFound = $state(false);
 	// Identidade pública (sessionStorage): só existe no fluxo público, só
 	// durante a permanência nesta página e só para este protocolo.
@@ -193,6 +194,7 @@
 		isRefreshingDetails = false;
 		detailsState = 'loading';
 		detailsError = null;
+		detailsErrorStatus = undefined;
 		notFound = false;
 
 		const result = session
@@ -210,6 +212,8 @@
 			if (handleTrackingAccessError(result.error.status, result.error.message, session)) return;
 			detailsState = 'error';
 			detailsError = result.error.message;
+			detailsErrorStatus = result.error.status;
+			accessState = 'error';
 			return;
 		}
 
@@ -378,20 +382,24 @@
 	/>
 {:else if accessState === 'validation-required'}
 	<PublicValidationForm {protocol} onVerified={handleVerified} />
-{:else if accessState === 'validating' || accessState === 'checking' || detailsState === 'loading'}
+{:else if accessState === 'validating' || detailsState === 'loading'}
 	<div class="load-state" role="status" aria-live="polite">
 		<p>Carregando solicitação…</p>
 	</div>
 {:else if detailsState === 'error'}
 	<div class="error-state" role="alert">
-		<p>{detailsError}</p>
-		<button
-			type="button"
-			class="btn-retry"
-			onclick={() => void loadDetails(viaSession || accessState === 'authorized')}
-		>
-			Tentar novamente
-		</button>
+		{#if detailsErrorStatus === 403}
+			<p>Seu perfil não tem permissão para acompanhar esta solicitação.</p>
+		{:else}
+			<p>{detailsError}</p>
+			<button
+				type="button"
+				class="btn-retry"
+				onclick={() => void loadDetails(viaSession || accessState === 'authorized')}
+			>
+				Tentar novamente
+			</button>
+		{/if}
 	</div>
 {:else if details && detailsMode}
 	{@const statusStyle = statusThemeVars(details.status, statuses)}
@@ -495,8 +503,7 @@
 				id="tracking-tab-solicitacao"
 				aria-selected={activeTab === 'solicitacao'}
 				aria-controls="tracking-panel"
-				class="tab-item"
-				class:active={activeTab === 'solicitacao'}
+				class={['tab-item', { active: activeTab === 'solicitacao' }]}
 				onclick={() => selectTab('solicitacao')}
 			>
 				<Icon iconName="description" iconSize="sm" />
@@ -508,8 +515,7 @@
 				id="tracking-tab-pendencias"
 				aria-selected={activeTab === 'pendencias'}
 				aria-controls="tracking-panel"
-				class="tab-item"
-				class:active={activeTab === 'pendencias'}
+				class={['tab-item', { active: activeTab === 'pendencias' }]}
 				onclick={() => selectTab('pendencias')}
 			>
 				<Icon iconName="pending" iconSize="sm" />

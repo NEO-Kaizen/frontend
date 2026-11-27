@@ -4,7 +4,7 @@ import type { DashboardQuery, DashboardSituation } from '$lib/types/dashboard';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ fetch, locals, url }) => {
-	guard('managementOnly', locals.user, url);
+	guard('reports:read', locals.user, url.pathname);
 
 	const filters: DashboardQuery = {
 		from: url.searchParams.get('from') || undefined,

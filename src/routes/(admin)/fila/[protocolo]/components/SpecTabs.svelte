@@ -8,10 +8,10 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import {
-		canEditSolicitation,
-		canViewStatusTimes,
-		canViewTriage
-	} from '$lib/services/access.service';
+		can,
+		canAccessCurrentResponsible,
+		canAccessResponsible
+	} from '$lib/utils/permission-checks';
 	import { getInternalNotes } from '$lib/services/internal-note.service';
 	import {
 		buildCreatePendingItemsPayload,
@@ -264,27 +264,49 @@
 		}
 	]);
 
-	// Botão Editar visível apenas para quem pode editar o conteúdo interno
-	// (Administrador ou responsável atribuído — regra em `access.service`).
-	// Gestor e demais perfis visualizam em somente leitura.
 	const currentUser = $derived(page.data.user);
-	const canEdit = $derived(canEditSolicitation(solicitation.assignee?.id, currentUser ?? null));
-	const canViewTriageTab = $derived(canViewTriage(solicitation.assignee?.id, currentUser ?? null));
-
-	// A permissão do mapeamento usa o responsável do mapeamento
-	// (`mappingAssignee`) do primeiro GET da solicitação + `/auth/me`
-	// (via `page.data.user`) — nunca o GET do mapeamento.
+	// Responsável do mapeamento do primeiro GET da solicitação + `/auth/me`
+	// (via `page.data.user`) — nunca do GET do mapeamento.
 	const mappingAssigneeId = $derived(solicitation.mappingAssignee?.id ?? null);
-	const canEditMapping = $derived(canEditSolicitation(mappingAssigneeId, currentUser ?? null));
+	const assigneeId = $derived(solicitation.assignee?.id ?? null);
+
+	// `request:write`/`triage:read`/`internal_note:read` somam os vínculos de
+	// triagem e mapeamento, como no backend. A aba de Triagem fica visível ao
+	// designado do mapeamento, porém somente leitura (`triage:write` continua
+	// exclusivo da triagem).
+	const canEdit = $derived(
+		canAccessCurrentResponsible('request:write', currentUser, assigneeId, mappingAssigneeId)
+	);
+	const canViewTriageTab = $derived(
+		canAccessCurrentResponsible('triage:read', currentUser, assigneeId, mappingAssigneeId)
+	);
+	// Pendências continuam exclusivas da triagem.
+	const canViewPendenciesTab = $derived(
+		canAccessResponsible('pending_item:read', currentUser, assigneeId)
+	);
+	const canViewInternalNotesTab = $derived(
+		canAccessCurrentResponsible('internal_note:read', currentUser, assigneeId, mappingAssigneeId)
+	);
+
+	// A edição do mapeamento é exclusiva do designado do mapeamento.
+	const canEditMapping = $derived(
+		can('mapping:write', 'all', currentUser) ||
+			(can('mapping:write', 'assigned', currentUser) &&
+				Boolean(currentUser && mappingAssigneeId === currentUser.id))
+	);
+	// "Tempo por Status" é informação da própria solicitação: segue a custódia
+	// de `request:read` (qualquer ou responsável de triagem/mapeamento).
 	const canViewStatusTimeTab = $derived(
-		canViewStatusTimes(solicitation.assignee?.id, mappingAssigneeId, currentUser ?? null)
+		canAccessCurrentResponsible('request:read', currentUser, assigneeId, mappingAssigneeId)
 	);
 
 	const displayTabs = $derived(
 		specTabs.filter(
 			(tab) =>
 				(tab.id !== 'triagem' || canViewTriageTab) &&
-				(tab.id !== 'tempo-status' || canViewStatusTimeTab)
+				(tab.id !== 'tempo-status' || canViewStatusTimeTab) &&
+				(tab.id !== 'historico' || canViewPendenciesTab) &&
+				(tab.id !== 'observacoes' || canViewInternalNotesTab)
 		)
 	);
 
@@ -293,6 +315,8 @@
 		if (tab && tab.enabled) {
 			if (tab.id === 'triagem' && !canViewTriageTab) return DEFAULT_TAB_ID;
 			if (tab.id === 'tempo-status' && !canViewStatusTimeTab) return DEFAULT_TAB_ID;
+			if (tab.id === 'historico' && !canViewPendenciesTab) return DEFAULT_TAB_ID;
+			if (tab.id === 'observacoes' && !canViewInternalNotesTab) return DEFAULT_TAB_ID;
 			return tab.id;
 		}
 		return DEFAULT_TAB_ID;
@@ -314,6 +338,8 @@
 		if (!tab.enabled || isEditMode) return;
 		if (tab.id === 'triagem' && !canViewTriageTab) return;
 		if (tab.id === 'tempo-status' && !canViewStatusTimeTab) return;
+		if (tab.id === 'historico' && !canViewPendenciesTab) return;
+		if (tab.id === 'observacoes' && !canViewInternalNotesTab) return;
 		clearSaveSuccess();
 
 		const url = new URL(page.url);
@@ -788,6 +814,8 @@
 				{:else if activeTab === 'observacoes'}
 					<InternalNotesSection
 						protocol={solicitation.protocol}
+						{assigneeId}
+						{mappingAssigneeId}
 						items={timelineItems}
 						nextCursor={timelineNextCursor}
 						{triages}

@@ -11,7 +11,8 @@ import {
 } from '$lib/api/user.api';
 
 import type { PaginatedResponse } from '$lib/types/request';
-import { ApiError, type Result } from '$lib/types/result';
+import type { Result } from '$lib/types/result';
+import { toApiFailure } from '$lib/utils/api-error';
 
 import type {
 	AdminUser,
@@ -57,22 +58,7 @@ export async function listUsers(
 			}
 		};
 	} catch (error) {
-		if (error instanceof ApiError) {
-			return {
-				ok: false,
-				error: {
-					status: error.status,
-					message: error.message
-				}
-			};
-		}
-
-		return {
-			ok: false,
-			error: {
-				message: 'Não foi possível conectar ao servidor.'
-			}
-		};
+		return toApiFailure(error);
 	}
 }
 
@@ -94,7 +80,7 @@ export async function createUser(data: CreateUserFormData): Promise<Result<Creat
 		const response = await createUserApi({
 			fullName: data.name.trim(),
 			email: data.email.trim(),
-			role: data.role,
+			profileId: data.profileId,
 			requester: {
 				area: data.area.trim(),
 				department: data.department?.trim() || undefined,
@@ -109,22 +95,7 @@ export async function createUser(data: CreateUserFormData): Promise<Result<Creat
 			data: response
 		};
 	} catch (error) {
-		if (error instanceof ApiError) {
-			return {
-				ok: false,
-				error: {
-					status: error.status,
-					message: error.message
-				}
-			};
-		}
-
-		return {
-			ok: false,
-			error: {
-				message: 'Não foi possível conectar ao servidor.'
-			}
-		};
+		return toApiFailure(error);
 	}
 }
 
@@ -140,22 +111,7 @@ export async function updateUserStatus(
 			data: response
 		};
 	} catch (error) {
-		if (error instanceof ApiError) {
-			return {
-				ok: false,
-				error: {
-					status: error.status,
-					message: error.message
-				}
-			};
-		}
-
-		return {
-			ok: false,
-			error: {
-				message: 'Não foi possível conectar ao servidor.'
-			}
-		};
+		return toApiFailure(error);
 	}
 }
 
@@ -168,22 +124,7 @@ export async function resetUserPassword(id: string): Promise<Result<ResetPasswor
 			data: response
 		};
 	} catch (error) {
-		if (error instanceof ApiError) {
-			return {
-				ok: false,
-				error: {
-					status: error.status,
-					message: error.message
-				}
-			};
-		}
-
-		return {
-			ok: false,
-			error: {
-				message: 'Não foi possível conectar ao servidor.'
-			}
-		};
+		return toApiFailure(error);
 	}
 }
 
@@ -199,7 +140,7 @@ export async function getMyProfile(fetchImpl?: typeof fetch): Promise<Result<Use
 			data
 		};
 	} catch (error) {
-		return mapApiError(error);
+		return toApiFailure(error);
 	}
 }
 
@@ -214,7 +155,7 @@ export async function updateMyProfile(
 			data
 		};
 	} catch (error) {
-		return mapApiError(error);
+		return toApiFailure(error);
 	}
 }
 
@@ -222,7 +163,7 @@ export async function getUser(id: string): Promise<Result<UserProfileResponse>> 
 	try {
 		return { ok: true, data: await getUserApi(id) };
 	} catch (error) {
-		return mapApiError(error);
+		return toApiFailure(error);
 	}
 }
 
@@ -233,27 +174,8 @@ export async function updateUser(
 	try {
 		return { ok: true, data: await updateUserApi(id, input) };
 	} catch (error) {
-		return mapApiError(error);
+		return toApiFailure(error);
 	}
-}
-
-function mapApiError<T>(error: unknown): Result<T> {
-	if (error instanceof ApiError) {
-		return {
-			ok: false,
-			error: {
-				status: error.status,
-				message: error.message
-			}
-		};
-	}
-
-	return {
-		ok: false,
-		error: {
-			message: 'Não foi possível conectar ao servidor.'
-		}
-	};
 }
 
 function mapUserSummary(user: UserSummary): AdminUser {
@@ -262,7 +184,7 @@ function mapUserSummary(user: UserSummary): AdminUser {
 		name: user.fullName,
 		email: user.email,
 		avatarUrl: user.avatarUrl,
-		role: user.profile,
+		profile: user.profile,
 		status: user.isActive ? 'Ativo' : 'Inativo',
 		mustChangePassword: user.mustChangePassword,
 		createdAt: user.createdAt
@@ -355,7 +277,7 @@ function validateCreateUser(data: CreateUserFormData): { message: string } | nul
 		};
 	}
 
-	if (data.role === 'analista') {
+	if (data.professional) {
 		const professional = data.professional;
 		if (!professional?.jobTitle.trim()) {
 			return { message: 'Informe o cargo do analista.' };

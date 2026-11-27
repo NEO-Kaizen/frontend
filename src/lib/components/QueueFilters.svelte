@@ -132,6 +132,7 @@
 
 	.queue-filters__main {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: flex-end;
 		gap: var(--spacing-sm);
 		width: 100%;
@@ -139,23 +140,28 @@
 
 	.filters {
 		display: flex;
+		flex: 1 1 auto;
+		flex-wrap: wrap;
 		align-items: center;
 		gap: var(--spacing-sm);
+		min-width: 0;
 	}
 
 	.filter-item {
-		width: 250px;
-		min-width: 250px;
-		flex-shrink: 0;
+		flex: 1 1 180px;
+		width: auto;
+		min-width: 0;
 	}
 
 	.filter-item--search {
-		width: 300px;
-		min-width: 260px;
+		flex: 2 1 260px;
+		width: auto;
+		min-width: 0;
 	}
 
 	.clear-action {
-		flex-shrink: 0;
+		flex: 0 0 auto;
+		margin-left: auto;
 	}
 
 	@media (max-width: 900px) {

@@ -5,6 +5,7 @@
 	import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
 	import { isPortalConfigLoadBlocked } from '$lib/config/portal-config-load';
 	import { saveIdentity } from '$lib/config/portal-config.service';
+	import { has } from '$lib/services/access.service';
 	import { SectionState } from '$lib/states/section.svelte';
 	import type { IdentitySection, UpdateIdentityRequest } from '$lib/types/portal-config';
 	import {
@@ -37,6 +38,8 @@
 	// Leitura autoritativa falhou: o draft pode ser o fallback local — bloqueia
 	// edição e salvamento até a revalidação.
 	const loadFailed = $derived(isPortalConfigLoadBlocked(page.data));
+	const canEdit = $derived(has('portal_setting:manage', page.data.user));
+	const readOnly = $derived(loadFailed || !canEdit);
 
 	// Vazio também é inválido para impedir salvar sem valor.
 	const fieldErrors: { platformName?: string; protocolMask?: string } = $derived({
@@ -79,7 +82,7 @@
 	}
 
 	async function handleSave() {
-		if (loadFailed) return;
+		if (readOnly) return;
 		if (notifySectionSave(await section.save())) {
 			await invalidateAll();
 		}
@@ -98,6 +101,7 @@
 			restorable={section.restorable}
 			{invalid}
 			{loadFailed}
+			readOnly={!canEdit}
 			onSave={handleSave}
 			onCancel={() => section.reset()}
 			onRestoreDefaults={() => section.restoreDefaults()}
@@ -111,7 +115,7 @@
 			placeholder="Ex.: MAAT"
 			bind:value={getPlatformName, setPlatformName}
 			error={fieldErrors.platformName}
-			disabled={section.saving || loadFailed}
+			disabled={section.saving || readOnly}
 		/>
 		<Input
 			label="Máscara de protocolo"
@@ -120,7 +124,7 @@
 			hint={protocolExample ? `Exemplo: ${protocolExample}` : undefined}
 			bind:value={getProtocolMask, setProtocolMask}
 			error={fieldErrors.protocolMask}
-			disabled={section.saving || loadFailed}
+			disabled={section.saving || readOnly}
 		/>
 	</div>
 </SettingsCard>

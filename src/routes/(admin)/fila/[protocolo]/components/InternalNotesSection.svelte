@@ -5,6 +5,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import Textarea from '$lib/components/Textarea.svelte';
 	import { toastState } from '$lib/states/toast.svelte';
+	import { canAccessCurrentResponsible } from '$lib/utils/permission-checks';
 	import {
 		createInternalNote,
 		getInternalNotes,
@@ -29,6 +30,8 @@
 	// páginas mais antigas carregadas sob demanda via scroll-up (D-N5/D-N8).
 	interface Props {
 		protocol: string;
+		assigneeId: string | null;
+		mappingAssigneeId: string | null;
 		items: TimelineItem[];
 		nextCursor: string | null;
 		triages: TriageHistoryEntry[];
@@ -44,6 +47,8 @@
 
 	let {
 		protocol,
+		assigneeId,
+		mappingAssigneeId,
 		items,
 		nextCursor,
 		triages,
@@ -64,6 +69,18 @@
 	let isReloading = $state(false);
 	let isMarkingRead = $state(false);
 	let lastMarkedNoteId = $state<string | null>(null);
+
+	// Leitura e escrita são chaves distintas: quem só lê continua vendo a
+	// timeline, mas o composer não aparece. A escrita também respeita a
+	// custódia `assigned` (o Responsável da triagem ou do mapeamento envia).
+	const canWrite = $derived(
+		canAccessCurrentResponsible(
+			'internal_note:write',
+			page.data.user,
+			assigneeId,
+			mappingAssigneeId
+		)
+	);
 
 	// Página mais recente invertida para ordem canônica → última nota dela é a
 	// mais nova da timeline (alvo do markThrough, §7).
@@ -304,7 +321,7 @@
 
 	async function handleSubmit(event: SubmitEvent): Promise<void> {
 		event.preventDefault();
-		if (isSubmitting) return;
+		if (isSubmitting || !canWrite) return;
 
 		contentError = validateInternalNoteContent(content);
 		if (contentError) return;
@@ -350,7 +367,11 @@
 				<div class="load-state empty-state">
 					<Icon iconName="description" iconSize="xl" />
 					<h3>Nenhuma observação interna</h3>
-					<p>Use o campo abaixo para registrar a primeira informação para a equipe.</p>
+					<p>
+						{canWrite
+							? 'Use o campo abaixo para registrar a primeira informação para a equipe.'
+							: 'Não há observações internas registradas para esta solicitação.'}
+					</p>
 				</div>
 			{:else}
 				{#if nextCursor !== null || isLoadingOlder || olderError}
@@ -382,7 +403,7 @@
 								<article class="note-entry">
 									<div class="note-meta">
 										<strong>{item.author.name}</strong>
-										<span>({item.author.role})</span>
+										<span>({item.author.profile.name})</span>
 										{#if isCurrentUser(item)}<span>· você</span>{/if}
 										<time datetime={item.createdAt}>{formatDateTime(item.createdAt)}</time>
 									</div>
@@ -410,7 +431,7 @@
 									<div class="event-meta">
 										{#if item.actor}
 											<strong>{item.actor.name}</strong>
-											<span>({item.actor.role})</span>
+											<span>({item.actor.profile?.name ?? 'Perfil não informado'})</span>
 										{:else}
 											<span>Sistema</span>
 										{/if}
@@ -469,25 +490,31 @@
 			onToggleMappingRow={toggleMappingRow}
 		/>
 
-		<form class="composer" onsubmit={handleSubmit}>
-			<Textarea
-				label="Adicionar observação"
-				placeholder="Escreva uma informação para a equipe interna"
-				rows={4}
-				maxlength={INTERNAL_NOTE_MAX_LENGTH}
-				disabled={isSubmitting}
-				error={contentError ?? ''}
-				bind:value={content}
-				oninput={handleContentInput}
-			/>
+		{#if canWrite}
+			<form class="composer" onsubmit={handleSubmit}>
+				<Textarea
+					label="Adicionar observação"
+					placeholder="Escreva uma informação para a equipe interna"
+					rows={4}
+					maxlength={INTERNAL_NOTE_MAX_LENGTH}
+					disabled={isSubmitting}
+					error={contentError ?? ''}
+					bind:value={content}
+					oninput={handleContentInput}
+				/>
 
-			<div class="composer-footer">
-				<Button type="submit" loading={isSubmitting} disabled={!content.trim()}>
-					<Icon iconName="send" iconSize="sm" />
-					{isSubmitting ? 'Publicando…' : 'Adicionar observação'}
-				</Button>
-			</div>
-		</form>
+				<div class="composer-footer">
+					<Button type="submit" loading={isSubmitting} disabled={!content.trim()}>
+						<Icon iconName="send" iconSize="sm" />
+						{isSubmitting ? 'Publicando…' : 'Adicionar observação'}
+					</Button>
+				</div>
+			</form>
+		{:else}
+			<p class="read-only-note" role="note">
+				Seu perfil permite consultar as observações internas, mas não adicionar novas.
+			</p>
+		{/if}
 	{/if}
 </section>
 
@@ -907,6 +934,16 @@
 		padding: var(--spacing-md);
 		border-top: var(--border-default);
 		background: var(--background-color);
+	}
+
+	.read-only-note {
+		margin: 0;
+		padding: var(--spacing-md);
+		border-top: var(--border-default);
+		background: var(--background-color);
+		color: var(--gray);
+		font-family: var(--font-inter);
+		font-size: 13px;
 	}
 
 	.composer-footer {

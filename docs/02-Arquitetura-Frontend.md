@@ -52,6 +52,7 @@ src/
 │   │
 │   ├── mocks/
 │   │   ├── users.mock.ts
+│   │   ├── profiles.mock.ts
 │   │   ├── requests.mock.ts
 │   │   ├── auth.mock.ts
 │   │   └── index.ts
@@ -300,8 +301,8 @@ Os mocks devem:
 
 Os mocks são controlados por `src/lib/mocks/index.ts` — único ponto para ligar/desligar:
 
-- `MOCKS_ENABLED`: interruptor global (ligado em desenvolvimento);
-- `MOCK_DOMAINS`: toggle por domínio (`auth`, `request`; novos domínios entram aqui).
+- `MOCKS_ENABLED`: interruptor global (default do repositório: desligado; ligue localmente em desenvolvimento);
+- `MOCK_DOMAINS`: toggle por domínio (`auth`, `users`, `profiles`, `request`; novos domínios entram aqui).
 
 Regras:
 
@@ -319,6 +320,21 @@ Toda integração com o backend nasce acompanhada do mock correspondente, sempre
 
 Esse formato garante duas coisas: o frontend funciona integralmente desacoplado do backend (desenvolvimento e testes sem API), e o código de mock nunca entra no bundle de produção. Mocks fora desse padrão — imports estáticos, flags em runtime lidas no build de produção — quebram uma das duas garantias e não devem ser introduzidos.
 
+### Domínio `profiles`
+
+O domínio `profiles` atende a gestão de perfis:
+
+- `GET /profiles`: lista os perfis, incluindo inativos;
+- `GET /profiles/keys`: catálogo de chaves, custódias permitidas, dependências e predicados de atribuição;
+- `POST /profiles`: cria perfil;
+- `PATCH /profiles/:id`: edição parcial de identidade, composição e flags;
+- `PATCH /profiles/:id/status`: ativa/desativa perfil;
+- `POST /profiles/:id/duplicate`: duplica um perfil.
+
+Regras representadas no mock e na UI: nome único entre perfis ativos; perfil Root só editável pelo Root e nunca desativável; editar, ativar/desativar e duplicar exigem alvo estritamente abaixo da autoridade do ator (Root é exceção); desativação bloqueada por contagem de usuários; custódia concedível pelo ator; dependências e chaves fixas em `own` ou `global`; guarda atômica de composição + flags. As leituras mock são SSR-safe e não fazem gate de sessão (o `guardAny` do load cobre); as mutações exigem `profile:manage`.
+
+O contrato assumido pelo frontend está tipado em [`src/lib/types/profile.ts`](../src/lib/types/profile.ts), com endpoints, payloads e regras descritos acima.
+
 ---
 
 ## 11. Utils e constants
@@ -334,6 +350,8 @@ A pasta `utils/` contém funções genéricas e reutilizáveis, como:
 - debounce.
 
 Uma função que representa uma regra específica do MAAT deve pertencer a um service, e não a `utils/`.
+
+Exceção: helpers puros de autorização (`has`, `can`, `canGrantCustody`, `canEditProfile`) vivem em `utils/permission-checks.ts` para serem consumidos por UI, services e mocks sem criar ciclo. Regras que orquestram dados continuam nos services.
 
 ### Constants
 
@@ -376,26 +394,32 @@ routes/
 ```
 
 - `(public)`: páginas públicas (anônimos e Solicitante);
-- `(app)`: páginas de qualquer usuário autenticado — `guard('anySession')`;
-- `(admin)`: páginas das áreas internas (Analista, Gestor, Administrador) — `guard('internalArea')`.
+- `(app)`: páginas de qualquer usuário autenticado — `guardSession`;
+- `(admin)`: páginas das áreas internas — `guardAny(ADMIN_AREA_KEYS)` no layout, com guards por chave nas páginas.
 
 Os grupos entre parênteses organizam as rotas sem alterar diretamente a URL e devem ser criados conforme a necessidade do projeto.
 
-**Grupo ≠ perfil.** O perfil do usuário (Solicitante, Analista, Gestor, Administrador) nunca gera um novo grupo de rotas; é resolvido na tabela `GUARD_RULES` do access service (`src/lib/services/access.service.ts`). Um futuro perfil Gestor, por exemplo, é uma linha em `profiles` de uma regra — não um grupo `(gestor)/`.
+**Grupo ≠ perfil.** O perfil do usuário nunca gera um novo grupo de rotas. O access service (`src/lib/services/access.service.ts`) expõe `has(chave)`, `hasAny(chaves)` e `can(chave, vínculo)` como funções puras sobre a sessão. Perfis customizados entram apenas pela lista efetiva de permissões devolvida por `/auth/me`.
 
-O grupo `(admin)` tem papel de guard server-side (não define layout visual): a estrutura de navegação permanece única no layout raiz (`AppShell`), com os itens exibidos conforme o perfil. Detalhes em [`04-Shell-de-Navegacao.md`](./04-Shell-de-Navegacao.md).
+**Alçada administrativa.** A autorização para gerenciar usuários é calculada por dominância estrita de permissões (`isAuthorityStrictlyBelow`), não por nome de Perfil, rótulo da sessão ou `isActive`. O service `src/lib/services/account-authority.service.ts` separa Perfis designáveis em formulários (ativos, não Root e abaixo do ator) de Perfis cujos usuários podem ser administrados (não Root e abaixo do ator, inclusive inativos). A identificação de Admin Root usa `user.isRoot`, a marca estável de `SessionUser`; o rótulo `role` serve apenas para exibição. Veja `docs/adr/0001-alcada-por-permissoes.md`.
+
+O grupo `(admin)` tem papel de guard server-side (não define layout visual): a estrutura de navegação permanece única no layout raiz (`AppShell`/`AppSidebar`), com os itens anotados por chave e filtrados por `has`/`hasAny`. Detalhes em [`04-Shell-de-Navegacao.md`](./04-Shell-de-Navegacao.md).
 
 **Colocação de componentes.** Componentes específicos de uma página podem ficar colocalizados em `routes/.../components/` (padrão suportado pelo SvelteKit: arquivos sem prefixo `+` nunca se tornam rotas). Componentes reutilizados por várias páginas pertencem a `lib/components/`.
 
 ### Regra da home
 
-O logo e o item "Home" da navegação apontam sempre para `/`; a decisão de "qual é a home por contexto" vive em um único lugar no servidor (`(public)/+page.server.ts`, via access service):
+O item "Portal" aponta para `/` e só aparece para visitantes; o logo e o destino pós-login usam `getHomePath()`, calculado pelo access service a partir das chaves efetivas, nesta prioridade:
 
-- anônimo → permanece na home pública;
-- Solicitante autenticado → permanece na home pública;
-- Analista/Gestor/Administrador → `redirect(303, '/home')`.
+- `queue:read` → `/fila`;
+- `reports:read` → `/dashboard`;
+- `user:read` ou `profile:read` → `/usuarios`;
+- `audit:read` → `/historico-de-logs`;
+- chaves de leitura do portal → `/configuracoes`;
+- `request:track` → `/acompanhar`;
+- senão → `/sem-autorizacao`.
 
-Nenhum `href` na UI é fixado em `/home`.
+`returnTo` e a troca de senha pendente têm precedência sobre esse cálculo. Nenhum `href` na UI é fixado em um destino por perfil.
 
 ---
 
@@ -408,7 +432,7 @@ states     → services e types
 config     → api, types e utils
 services   → api, types, mocks, utils e constants
 api        → types e utils
-mocks      → types
+mocks      → types e utils
 ```
 
 ---

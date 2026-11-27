@@ -174,9 +174,9 @@ Toda interação deve possuir retorno visual para o usuário.
 
 ---
 
-## 7.6 Navegação por perfil
+## 7.6 Navegação por permissões
 
-A navegação (`AppSidebar`) varia conforme o perfil do usuário.
+A navegação (`AppSidebar`/`AppTopBar`) varia conforme as permissões do usuário.
 
 Evite criar uma barra lateral completamente diferente para cada perfil.
 

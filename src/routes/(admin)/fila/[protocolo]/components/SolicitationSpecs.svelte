@@ -18,11 +18,8 @@
 	import type { CriterionNotes, PrioritizationResult } from '$lib/types/prioritization';
 	import { SvelteMap } from 'svelte/reactivity';
 	import { buildFieldLookup } from '$lib/pendency/field-catalog';
-	import {
-		canAssignAnalyst,
-		canCalculatePriority,
-		canChangeStatusRole
-	} from '$lib/services/access.service';
+	import { can, has } from '$lib/services/access.service';
+	import { canAccessCurrentResponsible, canAccessResponsible } from '$lib/utils/permission-checks';
 	import FieldPendencyModal from './pendency/FieldPendencyModal.svelte';
 	import PendencyRequestModal from './pendency/PendencyRequestModal.svelte';
 	import AssignAction from './AssignAction.svelte';
@@ -288,35 +285,61 @@
 		priorityBadgeTheme(solicitation.prioritization.label, isPriorityCalculated)
 	);
 
-	const canAssign = $derived(canAssignAnalyst(currentUser ?? null));
+	const assigneeId = $derived(solicitation.assignee?.id ?? null);
+	const mappingAssigneeId = $derived(solicitation.mappingAssignee?.id ?? null);
 
-	const canCalculate = $derived(
-		canCalculatePriority(currentUser ?? null, solicitation.assignee?.id ?? null)
+	const canAssignBase = $derived(
+		canAccessCurrentResponsible('request:assign', currentUser, assigneeId, mappingAssigneeId)
+	);
+	const canReadAssigneeDirectory = $derived(has('assignee_directory:read', currentUser));
+	const canAssign = $derived(canAssignBase && canReadAssigneeDirectory);
+	const assignUnavailableReason = $derived(
+		canAssignBase && !canReadAssigneeDirectory
+			? 'Seu perfil pode atribuir, mas não possui acesso ao diretório de responsáveis.'
+			: null
+	);
+	const assignDisabledHints = $derived<Readonly<Record<string, string>>>(
+		assignUnavailableReason ? { assignResponsible: assignUnavailableReason } : {}
 	);
 
-	// "Alterar Status" (`PATCH /requests/:protocol/status` §3.3): Administrador
-	// (bypass) ou Analista com custódia. Os alvos vêm do PortalConfig (admin:
-	// qualquer ativo; analista: apenas free).
+	const canCalculate = $derived(
+		can('prioritization:write', 'all', currentUser) ||
+			(can('prioritization:write', 'assigned', currentUser) &&
+				Boolean(currentUser && solicitation.assignee?.id === currentUser.id))
+	);
+
+	// "Alterar Status" (`PATCH /requests/:protocol/status` §3.3):
+	// `request:status_override` (global) libera alvos restritos/fora do modo;
+	// `request:status_change` continua decidindo a custódia da solicitação.
+	// Os alvos vêm do PortalConfig.
 	const portalStatuses = $derived(page.data.portalConfig.statuses ?? []);
 	const currentStatusId = $derived(
 		portalStatuses.find((status) => status.name === solicitation.status)?.id ?? null
 	);
-	const statusChangeMode = $derived(
-		canChangeStatusRole(
-			currentUser ?? null,
-			solicitation.assignee?.id,
-			solicitation.mappingAssignee?.id ?? solicitation.mappingAssigneeId
-		)
-	);
+	const canOverrideStatus = $derived(has('request:status_override', currentUser));
+	const statusChangeMode = $derived.by<'all' | 'assigned' | null>(() => {
+		if (can('request:status_change', 'all', currentUser)) return 'all';
+		if (
+			canAccessCurrentResponsible(
+				'request:status_change',
+				currentUser,
+				assigneeId,
+				mappingAssigneeId
+			)
+		) {
+			return 'assigned';
+		}
+		return null;
+	});
 	const statusChangeOptions = $derived(
-		statusChangeMode ? statusChangeTargets(statusChangeMode, portalStatuses, currentStatusId) : []
+		statusChangeMode ? statusChangeTargets(portalStatuses, currentStatusId, canOverrideStatus) : []
 	);
 	const canChangeStatus = $derived(statusChangeOptions.length > 0);
 
 	const hiddenQuickActionKeys = $derived.by(() => {
 		const hidden: string[] = [];
 
-		if (!canAssign) {
+		if (!canAssignBase) {
 			hidden.push('assignResponsible');
 		}
 
@@ -326,6 +349,12 @@
 
 		if (!canChangeStatus) {
 			hidden.push('changeStatus');
+		}
+
+		// Pendências continuam exclusivas da triagem; o designado do
+		// mapeamento não deve abrir um modal que o backend vai recusar.
+		if (!canAccessResponsible('pending_item:read', currentUser, assigneeId)) {
+			hidden.push('informPending');
 		}
 
 		return hidden;
@@ -528,6 +557,7 @@
 		onRequestChange={enterPendencyMode}
 		isRequestChangeBlocked={isPendencyBlocked}
 		hiddenActionKeys={hiddenQuickActionKeys}
+		disabledActionHints={assignDisabledHints}
 		hasExistingPriority={isPriorityCalculated}
 		existingPriorityDisplay={isPriorityCalculated
 			? `${displayScore}/${maxScore} — ${priorityLabel}`

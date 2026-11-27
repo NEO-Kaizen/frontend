@@ -1,0 +1,106 @@
+import type { SessionUser } from '$lib/types/auth';
+import type { Permission, PermissionCustody, PermissionKey } from '$lib/types/permission';
+import type { Profile } from '$lib/types/profile';
+
+const CUSTODY_CONTAINS: Record<PermissionCustody, readonly PermissionCustody[]> = {
+	global: ['global'],
+	own: ['own'],
+	assigned: ['assigned', 'all'],
+	all: ['all']
+};
+
+export function has(key: PermissionKey, user: SessionUser | null | undefined): boolean {
+	return Boolean(user?.permissions.some((permission) => permission.key === key));
+}
+
+export function hasAny(
+	keys: readonly PermissionKey[],
+	user: SessionUser | null | undefined
+): boolean {
+	return keys.some((key) => has(key, user));
+}
+
+export function can(
+	key: PermissionKey,
+	custody: PermissionCustody,
+	user: SessionUser | null | undefined
+): boolean {
+	const accepted = CUSTODY_CONTAINS[custody];
+	return Boolean(
+		user?.permissions.some(
+			(permission) => permission.key === key && accepted.includes(permission.custody)
+		)
+	);
+}
+
+export function canGrantCustody(
+	actorCustody: PermissionCustody | undefined,
+	targetCustody: PermissionCustody
+): boolean {
+	return actorCustody === targetCustody || (actorCustody === 'all' && targetCustody === 'assigned');
+}
+
+/**
+ * Chave de linha alcança o Responsável? `all` dispensa vínculo; `assigned`
+ * exige que o ator seja o Responsável corrente. Chaves `global` não são
+ * cobertas por este helper.
+ */
+export function canAccessResponsible(
+	key: PermissionKey,
+	user: SessionUser | null | undefined,
+	responsibleId: string | null | undefined
+): boolean {
+	if (!user) return false;
+	return can(key, 'all', user) || (can(key, 'assigned', user) && responsibleId === user.id);
+}
+
+/**
+ * Chave de linha alcança o Responsável corrente da solicitação: o da triagem
+ * (`assignee`) ou o do mapeamento (`mappingAssignee`). Usado pelas chaves que
+ * o backend aceita para os dois vínculos (request:read/write/status_change,
+ * request:assign, internal_note:*, audit:read e queue:*).
+ */
+export function canAccessCurrentResponsible(
+	key: PermissionKey,
+	user: SessionUser | null | undefined,
+	assigneeId: string | null | undefined,
+	mappingAssigneeId: string | null | undefined
+): boolean {
+	return (
+		canAccessResponsible(key, user, assigneeId) ||
+		canAccessResponsible(key, user, mappingAssigneeId)
+	);
+}
+
+export function isRootActor(user: SessionUser | null | undefined): boolean {
+	return user?.isRoot === true;
+}
+
+function containsAll(
+	targetGrants: readonly Permission[] | undefined,
+	actorGrants: readonly Permission[] | undefined
+): boolean {
+	if (!Array.isArray(targetGrants) || !Array.isArray(actorGrants)) return false;
+
+	const actorPermissions = new Map(actorGrants.map((grant) => [grant.key, grant.custody] as const));
+
+	return targetGrants.every((grant) => {
+		const actorCustody = actorPermissions.get(grant.key);
+		return actorCustody !== undefined && canGrantCustody(actorCustody, grant.custody);
+	});
+}
+
+export function isAuthorityStrictlyBelow(
+	targetGrants: readonly Permission[] | undefined,
+	actorGrants: readonly Permission[] | undefined
+): boolean {
+	return containsAll(targetGrants, actorGrants) && !containsAll(actorGrants, targetGrants);
+}
+
+export function canEditProfile(actor: SessionUser | null | undefined, target: Profile): boolean {
+	if (!actor) return false;
+	if (isRootActor(actor)) return true;
+	if (target.isRoot) return false;
+
+	return isAuthorityStrictlyBelow(target.permissions, actor.permissions);
+}

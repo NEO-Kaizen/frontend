@@ -9,7 +9,8 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import NotificationBell from '$lib/components/NotificationBell.svelte';
-	import { isInternalProfile } from '$lib/services/access.service';
+	import { can, hasAny } from '$lib/services/access.service';
+	import { QUEUE_SEARCH_KEYS } from '$lib/types/permission';
 	import { searchRequests } from '$lib/services/request.service';
 	import { getThemeMode, toggleTheme } from '$lib/states/theme.svelte';
 	import { resolveApiAssetUrl } from '$lib/utils/api-assets';
@@ -32,7 +33,12 @@
 	const currentUser = $derived(page.data.user);
 	const appConfig = $derived(page.data.portalConfig);
 	const isAuthenticated = $derived(currentUser != null);
-	const isInternal = $derived(currentUser != null && isInternalProfile(currentUser.role));
+	// Sem fila nem acompanhamento o fallback público devolve 403: esconde a
+	// busca em vez de falhar em silêncio. Anônimo continua vendo o fluxo público.
+	const canSearchQueue = $derived(hasAny(QUEUE_SEARCH_KEYS, currentUser));
+	const canSearch = $derived(
+		!isAuthenticated || canSearchQueue || can('request:track', 'own', currentUser)
+	);
 	const userAvatarUrl = $derived(resolveApiAssetUrl(currentUser?.avatarUrl));
 	const activeSearch = $derived(page.url.searchParams.get('search') ?? '');
 	const isSettingsPage = $derived(page.url.pathname.startsWith(SETTINGS_PATH));
@@ -61,7 +67,7 @@
 		isSearching = true;
 
 		try {
-			if (isInternal) {
+			if (canSearchQueue) {
 				const searchParams = new URLSearchParams({ search: value });
 
 				// Plugin não aceita query string após resolve() (eslint-plugin-svelte#1327);
@@ -123,22 +129,24 @@
 		</button>
 	{/if}
 
-	<form role="search" class="topbar__search" onsubmit={handleSearchSubmit}>
-		<Input
-			type="search"
-			placeholder="Buscar solicitações..."
-			aria-label="Buscar solicitações"
-			name="pesquisar-chamados"
-			value={activeSearch}
-			disabled={isSearching}
-			actionIcon="search"
-			actionLabel="Buscar"
-			onAction={() => {
-				const form = document.querySelector('form[role="search"]') as HTMLFormElement | null;
-				form?.requestSubmit();
-			}}
-		/>
-	</form>
+	{#if canSearch}
+		<form role="search" class="topbar__search" onsubmit={handleSearchSubmit}>
+			<Input
+				type="search"
+				placeholder="Buscar solicitações..."
+				aria-label="Buscar solicitações"
+				name="pesquisar-chamados"
+				value={activeSearch}
+				disabled={isSearching}
+				actionIcon="search"
+				actionLabel="Buscar"
+				onAction={() => {
+					const form = document.querySelector('form[role="search"]') as HTMLFormElement | null;
+					form?.requestSubmit();
+				}}
+			/>
+		</form>
+	{/if}
 
 	<div class="topbar__actions">
 		{#if isAuthenticated}

@@ -24,8 +24,8 @@
 	};
 
 	// Modal do `PATCH /requests/:protocol/status` (§3.3). O pai já aplicou as
-	// regras de papel/custódia/terminal (`canChangeStatusRole`) e passou apenas
-	// os alvos válidos (`statusChangeTargets`) — aqui só validamos e enviamos.
+	// regras de chave/custódia e passou apenas os alvos válidos
+	// (`statusChangeTargets`) — aqui só validamos e enviamos.
 	interface Props {
 		protocol: string;
 		currentStatusName: string;

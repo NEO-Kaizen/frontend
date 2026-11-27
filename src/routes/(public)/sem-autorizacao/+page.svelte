@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import { getHomeRedirect } from '$lib/services/access.service';
+	import { getHomePath } from '$lib/services/access.service';
 
 	const user = $derived(page.data.user);
 
@@ -17,7 +17,7 @@
 		<h1>Acesso negado</h1>
 		<p>{message}</p>
 		{#if user}
-			{@const home = getHomeRedirect(user)}
+			{@const home = getHomePath(user)}
 			{#if home}
 				<!-- O service retorna uma URL já resolvida, incluindo o base path. -->
 				<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->

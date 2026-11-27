@@ -1,14 +1,9 @@
 <script lang="ts">
+	import { afterNavigate, invalidateAll, refreshAll } from '$app/navigation';
+	import { untrack } from 'svelte';
 	import Button from '$lib/components/Button.svelte';
-	import Input from '$lib/components/Input.svelte';
 	import MetricsSummary from '$lib/components/MetricsSummary.svelte';
-	import NotFoundState from '$lib/components/NotFoundState.svelte';
-	import {
-		createUser,
-		getUserStats,
-		listUsers,
-		updateUserStatus
-	} from '$lib/services/user.service';
+	import { createUser, listUsers, updateUserStatus } from '$lib/services/user.service';
 	import type { MetricItem } from '$lib/types/metrics';
 	import type { PaginatedResponse } from '$lib/types/request';
 	import type { Result } from '$lib/types/result';
@@ -17,29 +12,59 @@
 		CreateUserFormData,
 		CreateUserResponse,
 		UserAction,
-		UserProfile,
 		UserProfileResponse,
 		UserStats,
 		UserStatus
 	} from '$lib/types/user';
+	import { has } from '$lib/utils/permission-checks';
 	import ConfirmActionModal from './components/ConfirmActionModal.svelte';
 	import CreateUserModal from './components/CreateUserModal.svelte';
 	import EditUserModal from './components/EditUserModal.svelte';
+	import ManagementToolbar from './components/ManagementToolbar.svelte';
 	import ResetPasswordModal from './components/ResetPasswordModal.svelte';
-	import UsersTable from './components/UsersTable.svelte';
+	import UsersPanel from './components/UsersPanel.svelte';
+	import ProfileManagement from './components/ProfileManagement.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 
-	const tabs = [
-		{ id: 'todos', label: 'Todos', profile: undefined },
-		{ id: 'administradores', label: 'Administradores', profile: 'administrador' },
-		{ id: 'analistas', label: 'Analistas', profile: 'analista' },
-		{ id: 'gestores', label: 'Gestores', profile: 'gestor' },
-		{ id: 'solicitantes', label: 'Solicitantes', profile: 'solicitante' }
-	] satisfies readonly { id: string; label: string; profile?: UserProfile }[];
+	const canReadUsers = $derived(has('user:read', data.user));
+	const canReadProfiles = $derived(has('profile:read', data.user));
+	const canManageUsers = $derived(has('user:manage', data.user));
+	// Ações que dependem do catálogo de perfis (criar/editar/delegar) só podem
+	// rodar quando o ator lê perfis e o catálogo carregou.
+	const canManageUsersNow = $derived(canManageUsers && canReadProfiles && !data.profilesError);
+	const canManageProfiles = $derived(has('profile:manage', data.user));
+	const missingProfileRead = $derived(canManageUsers && !canReadProfiles);
+	const profilesAvailabilityReason = $derived.by(() => {
+		if (!canManageUsers || canManageUsersNow) return '';
+		if (!canReadProfiles) {
+			return 'Falta a permissão profile:read para listar os perfis e calcular a autoridade sobre os usuários.';
+		}
+		return 'Não foi possível carregar os perfis para calcular a autoridade sobre os usuários. Tente novamente.';
+	});
 
+	const profilesErrorMessage = $derived.by(() => {
+		if (!data.profilesError) {
+			return '';
+		}
+
+		if (data.profilesError.status === 403) {
+			return 'Você não tem permissão para carregar os perfis.';
+		}
+
+		if (data.profilesError.status !== undefined) {
+			return 'Não foi possível carregar os perfis.';
+		}
+
+		return 'Falha de conexão ao carregar os perfis.';
+	});
+
+	const tabs = $derived([
+		...(canReadUsers ? [{ id: 'usuarios', label: 'Usuários' }] : []),
+		...(canReadProfiles ? [{ id: 'perfis', label: 'Perfis' }] : [])
+	]);
 	type PendingAction = {
 		kind: UserAction;
 		user: AdminUser;
@@ -75,8 +100,16 @@
 		}
 	]);
 
-	let activeTab = $state('todos');
-	let activeTabProfile = $derived(tabs.find((tab) => tab.id === activeTab)?.profile);
+	let selectedProfileId = $state(untrack(() => data.profileId ?? ''));
+	let activeTabSelection = $state('');
+	let tabButtons: HTMLButtonElement[] = $state([]);
+	let activeTab = $derived(
+		tabs.some((tab) => tab.id === activeTabSelection)
+			? activeTabSelection
+			: canReadUsers
+				? 'usuarios'
+				: 'perfis'
+	);
 	let searchQuery = $state('');
 	let isLoading = $state(false);
 	let isRefreshing = $state(false);
@@ -84,12 +117,18 @@
 	let fetchedResult = $state<Result<PaginatedResponse<AdminUser>> | null>(null);
 	let result = $derived(fetchedResult ?? data.result);
 
-	let users = $derived<AdminUser[]>(result.ok ? result.data.data : []);
-	let loadError = $derived(result.ok ? '' : result.error.message);
-	let total = $derived(result.ok ? result.data.total : 0);
 	let currentPage = $derived(result.ok ? result.data.page : 1);
-	let totalPages = $derived(result.ok ? result.data.totalPages : 0);
 	let searchTimer: ReturnType<typeof setTimeout> | undefined;
+
+	// Navegações de filtro (GET) trocam `data.result`; limpar o override evita
+	// que a tabela continue exibindo o resultado de uma busca/paginação anterior.
+	// O select e a busca também voltam ao estado canônico da URL.
+	afterNavigate(() => {
+		clearTimeout(searchTimer);
+		fetchedResult = null;
+		selectedProfileId = data.profileId ?? '';
+		searchQuery = '';
+	});
 
 	let successMessage = $state('');
 	let successTimer: ReturnType<typeof setTimeout> | undefined;
@@ -102,32 +141,12 @@
 	let isActing = $state(false);
 	let actionError = $state('');
 
-	let startItem = $derived(total === 0 ? 0 : (currentPage - 1) * data.pageSize + 1);
-
-	let endItem = $derived(Math.min(currentPage * data.pageSize, total));
-
-	let visiblePages = $derived.by(() => {
-		if (totalPages <= 5) {
-			return Array.from({ length: totalPages }, (_, index) => index + 1);
-		}
-
-		if (currentPage <= 3) {
-			return [1, 2, 3, '...', totalPages];
-		}
-
-		if (currentPage >= totalPages - 2) {
-			return [1, '...', totalPages - 2, totalPages - 1, totalPages];
-		}
-
-		return [1, '...', currentPage, '...', totalPages];
-	});
-
 	async function loadUsers(
 		page = currentPage,
 		search = searchQuery,
 		mode: 'refresh' | 'replace' = 'refresh'
 	) {
-		const canRefreshInPlace = result.ok && users.length > 0;
+		const canRefreshInPlace = result.ok && result.data.data.length > 0;
 
 		if (mode === 'replace' || !canRefreshInPlace) {
 			isLoading = true;
@@ -136,7 +155,7 @@
 		}
 
 		fetchedResult = await listUsers({
-			profile: activeTabProfile,
+			profileId: selectedProfileId || undefined,
 			search: search.trim() || undefined,
 			page,
 			pageSize: data.pageSize
@@ -157,13 +176,18 @@
 			ok: true,
 			data: {
 				...current.data,
-				data: current.data.data.map((user) => (user.id === id ? { ...user, ...changes } : user))
+				data: current.data.data.map((currentUser) =>
+					currentUser.id === id ? { ...currentUser, ...changes } : currentUser
+				)
 			}
 		};
 	}
 
-	async function refreshStats() {
-		statsOverride = await getUserStats();
+	// Mutações de usuário mudam a contagem de vinculados por perfil; recarregar o
+	// load mantém `userCount` e o bloqueio de desativação coerentes.
+	async function refreshAfterUserMutation() {
+		statsOverride = null;
+		await invalidateAll();
 	}
 
 	function handleTabChange(tabId: string) {
@@ -171,11 +195,33 @@
 			return;
 		}
 
-		activeTab = tabId;
-
-		loadUsers(1, searchQuery, 'replace');
+		activeTabSelection = tabId;
 	}
 
+	function registerTabButton(index: number) {
+		return (button: HTMLButtonElement) => {
+			tabButtons[index] = button;
+			return () => {
+				delete tabButtons[index];
+			};
+		};
+	}
+
+	function handleTabKeydown(event: KeyboardEvent, index: number) {
+		if (tabs.length < 2) return;
+
+		let nextIndex: number;
+
+		if (event.key === 'ArrowRight') nextIndex = (index + 1) % tabs.length;
+		else if (event.key === 'ArrowLeft') nextIndex = (index - 1 + tabs.length) % tabs.length;
+		else if (event.key === 'Home') nextIndex = 0;
+		else if (event.key === 'End') nextIndex = tabs.length - 1;
+		else return;
+
+		event.preventDefault();
+		activeTabSelection = tabs[nextIndex].id;
+		tabButtons[nextIndex]?.focus();
+	}
 	function handleSearchInput() {
 		clearTimeout(searchTimer);
 
@@ -185,34 +231,27 @@
 	}
 
 	function handlePageChange(page: number) {
-		if (page < 1 || page > totalPages || page === currentPage) {
-			return;
-		}
-
 		loadUsers(page, searchQuery);
 	}
 
-	function previousPage() {
-		handlePageChange(currentPage - 1);
-	}
+	async function handleCreate(formData: CreateUserFormData): Promise<CreateUserResponse> {
+		if (!canManageUsersNow) {
+			createError = profilesAvailabilityReason || 'Você não tem permissão para cadastrar usuários.';
+			return Promise.reject(new Error(createError));
+		}
 
-	function nextPage() {
-		handlePageChange(currentPage + 1);
-	}
-
-	async function handleCreate(data: CreateUserFormData): Promise<CreateUserResponse> {
 		isCreating = true;
 		createError = '';
 
 		const result = await createUser({
-			name: data.name.trim(),
-			email: data.email.trim(),
-			role: data.role,
-			area: data.area,
-			department: data.department,
-			manager: data.manager,
-			additionalContact: data.additionalContact,
-			professional: data.professional
+			name: formData.name.trim(),
+			email: formData.email.trim(),
+			profileId: formData.profileId,
+			area: formData.area,
+			department: formData.department,
+			manager: formData.manager,
+			additionalContact: formData.additionalContact,
+			professional: formData.professional
 		});
 
 		isCreating = false;
@@ -227,7 +266,7 @@
 		showSuccess(`"${result.data.fullName}" cadastrado com sucesso.`);
 
 		await loadUsers(1, '');
-		await refreshStats();
+		await refreshAfterUserMutation();
 
 		return result.data;
 	}
@@ -248,6 +287,14 @@
 	}
 
 	function handleAction(user: AdminUser, action: UserAction) {
+		if (
+			!canManageUsersNow ||
+			user.id === data.user?.id ||
+			!data.administrableProfileIds.includes(user.profile.id)
+		) {
+			return;
+		}
+
 		actionError = '';
 
 		pendingAction = {
@@ -257,6 +304,10 @@
 	}
 
 	async function confirmStatusChange(status: UserStatus) {
+		if (!canManageUsersNow) {
+			return;
+		}
+
 		if (!pendingAction) {
 			return;
 		}
@@ -275,7 +326,7 @@
 
 		const userName = pendingAction.user.name;
 		const userId = pendingAction.user.id;
-		const userRole = pendingAction.user.role;
+		const profileName = pendingAction.user.profile.name;
 
 		pendingAction = undefined;
 
@@ -283,11 +334,11 @@
 
 		showSuccess(
 			status === 'Ativo'
-				? `${userRole} "${userName}" ativado com sucesso.`
-				: `${userRole} "${userName}" inativado com sucesso.`
+				? `${profileName} "${userName}" ativado com sucesso.`
+				: `${profileName} "${userName}" inativado com sucesso.`
 		);
 
-		await refreshStats();
+		await refreshAfterUserMutation();
 	}
 
 	function closePendingAction() {
@@ -298,9 +349,10 @@
 	function handleEditSaved(profile: UserProfileResponse) {
 		const userId = pendingAction?.user.id;
 		const userName = profile.fullName;
-		if (userId) applyUserUpdate(userId, { name: profile.fullName });
+		if (userId) applyUserUpdate(userId, { name: profile.fullName, profile: profile.profile });
 		pendingAction = undefined;
 		showSuccess(`Dados administrativos de "${userName}" atualizados com sucesso.`);
+		void refreshAfterUserMutation();
 	}
 </script>
 
@@ -310,10 +362,14 @@
 	========================= -->
 
 	<header class="page-header">
-		<h1>Gerenciamento de Usuários</h1>
+		<h1>{canReadUsers ? 'Gerenciamento de Usuários' : 'Gerenciamento de Perfis'}</h1>
 
 		<p class="page-subtitle">
-			Controle o acesso e permissões dos colaboradores no {data.portalConfig.platformName}.
+			{#if canReadUsers}
+				Controle o acesso e permissões dos colaboradores no {data.portalConfig.platformName}.
+			{:else}
+				Consulte e gerencie os perfis de acesso do {data.portalConfig.platformName}.
+			{/if}
 		</p>
 	</header>
 
@@ -321,191 +377,186 @@
 	     CARDS
 	========================= -->
 
-	<section class="stats-section">
-		<MetricsSummary {metrics} />
-	</section>
+	{#if canReadUsers}
+		<section class="stats-section">
+			<MetricsSummary {metrics} />
+		</section>
+	{/if}
 
 	<!-- =========================
 	     SUCESSO
 	========================= -->
 
-	{#if successMessage}
+	{#if canReadUsers && successMessage}
 		<p class="success-banner" role="status">
 			{successMessage}
 		</p>
+	{/if}
+
+	{#if profilesErrorMessage}
+		<div id="profiles-status" class="profiles-error" role="alert">
+			<p>{profilesErrorMessage}</p>
+
+			<Button variant="outline" onclick={() => refreshAll()}>Tentar novamente</Button>
+		</div>
+	{:else if missingProfileRead}
+		<div id="profiles-status" class="profiles-status" role="alert">
+			<p>{profilesAvailabilityReason}</p>
+		</div>
 	{/if}
 
 	<!-- =========================
 	     CARD PRINCIPAL
 	========================= -->
 
-	<section class="users-card">
-		<!-- PESQUISA + ADICIONAR -->
-
-		<div class="toolbar">
-			<div class="search-box">
-				<Input
-					icon="search"
-					type="search"
-					placeholder="Pesquisar por nome ou e-mail..."
-					aria-label="Buscar usuários por nome ou e-mail"
-					bind:value={searchQuery}
-					oninput={handleSearchInput}
-				/>
-			</div>
-
-			<Button
-				variant="primary"
-				onclick={() => {
-					createError = '';
-					isCreateOpen = true;
-				}}
-			>
-				<Icon iconName="addUser" iconSize="sm" />
-				Adicionar Usuário
-			</Button>
-		</div>
-
-		<!-- =========================
+	{#if canReadUsers || canReadProfiles}
+		<section class="users-card">
+			<!-- =========================
 		     ABAS
 		========================= -->
 
-		<div class="tabs" role="tablist" aria-label="Perfis de usuário">
-			{#each tabs as tab (tab.id)}
-				<button
-					type="button"
-					role="tab"
-					id={`users-tab-${tab.id}`}
-					aria-selected={activeTab === tab.id}
-					aria-controls="users-panel"
-					class="tab"
-					class:active={activeTab === tab.id}
-					onclick={() => handleTabChange(tab.id)}
+			{#if tabs.length > 1}
+				<div
+					class="tabs"
+					role="tablist"
+					aria-label="Seções de gerenciamento"
+					style:grid-template-columns={`repeat(${tabs.length}, minmax(0, 1fr))`}
 				>
-					{tab.label}
-				</button>
-			{/each}
-		</div>
+					{#each tabs as tab, index (tab.id)}
+						<button
+							type="button"
+							role="tab"
+							id={`users-tab-${tab.id}`}
+							aria-selected={activeTab === tab.id}
+							aria-controls="users-panel"
+							tabindex={activeTab === tab.id ? 0 : -1}
+							class={['tab', { active: activeTab === tab.id }]}
+							{@attach registerTabButton(index)}
+							onclick={() => handleTabChange(tab.id)}
+							onkeydown={(event) => handleTabKeydown(event, index)}
+						>
+							{tab.label}
+						</button>
+					{/each}
+				</div>
+			{/if}
 
-		<!-- =========================
+			<!-- =========================
 		     CONTEÚDO
 		========================= -->
 
-		<div
-			id="users-panel"
-			class="tab-panel"
-			class:refreshing={isRefreshing}
-			role="tabpanel"
-			aria-busy={isRefreshing}
-			aria-labelledby={`users-tab-${activeTab}`}
-		>
-			{#if isLoading}
-				<div class="state-card" role="status">
-					<span class="spinner" aria-hidden="true"></span>
-
-					<p>Carregando usuários...</p>
-				</div>
-			{:else if loadError}
-				<div class="state-card error" role="alert">
-					<p>
-						{loadError}
-					</p>
-
-					<Button variant="outline" onclick={() => loadUsers()}>Tentar novamente</Button>
-				</div>
-			{:else if users.length === 0}
-				<NotFoundState
-					title="Nenhum usuário encontrado"
-					message="Não encontramos usuários para esta busca."
-					hint="Ajuste a pesquisa ou cadastre um novo usuário."
-				/>
-			{:else}
-				<!-- =========================
-			     TABELA
-			========================= -->
-
-				<UsersTable {users} onaction={handleAction} />
-
-				<!-- =========================
-			     PAGINAÇÃO
-			========================= -->
-
-				<div class="table-footer">
-					<p class="count">
-						Exibindo
-						{startItem}-{endItem}
-						de {total}
-						usuário{total === 1 ? '' : 's'}
-					</p>
-
-					<div class="pagination" aria-label="Paginação">
-						<!-- ANTERIOR -->
-
-						<button
-							type="button"
-							class="nav-button"
-							disabled={currentPage === 1}
-							onclick={previousPage}
-							aria-label="Página anterior"
-						>
-							‹
-						</button>
-
-						<!-- PÁGINAS -->
-
-						{#each visiblePages as page, index (`${page}-${index}`)}
-							{#if page === '...'}
-								<span class="dots"> ... </span>
-							{:else}
-								<button
-									type="button"
-									class="page-button"
-									class:active={currentPage === page}
-									onclick={() => handlePageChange(page as number)}
-									aria-label={`Página ${page}`}
-									aria-current={currentPage === page ? 'page' : undefined}
+			<div
+				id="users-panel"
+				class="tab-panel"
+				role={tabs.length > 1 ? 'tabpanel' : undefined}
+				aria-busy={activeTab === 'usuarios' && isRefreshing}
+				aria-labelledby={tabs.length > 1 ? `users-tab-${activeTab}` : undefined}
+			>
+				{#if activeTab === 'perfis' && canReadProfiles}
+					{#if data.user}
+						<ProfileManagement
+							user={data.user}
+							canManage={canManageProfiles}
+							profilesResult={data.profilesResult}
+							profileKeyCatalogResult={data.profileKeyCatalogResult}
+						/>
+					{/if}
+				{:else if activeTab === 'usuarios' && canReadUsers}
+					<ManagementToolbar
+						placeholder="Pesquisar por nome ou e-mail..."
+						ariaLabel="Buscar usuários por nome ou e-mail"
+						hasActions={canManageUsers}
+						bind:value={searchQuery}
+						oninput={handleSearchInput}
+					>
+						{#snippet actions()}
+							{#if canManageUsers}
+								<Button
+									variant="primary"
+									disabled={!canManageUsersNow}
+									title={canManageUsersNow ? undefined : profilesAvailabilityReason}
+									aria-describedby={canManageUsersNow ? undefined : 'profiles-status'}
+									onclick={() => {
+										createError = '';
+										isCreateOpen = true;
+									}}
 								>
-									{page}
-								</button>
+									<Icon iconName="addUser" iconSize="sm" />
+									Adicionar Usuário
+								</Button>
 							{/if}
-						{/each}
+						{/snippet}
+					</ManagementToolbar>
 
-						<!-- PRÓXIMA -->
+					{#if canReadProfiles}
+						<form class="profile-filter" method="GET">
+							<label for="profile-filter">Perfil</label>
 
-						<button
-							type="button"
-							class="nav-button"
-							disabled={currentPage === totalPages || totalPages === 0}
-							onclick={nextPage}
-							aria-label="Próxima página"
-						>
-							›
-						</button>
+							<select
+								id="profile-filter"
+								name="profileId"
+								class="profile-select"
+								bind:value={selectedProfileId}
+							>
+								<option value="">Todos</option>
+								{#each data.activeProfiles as profile (profile.id)}
+									<option value={profile.id}>{profile.name}</option>
+								{/each}
+							</select>
+
+							<Button type="submit" variant="outline">Filtrar</Button>
+						</form>
+					{/if}
+
+					{#if data.profilesResult && !data.profilesResult.ok}
+						<p class="profile-warning" role="alert">
+							Não foi possível carregar os perfis: {data.profilesResult.error.message} O filtro e a edição
+							por perfil ficam indisponíveis; as demais ações continuam disponíveis.
+						</p>
+					{/if}
+
+					<div class={['users-results', { refreshing: isRefreshing }]}>
+						<UsersPanel
+							{result}
+							{canReadUsers}
+							canManageUsers={canManageUsersNow}
+							actionsUnavailableReason={profilesAvailabilityReason}
+							administrableProfileIds={data.administrableProfileIds}
+							currentUserId={data.user?.id ?? ''}
+							{isLoading}
+							pageSize={data.pageSize}
+							onaction={handleAction}
+							onretry={() => loadUsers()}
+							onpagechange={handlePageChange}
+						/>
 					</div>
-				</div>
-			{/if}
-		</div>
-	</section>
+				{/if}
+			</div>
+		</section>
+	{/if}
 </main>
 
 <!-- =========================
      CRIAR USUÁRIO
 ========================= -->
 
-{#if isCreateOpen}
+{#if canManageUsersNow && isCreateOpen}
 	<CreateUserModal
 		loading={isCreating}
 		error={createError}
 		categories={data.portalConfig.categories}
+		profiles={data.assignableProfiles}
 		onclose={closeCreateModal}
 		oncreate={handleCreate}
 	/>
 {/if}
 
-{#if pendingAction?.kind === 'edit'}
+{#if canManageUsersNow && pendingAction?.kind === 'edit'}
 	<EditUserModal
 		user={pendingAction.user}
 		categories={data.portalConfig.categories}
+		profiles={data.profiles}
+		assignableProfiles={data.assignableProfiles}
 		onclose={closePendingAction}
 		onsaved={handleEditSaved}
 	/>
@@ -515,7 +566,7 @@
      ATIVAR
 ========================= -->
 
-{#if pendingAction?.kind === 'activate'}
+{#if canManageUsersNow && pendingAction?.kind === 'activate'}
 	<ConfirmActionModal
 		title="Ativar usuário"
 		message={`Confirmar a ativação de "${pendingAction.user.name}"?`}
@@ -531,7 +582,7 @@
      INATIVAR
 ========================= -->
 
-{#if pendingAction?.kind === 'deactivate'}
+{#if canManageUsersNow && pendingAction?.kind === 'deactivate'}
 	<ConfirmActionModal
 		title="Inativar usuário"
 		message={`Ao inativar, "${pendingAction.user.name}" perde o acesso ao portal. Confirmar?`}
@@ -547,7 +598,7 @@
      REDEFINIR SENHA
 ========================= -->
 
-{#if pendingAction?.kind === 'reset' && pendingAction}
+{#if canManageUsersNow && pendingAction?.kind === 'reset' && pendingAction}
 	<ResetPasswordModal user={pendingAction.user} onclose={closePendingAction} />
 {/if}
 
@@ -606,6 +657,46 @@
 		font: var(--label);
 	}
 
+	.profiles-error {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--spacing-md);
+
+		padding: var(--spacing-sm) var(--spacing-md);
+
+		background-color: var(--status-red-bg);
+
+		border: var(--border-default);
+		border-radius: var(--radius-sm);
+	}
+
+	.profiles-error p {
+		margin: 0;
+
+		color: var(--status-red);
+
+		font: var(--label);
+	}
+
+	.profiles-status {
+		padding: var(--spacing-sm) var(--spacing-md);
+
+		background-color: var(--status-yellow-bg);
+
+		border: var(--border-default);
+		border-radius: var(--radius-sm);
+	}
+
+	.profiles-status p {
+		margin: 0;
+
+		color: var(--heading-color);
+
+		font: var(--label);
+	}
+
 	/* =========================
 	   CARD PRINCIPAL
 	========================= */
@@ -636,32 +727,65 @@
 		box-shadow: none;
 	}
 
-	/* =========================
-	   TOOLBAR
-	========================= */
-
-	.toolbar {
+	.profile-filter {
 		width: 100%;
 
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
+		flex-wrap: wrap;
 
 		gap: var(--spacing-md);
 
-		padding: var(--spacing-sm);
+		padding: var(--spacing-sm) var(--spacing-md);
+		min-height: 74px;
 
-		background-color: var(--background-color);
+		background-color: var(--white);
+
+		border-top: var(--border-default);
+
+		border-bottom: var(--border-default);
 
 		flex-shrink: 0;
 	}
 
-	.search-box {
-		flex: 1;
+	.profile-filter label {
+		font: var(--label);
 
-		width: 100%;
-		max-width: none;
-		min-width: 0;
+		color: var(--black);
+	}
+
+	.profile-select {
+		min-width: 200px;
+
+		padding: var(--spacing-sm);
+
+		border: var(--border-default);
+
+		border-radius: var(--radius-sm);
+
+		background-color: var(--white);
+
+		color: var(--text-color-primary);
+
+		font: var(--paragrafo);
+	}
+
+	.profile-select:focus-visible {
+		outline: 2px solid var(--secondary-color);
+
+		outline-offset: 1px;
+	}
+
+	.profile-warning {
+		margin: 0;
+
+		padding: var(--spacing-sm) var(--spacing-md);
+
+		background-color: var(--status-error-bg);
+
+		color: var(--status-red);
+
+		font: var(--paragrafo);
 	}
 
 	/* =========================
@@ -673,7 +797,7 @@
 
 		display: grid;
 
-		grid-template-columns: repeat(5, 1fr);
+		grid-template-columns: repeat(2, minmax(0, 1fr));
 
 		align-items: stretch;
 
@@ -682,8 +806,6 @@
 		padding: 0 var(--spacing-sm);
 
 		background-color: var(--white);
-
-		border-top: var(--border-default);
 
 		border-bottom: var(--border-default);
 
@@ -745,192 +867,18 @@
 		flex-direction: column;
 
 		min-height: 0;
+	}
+
+	.users-results {
+		width: 100%;
 
 		transition: opacity 0.15s ease;
 	}
 
-	.tab-panel.refreshing {
+	.users-results.refreshing {
 		opacity: 0.55;
 
 		pointer-events: none;
-	}
-
-	/* =========================
-	   ESTADOS
-	========================= */
-
-	.state-card {
-		width: 100%;
-
-		min-height: 250px;
-
-		display: flex;
-		flex-direction: column;
-
-		align-items: center;
-		justify-content: center;
-
-		gap: var(--spacing-md);
-
-		padding: var(--spacing-xl);
-
-		background-color: var(--white);
-
-		text-align: center;
-	}
-
-	.state-card p {
-		margin: 0;
-
-		color: var(--gray);
-	}
-
-	.state-card.error p {
-		color: var(--status-red);
-	}
-
-	.spinner {
-		width: 24px;
-		height: 24px;
-
-		border: 3px solid var(--white-gray);
-
-		border-top-color: var(--primary-color);
-
-		border-radius: 50%;
-
-		animation: spin 0.7s linear infinite;
-	}
-
-	@keyframes spin {
-		to {
-			transform: rotate(360deg);
-		}
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.spinner {
-			animation: none;
-		}
-	}
-
-	/* =========================
-	   RODAPÉ
-	========================= */
-
-	.table-footer {
-		width: 100%;
-
-		min-height: 62px;
-
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-
-		gap: var(--spacing-md);
-
-		padding: var(--spacing-sm) var(--spacing-md);
-
-		background-color: var(--white);
-
-		border-top: var(--border-default);
-
-		flex-shrink: 0;
-	}
-
-	.count {
-		margin: 0;
-
-		font: var(--label);
-
-		font-size: 11px;
-
-		color: var(--gray);
-
-		white-space: nowrap;
-	}
-
-	/* =========================
-	   PAGINAÇÃO
-	========================= */
-
-	.pagination {
-		display: flex;
-
-		align-items: center;
-
-		justify-content: flex-end;
-
-		gap: 4px;
-	}
-
-	.page-button,
-	.nav-button {
-		min-width: 30px;
-		height: 30px;
-
-		display: inline-flex;
-
-		align-items: center;
-		justify-content: center;
-
-		padding: 0 var(--spacing-sm);
-
-		border: none;
-
-		border-radius: var(--radius-sm);
-
-		background: transparent;
-
-		color: var(--black);
-
-		font: var(--label);
-
-		font-size: 12px;
-
-		cursor: pointer;
-
-		transition: var(--transition-default);
-	}
-
-	.page-button:hover:not(.active),
-	.nav-button:hover:not(:disabled) {
-		background-color: var(--tint);
-
-		color: var(--secondary-color);
-	}
-
-	.page-button.active {
-		background-color: var(--primary-color);
-
-		color: var(--on-primary);
-	}
-
-	.nav-button {
-		font-size: 20px;
-		line-height: 1;
-	}
-
-	.nav-button:disabled {
-		color: var(--white-gray);
-
-		cursor: default;
-	}
-
-	.dots {
-		min-width: 25px;
-		height: 30px;
-
-		display: inline-flex;
-
-		align-items: center;
-		justify-content: center;
-
-		font: var(--label);
-
-		font-size: 12px;
-
-		color: var(--gray);
 	}
 
 	/* =========================
@@ -938,12 +886,6 @@
 	========================= */
 
 	@media (max-width: 800px) {
-		.toolbar {
-			flex-direction: column;
-
-			align-items: stretch;
-		}
-
 		.tabs {
 			display: flex;
 
@@ -956,17 +898,12 @@
 			min-width: 130px;
 			height: 44px;
 		}
+	}
 
-		.table-footer {
-			flex-direction: column;
-
-			align-items: flex-start;
-		}
-
-		.pagination {
-			width: 100%;
-
-			justify-content: flex-end;
+	@media (prefers-reduced-motion: reduce) {
+		.tab,
+		.users-results {
+			transition: none;
 		}
 	}
 </style>

@@ -1,6 +1,6 @@
-import { guard } from '$lib/services/access.service';
+import { guardSession } from '$lib/services/access.service';
 import type { LayoutServerLoad } from './$types';
 
 export const load: LayoutServerLoad = ({ locals, url }) => {
-	guard('anySession', locals.user, url);
+	guardSession(locals.user, url.pathname);
 };

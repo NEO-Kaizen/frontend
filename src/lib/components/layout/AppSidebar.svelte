@@ -4,7 +4,8 @@
 	import { page } from '$app/state';
 	import AssetImage from '$lib/components/AssetImage.svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import { isInternalProfile } from '$lib/services/access.service';
+	import { getHomePath, has, hasAny } from '$lib/services/access.service';
+	import { PORTAL_ACCESS_KEYS } from '$lib/types/permission';
 	import { logout } from '$lib/services/auth.service';
 	import { clearDraft } from '$lib/services/solicitation-draft.service';
 	import type { IconName } from '$lib/types/icons';
@@ -27,7 +28,6 @@
 	}
 
 	const PUBLIC_HOME_PATH = resolve('/');
-	const INTERNAL_HOME_PATH = resolve('/(admin)/home');
 	const NEW_REQUEST_PATH = resolve('/(public)/solicitacao');
 	const TRACKING_PATH = resolve('/(public)/acompanhar');
 	const QUEUE_PATH = resolve('/(admin)/fila');
@@ -39,28 +39,44 @@
 
 	const currentUser = $derived(page.data.user);
 	const appConfig = $derived(page.data.portalConfig);
-	const isInternal = $derived(currentUser != null && isInternalProfile(currentUser.role));
-	const homeHref = $derived(isInternal ? INTERNAL_HOME_PATH : PUBLIC_HOME_PATH);
+	// A home segue a prioridade de permissões do access service (fila, dashboard,
+	// usuários, logs, configurações, acompanhamento) e cai no portal público.
+	// Usuário autenticado volta para a home pelo logo; o item "Portal" fica só
+	// para visitantes, evitando dois itens ativos com o mesmo destino.
+	const homeHref = $derived<NavHref>((getHomePath(currentUser) ?? PUBLIC_HOME_PATH) as NavHref);
 
 	const navItems = $derived.by((): NavItem[] => {
-		const items: NavItem[] = [
-			{ name: 'Portal', icon: 'home', href: homeHref, exact: !isInternal },
-			{ name: 'Nova Solicitação', icon: 'addCircle', href: NEW_REQUEST_PATH },
-			{ name: 'Acompanhamento', icon: 'search', href: TRACKING_PATH }
-		];
+		const items: NavItem[] = [];
 
-		const role = currentUser?.role;
-		if (!role || !isInternalProfile(role)) return items;
+		if (!currentUser) {
+			items.push({ name: 'Portal', icon: 'home', href: PUBLIC_HOME_PATH, exact: true });
+		}
 
-		items.push({ name: 'Fila Centralizada', icon: 'centralQueue', href: QUEUE_PATH });
+		if (has('request:create', currentUser)) {
+			items.push({ name: 'Nova Solicitação', icon: 'addCircle', href: NEW_REQUEST_PATH });
+		}
 
-		if (role === 'Gestor' || role === 'Administrador') {
+		if (has('request:track', currentUser)) {
+			items.push({ name: 'Acompanhamento', icon: 'search', href: TRACKING_PATH });
+		}
+
+		if (has('queue:read', currentUser)) {
+			items.push({ name: 'Fila Centralizada', icon: 'centralQueue', href: QUEUE_PATH });
+		}
+
+		if (has('reports:read', currentUser)) {
 			items.push({ name: 'Dashboard', icon: 'queueChart', href: DASHBOARD_PATH });
+		}
+
+		if (has('audit:read', currentUser)) {
 			items.push({ name: 'Histórico de Logs', icon: 'history', href: LOGS_PATH });
 		}
 
-		if (role === 'Administrador') {
+		if (hasAny(['user:read', 'profile:read'], currentUser)) {
 			items.push({ name: 'Gerenciar Usuários', icon: 'manageUsers', href: USERS_PATH });
+		}
+
+		if (hasAny(PORTAL_ACCESS_KEYS, currentUser)) {
 			items.push({ name: 'Configurações', icon: 'settings', href: SETTINGS_PATH });
 		}
 
