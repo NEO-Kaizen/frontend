@@ -26,8 +26,16 @@
 	}
 
 	let { profiles, canManage, user, onedit, onduplicate, onstatus }: Props = $props();
-	let expandedProfileId = $state<string | null>(null);
+	const PERMISSION_PREVIEW_MAX_HEIGHT = 120;
+
+	let requestedProfileId = $state<string | null>(null);
 	let showAllPermissions = $state(false);
+	let permissionContentHeight = $state(0);
+
+	// Se o perfil expandido sair da lista filtrada, o id derivado volta a ser
+	// nulo — o estado não aponta mais para um perfil inexistente.
+	const expandedProfile = $derived(profiles.find((item) => item.id === requestedProfileId) ?? null);
+	const expandedProfileId = $derived(expandedProfile?.id ?? null);
 
 	function groupPermissions(permissions: Permission[]): PermissionGroup[] {
 		const groups: Record<string, PermissionGroup> = {};
@@ -44,23 +52,18 @@
 		return Object.values(groups);
 	}
 
-	const expandedGroups = $derived.by(() => {
-		const profile = profiles.find((item) => item.id === expandedProfileId);
-		return profile ? groupPermissions(profile.permissions) : [];
-	});
-
-	const expandedNeedsClamp = $derived(
-		expandedProfileId !== null &&
-			expandedGroups.reduce((total, group) => total + group.items.length, 0) +
-				expandedGroups.length >
-				6
+	const expandedGroups = $derived(
+		expandedProfile ? groupPermissions(expandedProfile.permissions) : []
 	);
 
+	const expandedNeedsClamp = $derived(permissionContentHeight > PERMISSION_PREVIEW_MAX_HEIGHT + 1);
+
 	function toggleProfilePermissions(profileId: string) {
-		expandedProfileId = expandedProfileId === profileId ? null : profileId;
+		requestedProfileId = requestedProfileId === profileId ? null : profileId;
 		showAllPermissions = false;
 	}
 
+	const authorityRestrictionSuffix = 'O servidor continua sendo a autoridade final de autorização.';
 	const duplicateRestrictionMessage =
 		'Não é possível duplicar: sua conta não pode conceder todas as permissões e escopos herdados deste perfil.';
 
@@ -99,13 +102,13 @@
 				{#each profiles as profile (profile.id)}
 					{@const canDuplicate = canDuplicateProfile(profile)}
 					{@const canEdit = canEditProfile(user, profile)}
-					{@const displayName = profile.name || 'perfil sem nome'}
-					{@const editRestrictionMessage = `Sua sessão atual informa a função “${user.role}”. Seu perfil não tem autoridade suficiente para editar este perfil. O servidor continua sendo a autoridade final de autorização.`}
+					{@const displayName = profile.name || 'Perfil sem nome'}
+					{@const editRestrictionMessage = `Seu perfil não tem autoridade suficiente para editar este perfil. ${authorityRestrictionSuffix}`}
 					{@const permissionCount = profile.permissions.length}
 					{@const isExpanded = expandedProfileId === profile.id}
 					{@const permissionsLabel = `${permissionCount} ${permissionCount === 1 ? 'permissão' : 'permissões'}`}
 					{@const duplicateRestriction = !canEdit
-						? 'Seu perfil não tem autoridade suficiente para duplicar este perfil.'
+						? `Seu perfil não tem autoridade suficiente para duplicar este perfil. ${authorityRestrictionSuffix}`
 						: duplicateRestrictionMessage}
 					{@const statusRestriction = profileStatusRestriction(profile, { canEdit })}
 					{@const statusRestrictionMessage = statusRestriction.tableMessage}
@@ -128,7 +131,7 @@
 									id={`profile-permissions-toggle-${profile.id}`}
 									class="composition-toggle"
 									aria-expanded={isExpanded}
-									aria-controls={isExpanded ? `profile-permissions-${profile.id}` : undefined}
+									aria-controls={`profile-permissions-${profile.id}`}
 									aria-label={`${isExpanded ? 'Ocultar' : 'Mostrar'} ${permissionsLabel} do perfil ${displayName}`}
 									onclick={() => toggleProfilePermissions(profile.id)}
 								>
@@ -147,30 +150,40 @@
 											'permission-list',
 											{ clamped: expandedNeedsClamp && !showAllPermissions }
 										]}
+										style:max-height={expandedNeedsClamp && !showAllPermissions
+											? `${PERMISSION_PREVIEW_MAX_HEIGHT}px`
+											: undefined}
 										role="region"
 										aria-label={`Permissões do perfil ${displayName}`}
 									>
-										{#each expandedGroups as group (group.id)}
-											<section class="permission-group" aria-label={group.label}>
-												<h3 class="permission-group-title">
-													<span>{group.label}</span>
-													<span class="permission-group-count">
-														{group.items.length}
-														{group.items.length === 1 ? 'permissão' : 'permissões'}
-													</span>
-												</h3>
-												<ul role="list">
-													{#each group.items as permission (permission.key)}
-														<li>
-															<span class="permission-name">{permissionLabel(permission.key)}</span>
-															<span class="permission-scope"
-																>Escopo: {custodyLabels[permission.custody]}</span
-															>
-														</li>
-													{/each}
-												</ul>
-											</section>
-										{/each}
+										<div
+											class="permission-list-content"
+											bind:clientHeight={permissionContentHeight}
+										>
+											{#each expandedGroups as group (group.id)}
+												<section class="permission-group" aria-label={group.label}>
+													<h3 class="permission-group-title">
+														<span>{group.label}</span>
+														<span class="permission-group-count">
+															{group.items.length}
+															{group.items.length === 1 ? 'permissão' : 'permissões'}
+														</span>
+													</h3>
+													<ul role="list">
+														{#each group.items as permission (permission.key)}
+															<li>
+																<span class="permission-name"
+																	>{permissionLabel(permission.key)}</span
+																>
+																<span class="permission-scope"
+																	>Escopo: {custodyLabels[permission.custody]}</span
+																>
+															</li>
+														{/each}
+													</ul>
+												</section>
+											{/each}
+										</div>
 									</div>
 									{#if expandedNeedsClamp}
 										<button
@@ -378,7 +391,6 @@
 		margin-top: var(--spacing-xs);
 	}
 	.permission-list.clamped {
-		max-height: 120px;
 		overflow: hidden;
 	}
 	.permission-list.clamped::after {

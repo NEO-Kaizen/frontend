@@ -102,7 +102,7 @@
 
 	let selectedProfileId = $state(untrack(() => data.profileId ?? ''));
 	let activeTabSelection = $state('');
-	let tabButtons: HTMLButtonElement[] = [];
+	let tabButtons: HTMLButtonElement[] = $state([]);
 	let activeTab = $derived(
 		tabs.some((tab) => tab.id === activeTabSelection)
 			? activeTabSelection

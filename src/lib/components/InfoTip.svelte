@@ -16,16 +16,73 @@
 
 	const uid = $props.id();
 	const tipId = `info-tip-${uid}`;
+
+	const TOOLTIP_GAP = 8;
+	const VIEWPORT_MARGIN = 8;
+
+	let trigger: HTMLButtonElement | undefined;
+	let tooltip: HTMLSpanElement | undefined;
+	let position = $state({ top: 0, left: 0 });
+
+	function captureTrigger(node: HTMLButtonElement) {
+		trigger = node;
+		return () => {
+			trigger = undefined;
+		};
+	}
+
+	function captureTooltip(node: HTMLSpanElement) {
+		tooltip = node;
+		return () => {
+			tooltip = undefined;
+		};
+	}
+
+	// `position: fixed` evita que o tooltip seja recortado por contêineres com
+	// `overflow` (como a tabela rolável) sem precisar mover nós do DOM.
+	function placeTooltip() {
+		if (!trigger || !tooltip) return;
+
+		const anchor = trigger.getBoundingClientRect();
+		const width = tooltip.offsetWidth;
+		const height = tooltip.offsetHeight;
+		const top = side === 'top' ? anchor.top - height - TOOLTIP_GAP : anchor.bottom + TOOLTIP_GAP;
+		const left = align === 'end' ? anchor.right - width : anchor.left;
+
+		position = {
+			top: Math.min(
+				Math.max(top, VIEWPORT_MARGIN),
+				Math.max(VIEWPORT_MARGIN, window.innerHeight - height - VIEWPORT_MARGIN)
+			),
+			left: Math.min(
+				Math.max(left, VIEWPORT_MARGIN),
+				Math.max(VIEWPORT_MARGIN, window.innerWidth - width - VIEWPORT_MARGIN)
+			)
+		};
+	}
 </script>
 
+<svelte:window onscrollcapture={placeTooltip} onresize={placeTooltip} />
+
 <span class="info-tip-container">
-	<button class="info-tip" type="button" aria-label={label} aria-describedby={tipId}>
+	<button
+		class="info-tip"
+		type="button"
+		aria-label={label}
+		aria-describedby={tipId}
+		{@attach captureTrigger}
+		onpointerenter={placeTooltip}
+		onfocus={placeTooltip}
+	>
 		<span aria-hidden="true">i</span>
 	</button>
 	<span
-		class={['info-tip-tooltip', `info-tip-tooltip--${side}`, `info-tip-tooltip--align-${align}`]}
+		class="info-tip-tooltip"
 		id={tipId}
 		role="tooltip"
+		{@attach captureTooltip}
+		style:top={`${position.top}px`}
+		style:left={`${position.left}px`}
 	>
 		{text}
 	</span>
@@ -33,13 +90,13 @@
 
 <style>
 	.info-tip-container {
-		position: relative;
 		display: inline-flex;
 		vertical-align: middle;
 		flex-shrink: 0;
 	}
 
 	.info-tip {
+		position: relative;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
@@ -57,12 +114,19 @@
 		transition: var(--transition-default);
 	}
 
+	/* Mantém o círculo visual de 14px, mas amplia a área clicável para 44x44px. */
+	.info-tip::before {
+		content: '';
+		position: absolute;
+		inset: -15px;
+	}
+
 	.info-tip:hover {
 		opacity: 0.9;
 	}
 
 	.info-tip-tooltip {
-		position: absolute;
+		position: fixed;
 		z-index: 10;
 		width: max-content;
 		max-width: 280px;
@@ -75,27 +139,11 @@
 		line-height: 1.4;
 		text-transform: none;
 		letter-spacing: normal;
+		white-space: normal;
 		opacity: 0;
 		pointer-events: none;
 		transform: translateY(-4px);
 		transition: var(--transition-default);
-	}
-
-	.info-tip-tooltip--bottom {
-		top: calc(100% + 8px);
-	}
-
-	.info-tip-tooltip--top {
-		bottom: calc(100% + 8px);
-		transform: translateY(4px);
-	}
-
-	.info-tip-tooltip--align-start {
-		left: 0;
-	}
-
-	.info-tip-tooltip--align-end {
-		right: 0;
 	}
 
 	.info-tip-container:hover .info-tip-tooltip,
