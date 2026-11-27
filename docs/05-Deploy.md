@@ -38,8 +38,9 @@ API_INTERNAL_URL=http://127.0.0.1:3000
 | `HOST` e `PORT`    | runtime                            | interface e porta locais do frontend                     |
 
 `BASE_PATH` é uma configuração de build. Uma mudança nesse valor exige um novo build; não basta
-reiniciar o processo. Passe-o explicitamente no comando para não alterar o desenvolvimento local.
-O valor deve começar com `/` e não deve terminar com `/`.
+reiniciar o processo. O valor deve começar com `/` e não deve terminar com `/`. Como o Vite carrega
+`.env` também no desenvolvimento, um `BASE_PATH` definido no `.env` afeta `npm run dev`; nesse caso,
+passe o valor apenas na linha de comando do build.
 
 ## Build e execução
 
@@ -63,8 +64,11 @@ HOST=127.0.0.1 \
 PORT=4174 \
 ORIGIN=https://example.org \
 BODY_SIZE_LIMIT=20M \
-node --env-file-if-exists=.env build
+npm run start:prod
 ```
+
+`start:prod` equivale a `node --env-file-if-exists=.env build`. As variáveis acima podem vir do `.env`
+(modelo em `.env.example`) em vez da linha de comando.
 
 Depois de um novo build, reinicie o processo Node. Um processo antigo pode continuar executando o
 bundle de servidor que já estava carregado em memória.
@@ -80,7 +84,9 @@ O proxy deve:
 - encaminhar as rotas da aplicação ao frontend;
 - encaminhar `/api/*` ao backend, removendo apenas o prefixo `/api` esperado pela API;
 - preservar `Host`, `X-Forwarded-For` e `X-Forwarded-Proto`;
-- limitar o tamanho do corpo de forma compatível com `BODY_SIZE_LIMIT`;
+- limitar o corpo das requisições que chegam ao frontend de forma compatível com `BODY_SIZE_LIMIT`;
+- dimensionar `/api/*` à parte: os anexos (até 5 arquivos de 10 MB — `MAX_FILES`/`MAX_FILE_SIZE`) vão
+  do navegador direto ao backend, então o limite relevante é o `client_max_body_size` do Nginx/backend;
 - ajustar o `Path` do cookie de sessão para o subcaminho público quando necessário.
 
 O SvelteKit usa `paths.relative: false`. Assim, links, assets e redirects são produzidos como URLs

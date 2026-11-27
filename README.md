@@ -71,7 +71,7 @@ npm run dev -- --open
 
 O procedimento para publicar a aplicação atrás de um proxy reverso e em um subcaminho,
 incluindo variáveis de ambiente e verificações pós-deploy, está em
-[docs/04-Deploy.md](docs/04-Deploy.md).
+[docs/05-Deploy.md](docs/05-Deploy.md).
 
 ## Funcionalidades
 
