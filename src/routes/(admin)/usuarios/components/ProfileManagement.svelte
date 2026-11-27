@@ -2,6 +2,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import { onDestroy, tick } from 'svelte';
 	import Button from '$lib/components/Button.svelte';
+	import Icon from '$lib/components/Icon.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import type { Profile, ProfileKeyCatalog } from '$lib/types/profile';
 	import type { SessionUser } from '$lib/types/auth';
@@ -10,6 +11,7 @@
 	import { sameComposition } from '$lib/services/profiles/profile-editor.rules';
 	import { profileStatusRestriction } from '$lib/services/profiles/profile-status.service';
 	import ProfileEditorModal from './ProfileEditorModal.svelte';
+	import ManagementToolbar from './ManagementToolbar.svelte';
 	import ProfileStatusDialog from './ProfileStatusDialog.svelte';
 	import ProfileTable from './ProfileTable.svelte';
 	import type { EditorMode } from './profile-management.types';
@@ -24,6 +26,17 @@
 	let { user, canManage, profilesResult, profileKeyCatalogResult }: Props = $props();
 	let profilesOverride = $state<Profile[] | null>(null);
 	let profiles = $derived(profileSource());
+	let profileSearchQuery = $state('');
+	let visibleProfiles = $derived.by(() => {
+		const query = profileSearchQuery.trim().toLocaleLowerCase('pt-BR');
+		if (!query) return profiles;
+
+		return profiles.filter(
+			(profile) =>
+				profile.name.toLocaleLowerCase('pt-BR').includes(query) ||
+				(profile.description ?? '').toLocaleLowerCase('pt-BR').includes(query)
+		);
+	});
 	let loadError = $derived(
 		profilesOverride
 			? ''
@@ -101,42 +114,63 @@
 
 	// Recarrega o `load` da página depois de mutações: filtro de usuários,
 	// perfis atribuíveis e contagens derivam do SSR, não só da aba Perfis.
-	// O override local só sai quando o `load` devolve a versão salva — no modo
-	// mock a mutação vive no browser e o `load` do SSR continua no seed.
-	async function syncPageData(saved: Profile) {
+	// Cada perfil igual ao SSR volta a usar os dados do servidor; diferenças
+	// locais (incluindo perfis só existentes no mock) continuam no override.
+	async function syncPageData() {
 		try {
 			await invalidateAll();
 			await tick();
+			const localProfiles = profilesOverride;
 			const refreshed = profilesResult?.ok ? profilesResult.data : null;
-			if (refreshed && reflectsSavedProfile(refreshed, saved)) {
-				profilesOverride = null;
+			if (localProfiles && refreshed) {
+				profilesOverride = reconcileProfiles(localProfiles, refreshed);
 			}
 		} catch {
 			// Mantém o estado local da aba; a próxima navegação recarrega o resto.
 		}
 	}
 
-	function reflectsSavedProfile(list: Profile[], saved: Profile): boolean {
-		const current = list.find((item) => item.id === saved.id);
+	function sameProfile(current: Profile, refreshed: Profile): boolean {
 		return (
-			current != null &&
-			current.name === saved.name &&
-			(current.description ?? '') === (saved.description ?? '') &&
-			current.isActive === saved.isActive &&
-			current.isAssignableTriage === saved.isAssignableTriage &&
-			current.isAssignableMapping === saved.isAssignableMapping &&
-			sameComposition(current.permissions, saved.permissions)
+			current.name === refreshed.name &&
+			(current.description ?? '') === (refreshed.description ?? '') &&
+			current.isActive === refreshed.isActive &&
+			current.isAssignableTriage === refreshed.isAssignableTriage &&
+			current.isAssignableMapping === refreshed.isAssignableMapping &&
+			sameComposition(current.permissions, refreshed.permissions)
 		);
 	}
 
+	function reconcileProfiles(
+		localProfiles: Profile[],
+		refreshedProfiles: Profile[]
+	): Profile[] | null {
+		const refreshedById = new Map(refreshedProfiles.map((profile) => [profile.id, profile]));
+		const localById = new Map(localProfiles.map((profile) => [profile.id, profile]));
+		let hasLocalDifferences = false;
+		const reconciled = refreshedProfiles.map((refreshedProfile) => {
+			const localProfile = localById.get(refreshedProfile.id);
+			if (!localProfile || sameProfile(localProfile, refreshedProfile)) return refreshedProfile;
+
+			hasLocalDifferences = true;
+			return { ...localProfile, userCount: refreshedProfile.userCount };
+		});
+		const localOnlyProfiles = localProfiles.filter((profile) => !refreshedById.has(profile.id));
+
+		return hasLocalDifferences || localOnlyProfiles.length > 0
+			? [...reconciled, ...localOnlyProfiles]
+			: null;
+	}
+
 	function handleSaved(message: string, profile: Profile) {
+		profileSearchQuery = '';
 		const nextProfiles = profileSource();
 		profilesOverride = nextProfiles.some((item) => item.id === profile.id)
 			? nextProfiles.map((item) => (item.id === profile.id ? profile : item))
 			: [...nextProfiles, profile];
 		closeEditor();
 		showSuccessMessage(message);
-		void syncPageData(profile);
+		void syncPageData();
 	}
 
 	async function confirmStatusChange() {
@@ -163,11 +197,27 @@
 		showSuccessMessage(
 			`Perfil "${profile.name}" ${profile.isActive ? 'desativado' : 'ativado'} com sucesso.`
 		);
-		void syncPageData({ ...profile, isActive: !profile.isActive });
+		void syncPageData();
 	}
 </script>
 
 <section class="profiles-panel" aria-label="Gerenciamento de perfis">
+	<ManagementToolbar
+		placeholder="Pesquisar perfis por nome ou descrição..."
+		ariaLabel="Buscar perfis por nome ou descrição"
+		hasActions={canManage}
+		bind:value={profileSearchQuery}
+	>
+		{#snippet actions()}
+			{#if canManage}
+				<Button variant="primary" onclick={() => openEditor('create')}>
+					<Icon iconName="addCircle" iconSize="sm" />
+					Criar perfil
+				</Button>
+			{/if}
+		{/snippet}
+	</ManagementToolbar>
+
 	<header class="panel-header">
 		<div>
 			<h2>Perfis de acesso</h2>
@@ -177,34 +227,40 @@
 					: 'Consulte a composição de permissões e a disponibilidade dos perfis.'}
 			</p>
 		</div>
-		{#if canManage}
-			<Button variant="primary" onclick={() => openEditor('create')}>Criar perfil</Button>
-		{/if}
 	</header>
 
-	{#if successMessage}
-		<p class="success-message" role="status">{successMessage}</p>
-	{/if}
+	<div class="panel-body">
+		{#if profileSearchQuery.trim() !== '' && !isLoading && profilesResult?.ok && visibleProfiles.length > 0}
+			<p class="sr-only" role="status" aria-live="polite" aria-atomic="true">
+				{visibleProfiles.length}
+				{visibleProfiles.length === 1 ? 'perfil encontrado' : 'perfis encontrados'}.
+			</p>
+		{/if}
 
-	{#if isLoading}
-		<div class="state" role="status">
-			<span class="spinner" aria-hidden="true"></span>Carregando perfis...
-		</div>
-	{:else if loadError}
-		<div class="state error" role="alert">
-			<p>{loadError}</p>
-			<Button variant="outline" onclick={reloadData}>Tentar novamente</Button>
-		</div>
-	{:else}
-		<ProfileTable
-			{profiles}
-			{canManage}
-			{user}
-			onedit={(profile) => openEditor('edit', profile)}
-			onduplicate={(profile) => openEditor('duplicate', profile)}
-			onstatus={openStatus}
-		/>
-	{/if}
+		{#if successMessage}
+			<p class="success-message" role="status">{successMessage}</p>
+		{/if}
+
+		{#if isLoading}
+			<div class="state" role="status">
+				<span class="spinner" aria-hidden="true"></span>Carregando perfis...
+			</div>
+		{:else if loadError}
+			<div class="state error" role="alert">
+				<p>{loadError}</p>
+				<Button variant="outline" onclick={reloadData}>Tentar novamente</Button>
+			</div>
+		{:else}
+			<ProfileTable
+				profiles={visibleProfiles}
+				{canManage}
+				{user}
+				onedit={(profile) => openEditor('edit', profile)}
+				onduplicate={(profile) => openEditor('duplicate', profile)}
+				onstatus={openStatus}
+			/>
+		{/if}
+	</div>
 </section>
 
 {#if editorMode}
@@ -239,16 +295,37 @@
 
 <style>
 	.profiles-panel {
+		width: 100%;
+
 		display: flex;
 		flex-direction: column;
-		gap: var(--spacing-md);
-		padding: var(--spacing-md);
 	}
 	.panel-header {
+		width: 100%;
+
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
+
 		gap: var(--spacing-md);
+
+		padding: var(--spacing-sm) var(--spacing-md);
+		min-height: 74px;
+
+		border-bottom: var(--border-default);
+
+		flex-shrink: 0;
+	}
+	.panel-body {
+		width: 100%;
+		min-width: 0;
+
+		display: flex;
+		flex-direction: column;
+
+		gap: var(--spacing-md);
+
+		padding: var(--spacing-md);
 	}
 	.panel-header h2 {
 		margin: 0 0 var(--spacing-xs);
@@ -292,6 +369,17 @@
 		border-top-color: var(--primary-color);
 		border-radius: 50%;
 		animation: spin 0.7s linear infinite;
+	}
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
 	}
 	@keyframes spin {
 		to {
