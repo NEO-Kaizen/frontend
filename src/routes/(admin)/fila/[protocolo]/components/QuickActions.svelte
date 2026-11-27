@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Icon from '$lib/components/Icon.svelte';
+	import { can } from '$lib/services/access.service';
 	import type { SessionUser } from '$lib/types/auth';
 	import type { InternalRequestDetail } from '$lib/types/request';
 	import { fly } from 'svelte/transition';
@@ -16,6 +17,8 @@
 		requestChangeBlockedHint?: string | null;
 		onAction?: (key: string) => void;
 		hiddenActionKeys?: readonly string[];
+		/** Ações visíveis por permissão, mas bloqueadas por outra dependência. */
+		disabledActionHints?: Readonly<Record<string, string>>;
 		hasExistingPriority?: boolean;
 		existingPriorityDisplay?: string | null;
 	}
@@ -29,6 +32,7 @@
 		requestChangeBlockedHint = null,
 		onAction,
 		hiddenActionKeys = [],
+		disabledActionHints = {},
 		hasExistingPriority = false,
 		existingPriorityDisplay = null
 	}: Props = $props();
@@ -78,11 +82,12 @@
 	const prefersReducedMotion =
 		typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-	// "Solicitar Alteração" visível apenas para Administrador ou o responsável
-	// pela triagem (mesma regra do botão Editar).
+	// "Solicitar Alteração" visível para quem tem `request:write` com custódia
+	// `all` ou `assigned` sobre o responsável (mesma regra do botão Editar).
 	const canRequestChange = $derived(
-		currentUser?.role === 'Administrador' ||
-			Boolean(currentUser && solicitation.assignee?.id === currentUser.id)
+		can('request:write', 'all', currentUser) ||
+			(can('request:write', 'assigned', currentUser) &&
+				Boolean(currentUser && solicitation.assignee?.id === currentUser.id))
 	);
 	const visibleActions = $derived.by(() => {
 		let filtered = baseActions.filter((a) => !hiddenActionKeys.includes(a.key));
@@ -90,6 +95,10 @@
 			filtered = filtered.filter((a) => a.key !== 'requestChange');
 		}
 		return filtered.map((a) => {
+			const disabledHint = disabledActionHints[a.key];
+			if (disabledHint) {
+				return { ...a, disabled: true, hint: disabledHint };
+			}
 			if (a.key === 'priorityCalculator' && hasExistingPriority) {
 				return {
 					...a,

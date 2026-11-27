@@ -1,13 +1,22 @@
 import { browser } from '$app/environment';
-import type {
-	ChangePasswordPayload,
-	LoginCredentials,
-	LoginResponse,
-	SessionUser
-} from '$lib/types/auth';
+import type { ChangePasswordPayload, LoginCredentials, SessionUser } from '$lib/types/auth';
 import { ApiError } from '$lib/types/result';
+import { PORTAL_READ_KEYS } from '$lib/types/permission';
+import { BASE_PROFILE_IDS } from './profile-seed.mock';
+import {
+	ALL_PERMISSIONS,
+	ANALYST_PERMISSIONS,
+	buildProfilePermissions,
+	MANAGER_PERMISSIONS,
+	SELF_SERVICE_PERMISSIONS
+} from './profile-permissions.mock';
 
 type MockUser = SessionUser & { password: string };
+
+const CUSTOM_PORTAL_READER_PERMISSIONS = buildProfilePermissions({
+	global: ['request:create', ...PORTAL_READ_KEYS],
+	own: ['request:track', 'pending_item:respond']
+});
 
 const MOCK_USERS: MockUser[] = [
 	{
@@ -16,7 +25,9 @@ const MOCK_USERS: MockUser[] = [
 		email: 'analista@maat.com.br',
 		avatarUrl: null,
 		role: 'Analista',
+		isRoot: false,
 		mustChangePassword: false,
+		permissions: ANALYST_PERMISSIONS,
 		password: 'admin'
 	},
 	{
@@ -25,7 +36,9 @@ const MOCK_USERS: MockUser[] = [
 		email: 'gestor@maat.com.br',
 		avatarUrl: null,
 		role: 'Gestor',
+		isRoot: false,
 		mustChangePassword: false,
+		permissions: MANAGER_PERMISSIONS,
 		password: 'admin'
 	},
 	{
@@ -34,7 +47,9 @@ const MOCK_USERS: MockUser[] = [
 		email: 'admin@maat.com.br',
 		avatarUrl: null,
 		role: 'Administrador',
+		isRoot: false,
 		mustChangePassword: false,
+		permissions: ALL_PERMISSIONS,
 		password: 'admin'
 	},
 	{
@@ -43,14 +58,40 @@ const MOCK_USERS: MockUser[] = [
 		email: 'solicitante@maat.com.br',
 		avatarUrl: null,
 		role: 'Solicitante',
+		isRoot: false,
 		mustChangePassword: false,
+		permissions: SELF_SERVICE_PERMISSIONS,
 		password: 'temp123'
+	},
+	{
+		id: '5',
+		name: 'Beatriz Rocha',
+		email: 'root@maat.com.br',
+		avatarUrl: null,
+		role: 'Admin Root',
+		isRoot: true,
+		mustChangePassword: false,
+		permissions: ALL_PERMISSIONS,
+		password: 'admin'
+	},
+	{
+		id: '6',
+		name: 'Rafael Nunes',
+		email: 'portal@maat.com.br',
+		avatarUrl: null,
+		role: 'Leitura de portal',
+		isRoot: false,
+		mustChangePassword: false,
+		permissions: CUSTOM_PORTAL_READER_PERMISSIONS,
+		password: 'admin'
 	}
 ];
 
 const SESSION_COOKIE_NAME = 'session_id';
 
-export function loginMock(credentials: LoginCredentials): Promise<LoginResponse> {
+// Espelha POST /auth/login: o payload traz `profile` (com `isRoot`), não
+// `role`; a sessão só é montada depois de `sanitizeSessionUser`.
+export function loginMock(credentials: LoginCredentials): Promise<unknown> {
 	const email = credentials.email.trim().toLowerCase();
 	const user = MOCK_USERS.find((candidate) => candidate.email === email);
 
@@ -59,8 +100,7 @@ export function loginMock(credentials: LoginCredentials): Promise<LoginResponse>
 	}
 
 	setMockSessionCookie(user.id);
-
-	return Promise.resolve(toSessionUser(user));
+	return Promise.resolve(toSessionPayload(user));
 }
 
 export function logoutMock(): Promise<null> {
@@ -68,18 +108,30 @@ export function logoutMock(): Promise<null> {
 	return Promise.resolve(null);
 }
 
-// `sessionId` é o valor do cookie repassado pelo server (hooks); no browser o
-// cookie é lido diretamente. Sem JWT nem decodificação local — o mock guarda o
-// id do usuário na própria sessão.
 export function getMeMock(sessionId?: string): Promise<SessionUser> {
-	const userId = sessionId ?? readSessionCookie();
-	const user = userId ? MOCK_USERS.find((candidate) => candidate.id === userId) : undefined;
+	const user = findSessionUser(sessionId);
 
 	if (!user) {
 		return Promise.reject(new ApiError(401, 'Sessão expirada ou inválida.'));
 	}
 
 	return Promise.resolve(toSessionUser(user));
+}
+
+// Espelha o payload real de GET /auth/me (usado pela camada de API).
+export function getMeResponseMock(sessionId?: string): Promise<unknown> {
+	const user = findSessionUser(sessionId);
+
+	if (!user) {
+		return Promise.reject(new ApiError(401, 'Sessão expirada ou inválida.'));
+	}
+
+	return Promise.resolve(toSessionPayload(user));
+}
+
+function findSessionUser(sessionId?: string): MockUser | undefined {
+	const userId = sessionId ?? readSessionCookie();
+	return userId ? MOCK_USERS.find((candidate) => candidate.id === userId) : undefined;
 }
 
 export function changePasswordMock(payload: ChangePasswordPayload): Promise<void> {
@@ -100,10 +152,14 @@ export function changePasswordMock(payload: ChangePasswordPayload): Promise<void
 
 	user.password = payload.newPassword;
 	user.mustChangePassword = false;
-
 	setMockSessionCookie(user.id);
-
 	return Promise.resolve();
+}
+
+export function getMockSessionUser(): SessionUser | null {
+	const userId = readSessionCookie();
+	const user = userId ? MOCK_USERS.find((candidate) => candidate.id === userId) : undefined;
+	return user ? toSessionUser(user) : null;
 }
 
 function toSessionUser(user: MockUser): SessionUser {
@@ -113,19 +169,27 @@ function toSessionUser(user: MockUser): SessionUser {
 		email: user.email,
 		avatarUrl: user.avatarUrl,
 		role: user.role,
-		mustChangePassword: user.mustChangePassword
+		isRoot: user.isRoot,
+		mustChangePassword: user.mustChangePassword,
+		permissions: structuredClone(user.permissions)
 	};
 }
 
-/**
- * Sessão mockada atual (ou `null` sem login / fora do browser). Usada pelo
- * mock de acompanhamento para distinguir analista de solicitante, como o
- * backend faz pela sessão. Uso exclusivo em testes DEV.
- */
-export function getMockSessionUser(): SessionUser | null {
-	const userId = readSessionCookie();
-	const user = userId ? MOCK_USERS.find((candidate) => candidate.id === userId) : undefined;
-	return user ? toSessionUser(user) : null;
+// Espelha GET /auth/me: identidade em `profile`, sem `role` legado.
+function toSessionPayload(user: MockUser) {
+	return {
+		id: user.id,
+		name: user.name,
+		email: user.email,
+		avatarUrl: user.avatarUrl,
+		profile: {
+			id: BASE_PROFILE_IDS[user.role as keyof typeof BASE_PROFILE_IDS] ?? '',
+			name: user.role,
+			isRoot: user.isRoot
+		},
+		mustChangePassword: user.mustChangePassword,
+		permissions: structuredClone(user.permissions)
+	};
 }
 
 function readSessionCookie(): string | null {

@@ -1,12 +1,11 @@
 import { redirect } from '@sveltejs/kit';
-import { resolve } from '$app/paths';
-import { getHomeRedirect } from '$lib/services/access.service';
+import { getHomePath } from '$lib/services/access.service';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = ({ locals }) => {
-	const homeRedirect = getHomeRedirect(locals.user);
+	const homePath = getHomePath(locals.user);
 
-	if (homeRedirect) {
-		redirect(303, resolve(homeRedirect));
+	if (homePath) {
+		redirect(303, homePath);
 	}
 };

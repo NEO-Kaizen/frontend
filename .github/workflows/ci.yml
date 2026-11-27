@@ -2,11 +2,10 @@
 # O job `unit` permanece comentado até o Vitest e o script `test` existirem.
 name: CI
 
+# Roda em qualquer branch; o filtro anterior restringia o CI à main.
 on:
   push:
-    branches: [main]
   pull_request:
-    branches: [main]
   workflow_dispatch:
 
 # Menor privilégio: leitura do repositório é suficiente para lint/check/build.
@@ -96,6 +95,11 @@ jobs:
           # faltar, e o postbuild do SvelteKit avalia o código do servidor.
           # Em runtime o valor real vem de $env/dynamic/public.
           PUBLIC_API_URL: http://127.0.0.1:3000
+
+      - name: Build de produção com BASE_PATH
+        run: BASE_PATH=/server03 npm run build
+        env:
+          PUBLIC_API_URL: https://example.org/server03/api
 
   # ---------------------------------------------------------------------------
   # Job `unit` (P1) — desabilitado até o Vitest e o script "test" existirem.

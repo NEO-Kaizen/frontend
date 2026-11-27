@@ -3,10 +3,18 @@ import { env } from '$env/dynamic/public';
 import type { RequesterIdentity } from '$lib/types/requester-tracking';
 import { ApiError } from '$lib/types/result';
 
-const PUBLIC_API_URL = env.PUBLIC_API_URL;
+const PUBLIC_API_URL = env.PUBLIC_API_URL?.replace(/\/$/, '');
 
 if (!PUBLIC_API_URL) {
 	throw new Error('PUBLIC_API_URL não está definida no ambiente.');
+}
+
+function resolvePublicApiUrl(path: string): string {
+	if (!path.startsWith('/')) {
+		throw new Error('O caminho da API deve começar com "/".');
+	}
+
+	return `${PUBLIC_API_URL}${path}`;
 }
 
 // No servidor, o fetch global não carrega o cookie da página: o fetch
@@ -52,7 +60,7 @@ export async function apiFetch(
 	const doFetch = resolveFetch(fetchImpl);
 	const isMultipart = options.body instanceof FormData;
 
-	const response = await doFetch(`${PUBLIC_API_URL}${path}`, {
+	const response = await doFetch(resolvePublicApiUrl(path), {
 		credentials: 'include',
 		...options,
 		headers: {
@@ -62,7 +70,8 @@ export async function apiFetch(
 	});
 
 	if (!response.ok) {
-		throw new ApiError(response.status, await readErrorMessage(response));
+		const { message, code } = await readErrorBody(response);
+		throw new ApiError(response.status, message, code);
 	}
 
 	return response;
@@ -83,11 +92,16 @@ export async function apiClient<T>(
 	return (await response.json()) as T;
 }
 
-async function readErrorMessage(response: Response): Promise<string> {
+const DEFAULT_ERROR_MESSAGE = 'Não foi possível concluir a operação.';
+
+async function readErrorBody(response: Response): Promise<{ message: string; code?: string }> {
 	try {
-		const body = (await response.json()) as { message?: string; error?: string };
-		return body.message || body.error || 'Não foi possível concluir a operação.';
+		const body = (await response.json()) as { message?: string; error?: string; code?: unknown };
+		return {
+			message: body.message || body.error || DEFAULT_ERROR_MESSAGE,
+			code: typeof body.code === 'string' ? body.code : undefined
+		};
 	} catch {
-		return 'Não foi possível concluir a operação.';
+		return { message: DEFAULT_ERROR_MESSAGE };
 	}
 }

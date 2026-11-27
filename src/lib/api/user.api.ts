@@ -83,8 +83,8 @@ export async function listUsers(
 
 	const params = new URLSearchParams();
 
-	if (query.profile) {
-		params.set('profile', query.profile);
+	if (query.profileId) {
+		params.set('profileId', query.profileId);
 	}
 
 	if (query.search?.trim()) {
@@ -110,13 +110,24 @@ export async function listUsers(
 	return apiClient<PaginatedResponse<UserSummary>>(path, {}, fetchImpl);
 }
 
-export async function listAnalysts(fetchImpl?: typeof fetch): Promise<Analyst[]> {
+export async function listAnalysts(
+	protocol?: string,
+	fetchImpl?: typeof fetch
+): Promise<Analyst[]> {
 	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.users) {
 		const { listAnalystsMock } = await import('$lib/mocks/users.mock');
-		return listAnalystsMock();
+		return listAnalystsMock(protocol);
 	}
 
-	return apiClient<Analyst[]>(`${USERS_PATH}/analysts`, {}, fetchImpl);
+	const params = new URLSearchParams();
+	if (protocol?.trim()) params.set('protocol', protocol.trim());
+	const query = params.toString();
+
+	return apiClient<Analyst[]>(
+		query ? `${USERS_PATH}/analysts?${query}` : `${USERS_PATH}/analysts`,
+		{},
+		fetchImpl
+	);
 }
 
 export async function getUserStats(fetchImpl?: typeof fetch): Promise<UserStats> {

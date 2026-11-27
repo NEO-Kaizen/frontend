@@ -12,10 +12,21 @@ import {
 } from '$lib/types/internal-note';
 import { ApiError, type Result } from '$lib/types/result';
 
-function resolveInternalNotesError(error: ApiError, fallback: string): string {
+function resolveReadError(error: ApiError, fallback: string): string {
 	switch (error.status) {
 		case 403:
 			return 'Você não tem permissão para acessar as observações internas.';
+		case 404:
+			return 'Solicitação não encontrada.';
+		default:
+			return fallback;
+	}
+}
+
+function resolveWriteError(error: ApiError, fallback: string): string {
+	switch (error.status) {
+		case 403:
+			return 'Seu perfil permite consultar as observações internas, mas não adicionar novas.';
 		case 404:
 			return 'Solicitação não encontrada.';
 		default:
@@ -45,10 +56,7 @@ export async function getInternalNotes(
 				ok: false,
 				error: {
 					status: error.status,
-					message: resolveInternalNotesError(
-						error,
-						'Não foi possível carregar as observações internas.'
-					)
+					message: resolveReadError(error, 'Não foi possível carregar as observações internas.')
 				}
 			};
 		}
@@ -72,7 +80,7 @@ export async function createInternalNote(
 				ok: false,
 				error: {
 					status: error.status,
-					message: resolveInternalNotesError(error, 'Não foi possível publicar a observação.')
+					message: resolveWriteError(error, 'Não foi possível publicar a observação.')
 				}
 			};
 		}
@@ -93,7 +101,7 @@ export async function markInternalNotesRead(
 				ok: false,
 				error: {
 					status: error.status,
-					message: resolveInternalNotesError(
+					message: resolveReadError(
 						error,
 						'Não foi possível atualizar a visualização das observações.'
 					)

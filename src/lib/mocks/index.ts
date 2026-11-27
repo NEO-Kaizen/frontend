@@ -2,7 +2,7 @@ import { dev } from '$app/environment';
 
 // Único ponto de ligar/desligar mocks. Em produção `dev` é constante `false`
 // e as branches dos *.api.ts são eliminadas do bundle (DCE).
-export const MOCKS_ENABLED = false;
+export const MOCKS_ENABLED = true;
 
 // Toggle por domínio — desligar tudo via MOCKS_ENABLED; novos domínios entram aqui.
 // A anotação explícita mantém `MOCK_DOMAINS && MOCK_DOMAINS.<domínio>`
@@ -15,12 +15,15 @@ type MockDomains = {
 	request: true;
 	portalConfig: true;
 	users: true;
+	profiles: true;
 	prioritization: true;
 	pendingItems: true;
 	triage: true;
 	mapping: true;
 	internalNotes: true;
 	auditHistory: true;
+	notifications: true;
+	statusTimes: true;
 };
 export const MOCK_DOMAINS: false | MockDomains =
 	dev &&
@@ -32,10 +35,13 @@ export const MOCK_DOMAINS: false | MockDomains =
 		request: true,
 		portalConfig: true,
 		users: true,
+		profiles: true,
 		prioritization: true,
 		pendingItems: true,
 		triage: true,
 		mapping: true,
 		internalNotes: true,
-		auditHistory: true
+		auditHistory: true,
+		notifications: true,
+		statusTimes: true
 	} as const);

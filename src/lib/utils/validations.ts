@@ -147,7 +147,7 @@ export function isValidJustification(value: string): boolean {
 }
 
 // Nomes únicos comparando depois do trim, sem diferenciar maiúsculas.
-export function areStatusNamesUnique(statuses: readonly PortalStatus[]): boolean {
+export function areStatusNamesUnique(statuses: readonly Pick<PortalStatus, 'name'>[]): boolean {
 	const seen = new Set<string>();
 	for (const status of statuses) {
 		const normalized = status.name.trim().toLowerCase();
@@ -157,7 +157,7 @@ export function areStatusNamesUnique(statuses: readonly PortalStatus[]): boolean
 	return true;
 }
 
-export function hasActiveStatus(statuses: readonly PortalStatus[]): boolean {
+export function hasActiveStatus(statuses: readonly Pick<PortalStatus, 'isActive'>[]): boolean {
 	return statuses.some((status) => status.isActive);
 }
 
@@ -265,6 +265,10 @@ export const PASSWORD_REQUIREMENTS = ['Mínimo de 8 caracteres', 'Contém letras
 // Limites espelham o schema do backend (`UpdateProfileRequest.dto.ts` +
 // `users.schema.ts`) para o formulário bloquear antes do request.
 export const PROFILE_AREA_MAX_LENGTH = 100;
+
+export const PROFILE_NAME_MAX_LENGTH = 60;
+
+export const PROFILE_DESCRIPTION_MAX_LENGTH = 255;
 
 export const PROFILE_FULL_NAME_MAX_LENGTH = 150;
 

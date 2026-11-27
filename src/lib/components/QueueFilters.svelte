@@ -222,11 +222,12 @@
 		box-sizing: border-box;
 		background-color: var(--white);
 		border: 1px solid var(--border-color);
-		border-radius: var(--radius-lg);
+		border-radius: var(--radius-md);
 	}
 
 	.queue-filters__main {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: flex-end;
 		gap: var(--spacing-sm);
 		width: 100%;
@@ -239,6 +240,7 @@
 		align-items: flex-end;
 		min-width: 0;
 		gap: var(--spacing-sm);
+		min-width: 0;
 	}
 
 	.filter-item {
@@ -253,7 +255,8 @@
 	}
 
 	.clear-action {
-		flex-shrink: 0;
+		flex: 0 0 auto;
+		margin-left: auto;
 	}
 
 	@media (max-width: 900px) {

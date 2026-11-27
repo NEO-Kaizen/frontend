@@ -1,5 +1,8 @@
 import { getMeMock } from './auth.mock';
+import { getInternalRequestMock } from './requests.mock';
 import { ApiError } from '$lib/types/result';
+import { can } from '$lib/utils/permission-checks';
+import type { ProfileReference, ProfileSnapshot } from '$lib/types/profile';
 import {
 	INTERNAL_NOTE_PAGE_DEFAULT,
 	INTERNAL_NOTE_PAGE_MAX,
@@ -22,18 +25,73 @@ const NOTE_RANK = 0;
 const EVENT_RANK = 1;
 let nextInternalNoteId = 3;
 
+const PROFILE_REFERENCES = {
+	solicitante: { id: '1', name: 'Solicitante' },
+	analista: { id: '2', name: 'Analista' },
+	gestor: { id: '3', name: 'Gestor' },
+	administrador: { id: '4', name: 'Administrador' },
+	adminRoot: { id: '5', name: 'Admin Root' }
+} as const satisfies Record<string, ProfileReference>;
+
+const LEGACY_PROFILE: ProfileSnapshot = { id: null, name: 'Analista' };
+
+// Snapshot histórico de exibição: `SessionUser` expõe `role` apenas como
+// rótulo. Não é regra de autorização — a checagem de acesso usa `internal_note:*`.
+function profileFromSessionRole(role: string): ProfileReference {
+	switch (role) {
+		case 'Admin Root':
+			return PROFILE_REFERENCES.adminRoot;
+		case 'Administrador':
+			return PROFILE_REFERENCES.administrador;
+		case 'Gestor':
+			return PROFILE_REFERENCES.gestor;
+		case 'Analista':
+			return PROFILE_REFERENCES.analista;
+		default:
+			return PROFILE_REFERENCES.solicitante;
+	}
+}
+
+type InternalNoteAccessKey = 'internal_note:read' | 'internal_note:write';
+
+async function canAccessInternalNotes(
+	protocol: string,
+	key: InternalNoteAccessKey
+): Promise<boolean> {
+	const currentUser = await getMeMock();
+	if (can(key, 'all', currentUser)) return true;
+	if (!can(key, 'assigned', currentUser)) return false;
+
+	try {
+		const detail = await getInternalRequestMock(protocol);
+		// `assigned` para notas internas alcança só o Responsável da solicitação.
+		return detail.assignee?.id === currentUser.id;
+	} catch {
+		throw new ApiError(404, 'Solicitação não encontrada.');
+	}
+}
+
 // Ordem canônica ascendente (timestamp, depois nota antes de evento, depois id).
 const timelineStore = new Map<string, TimelineItem[]>([
 	[
 		'MAAT-8K3P-9X2M',
 		[
 			{
+				type: 'event',
+				id: 'audit:40',
+				action: 'request.assign',
+				text: 'Responsável atribuído automaticamente',
+				occurredAt: '2026-09-18T13:30:00.000Z',
+				actor: { id: '0', name: 'Sistema', profile: null },
+				changeOrigin: 'system'
+			},
+			{
 				type: 'note',
 				id: '1',
 				content:
 					'Os critérios iniciais foram revisados. Precisamos confirmar a alçada de aprovação antes do mapeamento.',
 				createdAt: '2026-09-18T13:45:00.000Z',
-				author: { id: '1', name: 'Ana Souza', role: 'Analista' }
+				author: { id: '1', name: 'Ana Souza', profile: LEGACY_PROFILE }
 			},
 			{
 				type: 'event',
@@ -41,7 +99,7 @@ const timelineStore = new Map<string, TimelineItem[]>([
 				action: 'request.status_change',
 				text: 'Status alterado: Em triagem',
 				occurredAt: '2026-09-18T15:02:10.000Z',
-				actor: { id: '1', name: 'Ana Souza', role: 'Analista' },
+				actor: { id: '1', name: 'Ana Souza', profile: PROFILE_REFERENCES.analista },
 				changeOrigin: 'admin',
 				justification:
 					'Triagem iniciada após conferência das informações obrigatórias do formulário.',
@@ -54,7 +112,7 @@ const timelineStore = new Map<string, TimelineItem[]>([
 				action: 'request.reassign',
 				text: 'Responsável substituído: Marcos Lima',
 				occurredAt: '2026-09-18T15:04:00.000Z',
-				actor: { id: '3', name: 'Adriana Castro', role: 'Administrador' },
+				actor: { id: '3', name: 'Adriana Castro', profile: PROFILE_REFERENCES.administrador },
 				changeOrigin: 'admin',
 				lastTechnicalMessage: null
 			},
@@ -64,7 +122,7 @@ const timelineStore = new Map<string, TimelineItem[]>([
 				action: 'request.assign',
 				text: 'Responsável atribuído: Marcos Lima',
 				occurredAt: '2026-09-18T15:05:44.000Z',
-				actor: { id: '3', name: 'Adriana Castro', role: 'Administrador' },
+				actor: { id: '3', name: 'Adriana Castro', profile: PROFILE_REFERENCES.administrador },
 				changeOrigin: 'admin',
 				lastTechnicalMessage: null
 			},
@@ -74,7 +132,7 @@ const timelineStore = new Map<string, TimelineItem[]>([
 				action: 'request.unassign',
 				text: 'Responsável removido',
 				occurredAt: '2026-09-18T15:06:30.000Z',
-				actor: { id: '3', name: 'Adriana Castro', role: 'Administrador' },
+				actor: { id: '3', name: 'Adriana Castro', profile: PROFILE_REFERENCES.administrador },
 				changeOrigin: 'admin',
 				lastTechnicalMessage: null
 			},
@@ -83,7 +141,7 @@ const timelineStore = new Map<string, TimelineItem[]>([
 				id: '2',
 				content: 'A área responsável foi acionada e deve retornar até o fim do dia.',
 				createdAt: '2026-09-18T16:20:00.000Z',
-				author: { id: '2', name: 'Marcos Lima', role: 'Gestor' }
+				author: { id: '2', name: 'Marcos Lima', profile: PROFILE_REFERENCES.gestor }
 			},
 			{
 				type: 'event',
@@ -91,7 +149,7 @@ const timelineStore = new Map<string, TimelineItem[]>([
 				action: 'mapping.assign',
 				text: 'Responsável pelo mapeamento alterado: Júlia Reis',
 				occurredAt: '2026-09-19T14:11:02.000Z',
-				actor: { id: '9', name: 'Júlia Reis', role: 'Analista' },
+				actor: { id: '9', name: 'Júlia Reis', profile: PROFILE_REFERENCES.analista },
 				changeOrigin: 'internal',
 				lastTechnicalMessage: null
 			},
@@ -113,7 +171,7 @@ const timelineStore = new Map<string, TimelineItem[]>([
 				action: 'request.status_change',
 				text: 'Status alterado: Concluído',
 				occurredAt: '2026-09-21T16:40:00.000Z',
-				actor: { id: '9', name: 'Júlia Reis', role: 'Analista' },
+				actor: { id: '9', name: 'Júlia Reis', profile: PROFILE_REFERENCES.analista },
 				changeOrigin: 'admin',
 				justification:
 					'Autonomia validada em produção por 30 dias sem divergências; demanda atendida dentro do escopo.',
@@ -389,6 +447,9 @@ export async function getInternalNotesMock(
 	params: { limit?: number; cursor?: string } = {}
 ): Promise<InternalNotesResponse> {
 	const normalized = normalizeProtocol(protocol);
+	if (!(await canAccessInternalNotes(normalized, 'internal_note:read'))) {
+		throw new ApiError(403, 'Você não tem permissão para visualizar observações internas.');
+	}
 	const limit = params.limit ?? INTERNAL_NOTE_PAGE_DEFAULT;
 	if (
 		!Number.isInteger(limit) ||
@@ -420,8 +481,8 @@ export async function createInternalNoteMock(
 ): Promise<TimelineNote> {
 	const normalized = normalizeProtocol(protocol);
 	const currentUser = await getMeMock();
-	if (currentUser.role === 'Solicitante') {
-		throw new ApiError(403, 'Acesso restrito aos perfis internos.');
+	if (!(await canAccessInternalNotes(normalized, 'internal_note:write'))) {
+		throw new ApiError(403, 'Você não tem permissão para criar observações internas.');
 	}
 
 	const note: TimelineNote = {
@@ -432,7 +493,7 @@ export async function createInternalNoteMock(
 		author: {
 			id: currentUser.id,
 			name: currentUser.name,
-			role: currentUser.role
+			profile: profileFromSessionRole(currentUser.role)
 		}
 	};
 	const timeline = [...getTimeline(normalized), note].sort(compareAsc);
@@ -441,19 +502,22 @@ export async function createInternalNoteMock(
 	return delay(structuredClone(note));
 }
 
-export function markInternalNotesReadMock(
+export async function markInternalNotesReadMock(
 	protocol: string,
 	payload: MarkInternalNotesReadPayload
 ): Promise<void> {
 	const normalized = normalizeProtocol(protocol);
+	if (!(await canAccessInternalNotes(normalized, 'internal_note:read'))) {
+		throw new ApiError(403, 'Você não tem permissão para visualizar observações internas.');
+	}
 	if (!/^[1-9]\d*$/.test(payload.lastReadNoteId)) {
-		return Promise.reject(new ApiError(400, 'Identificador da observação inválido.'));
+		throw new ApiError(400, 'Identificador da observação inválido.');
 	}
 	const belongs = getTimeline(normalized).some(
 		(item) => item.type === 'note' && item.id === payload.lastReadNoteId
 	);
 	if (!belongs) {
-		return Promise.reject(new ApiError(400, 'Observação interna não pertence à solicitação.'));
+		throw new ApiError(400, 'Observação interna não pertence à solicitação.');
 	}
 	const incoming = BigInt(payload.lastReadNoteId);
 	const current = readCheckpoints.get(normalized) ?? 0n;

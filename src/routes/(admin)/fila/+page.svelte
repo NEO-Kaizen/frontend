@@ -10,6 +10,7 @@
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import { exportQueueCsv } from '$lib/services/report.service';
+	import { has } from '$lib/services/access.service';
 	import { notifyError } from '$lib/utils/feedback';
 	import {
 		ALL_FILTER,
@@ -35,7 +36,7 @@
 	const isFetching = $derived(navigating.to?.route?.id === page.route.id);
 	let isExporting = $state(false);
 
-	const canExport = $derived(data.user?.role === 'Gestor' || data.user?.role === 'Administrador');
+	const canExport = $derived(has('queue:export', data.user));
 	const hasExportableRows = $derived(data.result.ok && data.result.data.total > 0);
 
 	const queuePath = resolve('/(admin)/fila');
@@ -296,7 +297,7 @@
 	<title>Fila Centralizada | {data.portalConfig.platformName}</title>
 </svelte:head>
 
-<section class="queue-page">
+<main class="content-container queue-page">
 	<header class="queue-page__header">
 		<div>
 			<h1>Fila Centralizada</h1>
@@ -362,14 +363,13 @@
 		detailRoute="/(admin)/fila/[protocolo]"
 		onpagechange={goToPage}
 	/>
-</section>
+</main>
 
 <style>
 	.queue-page {
 		display: flex;
 		flex-direction: column;
 		width: 100%;
-		max-width: var(--largura-maxima-conteudo);
 		gap: var(--spacing-lg);
 	}
 
@@ -403,7 +403,7 @@
 		color: var(--gray);
 		background: var(--white);
 		border: var(--border-default);
-		border-radius: var(--radius-lg);
+		border-radius: var(--radius-md);
 		box-shadow: var(--regular-shadow);
 	}
 

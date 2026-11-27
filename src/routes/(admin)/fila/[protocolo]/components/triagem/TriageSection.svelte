@@ -8,7 +8,7 @@
 	import Input from '$lib/components/Input.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import Textarea from '$lib/components/Textarea.svelte';
-	import { canEditSolicitation } from '$lib/services/access.service';
+	import { can } from '$lib/services/access.service';
 	import { getInternalRequest } from '$lib/services/request.service';
 	import { createTriage, getTriage } from '$lib/services/triage.service';
 	import {
@@ -53,8 +53,11 @@
 		categories: portalCategories
 	});
 
+	const user = $derived(page.data.user);
 	const canEditTriage = $derived(
-		canEditSolicitation(solicitation.assignee?.id, page.data.user ?? null)
+		can('triage:write', 'all', user) ||
+			(can('triage:write', 'assigned', user) &&
+				Boolean(user && solicitation.assignee?.id === user.id))
 	);
 
 	// Triagem vigente via `GET /triage` (lazy, ao montar a aba — contrato §2):
@@ -66,8 +69,9 @@
 	let activeLoadId = 0;
 	const isLoading = $derived(!triageLoaded && loadError === null);
 	const isFinalized = $derived(triageLoaded && serverTriage !== null && !isCreatingNew);
-	// Somente leitura quando a triagem está finalizada ou quando o perfil não
-	// pode editar (ex.: Gestor). Enquanto carrega, o formulário fica bloqueado.
+	// Somente leitura quando a triagem está finalizada ou quando a sessão não
+	// tem `triage:write` com custódia sobre a solicitação. Enquanto carrega, o
+	// formulário fica bloqueado.
 	const isReadonly = $derived(triageLoaded && (!canEditTriage || isFinalized));
 
 	function applyDraftPrecedence(protocol: string, fetched: TriageAssessment | null) {
@@ -139,7 +143,7 @@
 	// salvo por cima da triagem finalizada e depois relido pelo
 	// `applyDraftPrecedence`, deixando o formulário em somente leitura em branco.
 	$effect(() => {
-		// Perfis sem permissão de edição (ex.: Gestor) não persistem rascunho.
+		// Sessões sem `triage:write` com custódia sobre a solicitação não persistem rascunho.
 		if (!triageLoaded || !canEditTriage) return;
 
 		const snapshot = $state.snapshot(draft);

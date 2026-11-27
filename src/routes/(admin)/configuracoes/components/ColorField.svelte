@@ -177,6 +177,7 @@
 				step="1"
 				value={alphaPercent}
 				aria-label={`Opacidade de ${label}`}
+				{disabled}
 				oninput={handleAlphaInput}
 			/>
 			<span class="color-field-alpha-value">{alphaPercent}%</span>

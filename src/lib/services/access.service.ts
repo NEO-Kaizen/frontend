@@ -1,160 +1,155 @@
+import { base, resolve } from '$app/paths';
 import { redirect } from '@sveltejs/kit';
 import type { RouteId } from '$app/types';
 import type { SessionUser } from '$lib/types/auth';
-import type { UserType } from '$lib/types/user';
+import {
+	OPERATIONAL_AREA_KEYS,
+	PORTAL_ACCESS_KEYS,
+	type PermissionKey
+} from '$lib/types/permission';
+import { has, hasAny } from '$lib/utils/permission-checks';
 
-const LOGIN_PATH = '/login' as const;
-const UNAUTHORIZED_PATH = '/sem-autorizacao' as const;
+export { can, has, hasAny } from '$lib/utils/permission-checks';
+
+const LOGIN_ROUTE = '/(public)/login' as const;
+const UNAUTHORIZED_ROUTE = '/(public)/sem-autorizacao' as const;
+const CHANGE_PASSWORD_ROUTE = '/(app)/redefinir-senha' as const;
 const CHANGE_PASSWORD_PATH = '/redefinir-senha' as const;
-const HOME_PATH = '/' as const;
-const DASHBOARD_ROUTE = '/(admin)/home' as const;
-const DASHBOARD_PATH = '/home' as const;
+const UNAUTHORIZED_PATH = resolve(UNAUTHORIZED_ROUTE);
+const RETURN_TO_IGNORED_ROUTES: Set<string> = new Set([
+	resolve(LOGIN_ROUTE),
+	resolve(UNAUTHORIZED_ROUTE)
+]);
 
-type PostLoginRoute = typeof CHANGE_PASSWORD_PATH | typeof DASHBOARD_PATH | typeof HOME_PATH;
+type HomeRoute = Extract<
+	RouteId,
+	| '/(admin)/fila'
+	| '/(admin)/dashboard'
+	| '/(admin)/usuarios'
+	| '/(admin)/historico-de-logs'
+	| '/(admin)/configuracoes'
+	| '/(public)/acompanhar'
+>;
 
-export type GuardRuleId = 'anySession' | 'internalArea' | 'managementOnly' | 'adminOnly';
-
-const INTERNAL_PROFILES: readonly UserType[] = ['Analista', 'Gestor', 'Administrador'];
-
-const GUARD_RULES: Record<GuardRuleId, { profiles: 'any' | readonly UserType[] }> = {
-	anySession: { profiles: 'any' },
-	internalArea: { profiles: INTERNAL_PROFILES },
-	managementOnly: { profiles: ['Gestor', 'Administrador'] },
-	adminOnly: { profiles: ['Administrador'] }
-};
-
-export function isInternalProfile(role: UserType): boolean {
-	return INTERNAL_PROFILES.includes(role);
+interface HomeRedirect {
+	keys: readonly PermissionKey[];
+	route: HomeRoute;
 }
 
-// Permissão de edição do conteúdo interno da solicitação (informações e
-// mapeamento): Administrador edita qualquer uma; os demais perfis editam
-// apenas a solicitação que lhes foi atribuída (responsável). O Gestor
-// visualiza em somente leitura porque não é atribuído como responsável.
-// A regra vive aqui para nenhum componente precisar de role hardcoded.
-export function canEditSolicitation(
-	assigneeId: string | null | undefined,
-	user: SessionUser | null
-): boolean {
-	if (!user) return false;
-	if (user.role === 'Administrador') return true;
-	return Boolean(assigneeId && assigneeId === user.id);
-}
+const HOME_REDIRECTS: readonly HomeRedirect[] = [
+	{ keys: ['queue:read'], route: '/(admin)/fila' },
+	{ keys: ['reports:read'], route: '/(admin)/dashboard' },
+	{ keys: ['user:read', 'profile:read'], route: '/(admin)/usuarios' },
+	{ keys: ['audit:read'], route: '/(admin)/historico-de-logs' },
+	{ keys: PORTAL_ACCESS_KEYS, route: '/(admin)/configuracoes' },
+	{ keys: ['request:track'], route: '/(public)/acompanhar' }
+];
 
-// Visualização da triagem (`GET /triage`): Administrador e Gestor sempre
-// visualizam (o Gestor em somente leitura); o Analista apenas quando é o
-// responsável atual (`assignee`) da solicitação. A edição/finalização
-// permanece restrita a `canEditSolicitation` (Administrador ou responsável).
-export function canViewTriage(
-	assigneeId: string | null | undefined,
-	user: SessionUser | null
-): boolean {
-	if (!user) return false;
-	if (user.role === 'Administrador' || user.role === 'Gestor') return true;
-	return Boolean(assigneeId && assigneeId === user.id);
-}
+export const ADMIN_AREA_KEYS: readonly PermissionKey[] = [
+	...OPERATIONAL_AREA_KEYS,
+	...PORTAL_ACCESS_KEYS
+];
 
-export function isProfileAllowed(role: UserType, profiles: 'any' | readonly UserType[]): boolean {
-	return profiles === 'any' || profiles.includes(role);
-}
-
-export function canAssignAnalyst(user: SessionUser | null): boolean {
-	return user?.role === 'Administrador';
-}
-
-export function canCalculatePriority(user: SessionUser | null, assigneeId: string | null): boolean {
-	if (!user) return false;
-	if (user.role === 'Administrador') return true;
-	if (user.role === 'Analista' && assigneeId !== null && user.id === assigneeId) return true;
-	return false;
-}
-
-// Quem pode abrir "Alterar Status" (`PATCH /requests/:protocol/status`, §3.3):
-// Administrador (bypass — qualquer `isActive`) ou o Analista com custódia da
-// solicitação (responsável de triagem ou de mapeamento). Gestor e demais
-// perfis são somente leitura. O status atual ser terminal não bloqueia por si
-// — o backend não aplica esse gate no `PATCH /status`; a elegibilidade do alvo
-// (free/ativo/não restrito) já é filtrada em `statusChangeTargets`. A lista de
-// alvos válidos é derivada do PortalConfig.
-export function canChangeStatusRole(
-	user: SessionUser | null,
-	assigneeId: string | null | undefined,
-	mappingAssigneeId: string | null | undefined
-): 'admin' | 'analyst' | null {
-	if (!user) return null;
-	if (user.role === 'Administrador') return 'admin';
-	if (user.role !== 'Analista') return null;
-	const hasCustody =
-		Boolean(assigneeId && assigneeId === user.id) ||
-		Boolean(mappingAssigneeId && mappingAssigneeId === user.id);
-	return hasCustody ? 'analyst' : null;
-}
-
-export function isAllowedReturnTo(value: string): value is PostLoginRoute {
+export function isAllowedReturnTo(value: string): boolean {
 	if (!value.startsWith('/')) return false;
-	if (value.includes('://')) return false;
 	if (value.startsWith('//')) return false;
-	return true;
-}
-
-export function guard(rule: GuardRuleId, user: SessionUser | null, pathname?: string): void {
-	const profiles = GUARD_RULES[rule].profiles;
-	if (!user) {
-		const returnUrl =
-			pathname && isAllowedReturnTo(pathname)
-				? `${LOGIN_PATH}?returnTo=${encodeURIComponent(pathname)}`
-				: LOGIN_PATH;
-		redirect(303, returnUrl);
+	if (value.includes('://') || value.includes('\\')) return false;
+	if ([...value].some((char) => char.charCodeAt(0) <= 0x1f || char.charCodeAt(0) === 0x7f)) {
+		return false;
 	}
-	if (!isProfileAllowed(user.role, profiles)) {
-		redirect(303, UNAUTHORIZED_PATH);
+	try {
+		const url = new URL(value, 'http://internal');
+		const isSameOrigin = url.origin === 'http://internal';
+		const isInsideApp = !base || url.pathname === base || url.pathname.startsWith(`${base}/`);
+
+		return isSameOrigin && isInsideApp;
+	} catch {
+		return false;
 	}
 }
 
-export function redirectToLogin(url: URL, loginUrl: string): never {
-	const returnTo = url.pathname + url.search;
+function appendReturnTo(destination: string, returnTo?: string | null): string {
+	if (!returnTo || !isAllowedReturnTo(returnTo)) return destination;
+
 	const searchParams = new URLSearchParams({ returnTo });
-	redirect(303, `${loginUrl}?${searchParams.toString()}`);
+	return `${destination}?${searchParams.toString()}`;
 }
 
-export function getHomeRedirect(
-	user: SessionUser | null
-): Extract<RouteId, '/(admin)/home'> | null {
-	if (user && isInternalProfile(user.role)) {
-		return DASHBOARD_ROUTE;
-	}
-	return null;
+function loginRedirectPath(pathname?: string): string {
+	return appendReturnTo(resolve(LOGIN_ROUTE), pathname);
 }
 
-export function isPasswordChangeRequired(user: SessionUser | null): boolean {
+export function guardSession(user: SessionUser | null, pathname?: string): void {
+	if (!user) redirect(303, loginRedirectPath(pathname));
+}
+
+export function guard(key: PermissionKey, user: SessionUser | null, pathname?: string): void {
+	guardSession(user, pathname);
+	if (!has(key, user)) redirect(303, UNAUTHORIZED_PATH);
+}
+
+export function guardAny(
+	keys: readonly PermissionKey[],
+	user: SessionUser | null,
+	pathname?: string
+): void {
+	guardSession(user, pathname);
+	if (!hasAny(keys, user)) redirect(303, UNAUTHORIZED_PATH);
+}
+
+export function redirectToLogin(url: URL): never {
+	const returnTo = url.pathname + url.search;
+	redirect(303, appendReturnTo(resolve(LOGIN_ROUTE), returnTo));
+}
+
+export function getHomeRedirect(user: SessionUser | null | undefined): HomeRoute | null {
+	return HOME_REDIRECTS.find((item) => hasAny(item.keys, user))?.route ?? null;
+}
+
+export function getHomePath(user: SessionUser | null | undefined): string | null {
+	const home = getHomeRedirect(user);
+	return home ? resolve(home) : null;
+}
+
+export function isPasswordChangeRequired(user: SessionUser | null | undefined): boolean {
 	return Boolean(user?.mustChangePassword);
 }
 
 export function isPasswordChangeRoute(pathname: string): boolean {
-	return pathname.startsWith(CHANGE_PASSWORD_PATH);
+	const changePasswordPath = `${base}${CHANGE_PASSWORD_PATH}`;
+
+	return pathname === changePasswordPath || pathname.startsWith(`${changePasswordPath}/`);
 }
 
-export function guardPasswordChange(user: SessionUser | null, pathname: string): void {
-	if (user && isPasswordChangeRequired(user) && !isPasswordChangeRoute(pathname)) {
-		redirect(303, CHANGE_PASSWORD_PATH);
-	}
+export function guardPasswordChange(user: SessionUser | null, url: URL): void {
+	if (!user || !isPasswordChangeRequired(user) || isPasswordChangeRoute(url.pathname)) return;
+
+	// Um returnTo para login/sem-autorizacao devolveria o usuário à tela de
+	// entrada depois da troca obrigatória de senha, em vez da rota inicial.
+	const returnTo = RETURN_TO_IGNORED_ROUTES.has(url.pathname) ? null : url.pathname + url.search;
+
+	redirect(303, appendReturnTo(resolve(CHANGE_PASSWORD_ROUTE), returnTo));
 }
 
 export function getPostLoginRedirect(user: SessionUser, returnTo?: string | null): string {
 	if (isPasswordChangeRequired(user)) {
-		if (returnTo && isAllowedReturnTo(returnTo)) {
-			return `${CHANGE_PASSWORD_PATH}?returnTo=${encodeURIComponent(returnTo)}`;
-		}
-		return CHANGE_PASSWORD_PATH;
+		return appendReturnTo(resolve(CHANGE_PASSWORD_ROUTE), returnTo);
 	}
 
 	if (returnTo && isAllowedReturnTo(returnTo)) {
 		return returnTo;
 	}
 
-	if (INTERNAL_PROFILES.includes(user.role)) {
-		return DASHBOARD_PATH;
+	return getHomePath(user) ?? UNAUTHORIZED_PATH;
+}
+
+// Destino do clique num card de notificação: detalhe interno para quem tem
+// acesso de leitura à solicitação; acompanhamento público para quem só
+// acompanha o próprio protocolo.
+export function resolveNotificationTarget(user: SessionUser, protocol: string): string {
+	if (has('request:read', user)) {
+		return resolve('/(admin)/fila/[protocolo]', { protocolo: protocol });
 	}
 
-	return HOME_PATH;
+	return resolve('/(public)/acompanhar/[protocolo]', { protocolo: protocol });
 }

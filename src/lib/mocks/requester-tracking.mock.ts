@@ -194,6 +194,7 @@ function toAuthenticatedDetails(
 
 	return {
 		...publicDetails,
+		canCancel: false,
 		operational: {
 			mainRisks: fixture.operational.mainRisks,
 			clientImpact: fixture.operational.clientImpact,

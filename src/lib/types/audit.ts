@@ -53,3 +53,35 @@ export interface AuditHistoryDetail {
 	change_origin: string | null;
 	occurred_at: string;
 }
+
+// ---- Auditoria por protocolo (contrato RF13 §3) ----
+// GET /audit-logs/{protocol}: todos os registros com `entity_type = request`
+// da solicitação, sem paginação. Não são só eventos de Status — a timeline de
+// Status filtra por `STATUS_AUDIT_ACTION_TYPES`.
+
+export const STATUS_AUDIT_ACTION_TYPES = [
+	'request.status_change',
+	'request.override_status_admin',
+	'request.triage',
+	'request.access_denied'
+] as const;
+
+export type StatusAuditActionType = (typeof STATUS_AUDIT_ACTION_TYPES)[number];
+
+// `previous_value`/`new_value` são nomes de Status nas transições simples.
+// `change_origin`: `admin`, `internal`, `system`, `requester` ou outra origem
+// cadastrada no backend — por isso `string`, não union fechada.
+export interface RequestAuditEvent {
+	audit_id: number;
+	entity_type: string;
+	entity_id: string;
+	action_type: string;
+	actor: AuditActor;
+	previous_value: string | null;
+	new_value: string | null;
+	note: string | null;
+	last_technical_message: string | null;
+	ip_address: string | null;
+	change_origin: string | null;
+	occurred_at: string;
+}
