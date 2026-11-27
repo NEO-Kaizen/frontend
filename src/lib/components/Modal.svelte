@@ -25,15 +25,55 @@
 		typeof window.matchMedia === 'function' &&
 		window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+	const FOCUSABLE_SELECTOR =
+		'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+	function getFocusableElements(): HTMLElement[] {
+		if (!shellElement) return [];
+		return Array.from(shellElement.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+			(element) => element.getClientRects().length > 0
+		);
+	}
+
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape') {
+			event.preventDefault();
 			onclose();
+			return;
+		}
+
+		if (event.key !== 'Tab') return;
+
+		const focusable = getFocusableElements();
+		if (focusable.length === 0) {
+			event.preventDefault();
+			shellElement?.focus();
+			return;
+		}
+
+		const first = focusable[0];
+		const last = focusable[focusable.length - 1];
+		const active = document.activeElement;
+
+		if (!shellElement?.contains(active) || active === shellElement) {
+			event.preventDefault();
+			(event.shiftKey ? last : first).focus();
+			return;
+		}
+
+		if (event.shiftKey && active === first) {
+			event.preventDefault();
+			last.focus();
+		} else if (!event.shiftKey && active === last) {
+			event.preventDefault();
+			first.focus();
 		}
 	}
 
 	onMount(() => {
 		previouslyFocused = document.activeElement as HTMLElement;
-		shellElement?.focus();
+		const initialFocus = shellElement?.querySelector<HTMLElement>('[data-autofocus]');
+		(initialFocus ?? shellElement)?.focus();
 	});
 
 	$effect(() => {

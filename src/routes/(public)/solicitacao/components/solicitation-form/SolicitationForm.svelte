@@ -3,12 +3,15 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import Button from '$lib/components/Button.svelte';
+	import DuplicateAlert from './DuplicateAlert.svelte';
+	import DuplicateAlertModal from './DuplicateAlertModal.svelte';
 	import StepComplementary from './StepComplementary.svelte';
 	import StepDemand from './StepDemand.svelte';
 	import StepIdentification from './StepIdentification.svelte';
 	import StepOperational from './StepOperational.svelte';
 	import StepsForm from './StepsForm.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import { checkDemandDuplicates } from '$lib/services/duplicate.service';
 	import { clearProtocol, loadProtocol, saveProtocol } from '$lib/services/last-protocol.service';
 	import { submitDemand } from '$lib/services/request.service';
 	import {
@@ -18,12 +21,14 @@
 		type SolicitationDraft
 	} from '$lib/services/solicitation-draft.service';
 	import type { SessionUser } from '$lib/types/auth';
+	import type { DuplicateCheckResponse } from '$lib/types/duplicate';
 	import type { SolicitationMode } from '$lib/types/portal-config';
 	import type { RequesterProfileBlock } from '$lib/types/user';
 	import type {
 		ComplementaryData,
 		CreateRequestPayload,
 		Criticality,
+		DemandBlock,
 		DemandData,
 		Frequency,
 		IdentificationData,
@@ -80,6 +85,27 @@
 	let submittedProtocol = $state('');
 	let submitError = $state('');
 	let protocolCopied = $state(false);
+
+	// Alerta de duplicidade (RF16): estado transitório da tela, fora do rascunho
+	// do localStorage. A consulta roda só ao concluir a aba de Demanda.
+	let duplicateAlert = $state<DuplicateCheckResponse | null>(null);
+	let duplicateCheckKey = $state('');
+	let duplicateRequestId = 0;
+	let isCheckingDuplicates = $state(false);
+	let isDuplicateDialogOpen = $state(false);
+
+	const currentDemandKey = $derived(JSON.stringify(buildDemandBlock()));
+	// Alerta só vale para a Demanda consultada: editar qualquer campo o remove
+	// da tela até a próxima checagem.
+	const activeDuplicateAlert = $derived(
+		duplicateAlert && currentDemandKey === duplicateCheckKey ? duplicateAlert : null
+	);
+	const highConfidenceItems = $derived(
+		activeDuplicateAlert?.confidence === 'high' ? activeDuplicateAlert.items.slice(0, 3) : []
+	);
+	const mediumConfidenceItems = $derived(
+		activeDuplicateAlert?.confidence === 'medium' ? activeDuplicateAlert.items.slice(0, 5) : []
+	);
 
 	let copyTimeout: ReturnType<typeof setTimeout> | undefined;
 
@@ -250,25 +276,128 @@
 		return step4Ref?.validate() ?? true;
 	}
 
-	function handleNext() {
-		if (!validateCurrentStep()) return;
-
+	function advanceFromCurrentStep(): void {
 		completedSteps = new Set([...completedSteps, currentStep]);
 		const nextStep = currentStep + 1;
 		visitedSteps = new Set([...visitedSteps, nextStep]);
 		currentStep = nextStep;
 	}
 
+	function buildDemandBlock(): DemandBlock {
+		return {
+			title: demand.title.trim(),
+			category: demand.category as RequestCategory,
+			processName: demand.processName.trim(),
+			requestType: demand.requestType as RequestType,
+			description: demand.description.trim(),
+			problem: demand.problem.trim(),
+			justification: demand.justification.trim(),
+			expectedResult: demand.expectedResult.trim()
+		};
+	}
+
+	function resetDuplicateState(): void {
+		duplicateRequestId += 1;
+		duplicateAlert = null;
+		duplicateCheckKey = '';
+		isCheckingDuplicates = false;
+		isDuplicateDialogOpen = false;
+	}
+
+	// Decide se a aba de Demanda pode ser concluída. Retorna `false` quando a
+	// alta bloqueia (modal aberto) ou quando a média acabou de aparecer para
+	// leitura; nesses casos um novo clique repete a decisão sem nova consulta.
+	async function canLeaveDemandStep(): Promise<boolean> {
+		const demandBlock = buildDemandBlock();
+		const demandKey = JSON.stringify(demandBlock);
+
+		if (duplicateAlert && demandKey === duplicateCheckKey) {
+			if (duplicateAlert.confidence === 'high') {
+				isDuplicateDialogOpen = true;
+				return false;
+			}
+			if (duplicateAlert.confidence === 'medium') {
+				duplicateAlert = null;
+				return true;
+			}
+		}
+
+		const requestId = ++duplicateRequestId;
+		isCheckingDuplicates = true;
+		duplicateAlert = null;
+		duplicateCheckKey = demandKey;
+
+		const result = await checkDemandDuplicates(demandBlock);
+
+		// Cancelar/resetar ou uma nova checagem tornam esta resposta obsoleta.
+		if (requestId !== duplicateRequestId) return false;
+
+		isCheckingDuplicates = false;
+
+		// A Demanda mudou ou a etapa não é mais a atual: descarta a resposta.
+		if (currentStep !== 2 || JSON.stringify(buildDemandBlock()) !== demandKey) return false;
+
+		// Falha de rede/500 degrada para "sem alerta" e não bloqueia o cadastro.
+		if (!result.ok || result.data.items.length === 0) return true;
+
+		if (result.data.confidence === 'high') {
+			duplicateAlert = result.data;
+			isDuplicateDialogOpen = true;
+			return false;
+		}
+
+		if (result.data.confidence === 'medium') {
+			duplicateAlert = result.data;
+			return false;
+		}
+
+		return true;
+	}
+
+	async function handleNext() {
+		if (isCheckingDuplicates) return;
+		if (!validateCurrentStep()) return;
+
+		if (currentStep === 2) {
+			if (await canLeaveDemandStep()) advanceFromCurrentStep();
+			return;
+		}
+
+		advanceFromCurrentStep();
+	}
+
+	function handleReviewDuplicates(): void {
+		isDuplicateDialogOpen = false;
+	}
+
+	function handleCreateDespiteDuplicates(): void {
+		isDuplicateDialogOpen = false;
+		resetDuplicateState();
+		advanceFromCurrentStep();
+	}
+
 	function handleBack() {
+		if (isCheckingDuplicates) return;
 		if (currentStep > 1) {
 			currentStep = currentStep - 1;
 		}
 	}
 
-	function handleStepClick(stepId: number) {
-		if (visitedSteps.has(stepId)) {
+	async function handleStepClick(stepId: number) {
+		if (isCheckingDuplicates) return;
+		if (!visitedSteps.has(stepId)) return;
+
+		// Qualquer salto para depois da Demanda passa pela aba 2: valida o bloco
+		// e respeita o Alerta de duplicidade, mesmo vindo da etapa 1.
+		if (stepId > 2 && currentStep < 3) {
+			currentStep = 2;
+			if (!validateCurrentStep()) return;
+			if (!(await canLeaveDemandStep())) return;
 			currentStep = stepId;
+			return;
 		}
+
+		currentStep = stepId;
 	}
 
 	function handleCancel() {
@@ -284,6 +413,7 @@
 	function resetForm() {
 		clearDraft(user?.id ?? null);
 		clearProtocol();
+		resetDuplicateState();
 		currentStep = 1;
 		completedSteps = new Set();
 		visitedSteps = new Set([1]);
@@ -392,16 +522,7 @@
 				manager: identification.manager.trim(),
 				additionalContact: identification.additionalContact.trim() || undefined
 			},
-			demand: {
-				title: demand.title.trim(),
-				category: demand.category as RequestCategory,
-				processName: demand.processName.trim(),
-				requestType: demand.requestType as RequestType,
-				description: demand.description.trim(),
-				problem: demand.problem.trim(),
-				justification: demand.justification.trim(),
-				expectedResult: demand.expectedResult.trim()
-			},
+			demand: buildDemandBlock(),
 			operational: {
 				processDescription: operational.processDescription.trim(),
 				processSteps: operational.processSteps.trim(),
@@ -493,7 +614,7 @@
 		current={currentStep}
 		{completedSteps}
 		{visitedSteps}
-		disabled={isSubmitting || submitted}
+		disabled={isSubmitting || submitted || isCheckingDuplicates}
 		onstepclick={handleStepClick}
 	/>
 
@@ -544,6 +665,12 @@
 			</div>
 			<div hidden={currentStep !== 2}>
 				<StepDemand bind:this={step2Ref} bind:data={demand} {categoryOptions} />
+
+				<div class="duplicate-live" aria-live="polite" aria-atomic="true">
+					{#if mediumConfidenceItems.length > 0}
+						<DuplicateAlert items={mediumConfidenceItems} />
+					{/if}
+				</div>
 			</div>
 			<div hidden={currentStep !== 3}>
 				<StepOperational bind:this={step3Ref} bind:data={operational} />
@@ -557,11 +684,13 @@
 			{/if}
 
 			<footer class="form-actions">
-				<Button variant="outline-neutral" onclick={handleCancel}>Cancelar</Button>
+				<Button variant="outline-neutral" onclick={handleCancel} disabled={isCheckingDuplicates}>
+					Cancelar
+				</Button>
 
-				<div class="actions-right">
+				<div class="actions-right" aria-busy={isCheckingDuplicates}>
 					{#if currentStep > 1}
-						<Button variant="outline" onclick={handleBack}>
+						<Button variant="outline" onclick={handleBack} disabled={isCheckingDuplicates}>
 							<Icon iconName="arrowBack" iconSize="md" />
 							Voltar</Button
 						>
@@ -569,8 +698,12 @@
 
 					{#if currentStep < 4}
 						<Button variant="primary" onclick={handleNext}>
-							Avançar
-							<Icon iconName="arrowForward" iconSize="md" />
+							{#if isCheckingDuplicates}
+								Verificando…
+							{:else}
+								Avançar
+								<Icon iconName="arrowForward" iconSize="md" />
+							{/if}
 						</Button>
 					{:else}
 						<Button variant="primary" onclick={handleSubmit} loading={isSubmitting}>
@@ -582,6 +715,14 @@
 			</footer>
 		{/if}
 	</div>
+
+	{#if !submitted && isDuplicateDialogOpen && highConfidenceItems.length > 0}
+		<DuplicateAlertModal
+			items={highConfidenceItems}
+			onreview={handleReviewDuplicates}
+			oncontinue={handleCreateDespiteDuplicates}
+		/>
+	{/if}
 </div>
 
 <style>
