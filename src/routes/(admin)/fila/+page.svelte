@@ -33,7 +33,9 @@
 	let { data }: PageProps = $props();
 
 	// Navegação pendente para a própria rota: estado de carregamento da tabela.
-	const isFetching = $derived(navigating.to?.route?.id === page.route.id);
+	// `invalidate` não popula `navigating`; o estado local cobre o retry.
+	let isRetrying = $state(false);
+	const isFetching = $derived(navigating.to?.route?.id === page.route.id || isRetrying);
 	let isExporting = $state(false);
 
 	const canExport = $derived(has('queue:export', data.user));
@@ -196,7 +198,7 @@
 			keepFocus: true,
 			noScroll: true,
 			replaceState: true
-		});
+		}).catch(() => notifyError('Não foi possível carregar a página. Tente novamente.'));
 	}
 
 	async function handleFilterChange(next: QueueFiltersState) {
@@ -221,8 +223,13 @@
 			sortOrder: next.sortOrder === DEFAULT_SORT_ORDER ? null : next.sortOrder
 		})}`;
 
-		// eslint-disable-next-line svelte/no-navigation-without-resolve
-		await goto(target, { keepFocus: true, noScroll: true });
+		try {
+			// eslint-disable-next-line svelte/no-navigation-without-resolve
+			await goto(target, { keepFocus: true, noScroll: true });
+		} catch {
+			syncFiltersFromUrl();
+			notifyError('Não foi possível aplicar os filtros. Tente novamente.');
+		}
 	}
 
 	async function handleClearFilters(): Promise<void> {
@@ -235,7 +242,12 @@
 		sortBy = DEFAULT_SORT_BY;
 		sortOrder = DEFAULT_SORT_ORDER;
 
-		await goto(queuePath, { keepFocus: true, noScroll: true });
+		try {
+			await goto(queuePath, { keepFocus: true, noScroll: true });
+		} catch {
+			syncFiltersFromUrl();
+			notifyError('Não foi possível limpar os filtros. Tente novamente.');
+		}
 	}
 
 	async function handleSearch(term: string): Promise<void> {
@@ -244,8 +256,26 @@
 			search: term ? term.trim() : null
 		})}`;
 
-		// eslint-disable-next-line svelte/no-navigation-without-resolve
-		await goto(target, { keepFocus: true, noScroll: true });
+		try {
+			// eslint-disable-next-line svelte/no-navigation-without-resolve
+			await goto(target, { keepFocus: true, noScroll: true });
+		} catch {
+			notifyError('Não foi possível aplicar a busca. Tente novamente.');
+		}
+	}
+
+	async function retryQueue() {
+		if (isRetrying) return;
+
+		isRetrying = true;
+
+		try {
+			await invalidate('app:queue');
+		} catch {
+			notifyError('Não foi possível recarregar a fila. Tente novamente.');
+		} finally {
+			isRetrying = false;
+		}
 	}
 
 	function currentExportFilters(): QueueFilterQuery {
@@ -351,6 +381,7 @@
 		{sortByOptions}
 		{sortOrderOptions}
 		search={activeSearch}
+		isSearching={isFetching}
 		onFilterChange={(next) => void handleFilterChange(next)}
 		onSearch={(term) => void handleSearch(term)}
 		onClear={() => void handleClearFilters()}
@@ -361,6 +392,8 @@
 		result={data.result}
 		{isFetching}
 		detailRoute="/(admin)/fila/[protocolo]"
+		emptyMessage="Ajuste a busca ou os filtros e tente novamente."
+		onretry={() => void retryQueue()}
 		onpagechange={goToPage}
 	/>
 </main>

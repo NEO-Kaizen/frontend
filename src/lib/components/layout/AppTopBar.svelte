@@ -51,20 +51,27 @@
 	});
 	const isDarkTheme = $derived(isMounted && getThemeMode() === 'dark');
 
+	type SearchFeedback = {
+		message: string;
+		canRetry: boolean;
+	};
+
 	let isSearching = $state(false);
+	let searchError = $state<SearchFeedback | null>(null);
+	let searchForm = $state<HTMLFormElement | null>(null);
 
-	async function handleSearchSubmit(event: SubmitEvent) {
-		event.preventDefault();
+	function readSearchTerm(form: HTMLFormElement | null): string {
+		if (!form) return '';
 
+		const formData = new FormData(form);
+		return String(formData.get('pesquisar-chamados') ?? '').trim();
+	}
+
+	async function executeSearch(value: string) {
 		if (isSearching) return;
 
-		const form = event.currentTarget as HTMLFormElement;
-		const formData = new FormData(form);
-		const value = String(formData.get('pesquisar-chamados') ?? '').trim();
-
-		if (!value) return;
-
 		isSearching = true;
+		searchError = null;
 
 		try {
 			if (canSearchQueue) {
@@ -80,7 +87,10 @@
 			const result = await searchRequests(value);
 
 			if (!result.ok) {
-				console.error(result.error.message);
+				searchError = {
+					message: result.error.message,
+					canRetry: result.error.retryable ?? false
+				};
 				return;
 			}
 
@@ -99,9 +109,35 @@
 			// a navegação é validada em runtime pelo SvelteKit.
 			// eslint-disable-next-line svelte/no-navigation-without-resolve
 			await goto(`${TRACKING_PATH}?${searchParams.toString()}`);
+		} catch {
+			searchError = {
+				message: 'Não foi possível concluir a busca. Tente novamente.',
+				canRetry: true
+			};
 		} finally {
 			isSearching = false;
 		}
+	}
+
+	async function handleSearchSubmit(event: SubmitEvent) {
+		event.preventDefault();
+
+		const value = readSearchTerm(event.currentTarget as HTMLFormElement);
+
+		if (!value) return;
+
+		await executeSearch(value);
+	}
+
+	async function retrySearch() {
+		const value = readSearchTerm(searchForm);
+
+		if (!value) {
+			searchError = null;
+			return;
+		}
+
+		await executeSearch(value);
 	}
 </script>
 
@@ -130,22 +166,37 @@
 	{/if}
 
 	{#if canSearch}
-		<form role="search" class="topbar__search" onsubmit={handleSearchSubmit}>
-			<Input
-				type="search"
-				placeholder="Buscar solicitações..."
-				aria-label="Buscar solicitações"
-				name="pesquisar-chamados"
-				value={activeSearch}
-				disabled={isSearching}
-				actionIcon="search"
-				actionLabel="Buscar"
-				onAction={() => {
-					const form = document.querySelector('form[role="search"]') as HTMLFormElement | null;
-					form?.requestSubmit();
-				}}
-			/>
-		</form>
+		<div class="topbar__search-area">
+			<form
+				role="search"
+				class="topbar__search"
+				aria-busy={isSearching}
+				bind:this={searchForm}
+				onsubmit={handleSearchSubmit}
+			>
+				<Input
+					type="search"
+					placeholder="Buscar solicitações..."
+					aria-label="Buscar solicitações"
+					name="pesquisar-chamados"
+					value={activeSearch}
+					actionIcon="search"
+					actionLabel="Buscar"
+					onAction={() => searchForm?.requestSubmit()}
+				/>
+			</form>
+
+			{#if isSearching}
+				<div class="topbar__search-feedback" role="status" aria-live="polite">Buscando…</div>
+			{:else if searchError}
+				<div class="topbar__search-feedback topbar__search-feedback--error" role="alert">
+					<span>{searchError.message}</span>
+					{#if searchError.canRetry}
+						<Button variant="outline" onclick={() => void retrySearch()}>Tentar novamente</Button>
+					{/if}
+				</div>
+			{/if}
+		</div>
 	{/if}
 
 	<div class="topbar__actions">
@@ -260,9 +311,43 @@
 		outline-offset: 2px;
 	}
 
-	.topbar__search {
+	.topbar__search-area {
+		position: relative;
 		flex: 1;
 		max-width: 520px;
+	}
+
+	.topbar__search {
+		width: 100%;
+	}
+
+	.topbar__search-feedback {
+		position: absolute;
+		top: calc(100% + var(--spacing-xs));
+		left: 0;
+		z-index: 50;
+
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-sm);
+
+		width: 100%;
+		padding: var(--spacing-sm);
+
+		font: var(--label);
+		color: var(--text-color-secondary);
+		background-color: var(--white);
+		border: var(--border-default);
+		border-radius: var(--radius-md);
+		box-shadow: var(--regular-shadow);
+	}
+
+	.topbar__search-feedback--error {
+		color: var(--status-red);
+	}
+
+	.topbar__search-feedback span {
+		flex: 1;
 	}
 
 	.topbar__actions {
@@ -387,7 +472,7 @@
 			display: none;
 		}
 
-		.topbar__search {
+		.topbar__search-area {
 			max-width: none;
 		}
 	}

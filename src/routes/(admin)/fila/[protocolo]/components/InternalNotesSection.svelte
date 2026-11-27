@@ -37,10 +37,11 @@
 		triages: TriageHistoryEntry[];
 		mappings: MappingHistoryEntry[];
 		loadError: string | null;
+		loadRetryable: boolean;
 		currentUserId: string;
 		onNotesLoaded: (response: InternalNotesResponse) => void;
 		onOlderLoaded: (olderItems: TimelineItem[], nextCursor: string | null) => void;
-		onLoadError: (message: string) => void;
+		onLoadError: (message: string, retryable: boolean) => void;
 		onNoteCreated: (note: TimelineNote) => void;
 		onMarkedRead: () => void;
 	}
@@ -54,6 +55,7 @@
 		triages,
 		mappings,
 		loadError,
+		loadRetryable,
 		currentUserId,
 		onNotesLoaded,
 		onOlderLoaded,
@@ -93,6 +95,7 @@
 	let sentinelEl = $state<HTMLElement | null>(null);
 	let isLoadingOlder = $state(false);
 	let olderError = $state<string | null>(null);
+	let olderErrorRetryable = $state(false);
 
 	const EVENT_ICONS: Record<TimelineEventAction, IconName> = {
 		'request.assign': 'person',
@@ -259,7 +262,7 @@
 		isReloading = false;
 
 		if (!result.ok) {
-			onLoadError(result.error.message);
+			onLoadError(result.error.message, result.error.retryable === true);
 			return;
 		}
 
@@ -274,11 +277,13 @@
 		if (!nextCursor || isLoadingOlder) return;
 		isLoadingOlder = true;
 		olderError = null;
+		olderErrorRetryable = false;
 		const result = await getInternalNotes(protocol, { cursor: nextCursor });
 		isLoadingOlder = false;
 
 		if (!result.ok) {
 			olderError = result.error.message;
+			olderErrorRetryable = result.error.retryable === true;
 			return;
 		}
 
@@ -357,9 +362,11 @@
 		<div class="load-state error-state" role="alert">
 			<Icon iconName="warning" iconSize="lg" />
 			<p>{loadError}</p>
-			<Button variant="outline" loading={isReloading} onclick={handleReload}>
-				Tentar novamente
-			</Button>
+			{#if loadRetryable}
+				<Button variant="outline" loading={isReloading} onclick={handleReload}>
+					Tentar novamente
+				</Button>
+			{/if}
 		</div>
 	{:else}
 		<div class="notes-timeline" bind:this={timelineEl} aria-live="polite">
@@ -378,14 +385,16 @@
 					<div class="older-loader" bind:this={sentinelEl}>
 						{#if olderError}
 							<span>{olderError}</span>
-							<button
-								type="button"
-								class="loader-retry"
-								disabled={isLoadingOlder}
-								onclick={handleRetryOlder}
-							>
-								Tentar novamente
-							</button>
+							{#if olderErrorRetryable}
+								<button
+									type="button"
+									class="loader-retry"
+									disabled={isLoadingOlder}
+									onclick={handleRetryOlder}
+								>
+									Tentar novamente
+								</button>
+							{/if}
 						{:else if isLoadingOlder}
 							<span class="loader-spinner" aria-hidden="true"></span>
 							<span>Carregando observações anteriores…</span>

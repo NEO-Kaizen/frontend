@@ -11,9 +11,12 @@ import {
 	type TimelineNote
 } from '$lib/types/internal-note';
 import { ApiError, type Result } from '$lib/types/result';
+import { isRetryableApiStatus } from '$lib/utils/api-error';
 
 function resolveReadError(error: ApiError, fallback: string): string {
 	switch (error.status) {
+		case 401:
+			return 'Sua sessão expirou. Entre novamente para continuar.';
 		case 403:
 			return 'Você não tem permissão para acessar as observações internas.';
 		case 404:
@@ -25,6 +28,8 @@ function resolveReadError(error: ApiError, fallback: string): string {
 
 function resolveWriteError(error: ApiError, fallback: string): string {
 	switch (error.status) {
+		case 401:
+			return 'Sua sessão expirou. Entre novamente para continuar.';
 		case 403:
 			return 'Seu perfil permite consultar as observações internas, mas não adicionar novas.';
 		case 404:
@@ -56,11 +61,15 @@ export async function getInternalNotes(
 				ok: false,
 				error: {
 					status: error.status,
+					retryable: isRetryableApiStatus(error.status),
 					message: resolveReadError(error, 'Não foi possível carregar as observações internas.')
 				}
 			};
 		}
-		return { ok: false, error: { message: 'Não foi possível conectar ao servidor.' } };
+		return {
+			ok: false,
+			error: { retryable: true, message: 'Não foi possível conectar ao servidor.' }
+		};
 	}
 }
 
@@ -69,7 +78,9 @@ export async function createInternalNote(
 	content: string
 ): Promise<Result<TimelineNote>> {
 	const validationError = validateInternalNoteContent(content);
-	if (validationError) return { ok: false, error: { message: validationError } };
+	if (validationError) {
+		return { ok: false, error: { retryable: false, message: validationError } };
+	}
 
 	const payload: CreateInternalNotePayload = { content: content.trim() };
 	try {
@@ -80,11 +91,15 @@ export async function createInternalNote(
 				ok: false,
 				error: {
 					status: error.status,
+					retryable: isRetryableApiStatus(error.status),
 					message: resolveWriteError(error, 'Não foi possível publicar a observação.')
 				}
 			};
 		}
-		return { ok: false, error: { message: 'Não foi possível conectar ao servidor.' } };
+		return {
+			ok: false,
+			error: { retryable: true, message: 'Não foi possível conectar ao servidor.' }
+		};
 	}
 }
 
@@ -101,6 +116,7 @@ export async function markInternalNotesRead(
 				ok: false,
 				error: {
 					status: error.status,
+					retryable: isRetryableApiStatus(error.status),
 					message: resolveReadError(
 						error,
 						'Não foi possível atualizar a visualização das observações.'
@@ -108,6 +124,9 @@ export async function markInternalNotesRead(
 				}
 			};
 		}
-		return { ok: false, error: { message: 'Não foi possível conectar ao servidor.' } };
+		return {
+			ok: false,
+			error: { retryable: true, message: 'Não foi possível conectar ao servidor.' }
+		};
 	}
 }

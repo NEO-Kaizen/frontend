@@ -39,6 +39,7 @@
 	}: Props = $props();
 
 	const results = $derived(result?.ok ? result.data.data : []);
+	const canRetry = $derived(result?.ok === false && result.error.retryable === true);
 	const totalPages = $derived(result?.ok ? result.data.totalPages : 0);
 	const totalItems = $derived(result?.ok ? result.data.total : 0);
 	// Clampa a página pedida ao intervalo real, protegendo o rodapé de valores
@@ -102,9 +103,11 @@
 						<td colspan="8">
 							<div class="error-state" role="alert">
 								<p>{result.error.message}</p>
-								<Button variant="outline" onclick={() => (onretry ? onretry() : invalidateAll())}>
-									Tentar novamente
-								</Button>
+								{#if canRetry}
+									<Button variant="outline" onclick={() => (onretry ? onretry() : invalidateAll())}>
+										Tentar novamente
+									</Button>
+								{/if}
 							</div>
 						</td>
 					</tr>

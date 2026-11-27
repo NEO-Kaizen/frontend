@@ -54,6 +54,7 @@
 		solicitation: InternalRequestDetail;
 		internalNotes: InternalNotesResponse | null;
 		internalNotesError: string | null;
+		internalNotesRetryable: boolean;
 		pendencies: ListPendenciesResponse | null;
 		pendenciesError: string | null;
 		onSaveSuccess?: (updated: InternalRequestDetail) => void;
@@ -78,6 +79,7 @@
 		solicitation,
 		internalNotes,
 		internalNotesError,
+		internalNotesRetryable,
 		pendencies,
 		pendenciesError,
 		onSaveSuccess,
@@ -154,6 +156,20 @@
 	const triages: TriageHistoryEntry[] = $derived(internalNotes?.triages ?? []);
 	const mappings: MappingHistoryEntry[] = $derived(internalNotes?.mappings ?? []);
 	let internalNotesLoadError = $state<string | null>(initialInternalNotesState.loadError);
+
+	function getInitialInternalNotesRetryable(): boolean {
+		return internalNotesRetryable;
+	}
+
+	const initialNotesRetryable = getInitialInternalNotesRetryable();
+	let internalNotesRetryableState = $state(initialNotesRetryable);
+
+	// O server load pode mudar por navegação/invalidateAll; o estado local da
+	// aba precisa refletir o novo erro e a nova política de retry.
+	$effect(() => {
+		internalNotesLoadError = internalNotesError;
+		internalNotesRetryableState = internalNotesRetryable;
+	});
 
 	type SpecTabId =
 		'informacoes' | 'triagem' | 'mapeamento' | 'tempo-status' | 'historico' | 'observacoes';
@@ -549,8 +565,9 @@
 		olderNextCursor = nextCursor;
 	}
 
-	function handleInternalNotesLoadError(message: string): void {
+	function handleInternalNotesLoadError(message: string, retryable: boolean): void {
 		internalNotesLoadError = message;
+		internalNotesRetryableState = retryable;
 	}
 
 	function handleInternalNoteCreated(note: TimelineNote): void {
@@ -821,6 +838,7 @@
 						{triages}
 						{mappings}
 						loadError={internalNotesLoadError}
+						loadRetryable={internalNotesRetryableState}
 						currentUserId={currentUser?.id ?? ''}
 						onNotesLoaded={handleInternalNotesLoaded}
 						onOlderLoaded={handleInternalNotesOlderLoaded}

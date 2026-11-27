@@ -101,6 +101,7 @@
 				{solicitation}
 				internalNotes={data.internalNotes}
 				internalNotesError={data.internalNotesError}
+				internalNotesRetryable={data.internalNotesRetryable}
 				pendencies={data.pendencies}
 				pendenciesError={data.pendenciesError}
 				onTriageSuccess={handleTriageSuccess}

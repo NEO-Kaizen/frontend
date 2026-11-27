@@ -11,7 +11,9 @@ function buildQueueQuery(params: URLSearchParams, page: number): QueueQuery {
 	return { page, pageSize: PAGE_SIZE, ...parseQueueFilterQuery(params) };
 }
 
-export const load: PageServerLoad = async ({ url, fetch }) => {
+export const load: PageServerLoad = async ({ url, fetch, depends }) => {
+	depends('app:queue');
+
 	const requestedPage = parsePageParam(url.searchParams.get('page'));
 	const query = buildQueueQuery(url.searchParams, requestedPage);
 

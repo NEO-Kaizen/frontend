@@ -1,6 +1,7 @@
 import adapter from '@sveltejs/adapter-node';
 import { sveltekit } from '@sveltejs/kit/vite';
-import { defineConfig, loadEnv } from 'vite';
+import { loadEnv } from 'vite';
+import { defineConfig } from 'vitest/config';
 
 function getBasePath(value: string | undefined): '' | `/${string}` {
 	const normalized = value?.trim();
@@ -47,6 +48,16 @@ export default defineConfig(({ mode }) => {
 		},
 		preview: {
 			proxy: { '/uploads': uploadsProxy }
-		}
+		},
+		test: {
+			environment: 'jsdom',
+			setupFiles: ['./src/tests/setup.ts'],
+			include: ['src/**/*.test.ts']
+		},
+		resolve: process.env.VITEST
+			? {
+					conditions: ['browser']
+				}
+			: undefined
 	};
 });

@@ -13,7 +13,9 @@ const PAGE_SIZE = 5;
 // Quando o solicitante está logado, lista automaticamente as próprias
 // solicitações (sem exigir ?email); anônimo mantém busca por email.
 // Solicitante nunca pode pesquisar e-mail de terceiros — query ?email é ignorada/limpa.
-export const load: PageServerLoad = async ({ url, fetch, locals }) => {
+export const load: PageServerLoad = async ({ url, fetch, locals, depends }) => {
+	depends('app:requests');
+
 	const page = parsePageParam(url.searchParams.get('page'));
 	const user = locals.user;
 	const isSolicitante = Boolean(user && can('request:track', 'own', user));

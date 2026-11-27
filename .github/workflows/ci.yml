@@ -1,5 +1,4 @@
 # Pipeline de qualidade do frontend (P0).
-# O job `unit` permanece comentado até o Vitest e o script `test` existirem.
 name: CI
 
 # Roda em qualquer branch; o filtro anterior restringia o CI à main.
@@ -101,29 +100,25 @@ jobs:
         env:
           PUBLIC_API_URL: https://example.org/server03/api
 
-  # ---------------------------------------------------------------------------
-  # Job `unit` (P1) — desabilitado até o Vitest e o script "test" existirem.
-  # Descomente quando `npm test` estiver configurado.
-  # ---------------------------------------------------------------------------
-  # unit:
-  #   runs-on: ubuntu-latest
-  #   timeout-minutes: 15
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v7
-  #       with:
-  #         persist-credentials: false
-  #
-  #     - name: Node.js
-  #       uses: actions/setup-node@v7
-  #       with:
-  #         node-version-file: .nvmrc
-  #         cache: npm
-  #
-  #     - name: Instalar dependências
-  #       run: npm ci --no-audit --no-fund
-  #
-  #     - name: Vitest
-  #       run: npm test
-  #       env:
-  #         PUBLIC_API_URL: http://127.0.0.1:3000
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci --no-audit --no-fund
+
+      - name: Vitest
+        run: npm test
+        env:
+          PUBLIC_API_URL: http://127.0.0.1:3000

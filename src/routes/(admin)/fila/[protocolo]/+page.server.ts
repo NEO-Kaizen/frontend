@@ -39,6 +39,7 @@ export const load: PageServerLoad = async ({ params, fetch, locals }) => {
 			internalNotesError: canReadInternalNotes
 				? null
 				: 'Você não tem permissão para visualizar observações internas.',
+			internalNotesRetryable: false,
 			pendencies: null,
 			pendenciesError: canReadPendencies
 				? null
@@ -79,6 +80,9 @@ export const load: PageServerLoad = async ({ params, fetch, locals }) => {
 		: internalNotesResult && !internalNotesResult.ok
 			? internalNotesResult.error.message
 			: null;
+	const internalNotesRetryable = Boolean(
+		internalNotesResult && !internalNotesResult.ok && internalNotesResult.error.retryable
+	);
 
 	const pendencies = pendenciesResult?.ok ? pendenciesResult.data : null;
 	const pendenciesError = !canReadPendencies
@@ -93,6 +97,7 @@ export const load: PageServerLoad = async ({ params, fetch, locals }) => {
 		error: null,
 		internalNotes: canViewInternalNotes ? internalNotes : null,
 		internalNotesError,
+		internalNotesRetryable,
 		pendencies: canViewPendencies ? pendencies : null,
 		pendenciesError
 	};

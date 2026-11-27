@@ -1,10 +1,13 @@
 <script lang="ts">
+	import { onDestroy } from 'svelte';
 	import Button from './Button.svelte';
 	import FilterSelect from './FilterSelect.svelte';
 	import Icon from './Icon.svelte';
 	import Input from './Input.svelte';
 	import type { QueueFiltersState, QueueSortField, QueueSortOrder } from '$lib/types/queue';
 	import { MAX_SEARCH_LENGTH } from '$lib/utils/queue-filters';
+
+	const SEARCH_DEBOUNCE_MS = 300;
 
 	type FilterOption = {
 		value: string;
@@ -29,6 +32,7 @@
 		onFilterChange: (filters: QueueFiltersState) => void;
 		onClear?: () => void;
 		search?: string;
+		isSearching?: boolean;
 		onSearch?: (term: string) => void;
 	}
 
@@ -50,16 +54,50 @@
 		onFilterChange,
 		onClear,
 		search = '',
+		isSearching = false,
 		onSearch
 	}: Props = $props();
 
-	let searchValue = $derived('');
+	function getInitialSearchValue(): string {
+		return search;
+	}
+
+	const initialSearch = getInitialSearchValue();
+
+	let searchValue = $state(initialSearch);
+	let lastSubmitted = initialSearch;
+	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 
 	$effect(() => {
-		searchValue = search;
+		const next = search;
+		if (next !== lastSubmitted) {
+			lastSubmitted = next;
+			searchValue = next;
+		}
 	});
 
+	onDestroy(() => clearTimeout(debounceTimer));
+
+	function submitSearch(value: string) {
+		clearTimeout(debounceTimer);
+		const term = value.trim();
+		lastSubmitted = term;
+		onSearch?.(term);
+	}
+
+	function handleInput() {
+		clearTimeout(debounceTimer);
+		debounceTimer = setTimeout(() => submitSearch(searchValue), SEARCH_DEBOUNCE_MS);
+	}
+
 	function emitChange(overrides: Partial<QueueFiltersState> = {}) {
+		// Uma troca de filtro/ordenação não pode ser sobrescrita por um debounce
+		// de busca que ainda estava pendente. Volta o campo ao termo aplicado
+		// para não deixar texto visível divergente dos resultados.
+		clearTimeout(debounceTimer);
+		searchValue = search;
+		lastSubmitted = search;
+
 		onFilterChange({
 			status,
 			priority,
@@ -83,11 +121,13 @@
 
 	function handleSubmit(event?: Event) {
 		event?.preventDefault();
-		onSearch?.(searchValue.trim());
+		submitSearch(searchValue);
 	}
 
 	function clearFilters() {
+		clearTimeout(debounceTimer);
 		searchValue = '';
+		lastSubmitted = '';
 		onClear?.();
 	}
 </script>
@@ -96,7 +136,7 @@
 	<div class="queue-filters__main">
 		<div class="filters">
 			<div class="filter-item filter-item--search">
-				<form onsubmit={handleSubmit} role="search">
+				<form onsubmit={handleSubmit} role="search" aria-busy={isSearching}>
 					<Input
 						type="search"
 						label="Buscar"
@@ -106,7 +146,7 @@
 						bind:value={searchValue}
 						actionIcon="search"
 						actionLabel="Buscar"
-						oninput={handleSubmit}
+						oninput={handleInput}
 						onAction={handleSubmit}
 					/>
 				</form>

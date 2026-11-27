@@ -261,6 +261,7 @@ Antes de abrir um Pull Request, execute:
 npm run format
 npm run lint
 npm run check
+npm test
 ```
 
 Todos os arquivos devem estar formatados e sem erros de lint.

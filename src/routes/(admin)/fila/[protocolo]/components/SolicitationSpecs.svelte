@@ -39,6 +39,7 @@
 		solicitation: InternalRequestDetail;
 		internalNotes: InternalNotesResponse | null;
 		internalNotesError: string | null;
+		internalNotesRetryable: boolean;
 		pendencies: ListPendenciesResponse | null;
 		pendenciesError: string | null;
 		onSaveSuccess?: (updated: InternalRequestDetail) => void;
@@ -55,6 +56,7 @@
 		solicitation,
 		internalNotes,
 		internalNotesError,
+		internalNotesRetryable,
 		pendencies,
 		pendenciesError,
 		onSaveSuccess,
@@ -531,6 +533,7 @@
 		{solicitation}
 		{internalNotes}
 		{internalNotesError}
+		{internalNotesRetryable}
 		{pendencies}
 		{pendenciesError}
 		{onSaveSuccess}
