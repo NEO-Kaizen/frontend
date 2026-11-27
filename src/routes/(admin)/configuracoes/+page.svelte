@@ -1,6 +1,9 @@
 <script lang="ts">
+	import { dev } from '$app/environment';
 	import { invalidateAll } from '$app/navigation';
+	import { onMount } from 'svelte';
 	import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
+	import { has } from '$lib/services/access.service';
 	import AccessCard from './components/AccessCard.svelte';
 	import AssetsCard from './components/AssetsCard.svelte';
 	import CategoriesCard from './components/CategoriesCard.svelte';
@@ -18,6 +21,19 @@
 	// Se a leitura autoritativa falhou, `portalConfig` é o fallback do layout
 	// (defaults) e os cards bloqueiam edição/salvamento até a revalidação.
 	const loadFailed = $derived(data.portalConfigLoadError !== null);
+	const canManage = $derived(has('portal_setting:manage', data.user));
+
+	// Botão de exemplo carregado só em dev; o preset e o handler ficam em chunks
+	// separados, fora do bundle principal de produção. O Rollup pode emitir esse
+	// chunk em prod, mas ele não é carregado porque `dev` é false.
+	type NeoExampleButtonComponent =
+		(typeof import('./components/NeoExampleButton.svelte'))['default'];
+	let NeoExampleButton = $state<NeoExampleButtonComponent | null>(null);
+
+	onMount(async () => {
+		if (!dev || !canManage) return;
+		NeoExampleButton = (await import('./components/NeoExampleButton.svelte')).default;
+	});
 </script>
 
 <svelte:head>
@@ -27,7 +43,13 @@
 </svelte:head>
 
 <main class="content-container settings-page">
-	<SettingsPageHeader />
+	<div class="settings-header-row">
+		<SettingsPageHeader />
+
+		{#if dev && canManage && NeoExampleButton}
+			<NeoExampleButton disabled={loadFailed} />
+		{/if}
+	</div>
 
 	{#if loadFailed}
 		<div class="load-error" role="alert">
@@ -41,21 +63,23 @@
 		</div>
 	{/if}
 
-	<div class="settings-grid">
-		<div class="settings-col">
-			<AccessCard />
-			<VisualIdentityCard />
+	{#key data.portalConfig}
+		<div class="settings-grid">
+			<div class="settings-col">
+				<AccessCard />
+				<VisualIdentityCard />
+			</div>
+			<div class="settings-col">
+				<PlatformIdentityCard />
+				<AssetsCard />
+				<CategoriesCard />
+				<PriorizationWeightsCard />
+			</div>
+			<div class="status-full">
+				<StatusCard />
+			</div>
 		</div>
-		<div class="settings-col">
-			<PlatformIdentityCard />
-			<AssetsCard />
-			<CategoriesCard />
-			<PriorizationWeightsCard />
-		</div>
-		<div class="status-full">
-			<StatusCard />
-		</div>
-	</div>
+	{/key}
 </main>
 
 <style>
@@ -63,6 +87,14 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--spacing-lg);
+	}
+
+	.settings-header-row {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: var(--spacing-md);
+		flex-wrap: wrap;
 	}
 
 	.load-error {
