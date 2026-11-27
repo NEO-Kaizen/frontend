@@ -1,7 +1,8 @@
 <script lang="ts">
-	import { browser } from '$app/environment';
+	import { browser, dev } from '$app/environment';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { onMount } from 'svelte';
 	import Button from '$lib/components/Button.svelte';
 	import StepComplementary from './StepComplementary.svelte';
 	import StepDemand from './StepDemand.svelte';
@@ -17,6 +18,7 @@
 		saveDraft,
 		type SolicitationDraft
 	} from '$lib/services/solicitation-draft.service';
+	import { CATEGORY_OPTIONS } from '$lib/types/request';
 	import type { SessionUser } from '$lib/types/auth';
 	import type { SolicitationMode } from '$lib/types/portal-config';
 	import type { RequesterProfileBlock } from '$lib/types/user';
@@ -82,6 +84,17 @@
 	let protocolCopied = $state(false);
 
 	let copyTimeout: ReturnType<typeof setTimeout> | undefined;
+
+	// Botão de demonstração carregado só em dev; mantém o texto/UI fora do
+	// bundle principal de produção. O Rollup pode emitir esse chunk em prod,
+	// mas ele não é carregado porque `dev` é false.
+	type DemoFillButtonComponent = (typeof import('./DemoFillButton.svelte'))['default'];
+	let DemoFillButton = $state<DemoFillButtonComponent | null>(null);
+
+	onMount(async () => {
+		if (!dev) return;
+		DemoFillButton = (await import('./DemoFillButton.svelte')).default;
+	});
 
 	async function copyProtocol() {
 		try {
@@ -268,6 +281,31 @@
 	function handleStepClick(stepId: number) {
 		if (visitedSteps.has(stepId)) {
 			currentStep = stepId;
+		}
+	}
+
+	// Preenche o passo atual com respostas fictícias válidas (botão de demonstração,
+	// visível apenas em dev). Import dinâmico para não embarcar no bundle de produção.
+	async function fillCurrentStepDemo() {
+		const { getDemoComplementary, getDemoDemand, getDemoIdentification, getDemoOperational } =
+			await import('./demo-answers');
+		if (currentStep === 1) {
+			const lockedValues: Partial<IdentificationData> = {};
+			for (const field of lockedFieldsForStep1) {
+				lockedValues[field] = identification[field];
+			}
+
+			identification = { ...getDemoIdentification(), ...lockedValues };
+			step1Ref?.clearErrors();
+		} else if (currentStep === 2) {
+			demand = getDemoDemand(categoryOptions[0]?.value ?? CATEGORY_OPTIONS[0].value);
+			step2Ref?.clearErrors();
+		} else if (currentStep === 3) {
+			operational = getDemoOperational();
+			step3Ref?.clearErrors();
+		} else {
+			complementary = getDemoComplementary();
+			step4Ref?.clearErrors();
 		}
 	}
 
@@ -557,6 +595,11 @@
 			{/if}
 
 			<footer class="form-actions">
+				{#if dev && DemoFillButton}
+					<div class="demo-fill">
+						<DemoFillButton disabled={isSubmitting} onfill={fillCurrentStepDemo} />
+					</div>
+				{/if}
 				<Button variant="outline-neutral" onclick={handleCancel}>Cancelar</Button>
 
 				<div class="actions-right">
@@ -628,6 +671,11 @@
 		gap: var(--spacing-sm);
 		margin-top: var(--spacing-md);
 		padding-top: var(--spacing-md);
+	}
+
+	.demo-fill {
+		display: flex;
+		margin-right: auto;
 	}
 
 	.actions-right {
