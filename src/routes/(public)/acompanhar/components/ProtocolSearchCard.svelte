@@ -20,6 +20,7 @@
 	let protocol = $state('');
 	let email = $state('');
 	let hasSubmitted = $state(false);
+	let submitError = $state('');
 
 	onMount(() => {
 		function handlePageShow() {
@@ -35,10 +36,12 @@
 
 	function handleProtocolInput() {
 		hasSubmitted = false;
+		submitError = '';
 	}
 
 	function handleEmailInput() {
 		hasSubmitted = false;
+		submitError = '';
 	}
 
 	let formError = $derived(
@@ -59,6 +62,7 @@
 		event.preventDefault();
 
 		hasSubmitted = true;
+		submitError = '';
 
 		const normalizedProtocol = protocol.trim().toUpperCase();
 		const normalizedEmail = email.trim();
@@ -84,6 +88,8 @@
 				const search = new URLSearchParams({ email: normalizedEmail }).toString();
 				await goto(resolve(`/(public)/acompanhar?${search}`));
 			}
+		} catch {
+			submitError = 'Não foi possível concluir a consulta. Tente novamente.';
 		} finally {
 			isSearching = false;
 		}
@@ -94,6 +100,12 @@
 	{#if formError}
 		<p class="form-error" role="alert">
 			{formError}
+		</p>
+	{/if}
+
+	{#if submitError}
+		<p class="form-error" role="alert">
+			{submitError}
 		</p>
 	{/if}
 

@@ -11,6 +11,7 @@
 	import { DEFAULT_NEW_STATUS_PAUSED, DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
 	import { isPortalConfigLoadBlocked } from '$lib/config/portal-config-load';
 	import { saveStatuses } from '$lib/config/portal-config.service';
+	import { has } from '$lib/services/access.service';
 	import { SectionState } from '$lib/states/section.svelte';
 	import {
 		STATUS_TONES,
@@ -38,6 +39,8 @@
 	);
 
 	const loadFailed = $derived(isPortalConfigLoadBlocked(page.data));
+	const canEdit = $derived(has('status:manage', page.data.user));
+	const readOnly = $derived(loadFailed || !canEdit);
 
 	const prefersReducedMotion =
 		typeof window !== 'undefined' &&
@@ -84,7 +87,7 @@
 	}
 
 	async function handleSave() {
-		if (loadFailed) return;
+		if (readOnly) return;
 		notifySectionSave(await section.save());
 	}
 
@@ -262,7 +265,7 @@
 	}
 
 	function openCellEditor(status: PortalStatus, field: EditableStatusField) {
-		if (section.saving || loadFailed) return;
+		if (section.saving || readOnly) return;
 		if (field === 'name' && !canEditName(status)) {
 			notifyError('Status vital não pode ser renomeado.');
 			return;
@@ -345,6 +348,7 @@
 			restorable={section.restorable}
 			{invalid}
 			{loadFailed}
+			readOnly={!canEdit}
 			onSave={handleSave}
 			onCancel={() => section.reset()}
 			onRestoreDefaults={() => section.restoreDefaults()}
@@ -388,7 +392,7 @@
 		<Button
 			variant="secondary"
 			disabled={section.saving ||
-				loadFailed ||
+				readOnly ||
 				section.draft.statuses.length >= MAX_STATUSES ||
 				hasPendingStatus}
 			onclick={handleAdd}
@@ -528,7 +532,7 @@
 										type="button"
 										class="cell-button name-button"
 										aria-label="Editar nome de {status.name}"
-										disabled={section.saving || loadFailed || !canEditName(status)}
+										disabled={section.saving || readOnly || !canEditName(status)}
 										onclick={() => openCellEditor(status, 'name')}
 									>
 										<span class="cell-text">{status.name}</span>
@@ -543,7 +547,7 @@
 								class:on={status.isPublic}
 								aria-pressed={status.isPublic}
 								aria-label="Visível público de {status.name}"
-								disabled={section.saving || loadFailed}
+								disabled={section.saving || readOnly}
 								onclick={(event) => {
 									popToggle(event);
 									updateStatus(status.id, { isPublic: !status.isPublic });
@@ -559,7 +563,7 @@
 								class:on={status.isTerminal}
 								aria-pressed={status.isTerminal}
 								aria-label="Terminal de {status.name}"
-								disabled={section.saving || loadFailed}
+								disabled={section.saving || readOnly}
 								onclick={(event) => {
 									popToggle(event);
 									updateStatus(status.id, { isTerminal: !status.isTerminal });
@@ -604,7 +608,7 @@
 								variant="mode"
 								ariaLabel={`Triagem de ${status.name}`}
 								disabled={section.saving ||
-									loadFailed ||
+									readOnly ||
 									(status.isRestricted && status.triageMode === 'none')}
 								onChange={(v) => commitCellSelect(status, 'triageMode', v)}
 							/>
@@ -619,7 +623,7 @@
 								variant="mode"
 								ariaLabel={`Mapeamento de ${status.name}`}
 								disabled={section.saving ||
-									loadFailed ||
+									readOnly ||
 									(status.isRestricted && status.mappingMode === 'none')}
 								onChange={(v) => commitCellSelect(status, 'mappingMode', v)}
 							/>
@@ -631,7 +635,7 @@
 								class:on={status.isRestricted}
 								aria-pressed={status.isRestricted}
 								aria-label="Restrito de {status.name}"
-								disabled={section.saving || loadFailed}
+								disabled={section.saving || readOnly}
 								onclick={(event) => {
 									popToggle(event);
 									if (!status.isRestricted) {
@@ -658,7 +662,7 @@
 								}))}
 								variant="tone"
 								ariaLabel={`Tom visual de ${status.name}`}
-								disabled={section.saving || loadFailed}
+								disabled={section.saving || readOnly}
 								onChange={(v) => commitCellSelect(status, 'tone', v as StatusTone)}
 							/>
 						</td>
@@ -672,7 +676,7 @@
 										? 'Vital não inativa'
 										: 'Inativar status'
 									: 'Ativar status'}
-								disabled={section.saving || loadFailed || !canToggleInactive(status)}
+								disabled={section.saving || readOnly || !canToggleInactive(status)}
 								onclick={() => toggleActive(status)}
 							>
 								<Icon iconName={status.isActive ? 'block' : 'check'} iconSize="sm" />

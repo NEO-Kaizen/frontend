@@ -85,6 +85,40 @@ export function filterStatusAuditEvents(events: RequestAuditEvent[]): RequestAud
 	);
 }
 
+export interface StatusTransition {
+	from: string | null;
+	to: string | null;
+}
+
+// Nomes de Status de um evento da timeline. Em `request.triage` o backend
+// grava `previous_value`/`new_value` como JSON (`{"status": "...", ...}`) —
+// o mesmo formato exibido no Histórico de Logs; nos demais eventos, o valor
+// já é o nome do Status. Valor que não puder ser interpretado é exibido como
+// veio, nunca descartado.
+export function getStatusTransition(event: RequestAuditEvent): StatusTransition {
+	if (event.action_type !== 'request.triage') {
+		return { from: event.previous_value, to: event.new_value };
+	}
+
+	return {
+		from: readStatusFromJson(event.previous_value),
+		to: readStatusFromJson(event.new_value)
+	};
+}
+
+function readStatusFromJson(value: string | null): string | null {
+	if (value === null) return null;
+
+	try {
+		const parsed: unknown = JSON.parse(value);
+		if (isRecord(parsed) && typeof parsed.status === 'string') return parsed.status;
+	} catch {
+		// Texto simples: segue para o retorno abaixo.
+	}
+
+	return value;
+}
+
 // ---- Validação do payload ----
 
 function isRecord(value: unknown): value is Record<string, unknown> {

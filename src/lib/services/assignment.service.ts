@@ -13,9 +13,12 @@ function todayIsoDate(): string {
 	return `${year}-${month}-${day}`;
 }
 
-export async function listAnalysts(fetchImpl?: typeof fetch): Promise<Result<Analyst[]>> {
+export async function listAnalysts(
+	protocol?: string,
+	fetchImpl?: typeof fetch
+): Promise<Result<Analyst[]>> {
 	try {
-		const response = await listAnalystsApi(fetchImpl);
+		const response = await listAnalystsApi(protocol, fetchImpl);
 		return {
 			ok: true,
 			data: response
@@ -26,7 +29,10 @@ export async function listAnalysts(fetchImpl?: typeof fetch): Promise<Result<Ana
 				ok: false,
 				error: {
 					status: error.status,
-					message: error.message
+					message:
+						error.status === 403
+							? 'Seu perfil não tem permissão para consultar o diretório de responsáveis.'
+							: error.message
 				}
 			};
 		}

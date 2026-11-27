@@ -6,6 +6,7 @@
 	} from '$lib/config/portal-defaults';
 	import { isPortalConfigLoadBlocked } from '$lib/config/portal-config-load';
 	import { savePrioritizationWeights } from '$lib/config/portal-config.service';
+	import { has } from '$lib/services/access.service';
 	import { SectionState } from '$lib/states/section.svelte';
 	import {
 		PRIORITIZATION_CRITERIA,
@@ -31,6 +32,8 @@
 	// Leitura autoritativa falhou: o draft pode ser o fallback local — bloqueia
 	// edição e salvamento até a revalidação.
 	const loadFailed = $derived(isPortalConfigLoadBlocked(page.data));
+	const canEdit = $derived(has('prioritization_config:manage', page.data.user));
+	const readOnly = $derived(loadFailed || !canEdit);
 
 	// Qualquer peso fora de 1..10 (inteiro) bloqueia o salvamento.
 	const weightsError: string | null = $derived.by(() => {
@@ -50,7 +53,7 @@
 	}
 
 	async function handleSave() {
-		if (loadFailed) return;
+		if (readOnly) return;
 		notifySectionSave(await section.save());
 	}
 
@@ -79,6 +82,7 @@
 			restorable={section.restorable}
 			{invalid}
 			{loadFailed}
+			readOnly={!canEdit}
 			onSave={handleSave}
 			onCancel={() => section.reset()}
 			onRestoreDefaults={() => section.restoreDefaults()}
@@ -112,7 +116,7 @@
 										step={PRIORITIZATION_WEIGHT_STEP}
 										value={section.draft.prioritizationWeights[criterion]}
 										aria-label={`Peso de ${PRIORITIZATION_CRITERIA_LABELS[criterion]}`}
-										disabled={section.saving || loadFailed}
+										disabled={section.saving || readOnly}
 										oninput={(event) => handleSliderInput(event, criterion)}
 									/>
 								</div>
@@ -122,7 +126,7 @@
 										type="button"
 										aria-label={`Diminuir peso de ${PRIORITIZATION_CRITERIA_LABELS[criterion]}`}
 										disabled={section.saving ||
-											loadFailed ||
+											readOnly ||
 											section.draft.prioritizationWeights[criterion] <= PRIORITIZATION_WEIGHT_MIN}
 										onclick={() => adjustWeight(criterion, -1)}
 									>
@@ -136,7 +140,7 @@
 										type="button"
 										aria-label={`Aumentar peso de ${PRIORITIZATION_CRITERIA_LABELS[criterion]}`}
 										disabled={section.saving ||
-											loadFailed ||
+											readOnly ||
 											section.draft.prioritizationWeights[criterion] >= PRIORITIZATION_WEIGHT_MAX}
 										onclick={() => adjustWeight(criterion, 1)}
 									>

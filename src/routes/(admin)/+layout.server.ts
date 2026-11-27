@@ -1,6 +1,6 @@
-import { guard } from '$lib/services/access.service';
+import { ADMIN_AREA_KEYS, guardAny } from '$lib/services/access.service';
 import type { LayoutServerLoad } from './$types';
 
 export const load: LayoutServerLoad = ({ locals, url }) => {
-	guard('internalArea', locals.user, url.pathname);
+	guardAny(ADMIN_AREA_KEYS, locals.user, url.pathname);
 };

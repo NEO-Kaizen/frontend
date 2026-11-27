@@ -1,3 +1,4 @@
+import { resolveApiAssetUrl } from '$lib/utils/api-assets';
 import {
 	fetchPortalConfig,
 	updateAccess,
@@ -415,6 +416,14 @@ function sanitizeAssetUrl(value: unknown, fallback: string): string {
 	if (typeof value !== 'string') return fallback;
 
 	const url = value.trim();
+	// Assets públicos enviados pelo painel são servidos pela mesma URL pública
+	// da API (contrato portal-config-api: `/uploads/portal/...`). A conversão
+	// precisa acontecer antes de `isValidAssetUrl`, pois essa validação
+	// também aceita qualquer caminho iniciado por `/`.
+	if (url.startsWith('/uploads/portal/')) {
+		return resolveApiAssetUrl(url) ?? fallback;
+	}
+
 	// `blob:` é aceito apenas para o preview local do mock em desenvolvimento;
 	// o backend real devolve URL relativa ou http(s) (contrato portal-config-api).
 	if (isValidAssetUrl(url) || url.startsWith('blob:')) return url;

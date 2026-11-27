@@ -1,4 +1,8 @@
+import { getMeMock } from './auth.mock';
+import { listProfilesMock } from './profiles.mock';
 import { ApiError } from '$lib/types/result';
+import { has } from '$lib/utils/permission-checks';
+import type { ProfileReference } from '$lib/types/profile';
 import type { PaginatedResponse } from '$lib/types/request';
 
 import type {
@@ -10,8 +14,6 @@ import type {
 	UpdateUserInput,
 	UpdateUserStatusResponse,
 	UserProfileResponse,
-	UserProfile,
-	UserRole,
 	UserStats,
 	UserSummary
 } from '$lib/types/user';
@@ -24,7 +26,7 @@ export const mockUsers: MockUser[] = [
 		id: '1',
 		fullName: 'Maria Oliveira',
 		email: 'maria.oliveira@maat.com.br',
-		profile: 'Solicitante',
+		profile: getProfileReference('1'),
 		isActive: true,
 		mustChangePassword: false,
 		createdAt: '2026-07-02T10:00:00.000Z'
@@ -33,7 +35,7 @@ export const mockUsers: MockUser[] = [
 		id: '2',
 		fullName: 'João Santos',
 		email: 'joao.santos@maat.com.br',
-		profile: 'Solicitante',
+		profile: getProfileReference('1'),
 		isActive: true,
 		mustChangePassword: false,
 		createdAt: '2026-07-10T14:30:00.000Z'
@@ -42,7 +44,7 @@ export const mockUsers: MockUser[] = [
 		id: '3',
 		fullName: 'Carlos Mendes',
 		email: 'carlos.mendes@maat.com.br',
-		profile: 'Solicitante',
+		profile: getProfileReference('1'),
 		isActive: false,
 		mustChangePassword: false,
 		createdAt: '2026-07-15T09:20:00.000Z'
@@ -51,7 +53,7 @@ export const mockUsers: MockUser[] = [
 		id: '4',
 		fullName: 'Fernanda Lima',
 		email: 'fernanda.lima@maat.com.br',
-		profile: 'Solicitante',
+		profile: getProfileReference('1'),
 		isActive: true,
 		mustChangePassword: false,
 		createdAt: '2026-07-22T16:45:00.000Z'
@@ -60,7 +62,7 @@ export const mockUsers: MockUser[] = [
 		id: '5',
 		fullName: 'Rafael Costa',
 		email: 'rafael.costa@maat.com.br',
-		profile: 'Solicitante',
+		profile: getProfileReference('1'),
 		isActive: false,
 		mustChangePassword: false,
 		createdAt: '2026-08-03T11:10:00.000Z'
@@ -69,7 +71,7 @@ export const mockUsers: MockUser[] = [
 		id: '6',
 		fullName: 'Juliana Alves',
 		email: 'juliana.alves@maat.com.br',
-		profile: 'Solicitante',
+		profile: getProfileReference('1'),
 		isActive: true,
 		mustChangePassword: false,
 		createdAt: '2026-08-09T08:55:00.000Z'
@@ -78,7 +80,7 @@ export const mockUsers: MockUser[] = [
 		id: '7',
 		fullName: 'Bruno Martins',
 		email: 'bruno.martins@maat.com.br',
-		profile: 'Solicitante',
+		profile: getProfileReference('1'),
 		isActive: true,
 		mustChangePassword: false,
 		createdAt: '2026-08-14T13:25:00.000Z'
@@ -87,7 +89,7 @@ export const mockUsers: MockUser[] = [
 		id: '8',
 		fullName: 'Patrícia Rocha',
 		email: 'patricia.rocha@maat.com.br',
-		profile: 'Solicitante',
+		profile: getProfileReference('1'),
 		isActive: true,
 		mustChangePassword: false,
 		createdAt: '2026-08-20T10:40:00.000Z'
@@ -96,7 +98,7 @@ export const mockUsers: MockUser[] = [
 		id: '9',
 		fullName: 'Lucas Ferreira',
 		email: 'lucas.ferreira@maat.com.br',
-		profile: 'Solicitante',
+		profile: getProfileReference('1'),
 		isActive: true,
 		mustChangePassword: true,
 		createdAt: '2026-08-23T15:05:00.000Z'
@@ -105,7 +107,7 @@ export const mockUsers: MockUser[] = [
 		id: '10',
 		fullName: 'Amanda Nogueira',
 		email: 'amanda.nogueira@maat.com.br',
-		profile: 'Solicitante',
+		profile: getProfileReference('7'),
 		isActive: false,
 		mustChangePassword: false,
 		createdAt: '2026-08-26T09:35:00.000Z'
@@ -114,7 +116,7 @@ export const mockUsers: MockUser[] = [
 		id: '11',
 		fullName: 'Diego Barbosa',
 		email: 'diego.barbosa@maat.com.br',
-		profile: 'Solicitante',
+		profile: getProfileReference('1'),
 		isActive: true,
 		mustChangePassword: false,
 		createdAt: '2026-08-28T11:50:00.000Z'
@@ -123,7 +125,7 @@ export const mockUsers: MockUser[] = [
 		id: '12',
 		fullName: 'Camila Duarte',
 		email: 'camila.duarte@maat.com.br',
-		profile: 'Solicitante',
+		profile: getProfileReference('1'),
 		isActive: true,
 		mustChangePassword: true,
 		createdAt: '2026-08-30T14:15:00.000Z'
@@ -132,7 +134,7 @@ export const mockUsers: MockUser[] = [
 		id: '13',
 		fullName: 'Ana Beatriz Souza',
 		email: 'ana.souza@maat.com.br',
-		profile: 'Analista',
+		profile: getProfileReference('2'),
 		isActive: true,
 		mustChangePassword: false,
 		createdAt: '2026-07-05T09:00:00.000Z',
@@ -145,7 +147,7 @@ export const mockUsers: MockUser[] = [
 		id: '14',
 		fullName: 'Marcelo Tavares',
 		email: 'marcelo.tavares@maat.com.br',
-		profile: 'Analista',
+		profile: getProfileReference('2'),
 		isActive: true,
 		mustChangePassword: true,
 		createdAt: '2026-08-18T11:30:00.000Z',
@@ -158,20 +160,20 @@ export const mockUsers: MockUser[] = [
 		id: '15',
 		fullName: 'Renata Campos',
 		email: 'renata.campos@maat.com.br',
-		profile: 'Analista',
+		profile: getProfileReference('2'),
 		isActive: false,
 		mustChangePassword: false,
 		createdAt: '2026-08-27T16:20:00.000Z',
 		specialty: 'Especialista em indicadores',
 		categories: ['Indicador', 'Dashboard ou relatório'],
 		notes: 'Em licença até 09/2026.',
-		requestLoad: null
+		requestLoad: 0
 	},
 	{
 		id: '16',
 		fullName: 'Paulo Henrique Dias',
 		email: 'paulo.dias@maat.com.br',
-		profile: 'Gestor',
+		profile: getProfileReference('3'),
 		isActive: true,
 		mustChangePassword: false,
 		createdAt: '2026-06-12T08:45:00.000Z'
@@ -180,7 +182,7 @@ export const mockUsers: MockUser[] = [
 		id: '17',
 		fullName: 'Simone Ribeiro',
 		email: 'simone.ribeiro@maat.com.br',
-		profile: 'Gestor',
+		profile: getProfileReference('3'),
 		isActive: true,
 		mustChangePassword: true,
 		createdAt: '2026-08-21T14:05:00.000Z'
@@ -189,7 +191,7 @@ export const mockUsers: MockUser[] = [
 		id: '18',
 		fullName: 'Administrador Teste',
 		email: 'administrador.teste@maat.com.br',
-		profile: 'Administrador',
+		profile: getProfileReference('4'),
 		isActive: true,
 		mustChangePassword: false,
 		createdAt: '2026-06-01T10:00:00.000Z'
@@ -198,7 +200,7 @@ export const mockUsers: MockUser[] = [
 		id: '19',
 		fullName: 'Helena Prado',
 		email: 'helena.prado@maat.com.br',
-		profile: 'Administrador',
+		profile: getProfileReference('4'),
 		isActive: true,
 		mustChangePassword: false,
 		createdAt: '2026-07-19T13:40:00.000Z'
@@ -207,7 +209,7 @@ export const mockUsers: MockUser[] = [
 		id: '20',
 		fullName: 'Rafael Alves',
 		email: 'rafael.alves@maat.com.br',
-		profile: 'Analista',
+		profile: getProfileReference('2'),
 		isActive: true,
 		mustChangePassword: false,
 		createdAt: '2026-08-10T10:00:00.000Z',
@@ -220,7 +222,7 @@ export const mockUsers: MockUser[] = [
 		id: '21',
 		fullName: 'Fernanda Lima',
 		email: 'fernanda.lima.analista@maat.com.br',
-		profile: 'Analista',
+		profile: getProfileReference('2'),
 		isActive: true,
 		mustChangePassword: false,
 		createdAt: '2026-08-11T09:30:00.000Z',
@@ -233,7 +235,7 @@ export const mockUsers: MockUser[] = [
 		id: '22',
 		fullName: 'Mariana Costa',
 		email: 'mariana.costa@maat.com.br',
-		profile: 'Analista',
+		profile: getProfileReference('2'),
 		isActive: true,
 		mustChangePassword: false,
 		createdAt: '2026-08-12T09:00:00.000Z',
@@ -246,14 +248,23 @@ export const mockUsers: MockUser[] = [
 		id: '23',
 		fullName: 'Lucas Andrade',
 		email: 'lucas.andrade@maat.com.br',
-		profile: 'Analista',
+		profile: getProfileReference('2'),
 		isActive: true,
 		mustChangePassword: false,
 		createdAt: '2026-08-13T10:15:00.000Z',
 		specialty: '',
 		categories: [],
 		notes: null,
-		requestLoad: null
+		requestLoad: 0
+	},
+	{
+		id: '24',
+		fullName: 'Pessoa Perfil Custom',
+		email: 'pessoa.custom@maat.com.br',
+		profile: getProfileReference('6'),
+		isActive: true,
+		mustChangePassword: false,
+		createdAt: '2026-08-28T10:00:00.000Z'
 	}
 ];
 
@@ -268,12 +279,38 @@ const MOCK_LATENCY_MS = 400;
 
 const TEMPORARY_PASSWORD_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%&';
 
-const PROFILE_TO_ROLE: Record<UserProfile, UserRole> = {
-	solicitante: 'Solicitante',
-	analista: 'Analista',
-	administrador: 'Administrador',
-	gestor: 'Gestor'
-};
+function findProfile(profileId: string) {
+	return listProfilesMock().find((candidate) => candidate.id === profileId);
+}
+
+function findProfileReference(profileId: string): ProfileReference | undefined {
+	const profile = findProfile(profileId);
+	return profile ? { id: profile.id, name: profile.name } : undefined;
+}
+
+function requiresProfessionalProfile(profileId: string): boolean {
+	const profile = findProfile(profileId);
+	return Boolean(profile?.isAssignableTriage || profile?.isAssignableMapping);
+}
+
+function isProtectedProfile(profileId: string): boolean {
+	const profile = findProfile(profileId);
+	return Boolean(
+		profile?.isRoot || profile?.permissions.some((permission) => permission.key === 'user:manage')
+	);
+}
+
+function hasTriageProfile(profileId: string): boolean {
+	return findProfile(profileId)?.isAssignableTriage === true;
+}
+
+function getProfileReference(profileId: string): ProfileReference {
+	const reference = findProfileReference(profileId);
+	if (!reference) {
+		throw new ApiError(422, 'Perfil inválido.');
+	}
+	return reference;
+}
 
 function delay(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
@@ -290,10 +327,9 @@ function normalize(text: string): string {
 export function listUsersMock(query: ListUsersQuery): Promise<PaginatedResponse<UserSummary>> {
 	let result = [...mockUsers];
 
-	if (query.profile) {
-		const profile = PROFILE_TO_ROLE[query.profile];
-
-		result = result.filter((user) => user.profile === profile);
+	const profileId = query.profileId;
+	if (profileId) {
+		result = result.filter((user) => user.profile.id === profileId);
 	}
 
 	if (query.search) {
@@ -320,6 +356,7 @@ export function listUsersMock(query: ListUsersQuery): Promise<PaginatedResponse<
 
 	const data = result.slice(start, start + pageSize).map((user) => ({
 		...user,
+		profile: getProfileReference(user.profile.id),
 		avatarUrl: user.avatarUrl ?? null
 	}));
 
@@ -332,15 +369,21 @@ export function listUsersMock(query: ListUsersQuery): Promise<PaginatedResponse<
 	}));
 }
 
-export function listAnalystsMock(): Promise<Analyst[]> {
-	// Espelha o backend: `GET /users/analysts` retorna só ativos, sem `isActive` no DTO.
+// O mock não modela `requester_user_id`; a exclusão do criador é responsabilidade
+// do backend (B9). `protocol` fica no contrato para espelhar a rota real.
+export function listAnalystsMock(protocol?: string): Promise<Analyst[]> {
+	void protocol;
 	const result = mockUsers
-		.filter((user) => user.profile === 'Analista' && user.isActive)
-		.map((user) => {
-			const { isActive: _active, ...rest } = user;
-			void _active;
-			return rest as Analyst;
-		});
+		.filter((user) => user.isActive && hasTriageProfile(user.profile.id))
+		.map((user) => ({
+			id: user.id,
+			fullName: user.fullName,
+			email: user.email,
+			specialty: user.specialty ?? '',
+			categories: user.categories ?? [],
+			notes: user.notes ?? null,
+			requestLoad: user.requestLoad ?? 0
+		}));
 	return delay(MOCK_LATENCY_MS).then(() => result);
 }
 
@@ -349,12 +392,21 @@ export function getUserStatsMock(): UserStats {
 		total: mockUsers.length,
 		active: mockUsers.filter((user) => user.isActive).length,
 		pending: mockUsers.filter((user) => user.mustChangePassword).length,
-		admins: mockUsers.filter((user) => user.profile === 'Administrador').length
+		admins: mockUsers.filter((user) => isProtectedProfile(user.profile.id)).length
 	};
 }
 
-export function createUserMock(payload: CreateUserPayload): Promise<CreateUserResponse> {
-	if (payload.role === 'administrador') {
+export async function createUserMock(payload: CreateUserPayload): Promise<CreateUserResponse> {
+	await requirePermission('user:manage');
+	await requirePermission('profile:manage');
+
+	const profile = findProfileReference(payload.profileId);
+
+	if (!profile) {
+		return Promise.reject(new ApiError(422, 'Perfil inválido.'));
+	}
+
+	if (isProtectedProfile(payload.profileId)) {
 		return Promise.reject(new ApiError(403, 'Não é possível gerenciar contas de Administradores'));
 	}
 
@@ -373,23 +425,18 @@ export function createUserMock(payload: CreateUserPayload): Promise<CreateUserRe
 	const temporaryPassword = generateTemporaryPassword();
 	const createdAt = new Date().toISOString();
 	const id = String(nextId++);
-	const role = PROFILE_TO_ROLE[payload.role];
-
-	if (role === 'Administrador') {
-		return Promise.reject(new ApiError(403, 'Não é possível gerenciar contas de Administradores'));
-	}
 
 	const baseUser: MockUser = {
 		id,
 		fullName: payload.fullName.trim(),
 		email,
-		profile: role,
+		profile,
 		isActive: true,
 		mustChangePassword: true,
 		createdAt
 	};
 
-	if (role === 'Analista') {
+	if (requiresProfessionalProfile(payload.profileId)) {
 		baseUser.specialty = payload.professional?.jobTitle ?? '';
 		baseUser.categories = [];
 		baseUser.notes = payload.professional?.notes ?? null;
@@ -406,7 +453,7 @@ export function createUserMock(payload: CreateUserPayload): Promise<CreateUserRe
 			additionalContact: payload.requester.additionalContact ?? null
 		},
 		professional:
-			role === 'Analista' && payload.professional
+			requiresProfessionalProfile(payload.profileId) && payload.professional
 				? {
 						jobTitle: payload.professional.jobTitle,
 						specialties: payload.professional.specialties,
@@ -420,7 +467,7 @@ export function createUserMock(payload: CreateUserPayload): Promise<CreateUserRe
 		id,
 		fullName: baseUser.fullName,
 		email: baseUser.email,
-		role,
+		profile,
 		isActive: true,
 		mustChangePassword: true,
 		createdAt,
@@ -428,17 +475,19 @@ export function createUserMock(payload: CreateUserPayload): Promise<CreateUserRe
 	}));
 }
 
-export function updateUserStatusMock(
+export async function updateUserStatusMock(
 	id: string,
 	isActive: boolean
 ): Promise<UpdateUserStatusResponse> {
+	await requirePermission('user:manage');
+
 	const user = findMockUser(id);
 
 	if (!user) {
 		return Promise.reject(new ApiError(404, 'Usuário não encontrado'));
 	}
 
-	if (user.profile === 'Administrador') {
+	if (isProtectedProfile(user.profile.id)) {
 		return Promise.reject(new ApiError(403, 'Não é possível gerenciar contas de Administradores'));
 	}
 
@@ -450,14 +499,16 @@ export function updateUserStatusMock(
 	}));
 }
 
-export function resetUserPasswordMock(id: string): Promise<ResetPasswordResponse> {
+export async function resetUserPasswordMock(id: string): Promise<ResetPasswordResponse> {
+	await requirePermission('user:manage');
+
 	const user = findMockUser(id);
 
 	if (!user) {
 		return Promise.reject(new ApiError(404, 'Usuário não encontrado'));
 	}
 
-	if (user.profile === 'Administrador') {
+	if (isProtectedProfile(user.profile.id)) {
 		return Promise.reject(new ApiError(403, 'Não é possível gerenciar contas de Administradores'));
 	}
 
@@ -478,21 +529,20 @@ export function getUserMock(id: string): Promise<UserProfileResponse> {
 	}
 
 	const saved = mockProfileDetails.get(id);
-	const fallbackProfessional =
-		user.profile === 'Analista'
-			? {
-					jobTitle: user.specialty ?? null,
-					specialties: user.specialty ? [user.specialty] : [],
-					attendedCategoryIds: [],
-					notes: user.notes ?? null
-				}
-			: null;
+	const fallbackProfessional = requiresProfessionalProfile(user.profile.id)
+		? {
+				jobTitle: user.specialty ?? null,
+				specialties: user.specialty ? [user.specialty] : [],
+				attendedCategoryIds: [],
+				notes: user.notes ?? null
+			}
+		: null;
 
 	return delay(MOCK_LATENCY_MS).then(() => ({
 		id: user.id,
 		fullName: user.fullName,
 		email: user.email,
-		role: user.profile,
+		profile: user.profile,
 		avatarUrl: saved?.avatarUrl ?? null,
 		requester: saved?.requester ?? {
 			area: 'Área não informada',
@@ -508,18 +558,36 @@ export async function updateUserMock(
 	id: string,
 	payload: UpdateUserInput
 ): Promise<UserProfileResponse> {
+	await requirePermission('user:manage');
+
 	const user = findMockUser(id);
 	if (!user) {
 		return Promise.reject(new ApiError(404, 'Usuário não encontrado'));
 	}
+	if (isProtectedProfile(user.profile.id)) {
+		throw new ApiError(403, 'Não é possível gerenciar contas de Administradores');
+	}
 	if (payload.fullName !== undefined) {
 		user.fullName = payload.fullName.trim();
+	}
+	if (payload.profileId !== undefined) {
+		await requirePermission('profile:manage');
+
+		const profile = findProfileReference(payload.profileId);
+		if (!profile) {
+			throw new ApiError(422, 'Perfil inválido.');
+		}
+		if (isProtectedProfile(payload.profileId)) {
+			throw new ApiError(403, 'Não é possível gerenciar contas de Administradores');
+		}
+		user.profile = { id: profile.id, name: profile.name };
 	}
 
 	const current = await getUserMock(id);
 	const next: UserProfileResponse = {
 		...current,
 		fullName: payload.fullName?.trim() ?? current.fullName,
+		profile: user.profile,
 		requester: payload.requester
 			? {
 					area: payload.requester.area ?? current.requester?.area ?? null,
@@ -533,7 +601,9 @@ export async function updateUserMock(
 			: current.requester,
 		professional: payload.professional
 			? { ...payload.professional, notes: payload.professional.notes ?? null }
-			: current.professional
+			: requiresProfessionalProfile(user.profile.id)
+				? current.professional
+				: null
 	};
 
 	mockProfileDetails.set(id, {
@@ -543,6 +613,18 @@ export async function updateUserMock(
 	});
 
 	return delay(MOCK_LATENCY_MS).then(() => next);
+}
+
+async function requirePermission(key: 'user:manage' | 'profile:manage'): Promise<void> {
+	const currentUser = await getMeMock();
+	if (!has(key, currentUser)) {
+		throw new ApiError(
+			403,
+			key === 'user:manage'
+				? 'Você não tem permissão para gerenciar usuários.'
+				: 'Você não tem permissão para definir o perfil do usuário.'
+		);
+	}
 }
 
 function findMockUser(id: string): MockUser | undefined {

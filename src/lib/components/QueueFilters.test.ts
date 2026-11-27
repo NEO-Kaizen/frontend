@@ -14,9 +14,17 @@ function renderFilters(isSearching = false) {
 			status: 'all',
 			priority: 'all',
 			assignee: 'all',
+			department: 'all',
+			dateFrom: '',
+			dateTo: '',
+			sortBy: 'createdAt',
+			sortOrder: 'desc',
 			statusOptions: options,
 			priorityOptions: options,
 			assigneeOptions: options,
+			departmentOptions: options,
+			sortByOptions: options,
+			sortOrderOptions: options,
 			onFilterChange,
 			onClear,
 			onSearch,
@@ -29,7 +37,7 @@ function renderFilters(isSearching = false) {
 
 function searchInput() {
 	return screen.getByRole('searchbox', {
-		name: 'Buscar por protocolo, solicitante, título da demanda ou e-mail'
+		name: 'Buscar por título, conteúdo, protocolo, solicitante ou e-mail'
 	});
 }
 
@@ -81,6 +89,20 @@ describe('QueueFilters — estabilidade da busca', () => {
 		expect(screen.getByRole('search')).toHaveAttribute('aria-busy', 'true');
 		expect(searchInput()).not.toBeDisabled();
 		expect(document.activeElement).toBe(searchInput());
+	});
+
+	it('trocar um filtro cancela o debounce pendente da busca', async () => {
+		const { onSearch, onFilterChange } = renderFilters();
+
+		await fireEvent.input(searchInput(), { target: { value: 'Termo pendente' } });
+		await fireEvent.change(screen.getByLabelText('Filtrar por data inicial'), {
+			target: { value: '2026-01-01' }
+		});
+
+		expect(onFilterChange).toHaveBeenCalledTimes(1);
+		expect(searchInput()).toHaveValue('');
+		await vi.advanceTimersByTimeAsync(300);
+		expect(onSearch).not.toHaveBeenCalled();
 	});
 
 	it('limpar filtros cancela a busca pendente', async () => {

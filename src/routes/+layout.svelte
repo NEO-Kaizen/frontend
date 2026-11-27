@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { themeStyleVars } from '$lib/utils/theme';
 	import { getThemeMode } from '$lib/states/theme.svelte';
+	import AppShell from '$lib/components/layout/AppShell.svelte';
 	import NavigationProgress from '$lib/components/layout/NavigationProgress.svelte';
 	import ToastHost from '$lib/components/layout/ToastHost.svelte';
 
@@ -35,7 +36,9 @@
 
 <div class="app-root" style={themeVars}>
 	<NavigationProgress />
-	{@render children()}
+	<AppShell>
+		{@render children()}
+	</AppShell>
 	<ToastHost />
 </div>
 

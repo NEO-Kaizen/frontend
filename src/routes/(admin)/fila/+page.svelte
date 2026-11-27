@@ -10,20 +10,35 @@
 	import Button from '$lib/components/Button.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import { exportQueueCsv } from '$lib/services/report.service';
+	import { has } from '$lib/services/access.service';
 	import { notifyError } from '$lib/utils/feedback';
+	import {
+		ALL_FILTER,
+		DEFAULT_SORT_BY,
+		DEFAULT_SORT_ORDER,
+		parseQueueFilterQuery
+	} from '$lib/utils/queue-filters';
 
 	import type { MetricItem } from '$lib/types/metrics';
-	import type { PriorityFilter, QueueFilterQuery } from '$lib/types/queue';
+	import type {
+		PriorityFilter,
+		QueueFilterQuery,
+		QueueFiltersState,
+		QueueSortField,
+		QueueSortOrder
+	} from '$lib/types/queue';
 	import type { RequestStatus } from '$lib/types/request';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 
 	// Navegação pendente para a própria rota: estado de carregamento da tabela.
-	const isFetching = $derived(navigating.to?.route?.id === page.route.id);
+	// `invalidate` não popula `navigating`; o estado local cobre o retry.
+	let isRetrying = $state(false);
+	const isFetching = $derived(navigating.to?.route?.id === page.route.id || isRetrying);
 	let isExporting = $state(false);
 
-	const canExport = $derived(data.user?.role === 'Gestor' || data.user?.role === 'Administrador');
+	const canExport = $derived(has('queue:export', data.user));
 	const hasExportableRows = $derived(data.result.ok && data.result.data.total > 0);
 
 	const queuePath = resolve('/(admin)/fila');
@@ -31,29 +46,43 @@
 	// Filtros com estado local: o select responde na hora, sem esperar a
 	// navegação (a URL só muda após o load resolver). A URL continua sendo a
 	// fonte de verdade — `afterNavigate` ressincroniza em voltar/avançar e busca.
-	const params = page.url.searchParams;
+	const activeSearch = $derived(parseQueueFilterQuery(page.url.searchParams).search ?? '');
 
-	const activeSearch = $derived(page.url.searchParams.get('search') ?? '');
+	const initial = parseQueueFilterQuery(page.url.searchParams);
 
-	let status = $state(params.get('status') ?? 'all');
-	let priority = $state(params.get('priority') ?? 'all');
-	let assigneeId = $state(params.get('assigneeId') ?? 'all');
+	let status = $state<string>(initial.status ?? ALL_FILTER);
+	let priority = $state<string>(initial.priority ?? ALL_FILTER);
+	let assigneeId = $state(initial.assigneeId ?? ALL_FILTER);
+	let department = $state(initial.department ?? ALL_FILTER);
+	let dateFrom = $state(initial.createdFrom ?? '');
+	let dateTo = $state(initial.createdTo ?? '');
+	let sortBy = $state<QueueSortField>(initial.sortBy ?? DEFAULT_SORT_BY);
+	let sortOrder = $state<QueueSortOrder>(initial.sortOrder ?? DEFAULT_SORT_ORDER);
 
-	afterNavigate(() => {
-		status = page.url.searchParams.get('status') ?? 'all';
-		priority = page.url.searchParams.get('priority') ?? 'all';
-		assigneeId = page.url.searchParams.get('assigneeId') ?? 'all';
-	});
+	function syncFiltersFromUrl() {
+		const current = parseQueueFilterQuery(page.url.searchParams);
+
+		status = current.status ?? ALL_FILTER;
+		priority = current.priority ?? ALL_FILTER;
+		assigneeId = current.assigneeId ?? ALL_FILTER;
+		department = current.department ?? ALL_FILTER;
+		dateFrom = current.createdFrom ?? '';
+		dateTo = current.createdTo ?? '';
+		sortBy = current.sortBy ?? DEFAULT_SORT_BY;
+		sortOrder = current.sortOrder ?? DEFAULT_SORT_ORDER;
+	}
+
+	afterNavigate(syncFiltersFromUrl);
 
 	const statusOptions = $derived.by(() => [
-		{ value: 'all', label: 'Todos' },
+		{ value: ALL_FILTER, label: 'Todos' },
 		...data.portalConfig.statuses
 			.filter((item) => item.isActive)
 			.map((item) => ({ value: item.name, label: item.name }))
 	]);
 
 	const priorityOptions = [
-		{ value: 'all', label: 'Todas' },
+		{ value: ALL_FILTER, label: 'Todas' },
 		{ value: 'Baixa', label: 'Baixa' },
 		{ value: 'Média', label: 'Média' },
 		{ value: 'Alta', label: 'Alta' },
@@ -61,18 +90,49 @@
 		{ value: 'nenhum', label: 'Nenhuma' }
 	];
 
+	const sortByOptions = [
+		{ value: DEFAULT_SORT_BY, label: 'Data de criação' },
+		{ value: 'priority', label: 'Prioridade' },
+		{ value: 'status', label: 'Status' },
+		{ value: 'protocol', label: 'Protocolo' }
+	];
+
+	const sortOrderOptions = [
+		{ value: DEFAULT_SORT_ORDER, label: 'Decrescente' },
+		{ value: 'asc', label: 'Crescente' }
+	];
+
 	// Roster vem do envelope de GET /queue (id + nome), independente dos filtros.
 	const assigneeOptions = $derived.by(() => {
 		const roster = data.result.ok ? data.result.data.assignees : [];
 
 		return [
-			{ value: 'all', label: 'Todos' },
+			{ value: ALL_FILTER, label: 'Todos' },
 			{ value: 'unassigned', label: 'Sem responsável' },
 			...roster.map((assignee) => ({
 				value: String(assignee.id),
 				label: assignee.name
 			}))
 		];
+	});
+
+	// Departamentos também são globais no envelope; o atual entra mesmo fora da lista
+	// para não sumir da UI quando o backend ainda não o retorna.
+	const departmentOptions = $derived.by(() => {
+		const source = data.result.ok ? data.result.data.departments : undefined;
+		const list = Array.isArray(source)
+			? source.filter((item): item is string => typeof item === 'string')
+			: [];
+		const unique = Array.from(new Set(list.map((item) => item.trim()).filter(Boolean)))
+			.sort((a, b) => a.localeCompare(b, 'pt-BR'))
+			.map((value) => ({ value, label: value }));
+
+		if (department !== ALL_FILTER && !unique.some((option) => option.value === department)) {
+			unique.push({ value: department, label: department });
+			unique.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+		}
+
+		return [{ value: ALL_FILTER, label: 'Todos' }, ...unique];
 	});
 
 	const metrics = $derived.by<MetricItem[]>(() => {
@@ -112,7 +172,7 @@
 		const searchParams = new SvelteURLSearchParams(page.url.searchParams);
 
 		for (const [key, value] of Object.entries(overrides)) {
-			if (value === null || value === 'all') {
+			if (value === null || value === ALL_FILTER) {
 				searchParams.delete(key);
 			} else {
 				searchParams.set(key, value);
@@ -138,44 +198,56 @@
 			keepFocus: true,
 			noScroll: true,
 			replaceState: true
-		});
+		}).catch(() => notifyError('Não foi possível carregar a página. Tente novamente.'));
 	}
 
-	async function handleFilterChange(
-		nextStatus: string,
-		nextPriority: string,
-		nextAssigneeId: string
-	) {
-		status = nextStatus;
-		priority = nextPriority;
-		assigneeId = nextAssigneeId;
+	async function handleFilterChange(next: QueueFiltersState) {
+		status = next.status;
+		priority = next.priority;
+		assigneeId = next.assignee;
+		department = next.department;
+		dateFrom = next.dateFrom;
+		dateTo = next.dateTo;
+		sortBy = next.sortBy;
+		sortOrder = next.sortOrder;
 
 		const target = `${queuePath}${buildQueueParams({
 			page: null,
-			status: nextStatus,
-			priority: nextPriority,
-			assigneeId: nextAssigneeId
+			status: next.status,
+			priority: next.priority,
+			assigneeId: next.assignee,
+			department: next.department,
+			createdFrom: next.dateFrom || null,
+			createdTo: next.dateTo || null,
+			sortBy: next.sortBy === DEFAULT_SORT_BY ? null : next.sortBy,
+			sortOrder: next.sortOrder === DEFAULT_SORT_ORDER ? null : next.sortOrder
 		})}`;
 
-		// eslint-disable-next-line svelte/no-navigation-without-resolve
-		await goto(target, { keepFocus: true, noScroll: true });
+		try {
+			// eslint-disable-next-line svelte/no-navigation-without-resolve
+			await goto(target, { keepFocus: true, noScroll: true });
+		} catch {
+			syncFiltersFromUrl();
+			notifyError('Não foi possível aplicar os filtros. Tente novamente.');
+		}
 	}
 
 	async function handleClearFilters(): Promise<void> {
-		status = 'all';
-		priority = 'all';
-		assigneeId = 'all';
+		status = ALL_FILTER;
+		priority = ALL_FILTER;
+		assigneeId = ALL_FILTER;
+		department = ALL_FILTER;
+		dateFrom = '';
+		dateTo = '';
+		sortBy = DEFAULT_SORT_BY;
+		sortOrder = DEFAULT_SORT_ORDER;
 
-		const target = `${queuePath}${buildQueueParams({
-			page: null,
-			status: null,
-			priority: null,
-			assigneeId: null,
-			search: null
-		})}`;
-
-		// eslint-disable-next-line svelte/no-navigation-without-resolve
-		await goto(target, { keepFocus: true, noScroll: true });
+		try {
+			await goto(queuePath, { keepFocus: true, noScroll: true });
+		} catch {
+			syncFiltersFromUrl();
+			notifyError('Não foi possível limpar os filtros. Tente novamente.');
+		}
 	}
 
 	async function handleSearch(term: string): Promise<void> {
@@ -184,17 +256,40 @@
 			search: term ? term.trim() : null
 		})}`;
 
-		// eslint-disable-next-line svelte/no-navigation-without-resolve
-		await goto(target, { keepFocus: true, noScroll: true });
+		try {
+			// eslint-disable-next-line svelte/no-navigation-without-resolve
+			await goto(target, { keepFocus: true, noScroll: true });
+		} catch {
+			notifyError('Não foi possível aplicar a busca. Tente novamente.');
+		}
+	}
+
+	async function retryQueue() {
+		if (isRetrying) return;
+
+		isRetrying = true;
+
+		try {
+			await invalidate('app:queue');
+		} catch {
+			notifyError('Não foi possível recarregar a fila. Tente novamente.');
+		} finally {
+			isRetrying = false;
+		}
 	}
 
 	function currentExportFilters(): QueueFilterQuery {
 		const filters: QueueFilterQuery = {};
 
 		if (activeSearch) filters.search = activeSearch;
-		if (status !== 'all') filters.status = status as RequestStatus;
-		if (priority !== 'all') filters.priority = priority as PriorityFilter;
-		if (assigneeId !== 'all') filters.assigneeId = assigneeId;
+		if (status !== ALL_FILTER) filters.status = status as RequestStatus;
+		if (priority !== ALL_FILTER) filters.priority = priority as PriorityFilter;
+		if (assigneeId !== ALL_FILTER) filters.assigneeId = assigneeId;
+		if (department !== ALL_FILTER) filters.department = department;
+		if (dateFrom) filters.createdFrom = dateFrom;
+		if (dateTo) filters.createdTo = dateTo;
+		if (sortBy !== DEFAULT_SORT_BY) filters.sortBy = sortBy;
+		if (sortOrder !== DEFAULT_SORT_ORDER) filters.sortOrder = sortOrder;
 
 		return filters;
 	}
@@ -213,7 +308,7 @@
 	}
 
 	async function handleExport(): Promise<void> {
-		if (isExporting || !canExport || !hasExportableRows) return;
+		if (isExporting || isFetching || !canExport || !hasExportableRows) return;
 
 		isExporting = true;
 		const result = await exportQueueCsv(currentExportFilters());
@@ -232,7 +327,7 @@
 	<title>Fila Centralizada | {data.portalConfig.platformName}</title>
 </svelte:head>
 
-<section class="queue-page">
+<main class="content-container queue-page">
 	<header class="queue-page__header">
 		<div>
 			<h1>Fila Centralizada</h1>
@@ -243,7 +338,7 @@
 			<Button
 				variant="outline"
 				loading={isExporting}
-				disabled={!hasExportableRows}
+				disabled={isFetching || !hasExportableRows}
 				onclick={() => void handleExport()}
 			>
 				{#if !isExporting}
@@ -274,12 +369,20 @@
 		{status}
 		{priority}
 		assignee={assigneeId}
+		{department}
+		{dateFrom}
+		{dateTo}
+		{sortBy}
+		{sortOrder}
 		{statusOptions}
 		{priorityOptions}
 		{assigneeOptions}
+		{departmentOptions}
+		{sortByOptions}
+		{sortOrderOptions}
 		search={activeSearch}
 		isSearching={isFetching}
-		onFilterChange={(next) => void handleFilterChange(next.status, next.priority, next.assignee)}
+		onFilterChange={(next) => void handleFilterChange(next)}
 		onSearch={(term) => void handleSearch(term)}
 		onClear={() => void handleClearFilters()}
 	/>
@@ -290,17 +393,16 @@
 		{isFetching}
 		detailRoute="/(admin)/fila/[protocolo]"
 		emptyMessage="Ajuste a busca ou os filtros e tente novamente."
-		onretry={() => void invalidate('app:queue')}
+		onretry={() => void retryQueue()}
 		onpagechange={goToPage}
 	/>
-</section>
+</main>
 
 <style>
 	.queue-page {
 		display: flex;
 		flex-direction: column;
 		width: 100%;
-		max-width: var(--largura-maxima-conteudo);
 		gap: var(--spacing-lg);
 	}
 
@@ -334,7 +436,7 @@
 		color: var(--gray);
 		background: var(--white);
 		border: var(--border-default);
-		border-radius: var(--radius-lg);
+		border-radius: var(--radius-md);
 		box-shadow: var(--regular-shadow);
 	}
 

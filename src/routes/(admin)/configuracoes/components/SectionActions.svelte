@@ -14,6 +14,7 @@
 		// Leitura autoritativa falhou: a configuração em tela pode ser o fallback
 		// local — Salvar/Restaurar ficam bloqueados até a revalidação.
 		loadFailed?: boolean;
+		readOnly?: boolean;
 		onSave: () => void;
 		onCancel: () => void;
 		onRestoreDefaults: () => void;
@@ -26,6 +27,7 @@
 		restorable,
 		invalid = false,
 		loadFailed = false,
+		readOnly = false,
 		onSave,
 		onCancel,
 		onRestoreDefaults,
@@ -38,11 +40,16 @@
 </script>
 
 <div class="section-actions">
+	{#if readOnly}
+		<p class="read-only-note" role="note">
+			Somente leitura. Você não tem permissão para alterar esta configuração.
+		</p>
+	{/if}
 	<div class="section-buttons">
 		<Button
 			variant="outline-neutral"
 			onclick={() => (confirmRestore = true)}
-			disabled={!restorable || saving || loadFailed}
+			disabled={!restorable || saving || loadFailed || readOnly}
 		>
 			<Icon iconName="autorenew" iconSize="sm" />
 			Restaurar padrão
@@ -54,7 +61,7 @@
 			variant="primary"
 			onclick={onSave}
 			loading={saving}
-			disabled={!dirty || saving || invalid || loadFailed}
+			disabled={!dirty || saving || invalid || loadFailed || readOnly}
 		>
 			Salvar
 		</Button>
@@ -90,5 +97,12 @@
 		flex-wrap: wrap;
 		justify-content: flex-end;
 		gap: var(--spacing-sm);
+	}
+
+	.read-only-note {
+		margin: 0;
+		font: var(--label);
+		color: var(--text-color-secondary);
+		text-align: right;
 	}
 </style>

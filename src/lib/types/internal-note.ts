@@ -1,14 +1,17 @@
+import type { ProfileReference, ProfileSnapshot } from '$lib/types/profile';
 import type { MappingResponse } from './mapping';
 import type { TriageAssessment } from './triage';
-import type { UserType } from './user';
-
-// Perfil interno (autor/ator da timeline): qualquer role exceto Solicitante.
-export type InternalRole = Exclude<UserType, 'Solicitante'>;
 
 export interface TimelineActor {
 	id: string;
 	name: string;
-	role: InternalRole;
+	profile: ProfileSnapshot;
+}
+
+export interface TimelineEventActor {
+	id: string;
+	name: string;
+	profile: ProfileReference | null;
 }
 
 // Lista fechada de ações da timeline (D-N4/D-N12) — subconjunto de
@@ -42,7 +45,7 @@ export interface TimelineEvent {
 	text: string;
 	occurredAt: string;
 	// `null` = ação de sistema ou usuário removido.
-	actor: TimelineActor | null;
+	actor: TimelineEventActor | null;
 	changeOrigin: TimelineChangeOrigin;
 	// `justification` e `lastTechnicalMessage` são exclusivos de
 	// `request.status_change`: `justification` é a justificativa interna

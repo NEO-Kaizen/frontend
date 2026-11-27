@@ -50,6 +50,7 @@ describe('estados da busca de solicitações', () => {
 			ok: false,
 			error: {
 				status: 403,
+				retryable: false,
 				message: 'Você não tem permissão para consultar estas solicitações.'
 			}
 		});
@@ -63,6 +64,7 @@ describe('estados da busca de solicitações', () => {
 		expect(result.ok).toBe(false);
 		if (!result.ok) {
 			expect(result.error.status).toBe(401);
+			expect(result.error.retryable).toBe(false);
 			expect(result.error.message).toBe('Sua sessão expirou. Entre novamente para continuar.');
 		}
 	});
@@ -76,6 +78,7 @@ describe('estados da busca de solicitações', () => {
 
 		expect(result.ok).toBe(false);
 		if (!result.ok) {
+			expect(result.error.retryable).toBe(true);
 			expect(result.error.message).toBe('Não foi possível carregar a fila centralizada.');
 		}
 	});
@@ -87,6 +90,7 @@ describe('estados da busca de solicitações', () => {
 
 		expect(result.ok).toBe(false);
 		if (!result.ok) {
+			expect(result.error.retryable).toBe(true);
 			expect(result.error.message).toBe('Não foi possível conectar ao servidor.');
 		}
 	});
@@ -124,6 +128,30 @@ describe('estados da busca de solicitações', () => {
 		}
 	});
 
+	it('traduz 403 do envio com mensagem própria de criação', async () => {
+		api.createRequest.mockRejectedValue(new ApiError(403, 'forbidden by policy'));
+
+		const result = await submitDemand({} as CreateRequestPayload);
+
+		expect(result.ok).toBe(false);
+		if (!result.ok) {
+			expect(result.error.message).toBe('Você não tem permissão para enviar esta solicitação.');
+		}
+	});
+
+	it('preserva a mensagem de validação 400 do backend no envio', async () => {
+		api.createRequest.mockRejectedValue(
+			new ApiError(400, 'Informe o departamento da solicitação.')
+		);
+
+		const result = await submitDemand({} as CreateRequestPayload);
+
+		expect(result.ok).toBe(false);
+		if (!result.ok) {
+			expect(result.error.message).toBe('Informe o departamento da solicitação.');
+		}
+	});
+
 	it('traduz 429 no envio sem revelar detalhes internos', async () => {
 		api.createRequest.mockRejectedValue(new ApiError(429, 'rate limit bucket user:123'));
 
@@ -131,7 +159,8 @@ describe('estados da busca de solicitações', () => {
 
 		expect(result.ok).toBe(false);
 		if (!result.ok) {
-			expect(result.error.message).toBe('Muitas consultas em sequência. Aguarde um momento.');
+			expect(result.error.retryable).toBe(true);
+			expect(result.error.message).toBe('Muitas tentativas. Aguarde um momento.');
 		}
 	});
 

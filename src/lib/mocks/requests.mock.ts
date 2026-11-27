@@ -1,4 +1,6 @@
 import { ApiError } from '$lib/types/result';
+import { can, has } from '$lib/utils/permission-checks';
+import { listProfilesMock } from './profiles.mock';
 import { computePrioritizationResult, getSavedPrioritizationNotes } from './prioritization.mock';
 import { mockUsers } from './users.mock';
 import { getMeMock } from './auth.mock';
@@ -9,7 +11,9 @@ import type {
 	QueueAssignee,
 	QueueMetricsResponse,
 	QueueQuery,
-	QueueResponse
+	QueueResponse,
+	QueueSortField,
+	QueueSortOrder
 } from '$lib/types/queue';
 import type {
 	CreateRequestPayload,
@@ -18,6 +22,7 @@ import type {
 	ListRequestsQuery,
 	PaginatedResponse,
 	RequestDetail,
+	RequestPriority,
 	RequestStatus,
 	RequestSummary,
 	UpdateInternalRequestPayload,
@@ -670,6 +675,76 @@ function normalizeSearch(text: string): string {
 		.trim();
 }
 
+// Departamento fictício por e-mail do solicitante, sem alterar os fixtures existentes.
+const MOCK_REQUEST_DEPARTMENTS: Record<string, string> = {
+	'maria.oliveira@maat.com.br': 'Departamento Pessoal',
+	'ana.souza@maat.com.br': 'Atendimento',
+	'joao.santos@maat.com.br': 'Dados e Relatórios',
+	'pedro.rocha@maat.com.br': 'Contratos',
+	'carlos.mendes@maat.com.br': 'Operações',
+	'fernanda.lima@maat.com.br': 'Financeiro',
+	'rafael.costa@maat.com.br': 'Comercial',
+	'juliana.alves@maat.com.br': 'Recursos Humanos',
+	'bruno.martins@maat.com.br': 'Jurídico'
+};
+
+const PRIORITY_RANK: Record<RequestPriority, number> = {
+	Baixa: 1,
+	Média: 2,
+	Alta: 3,
+	Crítica: 4
+};
+
+function getRequestDepartment(request: MockRequest): string | null {
+	return MOCK_REQUEST_DEPARTMENTS[request.corporateEmail.toLowerCase().trim()] ?? null;
+}
+
+// Lista global de departamentos: não segue filtros nem paginação.
+function getQueueDepartments(): string[] {
+	return Array.from(
+		new Set(
+			mockRequests
+				.map(getRequestDepartment)
+				.filter((department): department is string => department !== null)
+		)
+	).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+}
+
+function compareQueueRequests(sortBy: QueueSortField, sortOrder: QueueSortOrder) {
+	const direction = sortOrder === 'asc' ? 1 : -1;
+
+	return (a: MockRequest, b: MockRequest): number => {
+		let result: number;
+
+		switch (sortBy) {
+			case 'priority':
+				if (a.priority === null && b.priority === null) {
+					result = 0;
+				} else if (a.priority === null) {
+					// Nulos sempre ao final, independentemente da direção.
+					return 1;
+				} else if (b.priority === null) {
+					return -1;
+				} else {
+					result = PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority];
+				}
+				break;
+			case 'status':
+				result = a.status.localeCompare(b.status);
+				break;
+			case 'protocol':
+				result = a.protocol.localeCompare(b.protocol);
+				break;
+			default:
+				result = a.createdAt.localeCompare(b.createdAt);
+				break;
+		}
+
+		// Empate sempre por protocolo ascendente.
+		return result !== 0 ? result * direction : a.protocol.localeCompare(b.protocol);
+	};
+}
+
 export function listQueueRequestsMock(query: QueueQuery): Promise<QueueResponse> {
 	let requests = [...mockRequests];
 
@@ -678,13 +753,15 @@ export function listQueueRequestsMock(query: QueueQuery): Promise<QueueResponse>
 
 		requests = requests.filter((request) => {
 			const protocol = normalizeSearch(request.protocol);
-			const demandTitle = normalizeSearch(request.demandTitle ?? request.processName);
+			const demandTitle = normalizeSearch(request.demandTitle ?? '');
+			const processName = normalizeSearch(request.processName);
 			const requester = normalizeSearch(request.requesterName);
 			const email = normalizeSearch(request.corporateEmail);
 
 			return (
 				protocol.includes(term) ||
 				demandTitle.includes(term) ||
+				processName.includes(term) ||
 				requester.includes(term) ||
 				email.includes(term)
 			);
@@ -711,10 +788,27 @@ export function listQueueRequestsMock(query: QueueQuery): Promise<QueueResponse>
 		});
 	}
 
-	// Ordenação determinística: mais recentes primeiro, protocolo como desempate.
-	requests.sort(
-		(a, b) => b.createdAt.localeCompare(a.createdAt) || a.protocol.localeCompare(b.protocol)
-	);
+	if (query.department) {
+		const department = query.department.trim().toLowerCase();
+
+		requests = requests.filter(
+			(request) => getRequestDepartment(request)?.toLowerCase() === department
+		);
+	}
+
+	const createdFrom = query.createdFrom;
+
+	if (createdFrom) {
+		requests = requests.filter((request) => request.createdAt.slice(0, 10) >= createdFrom);
+	}
+
+	const createdTo = query.createdTo;
+
+	if (createdTo) {
+		requests = requests.filter((request) => request.createdAt.slice(0, 10) <= createdTo);
+	}
+
+	requests.sort(compareQueueRequests(query.sortBy ?? 'createdAt', query.sortOrder ?? 'desc'));
 
 	const pageSize = query.pageSize ?? 10;
 	const total = requests.length;
@@ -738,7 +832,8 @@ export function listQueueRequestsMock(query: QueueQuery): Promise<QueueResponse>
 		pageSize,
 		total,
 		totalPages,
-		assignees: getQueueAssignees()
+		assignees: getQueueAssignees(),
+		departments: getQueueDepartments()
 	});
 }
 
@@ -1512,9 +1607,10 @@ export async function createTriageMock(
 
 	const statuses = getMockStatuses();
 	const detail = hydrateRequestMock(protocol, statuses) ?? found;
-	const hasCustody = detail.assignee?.id != null && detail.assignee.id === me.id;
-	if (me.role !== 'Administrador' && (me.role !== 'Analista' || !hasCustody)) {
-		throw new ApiError(403, 'Ação restrita ao Administrador ou ao responsável pela demanda.');
+	const canWriteAny = can('triage:write', 'all', me);
+	const canWriteAssigned = can('triage:write', 'assigned', me) && detail.assignee?.id === me.id;
+	if (!canWriteAny && !canWriteAssigned) {
+		throw new ApiError(403, 'Você não tem permissão para registrar a triagem desta solicitação.');
 	}
 
 	const exitStatus = payload.exitStatus;
@@ -1592,6 +1688,12 @@ export function getTriageMock(protocol: string): Promise<TriageAssessment | null
 	return delay(MOCK_LATENCY_MS).then(() => (current ? structuredClone(current) : null));
 }
 
+function isTriageAssignee(profileId: string): boolean {
+	return (
+		listProfilesMock().find((profile) => profile.id === profileId)?.isAssignableTriage === true
+	);
+}
+
 export async function assignAnalystMock(
 	protocol: string,
 	analystId: string,
@@ -1619,15 +1721,9 @@ export async function assignAnalystMock(
 		}
 	}
 
-	const analyst = (
-		mockUsers as unknown as Array<{
-			id: string;
-			fullName: string;
-			email: string;
-			profile: string;
-			isActive: boolean;
-		}>
-	).find((u) => u.id === analystId && u.profile === 'Analista');
+	const analyst = mockUsers.find(
+		(user) => user.id === analystId && isTriageAssignee(user.profile.id)
+	);
 
 	if (!analyst) {
 		return Promise.reject(new ApiError(404, 'Analista não encontrado.'));
@@ -1701,24 +1797,20 @@ export async function updateRequestStatusMock(
 		throw new ApiError(422, 'Status já é o atual.');
 	}
 
-	const hasCustody =
-		(detail.assignee?.id != null && detail.assignee.id === me.id) ||
-		(detail.mappingAssignee?.id != null && detail.mappingAssignee.id === me.id) ||
-		(detail.mappingAssigneeId != null && detail.mappingAssigneeId === me.id);
-	if (me.role !== 'Administrador') {
-		if (me.role !== 'Analista' || !hasCustody) {
-			throw new ApiError(403, 'Ação restrita ao Administrador ou ao responsável pela demanda.');
-		}
+	const canChangeAny = can('request:status_change', 'all', me);
+	const hasCustody = detail.assignee?.id === me.id;
+	const canChangeAssigned = can('request:status_change', 'assigned', me) && hasCustody;
+	if (!canChangeAny && !canChangeAssigned) {
+		throw new ApiError(403, 'Você não tem permissão para alterar o status desta solicitação.');
+	}
+	if (!has('request:status_override', me)) {
 		if (current?.isTerminal) {
-			throw new ApiError(
-				403,
-				'Solicitação terminal — alteração de status restrita ao Administrador.'
-			);
+			throw new ApiError(403, 'Não é possível alterar o status de uma solicitação finalizada.');
 		}
 		const isFree =
 			!target.isRestricted && (target.triageMode === 'free' || target.mappingMode === 'free');
 		if (!isFree) {
-			throw new ApiError(403, 'Status alvo não permitido para o seu perfil.');
+			throw new ApiError(403, 'Este status não está disponível para sua permissão.');
 		}
 	}
 

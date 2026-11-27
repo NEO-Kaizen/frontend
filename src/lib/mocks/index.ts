@@ -15,12 +15,14 @@ type MockDomains = {
 	request: true;
 	portalConfig: true;
 	users: true;
+	profiles: true;
 	prioritization: true;
 	pendingItems: true;
 	triage: true;
 	mapping: true;
 	internalNotes: true;
 	auditHistory: true;
+	notifications: true;
 	statusTimes: true;
 };
 export const MOCK_DOMAINS: false | MockDomains =
@@ -33,11 +35,13 @@ export const MOCK_DOMAINS: false | MockDomains =
 		request: true,
 		portalConfig: true,
 		users: true,
+		profiles: true,
 		prioritization: true,
 		pendingItems: true,
 		triage: true,
 		mapping: true,
 		internalNotes: true,
 		auditHistory: true,
+		notifications: true,
 		statusTimes: true
 	} as const);

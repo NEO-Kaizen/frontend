@@ -68,7 +68,11 @@ describe('SolicitationTable — estados da busca', () => {
 				page: 1,
 				result: {
 					ok: false,
-					error: { status: 500, message: 'Não foi possível carregar a fila centralizada.' }
+					error: {
+						status: 500,
+						retryable: true,
+						message: 'Não foi possível carregar a fila centralizada.'
+					}
 				},
 				isFetching: false,
 				onretry,
@@ -81,6 +85,30 @@ describe('SolicitationTable — estados da busca', () => {
 		);
 		await fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
 		expect(onretry).toHaveBeenCalledTimes(1);
+	});
+
+	it('não oferece retry quando o erro não é transitório', () => {
+		render(SolicitationTable, {
+			props: {
+				page: 1,
+				result: {
+					ok: false,
+					error: {
+						status: 403,
+						retryable: false,
+						message: 'Você não tem permissão para consultar estas solicitações.'
+					}
+				},
+				isFetching: false,
+				onretry: vi.fn(),
+				onpagechange: vi.fn()
+			}
+		});
+
+		expect(screen.getByRole('alert')).toHaveTextContent(
+			'Você não tem permissão para consultar estas solicitações.'
+		);
+		expect(screen.queryByRole('button', { name: 'Tentar novamente' })).not.toBeInTheDocument();
 	});
 
 	it('mostra os resultados e nenhum indicador de carregamento após sucesso', () => {

@@ -16,4 +16,8 @@ export class ApiError extends Error {
 
 // Retorno padrão dos services — exceções nunca estouram para a UI.
 export type Result<T> =
-	{ ok: true; data: T } | { ok: false; error: { status?: number; message: string } };
+	| { ok: true; data: T }
+	| {
+			ok: false;
+			error: { status?: number; code?: string; retryable?: boolean; message: string };
+	  };

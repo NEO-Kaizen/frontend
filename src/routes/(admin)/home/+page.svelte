@@ -2,6 +2,7 @@
 	import Banner from '$lib/components/layout/Banner.svelte';
 	import SolicitationTable from '$lib/components/tables/SolicitationTable.svelte';
 	import { listQueueRequests } from '$lib/services/request.service';
+	import { can } from '$lib/services/access.service';
 	import type { QueueResponse } from '$lib/types/queue';
 	import type { Result } from '$lib/types/result';
 	import type { PageProps } from './$types';
@@ -13,42 +14,44 @@
 	let isFetching = $state(false);
 	let requestToken = 0;
 
-	const isAnalyst = $derived(data.user?.role === 'Analista');
+	const isOwnQueue = $derived(
+		can('queue:read', 'assigned', data.user) && !can('queue:read', 'all', data.user)
+	);
 
 	let result = $derived(fetchedResult ?? data.result);
 	let userName = $derived(data.user?.name ?? 'Usuário');
 
 	let sectionTitle = $derived(
-		isAnalyst ? 'Solicitações sob minha responsabilidade' : 'Solicitações sem responsável'
+		isOwnQueue ? 'Minha fila de solicitações' : 'Fila geral — solicitações sem responsável'
 	);
 
 	let emptyTitle = $derived(
-		isAnalyst
-			? 'Nenhuma solicitação sob sua responsabilidade'
-			: 'Nenhuma solicitação sem responsável'
+		isOwnQueue
+			? 'Nenhuma solicitação na sua fila'
+			: 'Nenhuma solicitação sem responsável na fila geral'
 	);
 
 	let emptyMessage = $derived(
-		isAnalyst
+		isOwnQueue
 			? 'Não há solicitações atribuídas a você no momento.'
 			: 'Não há solicitações pendentes de atribuição no momento.'
 	);
 
 	let bannerDescription = $derived.by(() => {
 		if (!result.ok) {
-			return isAnalyst
-				? 'Não foi possível carregar o total de solicitações sob sua responsabilidade.'
-				: 'Não foi possível carregar o total de solicitações sem responsável.';
+			return isOwnQueue
+				? 'Não foi possível carregar o total de solicitações da sua fila.'
+				: 'Não foi possível carregar o total de solicitações da fila geral.';
 		}
 
 		const total = result.data.total;
 		const noun = total === 1 ? 'solicitação' : 'solicitações';
 
-		if (isAnalyst) {
-			return `Você tem ${total} ${noun} sob sua responsabilidade.`;
+		if (isOwnQueue) {
+			return `Você tem ${total} ${noun} na sua fila.`;
 		}
 
-		return `Há ${total} ${noun} sem responsável.`;
+		return `Há ${total} ${noun} sem responsável na fila geral.`;
 	});
 
 	async function fetchTable(pageNumber: number) {
