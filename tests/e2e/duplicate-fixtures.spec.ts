@@ -50,6 +50,14 @@ test.describe('RF16 — fixtures de duplicidade', () => {
 		expect(Object.keys(DUPLICATE_DEMAND).sort()).toEqual([...DEMAND_FIELDS].sort());
 	});
 
+	test('o fixture de erro usa a mensagem do backend', () => {
+		expect(DUPLICATE_ERROR).toEqual({
+			status: 'error',
+			statusCode: 500,
+			message: 'Erro interno do servidor'
+		});
+	});
+
 	test('mocks de desenvolvimento respondem o cenário médio', async () => {
 		await expect(checkDuplicatesMock()).resolves.toEqual(DUPLICATE_RESPONSES.medium);
 		await expect(getTrackingDuplicatesMock()).resolves.toEqual(DUPLICATE_RESPONSES.medium);

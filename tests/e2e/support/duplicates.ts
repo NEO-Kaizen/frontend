@@ -7,12 +7,26 @@ import {
 } from '../../../src/lib/mocks/duplicate.mock';
 import type { DuplicateAlertItem } from '../../../src/lib/types/duplicate';
 import type { DemandBlock } from '../../../src/lib/types/request';
+import type { RequesterIdentity } from '../../../src/lib/types/requester-tracking';
 
-export { DUPLICATE_ITEMS, DUPLICATE_RESPONSES };
+export { DUPLICATE_ERROR, DUPLICATE_ITEMS, DUPLICATE_RESPONSES };
+
+export const DUPLICATE_API_URL = process.env.E2E_API_URL ?? 'http://localhost:3000';
 
 export const DUPLICATE_CHECK_PATH = '/requests/duplicates/check';
 export const DUPLICATE_CHECK_ROUTE = `**${DUPLICATE_CHECK_PATH}`;
 export const DUPLICATE_TRACKING_ROUTE = '**/requests/*/duplicates';
+
+// Protocolo com caracteres reservados de propósito: prova o encodeURIComponent.
+export const DUPLICATE_PROTOCOL = 'ABC/123?x=1';
+
+// Identidade fictícia completa; o header público deve levar só nome e e-mail.
+export const DUPLICATE_IDENTITY: RequesterIdentity = {
+	name: 'Ana Souza',
+	email: 'ana.souza@example.com',
+	protocol: DUPLICATE_PROTOCOL,
+	verifiedAt: '2026-11-27T12:00:00.000Z'
+};
 
 // Corpo de exemplo do contrato (backend#208): apenas campos públicos e sem PII.
 export const DUPLICATE_DEMAND: DemandBlock = {
