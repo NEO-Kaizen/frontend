@@ -2,11 +2,10 @@
 # O job `unit` permanece comentado até o Vitest e o script `test` existirem.
 name: CI
 
+# Roda em qualquer branch; o filtro anterior restringia o CI à main.
 on:
   push:
-    branches: [main]
   pull_request:
-    branches: [main]
   workflow_dispatch:
 
 # Menor privilégio: leitura do repositório é suficiente para lint/check/build.
