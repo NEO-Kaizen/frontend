@@ -1,10 +1,10 @@
-import { ApiError } from '../types/result';
+import { ApiError } from '$lib/types/result';
 import type {
 	DuplicateAlertItem,
 	DuplicateCheckResponse,
 	DuplicateConfidence
-} from '../types/duplicate';
-import type { ApiErrorResponse } from '../types/request';
+} from '$lib/types/duplicate';
+import type { ApiErrorResponse } from '$lib/types/request';
 
 // Fixtures do contrato público do RF16 (backend#208). São compartilhadas pelo
 // mock de desenvolvimento e pelas fixtures de Playwright. Nunca incluem
@@ -29,7 +29,7 @@ export const DUPLICATE_ITEMS = {
 		status: 'Concluída',
 		period: '2026-Q4'
 	},
-	openSecondary: {
+	openMelhoria: {
 		publicId: '1b4e28ba-2fa1-11d2-883f-0016d3cca427',
 		title: 'Solicitação de Melhoria de processo em andamento',
 		summary:
@@ -38,7 +38,7 @@ export const DUPLICATE_ITEMS = {
 		status: 'Em andamento',
 		period: '2026-Q3'
 	},
-	concludedSecondary: {
+	concludedDashboard: {
 		publicId: 'c9bf9e57-1685-4c89-bafb-ff5af830be8a',
 		title: 'Padronizar relatório mensal de indicadores',
 		summary: 'Relatório consolidado com a mesma estrutura em todas as áreas.',
@@ -51,15 +51,15 @@ export const DUPLICATE_ITEMS = {
 export const DUPLICATE_RESPONSES: Record<DuplicateConfidence, DuplicateCheckResponse> = {
 	high: {
 		confidence: 'high',
-		items: [DUPLICATE_ITEMS.open, DUPLICATE_ITEMS.concluded, DUPLICATE_ITEMS.openSecondary]
+		items: [DUPLICATE_ITEMS.open, DUPLICATE_ITEMS.concluded, DUPLICATE_ITEMS.openMelhoria]
 	},
 	medium: {
 		confidence: 'medium',
 		items: [
 			DUPLICATE_ITEMS.open,
 			DUPLICATE_ITEMS.concluded,
-			DUPLICATE_ITEMS.openSecondary,
-			DUPLICATE_ITEMS.concludedSecondary
+			DUPLICATE_ITEMS.openMelhoria,
+			DUPLICATE_ITEMS.concludedDashboard
 		]
 	},
 	none: { confidence: 'none', items: [] }
@@ -68,7 +68,7 @@ export const DUPLICATE_RESPONSES: Record<DuplicateConfidence, DuplicateCheckResp
 export const DUPLICATE_ERROR: ApiErrorResponse = {
 	status: 'error',
 	statusCode: 500,
-	message: 'Não foi possível concluir a operação.'
+	message: 'Erro interno do servidor'
 };
 
 export type DuplicateMockScenario = DuplicateConfidence | 'error';
@@ -85,7 +85,7 @@ export function __resetDuplicateMockScenario(): void {
 	scenario = 'medium';
 }
 
-function currentResponse(): DuplicateCheckResponse {
+function getDuplicateResponseForScenario(): DuplicateCheckResponse {
 	if (scenario === 'error') {
 		throw new ApiError(DUPLICATE_ERROR.statusCode, DUPLICATE_ERROR.message);
 	}
@@ -97,9 +97,9 @@ function currentResponse(): DuplicateCheckResponse {
 // padrão é `medium` (bloco inline); os testes/dev podem trocar para `high`,
 // `none` ou `error` com `__setDuplicateMockScenario`.
 export async function checkDuplicatesMock(): Promise<DuplicateCheckResponse> {
-	return currentResponse();
+	return getDuplicateResponseForScenario();
 }
 
 export async function getTrackingDuplicatesMock(): Promise<DuplicateCheckResponse> {
-	return currentResponse();
+	return getDuplicateResponseForScenario();
 }
