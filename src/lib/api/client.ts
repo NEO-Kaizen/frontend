@@ -9,7 +9,7 @@ if (!PUBLIC_API_URL) {
 	throw new Error('PUBLIC_API_URL não está definida no ambiente.');
 }
 
-export function resolvePublicApiUrl(path: string): string {
+function resolvePublicApiUrl(path: string): string {
 	if (!path.startsWith('/')) {
 		throw new Error('O caminho da API deve começar com "/".');
 	}
