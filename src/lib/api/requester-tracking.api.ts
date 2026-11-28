@@ -82,10 +82,15 @@ export function cancelRequest(
 
 export type TrackingDetails = PublicRequestDetails | RequesterRequestDetails;
 
-export function reopenRequest(
+export async function reopenRequest(
 	protocol: string,
 	payload: ReopenRequestPayload
 ): Promise<ReopenRequestResponse> {
+	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.request) {
+		const { reopenRequestMock } = await import('$lib/mocks/requester-tracking.mock');
+		return reopenRequestMock(protocol, payload);
+	}
+
 	return apiClient<ReopenRequestResponse>(trackingPath(protocol, '/reopen'), {
 		method: 'POST',
 		body: JSON.stringify(payload)

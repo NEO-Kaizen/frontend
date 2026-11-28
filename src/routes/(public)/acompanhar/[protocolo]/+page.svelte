@@ -404,7 +404,7 @@
 				<h1 bind:this={heading} tabindex="-1">{details.demand.title}</h1>
 				<span class="protocol-code">{details.protocol}</span>
 			</div>
-			<div class="right-status">
+			<div class="right-status" class:has-cancel={canCancel}>
 				<span
 					class="status-pill"
 					style:background-color={statusStyle.bg}
@@ -416,9 +416,11 @@
 				{#if canCancel}
 					<Button
 						variant="outline-neutral"
+						class="cancel-trigger"
 						onclick={() => openOperation('cancel')}
 						disabled={isSubmitting}
 					>
+						<Icon iconName="block" iconSize="sm" />
 						Cancelar solicitação
 					</Button>
 				{/if}
@@ -584,6 +586,19 @@
 		flex-direction: column;
 		align-items: flex-end;
 		gap: var(--spacing-sm);
+		max-width: 100%;
+	}
+
+	.right-status :global(.cancel-trigger) {
+		background: transparent;
+		border-color: transparent;
+		border-radius: var(--radius-md);
+		color: color-mix(in srgb, var(--status-red) 65%, var(--text-color-primary));
+		font: var(--label);
+	}
+
+	.right-status :global(.cancel-trigger:hover:not(:disabled)) {
+		background: var(--status-red-bg);
 	}
 
 	.reopen-refresh-error {
@@ -905,6 +920,11 @@
 
 		.right-status {
 			align-items: flex-start;
+		}
+
+		.right-status.has-cancel {
+			align-self: flex-end;
+			align-items: flex-end;
 		}
 
 		.metadata-row {

@@ -18,16 +18,34 @@ import type {
 	TrackingDetailsResponse
 } from '$lib/types/requester-tracking';
 import { ApiError, type Result } from '$lib/types/result';
-import { isValidEmail } from '$lib/utils/validations';
+import {
+	isValidEmail,
+	isValidJustification,
+	MAX_JUSTIFICATION_LENGTH
+} from '$lib/utils/validations';
 
-export const MAX_REQUEST_JUSTIFICATION_LENGTH = 4000;
+export const MAX_REQUEST_JUSTIFICATION_LENGTH = MAX_JUSTIFICATION_LENGTH;
+
+function invalidJustificationMessage(): string {
+	return `Informe uma justificativa de até ${MAX_JUSTIFICATION_LENGTH.toLocaleString('pt-BR')} caracteres.`;
+}
 
 export async function reopenRequest(
 	protocol: string,
 	payload: ReopenRequestPayload
 ): Promise<Result<ReopenRequestResponse>> {
+	if (!isValidJustification(payload.justification)) {
+		return {
+			ok: false,
+			error: { status: 422, message: invalidJustificationMessage() }
+		};
+	}
+
 	try {
-		const data = await reopenRequestApi(protocol, payload);
+		const data = await reopenRequestApi(protocol, {
+			...payload,
+			justification: payload.justification.trim()
+		});
 		if (
 			data?.protocol !== protocol ||
 			data.statusId !== 1 ||
@@ -85,8 +103,18 @@ export async function cancelRequest(
 	justification: string,
 	cancelCycleRef?: string
 ): Promise<Result<{ status: 'Cancelado' }>> {
+	if (!isValidJustification(justification)) {
+		return {
+			ok: false,
+			error: { status: 422, message: invalidJustificationMessage() }
+		};
+	}
+
 	try {
-		return { ok: true, data: await cancelRequestApi(protocol, justification, cancelCycleRef) };
+		return {
+			ok: true,
+			data: await cancelRequestApi(protocol, justification.trim(), cancelCycleRef)
+		};
 	} catch (error) {
 		if (error instanceof ApiError) {
 			return {

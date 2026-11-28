@@ -1,4 +1,12 @@
-import { hydrateRequestMock, mockInternalRequestDetails } from './requests.mock';
+import {
+	getMockClosureRef,
+	hydrateRequestMock,
+	mockInternalRequestDetails,
+	reopenOwnedRequestMock
+} from './requests.mock';
+import { getMockSessionUser } from './auth.mock';
+import { can } from '$lib/utils/permission-checks';
+import { isValidJustification } from '$lib/utils/validations';
 import { getMockSolicitationMode, getMockStatuses } from './portal-config.mock';
 import { displayStatusName } from '$lib/utils/status';
 import type {
@@ -6,6 +14,8 @@ import type {
 	PublicVerifyPayload,
 	PublicVerifyResult,
 	RequesterRequestDetails,
+	ReopenRequestPayload,
+	ReopenRequestResponse,
 	TrackingDetailsResponse
 } from '$lib/types/requester-tracking';
 import type {
@@ -191,10 +201,15 @@ function toAuthenticatedDetails(
 	const fixture = findHydratedFixture(protocol, statuses);
 	if (!fixture) throw new ApiError(404, 'Solicitação não encontrada');
 	const publicDetails = toPublicDetailsFromFixture(fixture, statuses);
+	const user = getMockSessionUser();
+	const closureRef =
+		user && can('request:track', 'own', user) ? getMockClosureRef(protocol, user.id) : undefined;
 
 	return {
 		...publicDetails,
 		canCancel: false,
+		canReopen: closureRef !== undefined,
+		...(closureRef ? { closureRef } : {}),
 		operational: {
 			mainRisks: fixture.operational.mainRisks,
 			clientImpact: fixture.operational.clientImpact,
@@ -276,6 +291,29 @@ export function getSessionTrackingMock(protocol: string): Promise<TrackingDetail
 	} catch (error) {
 		return Promise.reject(error);
 	}
+}
+
+export async function reopenRequestMock(
+	protocol: string,
+	payload: ReopenRequestPayload
+): Promise<ReopenRequestResponse> {
+	const user = getMockSessionUser();
+	if (!user) throw new ApiError(401, 'Sessão expirada ou inválida.');
+	if (!can('request:track', 'own', user)) {
+		throw new ApiError(403, 'Permissão de acompanhamento necessária.');
+	}
+	if (!isValidJustification(payload.justification)) {
+		throw new ApiError(422, 'Justificativa inválida.');
+	}
+	if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(payload.closureRef)) {
+		throw new ApiError(422, 'Referência de encerramento inválida.');
+	}
+	reopenOwnedRequestMock(protocol, user.id, payload.closureRef);
+	return delay({
+		protocol: normalizeProtocol(protocol),
+		statusId: 1 as const,
+		status: 'Solicitação enviada' as const
+	});
 }
 
 // ---- Pendências v0.5: porta pública (com gating) sobre o store único ----

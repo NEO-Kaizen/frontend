@@ -100,9 +100,9 @@ export interface RequesterOperational extends PublicOperationalImpacts {
 }
 
 export interface RequesterRequestDetails extends Omit<PublicRequestDetails, 'impacts'> {
-	canCancel?: boolean;
+	canCancel: boolean;
 	cancelCycleRef?: string;
-	canReopen?: boolean;
+	canReopen: boolean;
 	closureRef?: string;
 	operational: RequesterOperational;
 	complementary?: ComplementaryBlock;

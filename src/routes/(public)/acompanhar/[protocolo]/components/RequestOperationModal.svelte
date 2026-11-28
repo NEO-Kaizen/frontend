@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Button from '$lib/components/Button.svelte';
 	import Modal from '$lib/components/Modal.svelte';
-	import { MAX_REQUEST_JUSTIFICATION_LENGTH } from '$lib/services/requester-tracking.service';
+	import { MAX_JUSTIFICATION_LENGTH } from '$lib/utils/validations';
 
 	interface Props {
 		protocol: string;
@@ -15,18 +15,18 @@
 
 	let { protocol, action, submitting, serverError, onclose, onsubmit, onedit }: Props = $props();
 	const id = $props.id();
-	const cancelling = $derived(action === 'cancel');
-	const title = $derived(cancelling ? 'Cancelar solicitação' : 'Reabrir solicitação');
+	const isCancelAction = $derived(action === 'cancel');
+	const title = $derived(isCancelAction ? 'Cancelar solicitação' : 'Reabrir solicitação');
 	const label = $derived(
-		cancelling ? 'Justificativa do cancelamento' : 'Justificativa da reabertura'
+		isCancelAction ? 'Justificativa do cancelamento' : 'Justificativa da reabertura'
 	);
-	const confirmLabel = $derived(cancelling ? 'Confirmar cancelamento' : 'Confirmar reabertura');
+	const confirmLabel = $derived(isCancelAction ? 'Confirmar cancelamento' : 'Confirmar reabertura');
 	let reason = $state('');
 	const justification = $derived(reason.trim());
-	const invalidLength = $derived(justification.length > MAX_REQUEST_JUSTIFICATION_LENGTH);
+	const invalidLength = $derived(justification.length > MAX_JUSTIFICATION_LENGTH);
 	const error = $derived(
 		invalidLength
-			? 'Informe uma justificativa de até 4.000 caracteres.'
+			? `Informe uma justificativa de até ${MAX_JUSTIFICATION_LENGTH.toLocaleString('pt-BR')} caracteres.`
 			: reason.length > 0 && !justification
 				? 'Informe uma justificativa.'
 				: serverError
@@ -41,7 +41,7 @@
 <Modal {title} {onclose} trapFocus>
 	<form class="operation-form" onsubmit={submit} aria-busy={submitting}>
 		<p id={`${id}-protocol`}>Protocolo <strong>{protocol}</strong></p>
-		{#if cancelling}
+		{#if isCancelAction}
 			<p>A justificativa do cancelamento será registrada no histórico.</p>
 		{/if}
 		<label for={`${id}-justification`}>{label}</label>
@@ -55,15 +55,22 @@
 			aria-invalid={Boolean(error)}
 			aria-describedby={`${id}-protocol ${id}-count${error ? ` ${id}-error` : ''}`}></textarea>
 		<p id={`${id}-count`} class="operation-count">
-			{justification.length.toLocaleString('pt-BR')} / 4.000 caracteres
+			{justification.length.toLocaleString('pt-BR')} / {MAX_JUSTIFICATION_LENGTH.toLocaleString(
+				'pt-BR'
+			)} caracteres
 		</p>
 		{#if error}
 			<p id={`${id}-error`} class="operation-error" role="alert">{error}</p>
 		{/if}
 		<div class="operation-actions">
 			<Button variant="outline-neutral" onclick={onclose} disabled={submitting}>Voltar</Button>
-			<Button type="submit" loading={submitting} disabled={!justification || invalidLength}>
-				{submitting ? (cancelling ? 'Cancelando…' : 'Reabrindo…') : confirmLabel}
+			<Button
+				type="submit"
+				class={isCancelAction ? 'cancel-confirm' : ''}
+				loading={submitting}
+				disabled={!justification || invalidLength}
+			>
+				{submitting ? (isCancelAction ? 'Cancelando…' : 'Reabrindo…') : confirmLabel}
 			</Button>
 		</div>
 	</form>
@@ -116,5 +123,11 @@
 		justify-content: flex-end;
 		gap: var(--spacing-sm);
 		margin-top: var(--spacing-sm);
+	}
+
+	.operation-actions :global(.cancel-confirm) {
+		background: color-mix(in srgb, var(--status-red) 65%, var(--rich-black));
+		border-color: transparent;
+		color: var(--on-dark);
 	}
 </style>
