@@ -5,6 +5,8 @@ import type {
 	PublicVerifyPayload,
 	PublicVerifyResult,
 	RequesterIdentity,
+	ReopenRequestPayload,
+	ReopenRequestResponse,
 	RequesterRequestDetails,
 	TrackingDetailsResponse
 } from '$lib/types/requester-tracking';
@@ -69,15 +71,31 @@ export async function getSessionTracking(
 
 export function cancelRequest(
 	protocol: string,
-	justification: string
+	justification: string,
+	cancelCycleRef?: string
 ): Promise<{ status: 'Cancelado' }> {
 	return apiClient(trackingPath(protocol, '/cancel'), {
 		method: 'POST',
-		body: JSON.stringify({ justification })
+		body: JSON.stringify({ justification, cancelCycleRef })
 	});
 }
 
 export type TrackingDetails = PublicRequestDetails | RequesterRequestDetails;
+
+export async function reopenRequest(
+	protocol: string,
+	payload: ReopenRequestPayload
+): Promise<ReopenRequestResponse> {
+	if (import.meta.env.DEV && MOCK_DOMAINS && MOCK_DOMAINS.request) {
+		const { reopenRequestMock } = await import('$lib/mocks/requester-tracking.mock');
+		return reopenRequestMock(protocol, payload);
+	}
+
+	return apiClient<ReopenRequestResponse>(trackingPath(protocol, '/reopen'), {
+		method: 'POST',
+		body: JSON.stringify(payload)
+	});
+}
 
 export function isAuthenticatedDetails(
 	response: TrackingDetailsResponse

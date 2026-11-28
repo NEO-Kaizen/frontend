@@ -9,10 +9,11 @@
 		title: string;
 		onclose: () => void;
 		size?: 'sm' | 'lg' | 'default' | 'large';
+		trapFocus?: boolean;
 		children: Snippet;
 	}
 
-	let { title, onclose, children, size = 'sm' }: Props = $props();
+	let { title, onclose, children, size = 'sm', trapFocus = false }: Props = $props();
 	const resolvedSize = $derived(size === 'large' ? 'lg' : size === 'default' ? 'sm' : size);
 
 	const uid = $props.id();
@@ -28,6 +29,29 @@
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape') {
 			onclose();
+			return;
+		}
+		if (!trapFocus || event.key !== 'Tab' || !shellElement) return;
+		const focusable = Array.from(
+			shellElement.querySelectorAll<HTMLElement>(
+				'button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])'
+			)
+		).filter((element) => element.getClientRects().length > 0);
+		const first = focusable[0];
+		const last = focusable.at(-1);
+		if (!first || !last) {
+			event.preventDefault();
+			shellElement.focus();
+			return;
+		}
+		const active = document.activeElement;
+		if (
+			active === shellElement ||
+			!shellElement.contains(active) ||
+			active === (event.shiftKey ? first : last)
+		) {
+			event.preventDefault();
+			(event.shiftKey ? last : first).focus();
 		}
 	}
 

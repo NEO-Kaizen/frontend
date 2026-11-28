@@ -57,6 +57,8 @@
 				return 'Sistema';
 			case 'internal':
 				return 'Interno';
+			case 'requester':
+				return 'Solicitante';
 			default:
 				return '—';
 		}

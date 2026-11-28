@@ -1,7 +1,6 @@
 <script lang="ts">
-	import { onDestroy, untrack } from 'svelte';
+	import { onDestroy, tick, untrack } from 'svelte';
 	import Button from '$lib/components/Button.svelte';
-	import Modal from '$lib/components/Modal.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import NotFoundState from '$lib/components/NotFoundState.svelte';
 	import {
@@ -14,7 +13,9 @@
 		getPublicTracking,
 		getSessionTracking,
 		getPendingItems,
-		isAuthenticatedDetails
+		isAuthenticatedDetails,
+		MAX_REQUEST_JUSTIFICATION_LENGTH,
+		reopenRequest
 	} from '$lib/services/requester-tracking.service';
 	import { countUnreadRequesterItems } from '$lib/services/pendency.service';
 	import { toastState } from '$lib/states/toast.svelte';
@@ -28,6 +29,7 @@
 	import { isClosingStatus, statusThemeVars } from '$lib/utils/status';
 	import type { PageProps } from './$types';
 	import PublicValidationForm from './components/PublicValidationForm.svelte';
+	import RequestOperationModal from './components/RequestOperationModal.svelte';
 	import RequesterDetails from './components/RequesterDetails.svelte';
 	import RequesterPendencies from './components/RequesterPendencies.svelte';
 
@@ -44,122 +46,76 @@
 	// fica só na autenticação/transporte — a UI de pendências é a mesma.
 	const viaSession = $derived(!needsValidation);
 
-	// `needsValidation` vem do server load (modo + sessão) e só muda com
-	// navegação. O efeito abaixo reinicializa o estado ao trocar de protocolo.
-	// svelte-ignore state_referenced_locally
-	let accessState = $state<TrackingAccessState>(
-		needsValidation ? 'validation-required' : 'checking'
-	);
-	// svelte-ignore state_referenced_locally
-	let detailsState = $state<DetailsState>(needsValidation ? 'empty' : 'loading');
+	interface TrackingView {
+		protocol: string;
+		viewer: string | null;
+		viaSession: boolean;
+	}
+
+	const viewer = $derived(user ? JSON.stringify(user) : null);
+	let view = $state.raw<TrackingView | null>(null);
+	let detailsVersion = 0;
+	let accessState = $state<TrackingAccessState>('checking');
+	let detailsState = $state<DetailsState>('loading');
 	let tracking = $state<TrackingDetailsResponse | null>(null);
 	let detailsError = $state<string | null>(null);
 	let detailsErrorStatus = $state<number | undefined>(undefined);
 	let notFound = $state(false);
-	// Identidade pública (sessionStorage): só existe no fluxo público, só
-	// durante a permanência nesta página e só para este protocolo.
 	let identity = $state<RequesterIdentity | null>(null);
 	let unreadCount = $state(0);
+	let isRefreshingDetails = $state(false);
+	let requiresRevalidation = $state(false);
+	let refreshError = $state<string | null>(null);
+
+	type RequestConfirmation = { view: TrackingView } & (
+		{ action: 'cancel'; cancelCycleRef?: string } | { action: 'reopen'; closureRef: string }
+	);
+	let confirmation = $state.raw<RequestConfirmation | null>(null);
+	let isSubmitting = $state(false);
+	let operationError = $state<string | null>(null);
+	let heading = $state<HTMLHeadingElement>();
 
 	type TrackingTabId = 'solicitacao' | 'pendencias';
 	let activeTab = $state<TrackingTabId>('solicitacao');
 
-	let confirmedProtocol = $state<string | null>(null);
-	let loadedProtocol = $state<string | null>(null);
-	let isRefreshingDetails = $state(false);
-	let previousProtocol: string | null = null;
-	let routeVersion = 0;
-	let detailsVersion = 0;
-	let cancellationReason = $state('');
-	let cancellationError = $state('');
-	const justificationLength = $derived(cancellationReason.trim().length);
-	let isCancelling = $state(false);
-
-	// Invariante da RF07: a rota, os dados exibidos e a confirmação precisam
-	// apontar para o mesmo protocolo. `confirmed` é opcional para permitir a
-	// mesma checagem antes de abrir o modal e imediatamente antes do POST.
-	function protocolIsConsistent(confirmed: string | null = null): boolean {
-		const displayedProtocol = tracking?.mode === 'authenticated' ? tracking.details.protocol : null;
+	function isCurrentView(candidate: TrackingView): boolean {
 		return (
-			loadedProtocol === protocol &&
-			displayedProtocol === protocol &&
-			(confirmed === null || confirmed === protocol)
+			view === candidate &&
+			candidate.protocol === protocol &&
+			candidate.viewer === viewer &&
+			candidate.viaSession === viaSession
 		);
 	}
 
+	const details = $derived(
+		view && isCurrentView(view) && tracking?.details.protocol === protocol ? tracking.details : null
+	);
+	const reopenRef = $derived(
+		!!user &&
+			viaSession &&
+			details &&
+			tracking?.mode === 'authenticated' &&
+			tracking.details.canReopen === true &&
+			typeof tracking.details.closureRef === 'string'
+			? tracking.details.closureRef
+			: null
+	);
+	const canReopen = $derived(
+		!!reopenRef && detailsState === 'loaded' && !isRefreshingDetails && !requiresRevalidation
+	);
+	const cancelCycleRef = $derived(
+		details && tracking?.mode === 'authenticated' ? tracking.details.cancelCycleRef : undefined
+	);
 	const canCancel = $derived(
 		!!user &&
+			viaSession &&
+			!!details &&
+			tracking?.mode === 'authenticated' &&
+			tracking.details.canCancel === true &&
 			detailsState === 'loaded' &&
 			!isRefreshingDetails &&
-			protocolIsConsistent() &&
-			tracking?.mode === 'authenticated' &&
-			tracking.details.canCancel
+			!requiresRevalidation
 	);
-
-	function closeCancellation() {
-		if (!isCancelling) confirmedProtocol = null;
-	}
-
-	function openCancellation() {
-		if (!canCancel) return;
-		cancellationReason = '';
-		cancellationError = '';
-		confirmedProtocol = protocol;
-	}
-
-	async function confirmCancellation(event: SubmitEvent) {
-		event.preventDefault();
-		if (
-			isCancelling ||
-			!canCancel ||
-			confirmedProtocol === null ||
-			!protocolIsConsistent(confirmedProtocol)
-		)
-			return;
-		const justification = cancellationReason.trim();
-		if (!justification || justification.length > 4000) {
-			cancellationError = 'Informe uma justificativa de até 4.000 caracteres.';
-			return;
-		}
-
-		const submittedProtocol = confirmedProtocol;
-		const submittedVersion = routeVersion;
-		isCancelling = true;
-		cancellationError = '';
-		try {
-			const result = await cancelRequest(submittedProtocol, justification);
-			if (submittedProtocol !== protocol || submittedVersion !== routeVersion) return;
-			if (result.ok) {
-				if (tracking?.mode === 'authenticated') {
-					tracking = {
-						...tracking,
-						details: { ...tracking.details, status: result.data.status, canCancel: false }
-					};
-				}
-				confirmedProtocol = null;
-				toastState.add('Solicitação cancelada com sucesso.', 'success');
-				await refreshDetails();
-			} else {
-				const { status, code, message } = result.error;
-				if (handleTrackingAccessError(status, message, true)) {
-					toastState.add(message, 'error');
-				} else if (status !== 422 || code === 'rf07_not_eligible') {
-					if (tracking?.mode === 'authenticated') {
-						tracking = { ...tracking, details: { ...tracking.details, canCancel: false } };
-					}
-					confirmedProtocol = null;
-					toastState.add(message, 'error');
-					await refreshDetails();
-				} else {
-					cancellationError = message;
-				}
-			}
-		} finally {
-			if (submittedVersion === routeVersion) isCancelling = false;
-		}
-	}
-
-	const details = $derived(loadedProtocol === protocol ? (tracking?.details ?? null) : null);
 	const detailsMode = $derived(tracking?.mode ?? null);
 	const prazoDesejado = $derived(
 		tracking && isAuthenticatedDetails(tracking)
@@ -179,157 +135,196 @@
 		activeTab === 'solicitacao' ? 'tracking-tab-solicitacao' : 'tracking-tab-pendencias'
 	);
 
-	async function loadDetails(session: boolean): Promise<void> {
-		// Fluxo público sem identidade (expirada/limpa) → validação novamente.
-		if (!session && !identity) {
-			accessState = 'validation-required';
-			detailsState = 'empty';
-			tracking = null;
+	async function loadDetails(current: TrackingView, silent = false): Promise<void> {
+		if (!isCurrentView(current)) return;
+		const requesterIdentity = identity;
+		if (!current.viaSession && !requesterIdentity) return;
+
+		const version = ++detailsVersion;
+		isRefreshingDetails = silent;
+		refreshError = null;
+		if (!silent) {
+			detailsState = 'loading';
+			detailsError = null;
+			detailsErrorStatus = undefined;
+			notFound = false;
+		}
+
+		const result =
+			requesterIdentity && !current.viaSession
+				? await getPublicTracking(current.protocol, requesterIdentity)
+				: await getSessionTracking(current.protocol);
+		if (!isCurrentView(current) || version !== detailsVersion) return;
+
+		isRefreshingDetails = false;
+		if (!result.ok) {
+			if (handleTrackingAccessError(current, result.error.status, result.error.message)) return;
+			if (silent) {
+				if (requiresRevalidation) refreshError = result.error.message;
+			} else {
+				detailsState = 'error';
+				accessState = 'error';
+				detailsError = result.error.message;
+				detailsErrorStatus = result.error.status;
+			}
 			return;
 		}
 
-		const requestedProtocol = protocol;
-		const requestedRoute = routeVersion;
-		const requestedDetails = ++detailsVersion;
-		isRefreshingDetails = false;
-		detailsState = 'loading';
-		detailsError = null;
-		detailsErrorStatus = undefined;
-		notFound = false;
-
-		const result = session
-			? await getSessionTracking(requestedProtocol)
-			: await getPublicTracking(requestedProtocol, identity!);
-
-		if (
-			requestedProtocol !== protocol ||
-			requestedRoute !== routeVersion ||
-			requestedDetails !== detailsVersion
-		)
-			return;
-
-		if (!result.ok) {
-			if (handleTrackingAccessError(result.error.status, result.error.message, session)) return;
-			detailsState = 'error';
-			detailsError = result.error.message;
-			detailsErrorStatus = result.error.status;
-			accessState = 'error';
+		if (result.data.details.protocol !== current.protocol) {
+			handleTrackingAccessError(current, 404, 'Solicitação não encontrada.');
 			return;
 		}
 
 		tracking = result.data;
-		loadedProtocol = requestedProtocol;
 		detailsState = 'loaded';
 		accessState = 'authorized';
-		void refreshUnread();
+		requiresRevalidation = false;
+		if (
+			(confirmation?.action === 'reopen' && reopenRef !== confirmation.closureRef) ||
+			(confirmation?.action === 'cancel' &&
+				(!canCancel || confirmation.cancelCycleRef !== cancelCycleRef))
+		)
+			confirmation = null;
+		void refreshUnread(current, version);
 	}
 
-	// Badge da aba Pendências (`unread` = itens `requested`, sem "marcar como
-	// lido"). A lista completa é carregada pela aba; aqui só o contador.
-	async function refreshUnread(): Promise<void> {
-		if (!viaSession && !identity) return;
-		const requestedProtocol = protocol;
-		const requestedRoute = routeVersion;
-		const result = await getPendingItems(requestedProtocol, viaSession ? null : identity);
-		if (
-			requestedProtocol !== protocol ||
-			requestedRoute !== routeVersion ||
-			detailsState !== 'loaded'
-		)
-			return;
+	async function refreshUnread(current: TrackingView, version: number): Promise<void> {
+		const result = await getPendingItems(current.protocol, current.viaSession ? null : identity);
+		if (!isCurrentView(current) || version !== detailsVersion) return;
 		if (!result.ok) {
-			if (result.error.status === 401 && !viaSession) handleUnauthorized();
+			if (result.error.status === 401 && !current.viaSession) {
+				handleTrackingAccessError(current, 401, result.error.message);
+			}
 			return;
 		}
 		unreadCount = countUnreadRequesterItems(result.data.items);
 	}
 
-	function handleVerified(verified: { name: string; email: string }): void {
-		identity = saveRequesterIdentity({ protocol, ...verified });
+	function handleVerified(current: TrackingView, verified: { name: string; email: string }): void {
+		if (!isCurrentView(current)) return;
+		identity = saveRequesterIdentity({ protocol: current.protocol, ...verified });
 		accessState = 'validating';
-		void loadDetails(false);
-	}
-
-	// 401 público: descarta a identidade e volta para a validação com mensagem
-	// genérica (sem revelar qual dado divergiu ou se o protocolo existe).
-	function handleUnauthorized(): void {
-		detailsVersion += 1;
-		isRefreshingDetails = false;
-		loadedProtocol = null;
-		confirmedProtocol = null;
-		clearRequesterIdentity();
-		identity = null;
-		tracking = null;
-		accessState = 'validation-required';
-		detailsState = 'empty';
-		unreadCount = 0;
-		toastState.add('Valide seus dados para acompanhar esta solicitação.', 'error');
+		void loadDetails(current);
 	}
 
 	function handleTrackingAccessError(
+		current: TrackingView,
 		status: number | undefined,
-		message: string,
-		session: boolean
+		message: string
 	): boolean {
 		if (status !== 401 && status !== 403 && status !== 404) return false;
-		detailsVersion += 1;
-		isRefreshingDetails = false;
+		// Trocar a instância invalida também interações ainda em voo no mesmo protocolo.
+		view = { ...current };
+		clearRequesterIdentity();
+		identity = null;
 		tracking = null;
-		loadedProtocol = null;
-		confirmedProtocol = null;
-		cancellationReason = '';
-		cancellationError = '';
+		confirmation = null;
+		isSubmitting = false;
+		isRefreshingDetails = false;
+		requiresRevalidation = false;
+		refreshError = null;
 		unreadCount = 0;
-		if (status === 401 && !session) {
-			handleUnauthorized();
-		} else if (status === 404) {
-			accessState = 'invalid';
-			notFound = true;
+		notFound = status === 404;
+		detailsError = message;
+		detailsErrorStatus = status;
+		if (status === 401 && !current.viaSession) {
+			accessState = 'validation-required';
 			detailsState = 'empty';
-			detailsError = message;
+			toastState.add('Valide seus dados para acompanhar esta solicitação.', 'error');
 		} else {
-			accessState = 'error';
-			notFound = false;
-			detailsState = 'error';
-			detailsError = message;
+			accessState = notFound ? 'invalid' : 'error';
+			detailsState = notFound ? 'empty' : 'error';
 		}
 		return true;
 	}
 
-	// Revalidação silenciosa: o PATCH de resposta não devolve
-	// `solicitationStatus`, então o status geral é observado pelo tracking em
-	// segundo plano — SEM tocar em `detailsState`/`activeTab`, para não
-	// desmontar a tela, perder scroll nem fechar accordions (contrato v0.5 §9).
-	async function refreshDetails(): Promise<void> {
-		if ((!viaSession && !identity) || detailsState !== 'loaded') return;
-		const requestedProtocol = protocol;
-		const requestedRoute = routeVersion;
-		const requestedDetails = ++detailsVersion;
-		isRefreshingDetails = true;
+	function openOperation(action: RequestConfirmation['action']) {
+		if (!view || isSubmitting) return;
+		if (action === 'cancel' && canCancel) confirmation = { view, action, cancelCycleRef };
+		else if (action === 'reopen' && canReopen && reopenRef)
+			confirmation = { view, action, closureRef: reopenRef };
+		operationError = null;
+	}
 
-		const result = viaSession
-			? await getSessionTracking(requestedProtocol)
-			: await getPublicTracking(requestedProtocol, identity!);
+	function closeOperation(target: RequestConfirmation) {
+		if (!isSubmitting && confirmation === target) confirmation = null;
+	}
 
+	async function confirmOperation(target: RequestConfirmation, justification: string) {
+		const current = target.view;
 		if (
-			requestedProtocol !== protocol ||
-			requestedRoute !== routeVersion ||
-			requestedDetails !== detailsVersion
+			isSubmitting ||
+			confirmation !== target ||
+			!isCurrentView(current) ||
+			(target.action === 'reopen' && (!canReopen || reopenRef !== target.closureRef)) ||
+			(target.action === 'cancel' && (!canCancel || target.cancelCycleRef !== cancelCycleRef)) ||
+			!justification ||
+			justification.length > MAX_REQUEST_JUSTIFICATION_LENGTH
 		)
 			return;
 
-		isRefreshingDetails = false;
-		if (!result.ok) {
-			handleTrackingAccessError(result.error.status, result.error.message, viaSession);
-			return;
-		}
+		isSubmitting = true;
+		operationError = null;
+		try {
+			const result =
+				target.action === 'reopen'
+					? await reopenRequest(current.protocol, { justification, closureRef: target.closureRef })
+					: await cancelRequest(current.protocol, justification, target.cancelCycleRef);
+			if (!isCurrentView(current)) return;
 
-		tracking = result.data;
-		accessState = 'authorized';
+			if (!result.ok) {
+				const { status, code, message } = result.error;
+				if (handleTrackingAccessError(current, status, message)) return;
+				if (status === 422 && code !== 'rf07_not_eligible') {
+					operationError = message;
+					return;
+				}
+				confirmation = null;
+				requiresRevalidation = true;
+				toastState.add(
+					status === 409 || code === 'rf07_not_eligible'
+						? target.action === 'reopen'
+							? 'O encerramento mudou. Confira os dados atualizados antes de confirmar novamente.'
+							: 'A situação mudou. Confira os dados atualizados antes de confirmar novamente.'
+						: 'Não foi possível confirmar a operação. Consulte a situação atual antes de tentar novamente.',
+					'error'
+				);
+			} else {
+				confirmation = null;
+				requiresRevalidation = true;
+				if (tracking?.mode === 'authenticated') {
+					tracking = {
+						...tracking,
+						details: {
+							...tracking.details,
+							status: result.data.status,
+							canCancel: false,
+							cancelCycleRef: undefined,
+							canReopen: false,
+							closureRef: undefined
+						}
+					};
+				}
+				activeTab = 'solicitacao';
+				toastState.add(
+					target.action === 'reopen'
+						? 'Solicitação reaberta com sucesso.'
+						: 'Solicitação cancelada com sucesso.',
+					'success'
+				);
+			}
+			await loadDetails(current, true);
+			if (result.ok && isCurrentView(current)) {
+				await tick();
+				if (isCurrentView(current)) heading?.focus({ preventScroll: true });
+			}
+		} finally {
+			if (isCurrentView(current)) isSubmitting = false;
+		}
 	}
 
-	function handleDataChanged(): void {
-		void refreshDetails();
+	function handleDataChanged(current: TrackingView): void {
+		if (isCurrentView(current) && !isSubmitting) void loadDetails(current, true);
 	}
 
 	function selectTab(tab: TrackingTabId): void {
@@ -337,35 +332,34 @@
 	}
 
 	$effect(() => {
-		const currentProtocol = protocol;
-		const requiresIdentity = needsValidation;
+		const current = { protocol, viewer, viaSession };
 		untrack(() => {
-			if (previousProtocol !== null && previousProtocol !== currentProtocol) {
-				clearRequesterIdentity();
+			if (view?.protocol !== current.protocol) {
+				if (view) clearRequesterIdentity();
 			}
-			previousProtocol = currentProtocol;
-			routeVersion += 1;
-			isRefreshingDetails = false;
+			view = current;
 			tracking = null;
-			loadedProtocol = null;
-			confirmedProtocol = null;
-			cancellationReason = '';
-			cancellationError = '';
-			isCancelling = false;
+			confirmation = null;
+			operationError = null;
+			isSubmitting = false;
+			isRefreshingDetails = false;
+			requiresRevalidation = false;
+			refreshError = null;
 			notFound = false;
 			detailsError = null;
+			detailsErrorStatus = undefined;
 			unreadCount = 0;
 			activeTab = 'solicitacao';
-			identity = requiresIdentity ? loadRequesterIdentity(currentProtocol) : null;
-			const mustValidate = requiresIdentity && !identity;
+			identity = current.viaSession ? null : loadRequesterIdentity(current.protocol);
+			const mustValidate = !current.viaSession && !identity;
 			accessState = mustValidate ? 'validation-required' : 'checking';
 			detailsState = mustValidate ? 'empty' : 'loading';
-			if (!mustValidate) void loadDetails(!requiresIdentity);
+			if (!mustValidate) void loadDetails(current);
 		});
 	});
 
 	onDestroy(() => {
-		routeVersion += 1;
+		view = null;
 		clearRequesterIdentity();
 	});
 </script>
@@ -380,9 +374,12 @@
 		message={`Não encontramos nenhuma solicitação cadastrada com o protocolo "${protocol ?? ''}".`}
 		hint="Verifique o número digitado e tente novamente."
 	/>
-{:else if accessState === 'validation-required'}
-	<PublicValidationForm {protocol} onVerified={handleVerified} />
-{:else if accessState === 'validating' || detailsState === 'loading'}
+{:else if accessState === 'validation-required' && view}
+	{#key view}
+		{@const current = view}
+		<PublicValidationForm {protocol} onVerified={(verified) => handleVerified(current, verified)} />
+	{/key}
+{:else if accessState === 'validating' || accessState === 'checking' || detailsState === 'loading'}
 	<div class="load-state" role="status" aria-live="polite">
 		<p>Carregando solicitação…</p>
 	</div>
@@ -392,22 +389,19 @@
 			<p>Seu perfil não tem permissão para acompanhar esta solicitação.</p>
 		{:else}
 			<p>{detailsError}</p>
-			<button
-				type="button"
-				class="btn-retry"
-				onclick={() => void loadDetails(viaSession || accessState === 'authorized')}
-			>
+			<button type="button" class="btn-retry" onclick={() => view && void loadDetails(view)}>
 				Tentar novamente
 			</button>
 		{/if}
 	</div>
-{:else if details && detailsMode}
+{:else if details && detailsMode && view}
+	{@const current = view}
 	{@const statusStyle = statusThemeVars(details.status, statuses)}
 	<div class="tracking-page">
 		<div class="tracking-header">
 			<div class="header-left">
 				<span class="badge-active">{badgeLabel}</span>
-				<h1>{details.demand.title}</h1>
+				<h1 bind:this={heading} tabindex="-1">{details.demand.title}</h1>
 				<span class="protocol-code">{details.protocol}</span>
 			</div>
 			<div class="right-status" class:has-cancel={canCancel}>
@@ -420,13 +414,32 @@
 					{details.status}
 				</span>
 				{#if canCancel}
-					<Button variant="outline-neutral" class="cancel-trigger" onclick={openCancellation}>
+					<Button
+						variant="outline-neutral"
+						class="cancel-trigger"
+						onclick={() => openOperation('cancel')}
+						disabled={isSubmitting}
+					>
 						<Icon iconName="block" iconSize="sm" />
 						Cancelar solicitação
 					</Button>
 				{/if}
+				{#if canReopen}
+					<Button variant="outline" onclick={() => openOperation('reopen')} disabled={isSubmitting}>
+						Reabrir solicitação
+					</Button>
+				{/if}
 			</div>
 		</div>
+
+		{#if refreshError}
+			<div class="reopen-refresh-error" role="alert">
+				<p>{refreshError}</p>
+				<Button variant="outline" onclick={() => void loadDetails(current, true)}>
+					Atualizar acompanhamento
+				</Button>
+			</div>
+		{/if}
 
 		<hr class="divider" />
 
@@ -535,56 +548,40 @@
 				<RequesterPendencies
 					{protocol}
 					identity={viaSession ? null : identity}
-					onUnauthorized={handleUnauthorized}
-					onUnreadChange={(count) => (unreadCount = count)}
-					onDataChanged={handleDataChanged}
+					onUnauthorized={() => {
+						if (isCurrentView(current)) {
+							handleTrackingAccessError(current, 401, 'Sua sessão expirou.');
+						}
+					}}
+					onUnreadChange={(count) => {
+						if (isCurrentView(current)) unreadCount = count;
+					}}
+					onDataChanged={() => handleDataChanged(current)}
 				/>
 			{/if}
 		</div>
 	</div>
 {/if}
 
-{#if confirmedProtocol === protocol && canCancel}
-	<Modal title="Cancelar solicitação" onclose={closeCancellation}>
-		<form class="cancellation-form" onsubmit={confirmCancellation} aria-busy={isCancelling}>
-			<p class="cancellation-protocol">Protocolo <strong>{confirmedProtocol}</strong></p>
-			<p id="cancel-description">
-				Deseja realmente cancelar esta solicitação? A justificativa será registrada no histórico.
-			</p>
-			<label for="cancel-justification">Justificativa do cancelamento</label>
-			<textarea
-				id="cancel-justification"
-				bind:value={cancellationReason}
-				required
-				maxlength={4000}
-				rows={4}
-				disabled={isCancelling}
-				aria-invalid={!!cancellationError}
-				aria-describedby={cancellationError
-					? 'cancel-description cancel-error'
-					: 'cancel-description'}></textarea>
-			{#if cancellationError}
-				<p id="cancel-error" role="alert">{cancellationError}</p>
-			{/if}
-			<div class="cancellation-actions">
-				<Button variant="outline-neutral" disabled={isCancelling} onclick={closeCancellation}>
-					Voltar
-				</Button>
-				<Button
-					type="submit"
-					class="cancel-confirm"
-					loading={isCancelling}
-					disabled={!canCancel || justificationLength === 0 || justificationLength > 4000}
-				>
-					{isCancelling ? 'Cancelando…' : 'Confirmar cancelamento'}
-				</Button>
-			</div>
-		</form>
-	</Modal>
+{#if confirmation && isCurrentView(confirmation.view)}
+	{#key confirmation}
+		{@const target = confirmation}
+		<RequestOperationModal
+			protocol={target.view.protocol}
+			action={target.action}
+			submitting={isSubmitting}
+			serverError={operationError}
+			onclose={() => closeOperation(target)}
+			onsubmit={(justification) => void confirmOperation(target, justification)}
+			onedit={() => {
+				if (confirmation === target) operationError = null;
+			}}
+		/>
+	{/key}
 {/if}
 
 <style>
-	.right-status.has-cancel {
+	.right-status {
 		display: flex;
 		flex-direction: column;
 		align-items: flex-end;
@@ -604,63 +601,16 @@
 		background: var(--status-red-bg);
 	}
 
-	.cancellation-form {
-		display: grid;
-		gap: var(--spacing-sm);
-		color: var(--text-color-primary);
-	}
-
-	.cancellation-form p {
-		margin: 0;
-	}
-
-	.cancellation-protocol {
-		font: var(--label);
-		overflow-wrap: anywhere;
-	}
-
-	.cancellation-form label {
-		font: var(--label);
-		margin-top: var(--spacing-sm);
-	}
-
-	.cancellation-form textarea {
-		box-sizing: border-box;
-		width: 100%;
-		padding: var(--spacing-sm);
-		border: var(--border-default);
-		border-radius: var(--radius-sm);
-		background: var(--surface);
-		color: inherit;
-		font: inherit;
-		resize: vertical;
-	}
-
-	.cancellation-form textarea:focus-visible {
-		outline: 2px solid var(--secondary-color);
-		outline-offset: 2px;
-	}
-
-	.cancellation-form textarea[aria-invalid='true'] {
-		border-color: var(--status-red);
-	}
-
-	.cancellation-form p[role='alert'] {
-		color: color-mix(in srgb, var(--status-red) 65%, var(--text-color-primary));
-	}
-
-	.cancellation-actions {
+	.reopen-refresh-error {
 		display: flex;
+		align-items: center;
 		flex-wrap: wrap;
-		justify-content: flex-end;
 		gap: var(--spacing-sm);
-		margin-top: var(--spacing-sm);
+		margin-top: var(--spacing-md);
 	}
 
-	.cancellation-actions :global(.cancel-confirm) {
-		background: color-mix(in srgb, var(--status-red) 65%, var(--rich-black));
-		border-color: transparent;
-		color: var(--on-dark);
+	.reopen-refresh-error p {
+		margin: 0;
 	}
 
 	.load-state {
@@ -968,8 +918,13 @@
 			flex-direction: column;
 		}
 
+		.right-status {
+			align-items: flex-start;
+		}
+
 		.right-status.has-cancel {
 			align-self: flex-end;
+			align-items: flex-end;
 		}
 
 		.metadata-row {

@@ -21,10 +21,11 @@ export type TimelineEventAction =
 	| 'request.reassign'
 	| 'request.unassign'
 	| 'request.status_change'
+	| 'request.reopen'
 	| 'mapping.assign';
 
 // `audit_history.change_origin` — `null` em linhas legadas.
-export type TimelineChangeOrigin = 'admin' | 'system' | 'internal' | null;
+export type TimelineChangeOrigin = 'admin' | 'system' | 'internal' | 'requester' | null;
 
 export interface TimelineNote {
 	type: 'note';
@@ -47,10 +48,7 @@ export interface TimelineEvent {
 	// `null` = ação de sistema ou usuário removido.
 	actor: TimelineEventActor | null;
 	changeOrigin: TimelineChangeOrigin;
-	// `justification` e `lastTechnicalMessage` são exclusivos de
-	// `request.status_change`: `justification` é a justificativa interna
-	// (opcional); `lastTechnicalMessage` é `string` 1..4000 no retorno público e
-	// `null` quando o destino é interno. Ambos ausentes nas demais ações.
+	// Justificativa interna e retorno público das transições de status.
 	justification?: string | null;
 	lastTechnicalMessage?: string | null;
 }

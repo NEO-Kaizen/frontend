@@ -39,6 +39,7 @@ const ACTION_LABELS: Record<string, string> = {
 	'request.reassign': 'Responsável alterado',
 	'request.unassign': 'Atribuição removida',
 	'request.status_change': 'Status alterado',
+	'request.reopen': 'Solicitação reaberta',
 	'request.update': 'Solicitação atualizada',
 	'request.triage': 'Triagem registrada',
 	// Motor de Status v4 (issue #124).

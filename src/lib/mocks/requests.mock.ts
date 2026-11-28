@@ -3,7 +3,7 @@ import { can, has } from '$lib/utils/permission-checks';
 import { listProfilesMock } from './profiles.mock';
 import { computePrioritizationResult, getSavedPrioritizationNotes } from './prioritization.mock';
 import { mockUsers } from './users.mock';
-import { getMeMock } from './auth.mock';
+import { getMeMock, getMockSessionUser } from './auth.mock';
 import { getMockStatuses } from './portal-config.mock';
 import { displayStatusName } from '$lib/utils/status';
 import type { PortalStatus } from '$lib/types/portal-config';
@@ -57,6 +57,8 @@ export async function getQueueMetricsMock(): Promise<QueueMetricsResponse> {
 // Fixtures — dados fictícios do domínio de solicitações, consumidos apenas pelos mocks.
 export type MockRequest = RequestSummary & {
 	corporateEmail: string;
+	requesterUserId?: string;
+	closureRef?: string;
 	assigneeId: string | null;
 };
 
@@ -515,6 +517,7 @@ function registerCreatedRequest(protocol: string, payload: CreateRequestPayload)
 	mockRequests.unshift({
 		protocol,
 		corporateEmail: requester.corporateEmail,
+		requesterUserId: getMockSessionUser()?.id,
 		createdAt: now,
 		processName: payload.demand.processName,
 		priority: null,
@@ -1048,7 +1051,10 @@ function syncStatusProjections(
 	}
 
 	const queueItem = findQueueItem(protocol);
-	if (queueItem) queueItem.status = statusName;
+	if (queueItem) {
+		if (queueItem.status !== statusName) delete queueItem.closureRef;
+		queueItem.status = statusName;
+	}
 }
 
 function applyTriageProjection(
@@ -1554,6 +1560,118 @@ export const mockInternalRequestDetails: InternalRequestDetail[] = [
 		triage: null
 	}
 ];
+
+// Fixtures exclusivas da RF02: vínculo direto com o usuário fictício 4
+// (Solicitante). Não inferir titularidade pelo e-mail nem alterar fixtures legados.
+for (const [protocol, status] of [
+	['MAAT-RF2A-AAA2', 'Concluído'],
+	['MAAT-RF2A-AAA3', 'Cancelado']
+] as const) {
+	const sourceProtocol = 'MAAT-6N2W-8VBM';
+	const summary = mockRequests.find((item) => item.protocol === sourceProtocol);
+	const detail = mockRequestDetails.find((item) => item.protocol === sourceProtocol);
+	const internal = mockInternalRequestDetails.find((item) => item.protocol === sourceProtocol);
+	if (!summary || !detail || !internal) throw new Error('Fixture RF02 de origem ausente.');
+	const title = `RF02 — solicitação ${status.toLowerCase()}`;
+	mockRequests.push({
+		...structuredClone(summary),
+		protocol,
+		status,
+		requesterUserId: '4',
+		demandTitle: title,
+		requesterName: 'Carlos Mendes',
+		corporateEmail: 'solicitante@maat.com.br'
+	});
+	mockRequestDetails.push({
+		...structuredClone(detail),
+		protocol,
+		status,
+		demandTitle: title,
+		conclusion: null,
+		lastTechnicalMessage: `Solicitação ${status.toLowerCase()}.`
+	});
+	mockInternalRequestDetails.push({
+		...structuredClone(internal),
+		protocol,
+		status,
+		demand: { ...internal.demand, title },
+		triage: null,
+		lastTechnicalMessage: `Solicitação ${status.toLowerCase()}.`,
+		requester: {
+			...internal.requester,
+			fullName: 'Carlos Mendes',
+			corporateEmail: 'solicitante@maat.com.br'
+		}
+	});
+}
+
+// Referência do encerramento no mesmo store das demais projeções.
+export function getMockClosureRef(protocol: string, userId: string): string | undefined {
+	const item = findQueueItem(protocol);
+	const detail = findInternalDetail(protocol);
+	if (!item || !detail || item.requesterUserId !== userId) return undefined;
+	if (detail.status !== 'Concluído' && detail.status !== 'Cancelado') return undefined;
+	return (item.closureRef ??= crypto.randomUUID());
+}
+
+// Mock em memória: as projeções do mesmo runtime compartilham a transição.
+// A persistência, a auditoria e a concorrência reais são verificadas no backend.
+export function reopenOwnedRequestMock(protocol: string, userId: string, closureRef: string): void {
+	const statuses = getMockStatuses();
+	const detail = hydrateRequestMock(protocol, statuses);
+	const item = findQueueItem(protocol);
+	if (!detail || !item || item.requesterUserId !== userId) {
+		throw new ApiError(404, 'Solicitação não encontrada.');
+	}
+	const current = getMockClosureRef(protocol, userId);
+	if (!current || current !== closureRef.toLowerCase()) {
+		throw new ApiError(
+			409,
+			'Encerramento inelegível ou confirmação obsoleta.',
+			'rf02_closure_conflict'
+		);
+	}
+	const now = new Date().toISOString();
+	clearStatusOverlay(protocol);
+	if (hasSessionStorage()) {
+		try {
+			sessionStorage.removeItem(triageSessionKey(protocol));
+		} catch {
+			// O mock permanece utilizável sem armazenamento de sessão.
+		}
+	}
+	syncStatusProjections(
+		protocol,
+		'Solicitação enviada',
+		statuses,
+		now,
+		true,
+		'Solicitação reaberta pelo titular.'
+	);
+	delete item.closureRef;
+	item.assigneeId = null;
+	item.assignee = null;
+	item.priority = null;
+	detail.assignee = null;
+	detail.mappingAssignee = null;
+	detail.mappingAssigneeId = null;
+	detail.assigneeDeadline = null;
+	detail.priority = null;
+	detail.prioritization = { score: null, maxScore: 50, label: null, notes: {} };
+	detail.triage = null;
+	detail.mappingDate = null;
+	detail.meeting = null;
+	detail.correctionAlert = null;
+	const publicDetail = findPublicDetail(protocol);
+	if (publicDetail) {
+		publicDetail.assigneeName = null;
+		publicDetail.mappingDate = null;
+		publicDetail.meeting = null;
+		publicDetail.estimatedCompletion = null;
+		publicDetail.conclusion = null;
+		publicDetail.nextStep = 'Aguarde a triagem da solicitação.';
+	}
+}
 
 export function getInternalRequestMock(protocol: string): Promise<InternalRequestDetail> {
 	const normalized = protocol.toLowerCase().trim();

@@ -61,6 +61,7 @@ export interface AuditHistoryDetail {
 
 export const STATUS_AUDIT_ACTION_TYPES = [
 	'request.status_change',
+	'request.reopen',
 	'request.override_status_admin',
 	'request.triage',
 	'request.access_denied'
