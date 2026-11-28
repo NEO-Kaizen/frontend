@@ -1,4 +1,5 @@
 import { browser } from '$app/environment';
+import { TOAST_DISPLAY_DURATION_MS } from '$lib/constants/toast';
 
 export type ToastType = 'success' | 'error' | 'info' | 'warning';
 
@@ -21,7 +22,7 @@ class ToastState {
 
 		setTimeout(() => {
 			this.remove(id);
-		}, 4000);
+		}, TOAST_DISPLAY_DURATION_MS);
 	}
 
 	remove(id: string) {

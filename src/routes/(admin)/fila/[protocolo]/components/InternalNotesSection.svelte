@@ -5,6 +5,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import Textarea from '$lib/components/Textarea.svelte';
 	import { toastState } from '$lib/states/toast.svelte';
+	import { canAccessCurrentResponsible } from '$lib/utils/permission-checks';
 	import {
 		createInternalNote,
 		getInternalNotes,
@@ -29,26 +30,32 @@
 	// páginas mais antigas carregadas sob demanda via scroll-up (D-N5/D-N8).
 	interface Props {
 		protocol: string;
+		assigneeId: string | null;
+		mappingAssigneeId: string | null;
 		items: TimelineItem[];
 		nextCursor: string | null;
 		triages: TriageHistoryEntry[];
 		mappings: MappingHistoryEntry[];
 		loadError: string | null;
+		loadRetryable: boolean;
 		currentUserId: string;
 		onNotesLoaded: (response: InternalNotesResponse) => void;
 		onOlderLoaded: (olderItems: TimelineItem[], nextCursor: string | null) => void;
-		onLoadError: (message: string) => void;
+		onLoadError: (message: string, retryable: boolean) => void;
 		onNoteCreated: (note: TimelineNote) => void;
 		onMarkedRead: () => void;
 	}
 
 	let {
 		protocol,
+		assigneeId,
+		mappingAssigneeId,
 		items,
 		nextCursor,
 		triages,
 		mappings,
 		loadError,
+		loadRetryable,
 		currentUserId,
 		onNotesLoaded,
 		onOlderLoaded,
@@ -65,6 +72,18 @@
 	let isMarkingRead = $state(false);
 	let lastMarkedNoteId = $state<string | null>(null);
 
+	// Leitura e escrita são chaves distintas: quem só lê continua vendo a
+	// timeline, mas o composer não aparece. A escrita também respeita a
+	// custódia `assigned` (o Responsável da triagem ou do mapeamento envia).
+	const canWrite = $derived(
+		canAccessCurrentResponsible(
+			'internal_note:write',
+			page.data.user,
+			assigneeId,
+			mappingAssigneeId
+		)
+	);
+
 	// Página mais recente invertida para ordem canônica → última nota dela é a
 	// mais nova da timeline (alvo do markThrough, §7).
 	let latestNoteId = $derived(
@@ -76,6 +95,7 @@
 	let sentinelEl = $state<HTMLElement | null>(null);
 	let isLoadingOlder = $state(false);
 	let olderError = $state<string | null>(null);
+	let olderErrorRetryable = $state(false);
 
 	const EVENT_ICONS: Record<TimelineEventAction, IconName> = {
 		'request.assign': 'person',
@@ -243,7 +263,7 @@
 		isReloading = false;
 
 		if (!result.ok) {
-			onLoadError(result.error.message);
+			onLoadError(result.error.message, result.error.retryable === true);
 			return;
 		}
 
@@ -258,11 +278,13 @@
 		if (!nextCursor || isLoadingOlder) return;
 		isLoadingOlder = true;
 		olderError = null;
+		olderErrorRetryable = false;
 		const result = await getInternalNotes(protocol, { cursor: nextCursor });
 		isLoadingOlder = false;
 
 		if (!result.ok) {
 			olderError = result.error.message;
+			olderErrorRetryable = result.error.retryable === true;
 			return;
 		}
 
@@ -305,7 +327,7 @@
 
 	async function handleSubmit(event: SubmitEvent): Promise<void> {
 		event.preventDefault();
-		if (isSubmitting) return;
+		if (isSubmitting || !canWrite) return;
 
 		contentError = validateInternalNoteContent(content);
 		if (contentError) return;
@@ -341,9 +363,11 @@
 		<div class="load-state error-state" role="alert">
 			<Icon iconName="warning" iconSize="lg" />
 			<p>{loadError}</p>
-			<Button variant="outline" loading={isReloading} onclick={handleReload}>
-				Tentar novamente
-			</Button>
+			{#if loadRetryable}
+				<Button variant="outline" loading={isReloading} onclick={handleReload}>
+					Tentar novamente
+				</Button>
+			{/if}
 		</div>
 	{:else}
 		<div class="notes-timeline" bind:this={timelineEl} aria-live="polite">
@@ -351,21 +375,27 @@
 				<div class="load-state empty-state">
 					<Icon iconName="description" iconSize="xl" />
 					<h3>Nenhuma observação interna</h3>
-					<p>Use o campo abaixo para registrar a primeira informação para a equipe.</p>
+					<p>
+						{canWrite
+							? 'Use o campo abaixo para registrar a primeira informação para a equipe.'
+							: 'Não há observações internas registradas para esta solicitação.'}
+					</p>
 				</div>
 			{:else}
 				{#if nextCursor !== null || isLoadingOlder || olderError}
 					<div class="older-loader" bind:this={sentinelEl}>
 						{#if olderError}
 							<span>{olderError}</span>
-							<button
-								type="button"
-								class="loader-retry"
-								disabled={isLoadingOlder}
-								onclick={handleRetryOlder}
-							>
-								Tentar novamente
-							</button>
+							{#if olderErrorRetryable}
+								<button
+									type="button"
+									class="loader-retry"
+									disabled={isLoadingOlder}
+									onclick={handleRetryOlder}
+								>
+									Tentar novamente
+								</button>
+							{/if}
 						{:else if isLoadingOlder}
 							<span class="loader-spinner" aria-hidden="true"></span>
 							<span>Carregando observações anteriores…</span>
@@ -383,7 +413,7 @@
 								<article class="note-entry">
 									<div class="note-meta">
 										<strong>{item.author.name}</strong>
-										<span>({item.author.role})</span>
+										<span>({item.author.profile.name})</span>
 										{#if isCurrentUser(item)}<span>· você</span>{/if}
 										<time datetime={item.createdAt}>{formatDateTime(item.createdAt)}</time>
 									</div>
@@ -411,7 +441,7 @@
 									<div class="event-meta">
 										{#if item.actor}
 											<strong>{item.actor.name}</strong>
-											<span>({item.actor.role})</span>
+											<span>({item.actor.profile?.name ?? 'Perfil não informado'})</span>
 										{:else}
 											<span>Sistema</span>
 										{/if}
@@ -470,25 +500,31 @@
 			onToggleMappingRow={toggleMappingRow}
 		/>
 
-		<form class="composer" onsubmit={handleSubmit}>
-			<Textarea
-				label="Adicionar observação"
-				placeholder="Escreva uma informação para a equipe interna"
-				rows={4}
-				maxlength={INTERNAL_NOTE_MAX_LENGTH}
-				disabled={isSubmitting}
-				error={contentError ?? ''}
-				bind:value={content}
-				oninput={handleContentInput}
-			/>
+		{#if canWrite}
+			<form class="composer" onsubmit={handleSubmit}>
+				<Textarea
+					label="Adicionar observação"
+					placeholder="Escreva uma informação para a equipe interna"
+					rows={4}
+					maxlength={INTERNAL_NOTE_MAX_LENGTH}
+					disabled={isSubmitting}
+					error={contentError ?? ''}
+					bind:value={content}
+					oninput={handleContentInput}
+				/>
 
-			<div class="composer-footer">
-				<Button type="submit" loading={isSubmitting} disabled={!content.trim()}>
-					<Icon iconName="send" iconSize="sm" />
-					{isSubmitting ? 'Publicando…' : 'Adicionar observação'}
-				</Button>
-			</div>
-		</form>
+				<div class="composer-footer">
+					<Button type="submit" loading={isSubmitting} disabled={!content.trim()}>
+						<Icon iconName="send" iconSize="sm" />
+						{isSubmitting ? 'Publicando…' : 'Adicionar observação'}
+					</Button>
+				</div>
+			</form>
+		{:else}
+			<p class="read-only-note" role="note">
+				Seu perfil permite consultar as observações internas, mas não adicionar novas.
+			</p>
+		{/if}
 	{/if}
 </section>
 
@@ -908,6 +944,16 @@
 		padding: var(--spacing-md);
 		border-top: var(--border-default);
 		background: var(--background-color);
+	}
+
+	.read-only-note {
+		margin: 0;
+		padding: var(--spacing-md);
+		border-top: var(--border-default);
+		background: var(--background-color);
+		color: var(--gray);
+		font-family: var(--font-inter);
+		font-size: 13px;
 	}
 
 	.composer-footer {

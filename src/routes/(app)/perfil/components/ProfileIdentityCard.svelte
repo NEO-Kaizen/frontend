@@ -241,7 +241,7 @@
 
 		<div class="detail">
 			<span class="detail-label">Perfil</span>
-			<p>{profile.role}</p>
+			<p>{profile.profile.name}</p>
 		</div>
 
 		<a class="password-link" href={resolve('/(app)/redefinir-senha')}>Alterar senha</a>

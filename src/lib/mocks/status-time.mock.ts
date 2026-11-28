@@ -117,10 +117,10 @@ const EVENTS_BY_PROTOCOL: Record<string, RequestAuditEvent[]> = {
 			'MAAT-8K3P-9X2M',
 			'request.access_denied',
 			user(118, 'Analista Externo'),
+			// Como o backend grava: sem Status de origem/destino.
 			{
-				previous_value: 'Pendente de informações',
-				new_value: 'Elegível',
-				change_origin: 'internal'
+				note: 'Access denied: user is not the assigned analyst',
+				change_origin: 'system'
 			},
 			'2026-11-18T10:12:00.000Z'
 		),
@@ -150,9 +150,14 @@ const EVENTS_BY_PROTOCOL: Record<string, RequestAuditEvent[]> = {
 			'MAAT-8K3P-9X2M',
 			'request.triage',
 			user(117, 'Analista Teste'),
+			// Como o backend grava: valores em JSON, com o Status em `status`.
 			{
-				previous_value: 'Em triagem',
-				new_value: 'Aguardando mapeamento',
+				previous_value: JSON.stringify({ status: 'Em triagem', category: 'Automação' }),
+				new_value: JSON.stringify({
+					triageId: '00000000-0000-4000-8000-000000000107',
+					exitStatus: 5,
+					status: 'Aguardando mapeamento'
+				}),
 				change_origin: 'internal'
 			},
 			'2026-11-18T16:45:00.000Z'

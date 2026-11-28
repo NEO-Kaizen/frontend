@@ -10,6 +10,7 @@ A aplicação possui diferentes níveis de acesso, permitindo que **solicitantes
 
 - [Tecnologias](#tecnologias)
 - [Instalação](#instalação)
+- [Deploy](#deploy)
 - [Funcionalidades](#funcionalidades)
 - [Considerações Técnicas](#considerações-técnicas)
 
@@ -66,6 +67,12 @@ Para iniciar e abrir automaticamente no navegador:
 npm run dev -- --open
 ```
 
+## Deploy
+
+O procedimento para publicar a aplicação atrás de um proxy reverso e em um subcaminho,
+incluindo variáveis de ambiente e verificações pós-deploy, está em
+[docs/05-Deploy.md](docs/05-Deploy.md).
+
 ## Funcionalidades
 
 - **Página inicial:** apresenta o portal e permite o acesso às principais funcionalidades da aplicação.
@@ -76,6 +83,7 @@ npm run dev -- --open
 - **Dashboard:** disponibiliza informações para acompanhamento das solicitações.
 - **Histórico:** permite acompanhar registros e atividades realizadas no sistema.
 - **Gerenciamento de usuários:** permite que administradores realizem o gerenciamento dos usuários da aplicação.
+- **Gestão de perfis:** permite criar, editar, duplicar e ativar/desativar perfis de acesso, com composição de permissões e escopos.
 - **Controle de acesso:** disponibiliza funcionalidades de acordo com o perfil e as permissões do usuário.
 
 > Algumas funcionalidades ainda estão em desenvolvimento e serão disponibilizadas progressivamente.
@@ -142,6 +150,8 @@ A comunicação com o Backend é centralizada nas camadas de `api` e `services`,
 | Analista      | Gerenciar solicitações e acessar a fila    |
 | Gestor        | Acompanhar solicitações e histórico        |
 | Administrador | Gerenciar usuários e áreas administrativas |
+
+Os perfis acima são os iniciais; perfis customizados podem ser criados e mantidos na aba **Perfis** de `/usuarios`, conforme os tipos em [`src/lib/types/profile.ts`](src/lib/types/profile.ts) e os endpoints descritos em [`docs/02-Arquitetura-Frontend.md`](docs/02-Arquitetura-Frontend.md).
 
 As regras de acesso serão implementadas e refinadas conforme a evolução do projeto.
 

@@ -6,6 +6,7 @@
 	import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
 	import { isPortalConfigLoadBlocked } from '$lib/config/portal-config-load';
 	import { saveCategories } from '$lib/config/portal-config.service';
+	import { has } from '$lib/services/access.service';
 	import { SectionState } from '$lib/states/section.svelte';
 	import type { CategoriesSection, PortalCategory } from '$lib/types/portal-config';
 	import { nextId, removeById, replaceById } from '$lib/utils/lists';
@@ -31,6 +32,8 @@
 	// Leitura autoritativa falhou: o draft pode ser o fallback local — bloqueia
 	// edição e salvamento até a revalidação.
 	const loadFailed = $derived(isPortalConfigLoadBlocked(page.data));
+	const canEdit = $derived(has('category:manage', page.data.user));
+	const readOnly = $derived(loadFailed || !canEdit);
 
 	// Erro global da lista (Card 5) — nome vazio, duplicado, nenhuma ativa ou
 	// limite de itens. Sem erro, fica null e o campo não bloqueia o salvamento.
@@ -87,7 +90,7 @@
 	}
 
 	async function handleSave() {
-		if (loadFailed) return;
+		if (readOnly) return;
 		notifySectionSave(await section.save());
 	}
 
@@ -154,7 +157,7 @@
 	}
 
 	function openCellEditor(category: PortalCategory, field: EditableCategoryField) {
-		if (section.saving || loadFailed) return;
+		if (section.saving || readOnly) return;
 		editingCell = { id: category.id, field };
 		nameError = false;
 		descriptionError = false;
@@ -268,6 +271,7 @@
 			restorable={section.restorable}
 			{invalid}
 			{loadFailed}
+			readOnly={!canEdit}
 			onSave={handleSave}
 			onCancel={() => section.reset()}
 			onRestoreDefaults={() => section.restoreDefaults()}
@@ -279,7 +283,7 @@
 			<Button
 				variant="secondary"
 				disabled={section.saving ||
-					loadFailed ||
+					readOnly ||
 					section.draft.categories.length >= MAX_CATEGORIES ||
 					hasPendingCategory}
 				onclick={handleAdd}
@@ -338,7 +342,7 @@
 										title="Arraste para reordenar (ou use as setas para cima/baixo)"
 										aria-label="Reordenar categoria"
 										draggable={!section.saving &&
-											!loadFailed &&
+											!readOnly &&
 											!(editingCell && editingCell.id === category.id)}
 										ondragstart={(event) => handleDragStart(event, category.id)}
 										ondragend={handleDragEnd}
@@ -376,7 +380,7 @@
 											type="button"
 											class="cell-button name-button"
 											aria-label="Editar nome de {category.name}"
-											disabled={section.saving || loadFailed}
+											disabled={section.saving || readOnly}
 											onclick={() => openCellEditor(category, 'name')}
 										>
 											<span class="cell-text">{category.name}</span>
@@ -406,7 +410,7 @@
 										type="button"
 										class="cell-button description-button"
 										aria-label="Editar descrição de {category.name}"
-										disabled={section.saving || loadFailed}
+										disabled={section.saving || readOnly}
 										onclick={() => openCellEditor(category, 'description')}
 									>
 										<span class="cell-text">{category.description || '—'}</span>
@@ -425,7 +429,7 @@
 									aria-pressed={category.isActive}
 									aria-label={category.isActive ? 'Inativar categoria' : 'Ativar categoria'}
 									title={category.isActive ? 'Inativar categoria' : 'Ativar categoria'}
-									disabled={section.saving || loadFailed || !canToggleInactive(category)}
+									disabled={section.saving || readOnly || !canToggleInactive(category)}
 									onclick={() => toggleActive(category)}
 								>
 									{category.isActive ? 'Ativa' : 'Inativa'}

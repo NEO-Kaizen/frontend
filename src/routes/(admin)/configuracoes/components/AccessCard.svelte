@@ -6,6 +6,7 @@
 	import { DEFAULT_PORTAL_CONFIG } from '$lib/config/portal-defaults';
 	import { isPortalConfigLoadBlocked } from '$lib/config/portal-config-load';
 	import { saveAccess } from '$lib/config/portal-config.service';
+	import { has } from '$lib/services/access.service';
 	import { SectionState } from '$lib/states/section.svelte';
 	import type { AccessSection, SolicitationMode } from '$lib/types/portal-config';
 	import { notifySectionSave } from '$lib/utils/feedback';
@@ -21,6 +22,8 @@
 	// Leitura autoritativa falhou: o draft pode ser o fallback local — bloqueia
 	// edição e salvamento até a revalidação.
 	const loadFailed = $derived(isPortalConfigLoadBlocked(page.data));
+	const canEdit = $derived(has('portal_setting:manage', page.data.user));
+	const readOnly = $derived(loadFailed || !canEdit);
 
 	// O modo de abertura muda quem pode acessar o portal nos dois sentidos, então
 	// toda mudança pede confirmação antes de aplicar. Não bloqueia — apenas
@@ -39,14 +42,14 @@
 	}
 
 	async function persistSave(): Promise<void> {
-		if (loadFailed) return;
+		if (readOnly) return;
 		if (notifySectionSave(await section.save())) {
 			await invalidateAll();
 		}
 	}
 
 	async function handleSave(): Promise<void> {
-		if (loadFailed) return;
+		if (readOnly) return;
 		confirmChange = true;
 	}
 </script>
@@ -62,13 +65,14 @@
 			saving={section.saving}
 			restorable={section.restorable}
 			{loadFailed}
+			readOnly={!canEdit}
 			onSave={handleSave}
 			onCancel={() => section.reset()}
 			onRestoreDefaults={() => section.restoreDefaults()}
 		/>
 	{/snippet}
 
-	<fieldset class="access-group" disabled={loadFailed}>
+	<fieldset class="access-group" disabled={readOnly}>
 		<legend class="access-legend">
 			<span class="access-legend-text">Modo de abertura do portal</span>
 			<InfoTip

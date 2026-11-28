@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import Button from '$lib/components/Button.svelte';
+	import { has } from '$lib/services/access.service';
 	import ProfessionalCard from './components/ProfessionalCard.svelte';
 	import ProfileIdentityCard from './components/ProfileIdentityCard.svelte';
 	import RequesterCard from './components/RequesterCard.svelte';
@@ -34,11 +35,11 @@
 
 		<RequesterCard
 			requester={profile.requester}
-			canEditAdministrativeFields={profile.role === 'Administrador'}
+			canEditAdministrativeFields={has('user:manage', data.user)}
 			onSaved={handleChanged}
 		/>
 
-		{#if profile.role === 'Analista'}
+		{#if profile.professional}
 			<ProfessionalCard
 				professional={profile.professional}
 				categories={data.portalConfig.categories}

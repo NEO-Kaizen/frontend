@@ -8,13 +8,43 @@
 
 	interface Props {
 		users: AdminUser[];
+		canManage: boolean;
+		actionsUnavailableReason?: string;
+		administrableProfileIds: string[];
+		/** O backend proíbe gerenciar a própria conta pelas rotas administrativas. */
+		currentUserId: string;
 
 		onaction: (user: AdminUser, action: UserAction) => void;
 	}
 
-	let { users, onaction }: Props = $props();
+	let {
+		users,
+		canManage,
+		actionsUnavailableReason = '',
+		administrableProfileIds,
+		currentUserId,
+		onaction
+	}: Props = $props();
+
+	type ActionsState = { available: true } | { available: false; reason: string };
 
 	let openMenuId = $state<string | null>(null);
+
+	function actionsState(user: AdminUser): ActionsState {
+		if (user.id === currentUserId) {
+			return { available: false, reason: 'O backend proíbe gerenciar a própria conta.' };
+		}
+		if (actionsUnavailableReason) {
+			return { available: false, reason: actionsUnavailableReason };
+		}
+		if (!canManage) {
+			return { available: false, reason: 'Seu perfil não permite gerenciar usuários.' };
+		}
+		if (!administrableProfileIds.includes(user.profile.id)) {
+			return { available: false, reason: 'Seu perfil não tem autoridade sobre este usuário.' };
+		}
+		return { available: true };
+	}
 
 	function toggleMenu(userId: string) {
 		openMenuId = openMenuId === userId ? null : userId;
@@ -32,7 +62,7 @@
 		<colgroup>
 			<col class="col-name" />
 			<col class="col-email" />
-			<col class="col-role" />
+			<col class="col-profile" />
 			<col class="col-status" />
 			<col class="col-actions" />
 		</colgroup>
@@ -56,6 +86,7 @@
 		<tbody>
 			{#each users as user (user.id)}
 				{@const avatarUrl = resolveApiAssetUrl(user.avatarUrl)}
+				{@const actions = actionsState(user)}
 				<tr>
 					<td>
 						<div class="user-cell">
@@ -86,16 +117,20 @@
 					</td>
 
 					<td>
-						<span class="role-badge">
-							{user.role}
+						<span class="profile-badge">
+							{user.profile.name}
 						</span>
 					</td>
 
 					<td>
 						<span
-							class:active-status={user.status === 'Ativo'}
-							class:inactive-status={user.status === 'Inativo'}
-							class="status"
+							class={[
+								'status',
+								{
+									'active-status': user.status === 'Ativo',
+									'inactive-status': user.status === 'Inativo'
+								}
+							]}
 						>
 							<span class="status-dot" aria-hidden="true"></span>
 
@@ -104,9 +139,7 @@
 					</td>
 
 					<td>
-						{#if user.role === 'Administrador'}
-							<span class="no-actions" aria-hidden="true"> — </span>
-						{:else}
+						{#if actions.available}
 							<div class="actions">
 								<div class="menu-wrapper">
 									<button
@@ -177,6 +210,18 @@
 									{/if}
 								</div>
 							</div>
+						{:else}
+							<div class="actions">
+								<button
+									type="button"
+									class="icon-button"
+									disabled
+									title={actions.reason}
+									aria-label={`Ações indisponíveis para ${user.name}: ${actions.reason}`}
+								>
+									<span class="dots-icon" aria-hidden="true"> ••• </span>
+								</button>
+							</div>
 						{/if}
 					</td>
 				</tr>
@@ -213,7 +258,7 @@
 		width: 32%;
 	}
 
-	.col-role {
+	.col-profile {
 		width: 15%;
 	}
 
@@ -333,7 +378,7 @@
 		text-overflow: ellipsis;
 	}
 
-	.role-badge {
+	.profile-badge {
 		display: inline-flex;
 
 		max-width: 100%;
@@ -397,15 +442,6 @@
 		justify-content: center;
 	}
 
-	.no-actions {
-		display: flex;
-
-		align-items: center;
-		justify-content: center;
-
-		color: var(--gray);
-	}
-
 	.menu-wrapper {
 		position: relative;
 	}
@@ -435,6 +471,12 @@
 		background-color: var(--background-color);
 
 		color: var(--primary-color);
+	}
+
+	.icon-button:disabled {
+		cursor: not-allowed;
+
+		opacity: 0.45;
 	}
 
 	.dots-icon {

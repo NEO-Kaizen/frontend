@@ -99,21 +99,16 @@ export function freeStatusOptions(statuses: PortalStatus[]): { value: string; la
 		.map((status) => ({ value: String(status.id), label: status.name }));
 }
 
-// v4 — alvos de `PATCH /requests/:protocol/status` (§3.3). `admin` faz bypass
-// (qualquer `isActive`); `analyst` fica limitado a `free` (isRestricted=false e
-// triageMode/mappingMode === free). O status atual é sempre excluído (422 no
-// backend quando alvo == atual).
 export function statusChangeTargets(
-	mode: 'admin' | 'analyst',
 	statuses: PortalStatus[],
-	currentStatusId: number | null
+	currentStatusId: number | null,
+	allowOverride: boolean
 ): { value: string; label: string }[] {
-	const options =
-		mode === 'admin'
-			? statuses
-					.filter((status) => status.isActive)
-					.map((status) => ({ value: String(status.id), label: status.name }))
-			: freeStatusOptions(statuses);
+	const options = allowOverride
+		? statuses
+				.filter((status) => status.isActive)
+				.map((status) => ({ value: String(status.id), label: status.name }))
+		: freeStatusOptions(statuses);
 	return options.filter((option) => Number(option.value) !== currentStatusId);
 }
 

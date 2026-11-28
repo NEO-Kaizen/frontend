@@ -20,7 +20,7 @@ import type {
 	UpdateInternalRequestPayload
 } from '$lib/types/request';
 import { ApiError, type Result } from '$lib/types/result';
-
+import { isRetryableApiStatus } from '$lib/utils/api-error';
 import { isProtocol, isValidEmail } from '$lib/utils/validations';
 
 type SearchRequestsResult = Result<PaginatedResponse<RequestSummary>> | Result<RequestDetail>;
@@ -35,6 +35,48 @@ const ALLOWED_MIME_TYPES = [
 	'image/png',
 	'image/jpeg'
 ];
+
+function resolveRequestError(error: ApiError, fallback: string): string {
+	switch (error.status) {
+		case 401:
+			return 'Sua sessão expirou. Entre novamente para continuar.';
+		case 403:
+			return 'Você não tem permissão para consultar estas solicitações.';
+		case 404:
+			return 'Solicitação não encontrada.';
+		case 429:
+			return 'Muitas consultas em sequência. Aguarde um momento.';
+		default:
+			return fallback;
+	}
+}
+
+type MutationErrorMessages = {
+	fallback: string;
+	forbidden: string;
+	notFound?: string;
+};
+
+function resolveMutationError(error: ApiError, messages: MutationErrorMessages): string {
+	const { fallback, forbidden, notFound = 'Solicitação não encontrada.' } = messages;
+
+	switch (error.status) {
+		case 401:
+			return 'Sua sessão expirou. Entre novamente para continuar.';
+		case 403:
+			return forbidden;
+		case 404:
+			return notFound;
+		case 429:
+			return 'Muitas tentativas. Aguarde um momento.';
+		case 400:
+		case 422:
+			// 400/422 carregam validações de contrato; 5xx/transporte caem no fallback.
+			return error.message || fallback;
+		default:
+			return fallback;
+	}
+}
 
 export async function listRequests(
 	query: ListRequestsQuery,
@@ -53,7 +95,8 @@ export async function listRequests(
 				ok: false,
 				error: {
 					status: error.status,
-					message: 'Não foi possível carregar as solicitações.'
+					retryable: isRetryableApiStatus(error.status),
+					message: resolveRequestError(error, 'Não foi possível carregar as solicitações.')
 				}
 			};
 		}
@@ -61,6 +104,7 @@ export async function listRequests(
 		return {
 			ok: false,
 			error: {
+				retryable: true,
 				message: 'Não foi possível conectar ao servidor.'
 			}
 		};
@@ -84,7 +128,8 @@ export async function listQueueRequests(
 				ok: false,
 				error: {
 					status: error.status,
-					message: 'Não foi possível carregar a fila centralizada.'
+					retryable: isRetryableApiStatus(error.status),
+					message: resolveRequestError(error, 'Não foi possível carregar a fila centralizada.')
 				}
 			};
 		}
@@ -92,6 +137,7 @@ export async function listQueueRequests(
 		return {
 			ok: false,
 			error: {
+				retryable: true,
 				message: 'Não foi possível conectar ao servidor.'
 			}
 		};
@@ -114,7 +160,8 @@ export async function getQueueMetrics(
 				ok: false,
 				error: {
 					status: error.status,
-					message: 'Não foi possível carregar as métricas da fila.'
+					retryable: isRetryableApiStatus(error.status),
+					message: resolveRequestError(error, 'Não foi possível carregar as métricas da fila.')
 				}
 			};
 		}
@@ -122,6 +169,7 @@ export async function getQueueMetrics(
 		return {
 			ok: false,
 			error: {
+				retryable: true,
 				message: 'Não foi possível conectar ao servidor.'
 			}
 		};
@@ -141,13 +189,12 @@ export async function getRequestByProtocol(
 		};
 	} catch (error) {
 		if (error instanceof ApiError) {
-			const message = error.status === 404 ? 'Solicitação não encontrada.' : error.message;
-
 			return {
 				ok: false,
 				error: {
 					status: error.status,
-					message
+					retryable: isRetryableApiStatus(error.status),
+					message: resolveRequestError(error, 'Não foi possível carregar a solicitação.')
 				}
 			};
 		}
@@ -155,6 +202,7 @@ export async function getRequestByProtocol(
 		return {
 			ok: false,
 			error: {
+				retryable: true,
 				message: 'Não foi possível conectar ao servidor.'
 			}
 		};
@@ -170,10 +218,19 @@ export async function getInternalRequest(
 		return { ok: true, data };
 	} catch (error) {
 		if (error instanceof ApiError) {
-			const message = error.status === 404 ? 'Solicitação não encontrada.' : error.message;
-			return { ok: false, error: { status: error.status, message } };
+			return {
+				ok: false,
+				error: {
+					status: error.status,
+					retryable: isRetryableApiStatus(error.status),
+					message: resolveRequestError(error, 'Não foi possível carregar a solicitação.')
+				}
+			};
 		}
-		return { ok: false, error: { message: 'Não foi possível conectar ao servidor.' } };
+		return {
+			ok: false,
+			error: { retryable: true, message: 'Não foi possível conectar ao servidor.' }
+		};
 	}
 }
 
@@ -187,15 +244,23 @@ export async function updateInternalRequest(
 		return { ok: true, data };
 	} catch (error) {
 		if (error instanceof ApiError) {
-			const message =
-				error.status === 404
-					? 'Solicitação não encontrada.'
-					: error.status === 403
-						? 'Você não tem permissão para editar esta solicitação.'
-						: 'Não foi possível salvar as alterações.';
-			return { ok: false, error: { status: error.status, message } };
+			const message = resolveMutationError(error, {
+				fallback: 'Não foi possível salvar as alterações.',
+				forbidden: 'Você não tem permissão para editar esta solicitação.'
+			});
+			return {
+				ok: false,
+				error: {
+					status: error.status,
+					retryable: isRetryableApiStatus(error.status),
+					message
+				}
+			};
 		}
-		return { ok: false, error: { message: 'Não foi possível salvar as alterações.' } };
+		return {
+			ok: false,
+			error: { retryable: true, message: 'Não foi possível salvar as alterações.' }
+		};
 	}
 }
 
@@ -215,6 +280,7 @@ export async function searchRequests(value: string): Promise<SearchRequestsResul
 		return {
 			ok: false,
 			error: {
+				retryable: false,
 				message: 'Informe um protocolo ou e-mail.'
 			}
 		};
@@ -233,6 +299,7 @@ export async function searchRequests(value: string): Promise<SearchRequestsResul
 	return {
 		ok: false,
 		error: {
+			retryable: false,
 			message: 'Informe um protocolo ou e-mail válido.'
 		}
 	};
@@ -247,7 +314,7 @@ export async function submitDemand(
 	if (validation) {
 		return {
 			ok: false,
-			error: validation
+			error: { ...validation, retryable: false }
 		};
 	}
 
@@ -264,7 +331,12 @@ export async function submitDemand(
 				ok: false,
 				error: {
 					status: error.status,
-					message: error.message
+					retryable: isRetryableApiStatus(error.status),
+					message: resolveMutationError(error, {
+						fallback: 'Não foi possível enviar a solicitação.',
+						forbidden: 'Você não tem permissão para enviar esta solicitação.',
+						notFound: 'Não foi possível enviar a solicitação.'
+					})
 				}
 			};
 		}
@@ -272,6 +344,7 @@ export async function submitDemand(
 		return {
 			ok: false,
 			error: {
+				retryable: true,
 				message: 'Não foi possível conectar ao servidor.'
 			}
 		};
